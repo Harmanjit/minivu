@@ -445,7 +445,15 @@ final class EditProxy: @unchecked Sendable {
     }
 
     /// Renders `image` (extent at the origin) into a new mipmapped half-float
-    /// texture, top row first, as the canvas expects, in one GPU submission.
+    /// texture, top row first, as the canvas expects.
+    ///
+    /// Core Image submits its own command buffers and the mip chain follows
+    /// in a second one. Handing Core Image a command buffer of ours instead
+    /// (one submission for both) breaks renders it splits into tiles around
+    /// a `CIImageProcessorKernel`: tile intermediates are reused before our
+    /// buffer runs, so tiles come out swapped or black. Measured with oil
+    /// paint on a 6032 x 4032 image (four tiles): the top-left tile showed
+    /// the top-right one and the bottom-left stayed black.
     nonisolated static func renderTexture(_ image: CIImage, context: CIContext, gpu: GPU) throws -> MTLTexture {
         let width = max(1, Int(image.extent.width.rounded()))
         let height = max(1, Int(image.extent.height.rounded()))
@@ -453,22 +461,20 @@ final class EditProxy: @unchecked Sendable {
                                                                   height: height, mipmapped: true)
         descriptor.storageMode = .private
         descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
-        guard let texture = gpu.device.makeTexture(descriptor: descriptor),
-              let commands = gpu.queue.makeCommandBuffer() else {
+        guard let texture = gpu.device.makeTexture(descriptor: descriptor) else {
             throw GPUError.allocationFailed("an edit texture")
         }
-        let destination = CIRenderDestination(mtlTexture: texture, commandBuffer: commands)
+        let destination = CIRenderDestination(mtlTexture: texture, commandBuffer: nil)
         destination.colorSpace = workingSpace
         destination.isFlipped = true
-        let task = try context.startTask(toRender: image, to: destination)
-        guard let blit = commands.makeBlitCommandEncoder() else {
+        _ = try context.startTask(toRender: image, to: destination).waitUntilCompleted()
+        guard let commands = gpu.queue.makeCommandBuffer(), let blit = commands.makeBlitCommandEncoder() else {
             throw GPUError.allocationFailed("a mipmap encoder")
         }
         blit.generateMipmaps(for: texture)
         blit.endEncoding()
         commands.commit()
         commands.waitUntilCompleted()
-        _ = try task.waitUntilCompleted()
         if let error = commands.error { throw error }
         return texture
     }
