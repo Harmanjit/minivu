@@ -75,6 +75,40 @@ final class ViewerWindow: NSWindow {
         NSApp.sendAction(.toggleFullScreenViewer, to: nil, from: sender)
     }
 
+    // MARK: - Undo
+
+    /// Handles Edit > Undo and Redo for the image being edited.
+    weak var editUndoTarget: ViewerEditUndoTarget?
+
+    static let undoAction = Selector(("undo:"))
+    static let redoAction = Selector(("redo:"))
+
+    /// ⌘Z. `NSWindow` itself answers `undo:` (for its undo manager), and the
+    /// window comes before its controller in the responder chain, so the
+    /// controller's image undo would never be reached; the window hands it on
+    /// instead. While a text field in an inspector is being edited, its typing
+    /// belongs to the window's undo manager as usual. Swift can't see
+    /// `NSWindow`'s method to override it, so these replace it by selector.
+    @objc func undo(_ sender: Any?) {
+        if isEditingText {
+            undoManager?.undo()
+        } else {
+            editUndoTarget?.undoEdit()
+        }
+    }
+
+    /// ⇧⌘Z.
+    @objc func redo(_ sender: Any?) {
+        if isEditingText {
+            undoManager?.redo()
+        } else {
+            editUndoTarget?.redoEdit()
+        }
+    }
+
+    /// A text field's field editor has the keyboard.
+    var isEditingText: Bool { firstResponder is NSText }
+
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(performClose(_:)):
@@ -82,10 +116,32 @@ final class ViewerWindow: NSWindow {
         case #selector(toggleFullScreen(_:)):
             menuItem.title = style == .fullScreen ? "Exit Full Screen" : "Enter Full Screen"
             return true
+        case Self.undoAction, Self.redoAction:
+            let redo = menuItem.action == Self.redoAction
+            if isEditingText, let manager = undoManager {
+                menuItem.title = redo ? manager.redoMenuItemTitle : manager.undoMenuItemTitle
+                return redo ? manager.canRedo : manager.canUndo
+            }
+            guard let target = editUndoTarget else {
+                menuItem.title = redo ? "Redo" : "Undo"
+                return false
+            }
+            let title = redo ? target.redoEditTitle : target.undoEditTitle
+            menuItem.title = title.map { (redo ? "Redo " : "Undo ") + $0 } ?? (redo ? "Redo" : "Undo")
+            return title != nil
         default:
             return super.validateMenuItem(menuItem)
         }
     }
+}
+
+/// Undo and redo of image edits, reached through `ViewerWindow`.
+protocol ViewerEditUndoTarget: AnyObject {
+    /// The step Undo would take back ("Crop"), or nil when there is none.
+    var undoEditTitle: String? { get }
+    var redoEditTitle: String? { get }
+    func undoEdit()
+    func redoEdit()
 }
 
 /// The viewer's content: the canvas filling the window, with the HUD and the
@@ -101,6 +157,23 @@ final class ViewerContainerView: NSView {
     var keyHandler: ((NSEvent) -> Bool)?
     /// Told the usable area on each layout, for the panels and HUD.
     var layoutHandler: ((CGRect) -> Void)?
+    /// Taken from the canvas's leading side while an edit tool pins the tools
+    /// panel open, so "fit" shows the whole image beside the inspector
+    /// rather than under it.
+    var canvasLeadingInset: CGFloat = 0 {
+        didSet { if canvasLeadingInset != oldValue { needsLayout = true } }
+    }
+    /// A view drawn over the image in its coordinates (the crop rectangle),
+    /// kept on the canvas's frame. Insert it above the canvas.
+    var canvasOverlay: NSView? {
+        didSet {
+            if oldValue !== canvasOverlay { oldValue?.removeFromSuperview() }
+            if let canvasOverlay, canvasOverlay.superview !== self {
+                canvasOverlay.frame = canvas.frame
+                addSubview(canvasOverlay, positioned: .above, relativeTo: canvas)
+            }
+        }
+    }
 
     init(canvas: ImageCanvasView) {
         self.canvas = canvas
@@ -146,7 +219,20 @@ final class ViewerContainerView: NSView {
     /// effect on the next layout pass, leaving the HUD a pass behind.
     override func layout() {
         let area = contentArea
-        if canvas.frame != area { canvas.frame = area }
+        var canvasFrame = area
+        let inset = min(canvasLeadingInset, area.width / 2)
+        canvasFrame.origin.x += inset
+        canvasFrame.size.width -= inset
+        if canvas.frame != canvasFrame || canvasOverlay?.frame != canvasFrame {
+            // Never animated, even inside a panel's slide: a Metal layer
+            // animating its bounds would stretch the image on screen.
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0
+                context.allowsImplicitAnimation = false
+                canvas.frame = canvasFrame
+                canvasOverlay?.frame = canvasFrame
+            }
+        }
         layoutHandler?(area)
         super.layout()
     }

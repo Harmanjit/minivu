@@ -13,6 +13,8 @@ final class ViewerHUD: NSVisualEffectView {
     private let nameLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(labelWithString: "")
     private let exposureLabel = NSTextField(labelWithString: "")
+    /// "Edited · Undo Crop" while the image has unsaved edits.
+    private let editLabel = NSTextField(labelWithString: "")
     private var fadeWork: DispatchWorkItem?
 
     private(set) var isPinned = false
@@ -38,7 +40,11 @@ final class ViewerHUD: NSVisualEffectView {
             label.textColor = .secondaryLabelColor
             label.lineBreakMode = .byTruncatingTail
         }
-        let stack = NSStackView(views: [nameLabel, detailLabel, exposureLabel])
+        editLabel.font = .systemFont(ofSize: 11, weight: .medium)
+        editLabel.textColor = .systemOrange
+        editLabel.lineBreakMode = .byTruncatingTail
+        editLabel.isHidden = true
+        let stack = NSStackView(views: [nameLabel, detailLabel, exposureLabel, editLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 2
@@ -68,13 +74,23 @@ final class ViewerHUD: NSVisualEffectView {
     ///   - exposure: nil for non-photos and until the metadata is read.
     ///   - part: where in the file this is ("Page 2 of 10", or "Frame 3 / 24"
     ///     for a paused animation); nil for an ordinary image.
+    ///   - edited: nil unless the image has unsaved edits; otherwise the step
+    ///     Undo would take back ("Crop"), or "" when there is none to show.
     func update(name: String, position: String, part: String? = nil, pixelSize: CGSize?, zoomPercent: Double?,
-                exposure: String?) {
+                exposure: String?, edited: String? = nil) {
         nameLabel.stringValue = name
         detailLabel.stringValue = Self.detailText(position: position, part: part, pixelSize: pixelSize,
                                                   zoomPercent: zoomPercent)
         exposureLabel.stringValue = exposure ?? ""
         exposureLabel.isHidden = exposure == nil
+        let editText = edited.map { Self.editedText(undoTitle: $0) } ?? ""
+        if editLabel.stringValue != editText { editLabel.stringValue = editText }
+        editLabel.isHidden = edited == nil
+    }
+
+    /// "Edited  ·  Undo Crop", or just "Edited".
+    nonisolated static func editedText(undoTitle: String) -> String {
+        undoTitle.isEmpty ? "Edited" : "Edited  ·  Undo \(undoTitle)"
     }
 
     /// "3 / 120 · Page 2 of 10 · 6000 × 4000 · 25%", leaving out what

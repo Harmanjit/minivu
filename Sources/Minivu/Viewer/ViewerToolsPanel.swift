@@ -1,18 +1,25 @@
 import AppKit
 
-/// The left fly-out: the editing tools of phases 4 to 6 (DESIGN.md 7).
+/// The left fly-out: the editing tools (DESIGN.md 5 and 7).
 ///
-/// Only a layout placeholder for now. Every tool is listed, disabled, so the
-/// panel's shape and grouping are settled before any tool exists. Plain
-/// labels and buttons in a stack view: built once, nothing loaded, nothing
-/// to update while it's hidden. The panel's own material comes from the
-/// `FlyoutPanelView` it sits in.
+/// Two faces. The list sends each tool's responder-chain action (the same
+/// one its menu item sends), so the viewer implements every tool once. When
+/// a tool opens, its inspector replaces the list and the viewer pins the
+/// panel open, so it doesn't slide away mid-drag; the inspector's back
+/// chevron returns to the list.
+///
+/// The list is plain buttons in a stack view: built once, nothing to update
+/// while hidden. The panel's material comes from its `FlyoutPanelView`.
 final class ViewerToolsPanel: NSView {
     static let width: CGFloat = 220
+    /// Wide enough for the 256 pt curve and levels editors in a grouped form.
+    static let inspectorWidth: CGFloat = 316
 
     struct Tool {
         let title: String
         let symbol: String
+        /// nil for tools of later phases, shown disabled.
+        let action: Selector?
     }
 
     struct Group {
@@ -20,49 +27,57 @@ final class ViewerToolsPanel: NSView {
         let tools: [Tool]
     }
 
+    /// Shows the rotate and flip commands as an inspector.
+    static let showRotateFlipAction = #selector(ViewerWindowController.showRotateFlipTool(_:))
+    /// Shows grayscale, sepia and negative as an inspector.
+    static let showColorEffectsAction = #selector(ViewerWindowController.showColorEffectsTool(_:))
+
     static let groups: [Group] = [
         Group(title: "Adjust", tools: [
-            Tool(title: "Resize", symbol: "arrow.up.left.and.arrow.down.right"),
-            Tool(title: "Rotate / Flip", symbol: "rotate.right"),
-            Tool(title: "Crop", symbol: "crop"),
-            Tool(title: "Lighting", symbol: "sun.max"),
-            Tool(title: "Colors", symbol: "paintpalette"),
-            Tool(title: "Curves", symbol: "point.bottomleft.forward.to.point.topright.scurvepath"),
-            Tool(title: "Levels", symbol: "slider.horizontal.3"),
-            Tool(title: "Sharpen / Blur", symbol: "drop.halffull"),
+            Tool(title: "Resize", symbol: "arrow.up.left.and.arrow.down.right", action: .resizeImage),
+            Tool(title: "Crop", symbol: "crop", action: .cropImage),
+            Tool(title: "Rotate & Flip", symbol: "rotate.right", action: showRotateFlipAction),
+            Tool(title: "Straighten", symbol: "level", action: .straightenImage),
+            Tool(title: "Lighting", symbol: "sun.max", action: .adjustLighting),
+            Tool(title: "Colors", symbol: "paintpalette", action: .adjustColors),
+            Tool(title: "Curves", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", action: .adjustCurves),
+            Tool(title: "Levels", symbol: "slider.horizontal.3", action: .adjustLevels),
+            Tool(title: "Sharpen", symbol: "rhombus", action: .sharpenImage),
+            Tool(title: "Blur", symbol: "drop.halffull", action: .blurImage),
         ]),
         Group(title: "Effects", tools: [
-            Tool(title: "Color Effects", symbol: "camera.filters"),
-            Tool(title: "Artistic", symbol: "paintbrush.pointed"),
-            Tool(title: "Lens", symbol: "circle.dashed"),
+            Tool(title: "Color Effects", symbol: "camera.filters", action: showColorEffectsAction),
+            Tool(title: "Artistic", symbol: "paintbrush.pointed", action: nil),
+            Tool(title: "Lens", symbol: "circle.dashed", action: nil),
         ]),
         Group(title: "Draw", tools: [
-            Tool(title: "Text", symbol: "textformat"),
-            Tool(title: "Lines & Arrows", symbol: "arrow.up.right"),
-            Tool(title: "Callouts", symbol: "text.bubble"),
+            Tool(title: "Text", symbol: "textformat", action: nil),
+            Tool(title: "Lines & Arrows", symbol: "arrow.up.right", action: nil),
+            Tool(title: "Callouts", symbol: "text.bubble", action: nil),
         ]),
         Group(title: "Retouch", tools: [
-            Tool(title: "Clone", symbol: "square.on.square"),
-            Tool(title: "Heal", symbol: "bandage"),
-            Tool(title: "Red-Eye", symbol: "eye"),
+            Tool(title: "Clone", symbol: "square.on.square", action: nil),
+            Tool(title: "Heal", symbol: "bandage", action: nil),
+            Tool(title: "Red-Eye", symbol: "eye", action: nil),
         ]),
     ]
+
+    private let list = NSScrollView()
+    private var rows: [(button: NSButton, action: Selector)] = []
+    private(set) var inspector: NSView?
 
     init() {
         super.init(frame: NSRect(x: 0, y: 0, width: Self.width, height: 600))
 
         let title = NSTextField(labelWithString: "Tools")
         title.font = .systemFont(ofSize: 13, weight: .semibold)
-        let caption = NSTextField(labelWithString: "Coming soon")
-        caption.font = .systemFont(ofSize: 11)
-        caption.textColor = .tertiaryLabelColor
 
-        let stack = NSStackView(views: [title, caption])
+        let stack = NSStackView(views: [title])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 2
         stack.edgeInsets = NSEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
-        stack.setCustomSpacing(14, after: caption)
+        stack.setCustomSpacing(12, after: title)
         for group in Self.groups {
             let header = NSTextField(labelWithString: group.title.uppercased())
             header.font = .systemFont(ofSize: 10, weight: .semibold)
@@ -70,7 +85,7 @@ final class ViewerToolsPanel: NSView {
             stack.addArrangedSubview(header)
             stack.setCustomSpacing(4, after: header)
             for tool in group.tools {
-                let row = Self.row(tool)
+                let row = makeRow(tool)
                 stack.addArrangedSubview(row)
                 // Full width, so the hover highlight spans the panel.
                 row.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -24).isActive = true
@@ -80,25 +95,21 @@ final class ViewerToolsPanel: NSView {
         }
 
         // Scrolls when the window is too short for the whole list.
-        let scroll = NSScrollView()
-        scroll.drawsBackground = false
-        scroll.hasVerticalScroller = true
-        scroll.autohidesScrollers = true
-        scroll.scrollerStyle = .overlay
-        scroll.automaticallyAdjustsContentInsets = false
-        scroll.translatesAutoresizingMaskIntoConstraints = false
+        list.drawsBackground = false
+        list.hasVerticalScroller = true
+        list.autohidesScrollers = true
+        list.scrollerStyle = .overlay
+        list.automaticallyAdjustsContentInsets = false
+        list.frame = bounds
+        list.autoresizingMask = [.width, .height]
         let document = FlippedView()
         document.translatesAutoresizingMaskIntoConstraints = false
         stack.translatesAutoresizingMaskIntoConstraints = false
         document.addSubview(stack)
-        scroll.documentView = document
-        addSubview(scroll)
+        list.documentView = document
+        addSubview(list)
         NSLayoutConstraint.activate([
-            scroll.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scroll.topAnchor.constraint(equalTo: topAnchor),
-            scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
-            document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            document.widthAnchor.constraint(equalTo: list.contentView.widthAnchor),
             stack.leadingAnchor.constraint(equalTo: document.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: document.trailingAnchor),
             stack.topAnchor.constraint(equalTo: document.topAnchor),
@@ -109,16 +120,66 @@ final class ViewerToolsPanel: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("made in code") }
 
-    private static func row(_ tool: Tool) -> NSButton {
-        let button = NSButton(title: tool.title, image: symbol(tool.symbol), target: nil, action: nil)
+    // MARK: - Faces
+
+    /// Replaces the list with a tool's inspector.
+    func showInspector(_ view: NSView) {
+        inspector?.removeFromSuperview()
+        view.frame = bounds
+        view.autoresizingMask = [.width, .height]
+        addSubview(view)
+        inspector = view
+        list.isHidden = true
+    }
+
+    /// Back to the list.
+    func showList() {
+        inspector?.removeFromSuperview()
+        inspector = nil
+        list.isHidden = false
+    }
+
+    /// Enables each tool the viewer can run on the image showing. AppKit
+    /// validates menu items by itself but not buttons, so the viewer calls
+    /// this whenever what it can edit changes.
+    func updateAvailability(_ isEnabled: (Selector) -> Bool) {
+        for row in rows {
+            let enabled = isEnabled(row.action)
+            if row.button.isEnabled != enabled { row.button.isEnabled = enabled }
+        }
+    }
+
+    /// The row for `action`, for tests.
+    func row(for action: Selector) -> NSButton? {
+        rows.first { $0.action == action }?.button
+    }
+
+    // MARK: - Rows
+
+    private func makeRow(_ tool: Tool) -> NSButton {
+        let button = NSButton(title: tool.title, image: Self.symbol(tool.symbol), target: nil, action: tool.action)
         button.bezelStyle = .accessoryBarAction
         button.showsBorderOnlyWhileMouseInside = true
         button.imagePosition = .imageLeading
         button.imageHugsTitle = true
         button.alignment = .left
         button.contentTintColor = .secondaryLabelColor
-        button.isEnabled = false
-        button.toolTip = "\(tool.title) (coming soon)"
+        if let action = tool.action {
+            rows.append((button, action))
+            button.isEnabled = false   // until the viewer says an image can be edited
+        } else {
+            button.isEnabled = false
+            button.toolTip = "\(tool.title) (coming soon)"
+            let soon = NSTextField(labelWithString: "Soon")
+            soon.font = .systemFont(ofSize: 10)
+            soon.textColor = .tertiaryLabelColor
+            soon.translatesAutoresizingMaskIntoConstraints = false
+            button.addSubview(soon)
+            NSLayoutConstraint.activate([
+                soon.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -8),
+                soon.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            ])
+        }
         return button
     }
 

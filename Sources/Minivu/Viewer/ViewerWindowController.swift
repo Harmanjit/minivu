@@ -59,19 +59,37 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     static let infoPanelWidth: CGFloat = 320
     static let hudMargin: CGFloat = 16
 
-    private var model: ViewerModel
+    private(set) var model: ViewerModel
     private var onClose: (FolderEntry?) -> Void
 
-    private let canvas = ImageCanvasView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
-    private let container: ViewerContainerView
-    private let hud = ViewerHUD()
+    let canvas = ImageCanvasView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+    let container: ViewerContainerView
+    let hud = ViewerHUD()
     private var hudTop: NSLayoutConstraint?
     private var hudLeading: NSLayoutConstraint?
-    private let errorLabel = NSTextField(labelWithString: "")
-    private let flyouts: FlyoutController
+    let errorLabel = NSTextField(labelWithString: "")
+    let flyouts: FlyoutController
     private let filmstrip = FilmstripView()
     private let controlBar = ViewerControlBar()
+    let toolsPanel = ViewerToolsPanel()
     private let infoHost = NSHostingView(rootView: InfoPanelView(url: nil))
+
+    // Editing (ViewerEditing.swift).
+    /// The edit of the image on screen; nil until the user first edits it.
+    var editSession: EditSession?
+    /// The tool whose inspector the tools panel shows.
+    var activeTool: OpenEditTool?
+    /// The open tool pinned the tools panel (rather than the user), so it
+    /// unpins when the tool closes.
+    var toolPinnedPanel = false
+    /// Counts tool openings, so a tool waiting for a decode (crop, resize)
+    /// doesn't open after the user has asked for another.
+    var toolRequest = 0
+    /// What the HUD last said about the edit, so it flashes only on news.
+    var editChromeSignature: String?
+    /// The image whose pages and frames have been read (or that can't have
+    /// any). Editing waits for it, since an animation can't be edited.
+    private(set) var structureRead: FolderEntry?
 
     /// One window of each kind, made on first use; the content moves between them.
     private var fullScreenWindow: ViewerWindow?
@@ -92,23 +110,23 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var infoTask: Task<Void, Never>?
 
     /// One page of one image.
-    private struct Shown: Equatable {
+    struct Shown: Equatable {
         var entry: FolderEntry
         var page: Int
     }
 
     /// The image and page whose pixels are on the canvas. It lags the model
     /// while a decode is on its way.
-    private var displayed: Shown?
-    private var current: Shown? { model.current.map { Shown(entry: $0, page: model.page) } }
+    var displayed: Shown?
+    var current: Shown? { model.current.map { Shown(entry: $0, page: model.page) } }
     /// Plays the current image when it is animated; nil otherwise.
-    private var player: AnimationPlayer?
+    private(set) var player: AnimationPlayer?
     /// The HUD's exposure line, and which file it belongs to.
     private var exposure: (url: URL, text: String?)?
     private var savedPresentationOptions: NSApplication.PresentationOptions?
     /// Files the Finder is moving to the Trash right now.
     private var trashing: Set<URL> = []
-    private var isClosing = false
+    private(set) var isClosing = false
 
     private init(images: [FolderEntry], index: Int, onClose: @escaping (FolderEntry?) -> Void) {
         model = ViewerModel(images: images, index: index, wrapAround: Preferences.shared.wrapAround)
@@ -149,7 +167,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // Added after the HUD, so panels slide over it.
         flyouts.add(panel(filmstrip, edge: .top), edge: .top, thickness: FilmstripView.height)
         flyouts.add(panel(controlBar, edge: .bottom), edge: .bottom, thickness: ViewerControlBar.height)
-        flyouts.add(panel(ViewerToolsPanel(), edge: .left), edge: .left, thickness: ViewerToolsPanel.width)
+        flyouts.add(panel(toolsPanel, edge: .left), edge: .left, thickness: ViewerToolsPanel.width)
         flyouts.add(panel(infoHost, edge: .right), edge: .right, thickness: Self.infoPanelWidth)
         flyouts.onPointerMoved = { [weak self] in self?.pointerMoved() }
         flyouts.onVisibilityChange = { [weak self] edge, visible in self?.panelVisibilityChanged(edge, visible) }
@@ -204,14 +222,17 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func layoutOverlays(in area: CGRect) {
         let top = container.bounds.height - area.maxY + Self.hudMargin
             + (flyouts.isPinned(.top) ? FilmstripView.height : 0)
-        let leading = Self.hudMargin + (flyouts.isPinned(.left) ? ViewerToolsPanel.width : 0)
+        let leading = Self.hudMargin + (flyouts.isPinned(.left) ? flyouts.thickness(.left) : 0)
         if hudTop?.constant != top { hudTop?.constant = top }
         if hudLeading?.constant != leading { hudLeading?.constant = leading }
         flyouts.layout(in: area, reach: isFullScreen ? container.bounds : nil)
     }
 
-    /// A panel was pinned or unpinned: the HUD moves with it.
-    private func pinsChanged() {
+    /// A panel was pinned or unpinned: the HUD moves with it, and a pinned
+    /// tools panel takes its width from the canvas (see
+    /// `ViewerContainerView.canvasLeadingInset`).
+    func pinsChanged() {
+        container.canvasLeadingInset = flyouts.isPinned(.left) ? flyouts.thickness(.left) : 0
         container.needsLayout = true
         NSAnimationContext.runAnimationGroup { context in
             context.duration = FlyoutController.animationDuration
@@ -228,8 +249,18 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showCurrent()
     }
 
+    /// Unsaved edits are dealt with first; if the user cancels, the viewer
+    /// stays on its image and the browser's new request is dropped.
     private func retarget(images: [FolderEntry], index: Int, fullScreen: Bool,
                           onClose: @escaping (FolderEntry?) -> Void) {
+        resolveUnsavedEdits { [weak self] in
+            self?.performRetarget(images: images, index: index, fullScreen: fullScreen, onClose: onClose)
+        }
+    }
+
+    private func performRetarget(images: [FolderEntry], index: Int, fullScreen: Bool,
+                                 onClose: @escaping (FolderEntry?) -> Void) {
+        guard !isClosing else { return }
         self.onClose = onClose
         model.replace(images: images, index: index)
         filmstrip.setImages(model.images, current: model.index)
@@ -289,6 +320,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // the frame must be exactly the screen's.
         window.setFrame(frame, display: false)
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
+        window.editUndoTarget = self
         fullScreenWindow = window
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -307,6 +339,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         window.setFrameUsingName(Self.frameAutosaveName)
         window.setFrameAutosaveName(Self.frameAutosaveName)
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
+        window.editUndoTarget = self
         windowedWindow = window
         return window
     }
@@ -398,7 +431,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     // MARK: - Loading
 
     /// Long edge of the canvas in pixels: the size to decode for.
-    private var canvasPixelSize: Int {
+    var canvasPixelSize: Int {
         let size = canvas.drawablePixelSize
         let edge = Int(max(size.width, size.height))
         if edge > 0 { return edge }
@@ -419,7 +452,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     ///
     /// `reloading` is for the page already on screen, decoded again: it
     /// keeps its zoom and pan if the new texture is of the same size.
-    private func loadCurrentPage(reloading: Bool = false) {
+    func loadCurrentPage(reloading: Bool = false) {
         guard let shown = current else { return }
         cancelLoads()
         let pixelSize = canvasPixelSize
@@ -435,7 +468,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
     }
 
-    private func cancelLoads() {
+    func cancelLoads() {
         loadHandle?.cancel()
         loadHandle = nil
         sharpenHandle?.cancel()
@@ -461,6 +494,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func loadFinished(_ result: Result<ImageTexture, Error>, shown: Shown) {
         guard current == shown, !isClosing else { return }
+        // An edited render is on screen; the file's own pixels would undo it.
+        guard editSession?.hasDisplayedEdit != true else { return }
         let entry = shown.entry
         placeholderWork?.cancel()
         switch result {
@@ -505,6 +540,15 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// neighbours are prefetched again once the new texture is up.
     @objc private func displaySettingsChanged(_ notification: Notification) {
         guard !isClosing, let shown = current else { return }
+        if let session = editSession {
+            // The original decodes again under the new settings; an edited
+            // render on screen is replaced by a new one, not by the file.
+            session.reload()
+            if session.hasDisplayedEdit {
+                prefetchAhead()
+                return
+            }
+        }
         if player != nil, displayed == shown {
             // An animation's frames come from its player, which decodes
             // them in SDR whatever the settings; only the neighbours change.
@@ -522,6 +566,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// The navigation happened: update everything that says which image this is.
     private func entryDidChange(_ entry: FolderEntry) {
         if displayed?.entry != entry { errorLabel.isHidden = true }
+        structureRead = Self.mayHavePagesOrFrames(entry) ? nil : entry
         filmstrip.setCurrent(model.index)
         // The info panel reads metadata only while it can be seen.
         if infoHost.superview?.isHidden == false { infoHost.rootView = InfoPanelView(url: entry.url) }
@@ -555,7 +600,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let url = entry.url
         infoTask = Task { [weak self] in
             let info = await Task.detached(priority: .userInitiated) { ImageDecoder.info(for: url) }.value
-            guard !Task.isCancelled, let self, !self.isClosing, self.model.current == entry, let info else { return }
+            guard !Task.isCancelled, let self, !self.isClosing, self.model.current == entry else { return }
+            self.structureRead = entry
+            guard let info else {
+                self.updateChrome()
+                return
+            }
             self.structureArrived(info, for: entry)
         }
     }
@@ -568,29 +618,47 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if model.isMultiPage, displayed == current { prefetchAhead() }
     }
 
-    /// Moves to another page of the current image and shows it fitted.
-    private func turnPage(_ turn: (inout ViewerModel) -> Bool) {
-        guard turn(&model) else {
+    /// Moves to another page of the current image and shows it fitted. An
+    /// edit belongs to one page, so unsaved edits are dealt with first.
+    private func turnPage(_ turn: @escaping (inout ViewerModel) -> Bool) {
+        var probe = model
+        guard turn(&probe) else {
             hud.flash()   // the first or last page: say so rather than do nothing
             return
         }
-        loadCurrentPage()
-        updateChrome()
-        hud.flash()
+        resolveUnsavedEdits { [weak self] in
+            guard let self, !self.isClosing else { return }
+            guard turn(&self.model) else {
+                self.hud.flash()
+                return
+            }
+            self.loadCurrentPage()
+            self.updateChrome()
+            self.hud.flash()
+        }
     }
 
     /// Page Down or Page Up: pages while there are any, then images.
-    private func pageStep(_ step: (inout ViewerModel) -> ViewerModel.PageStep) {
+    private func pageStep(_ step: @escaping (inout ViewerModel) -> ViewerModel.PageStep) {
         model.wrapAround = Preferences.shared.wrapAround
-        switch step(&model) {
-        case .page:
-            loadCurrentPage()
-            updateChrome()
+        var probe = model
+        guard step(&probe) != .none else {
             hud.flash()
-        case .image:
-            showCurrent()
-        case .none:
-            hud.flash()
+            return
+        }
+        resolveUnsavedEdits { [weak self] in
+            guard let self, !self.isClosing else { return }
+            self.model.wrapAround = Preferences.shared.wrapAround
+            switch step(&self.model) {
+            case .page:
+                self.loadCurrentPage()
+                self.updateChrome()
+                self.hud.flash()
+            case .image:
+                self.showCurrent()
+            case .none:
+                self.hud.flash()
+            }
         }
     }
 
@@ -669,7 +737,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Title, HUD and control bar, from the current state. Runs on every zoom
     /// step of a pinch, so the window title is only touched when it changes
     /// (setting it redraws the title bar).
-    private func updateChrome() {
+    func updateChrome() {
         guard let entry = model.current else { return }
         let shown = displayed == current && canvas.image != nil
         if let window {
@@ -682,17 +750,26 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if let player, !player.isPlaying, player.frameCount > 0 {
             part = "Frame \(player.currentFrame + 1) / \(player.frameCount)"
         }
+        let document = editSession?.document
+        let dirty = document?.isDirty == true
+        if let window, window.isDocumentEdited != dirty { window.isDocumentEdited = dirty }
         hud.update(name: entry.name, position: model.positionText, part: part,
                    pixelSize: shown ? canvas.image?.imageSize : nil, zoomPercent: zoom,
-                   exposure: exposure?.url == entry.url ? exposure?.text : nil)
+                   exposure: exposure?.url == entry.url ? exposure?.text : nil,
+                   edited: dirty ? (document?.undoTitle ?? "") : nil)
         model.wrapAround = Preferences.shared.wrapAround
         let pages = model.isMultiPage
             ? ViewerControlBar.Pages(text: model.pageText, canGoPrevious: model.canGoPreviousPage,
                                      canGoNext: model.canGoNextPage)
             : nil
+        let canEdit = canEditCurrent
         controlBar.update(zoomPercent: zoom, canGoPrevious: model.canGoPrevious, canGoNext: model.canGoNext,
                           isFullScreen: isFullScreen, infoShown: flyouts.isPinned(.right),
-                          pages: pages, isPlaying: player?.isPlaying)
+                          pages: pages, isPlaying: player?.isPlaying, canEdit: canEdit,
+                          toolsShown: flyouts.isPinned(.left))
+        toolsPanel.updateAvailability { [unowned self] action in
+            canEdit ? (validateEditAction(action) ?? false) : false
+        }
     }
 
     // MARK: - ImageCanvasViewDelegate
@@ -727,6 +804,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {
         guard let shown = current, displayed == shown else { return }
+        if editSession?.hasDisplayedEdit == true {
+            sharpenEditedImage()
+            return
+        }
         if let player, let imageSize = player.imageSize {
             // An animation sharpens by decoding its next frames larger. The
             // canvas asks again with every frame until they arrive; the
@@ -742,7 +823,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         sharpenHandle?.cancel()
         sharpenHandle = nil
         let deliver: (Result<ImageTexture, Error>) -> Void = { [weak self] result in
-            guard let self, case .success(let texture) = result, self.current == shown else { return }
+            guard let self, case .success(let texture) = result, self.current == shown,
+                  self.editSession?.hasDisplayedEdit != true else { return }
             self.canvas.setImage(texture, preserveView: true)
             self.updateChrome()
         }
@@ -788,7 +870,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// FastStone's double-click: back to the browser. (The canvas has already
     /// undone the zoom toggle of the pair's first click.)
     func canvasDidDoubleClick(_ canvas: ImageCanvasView) {
-        closeViewer()
+        exitViewer(nil)
     }
 
     // MARK: - Keyboard
@@ -798,6 +880,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             CanvasInteraction.imageExceedsView(canvas.transform, imageSize: $0.imageSize,
                                                viewSize: canvas.drawablePixelSize)
         } ?? false
+        if handleToolKey(event) { return true }
         guard let command = ViewerKeyCommand.command(characters: event.charactersIgnoringModifiers ?? "",
                                                      modifiers: event.modifierFlags, zoomedIn: zoomedIn)
         else { return false }
@@ -842,13 +925,24 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Moves, then loads if the image changed. At either end of the folder
     /// the HUD flashes "120 / 120" instead, so the key press isn't silent.
-    private func navigate(_ move: (inout ViewerModel) -> Bool) {
+    /// Unsaved edits are dealt with before moving, and only when a move
+    /// would happen.
+    private func navigate(_ move: @escaping (inout ViewerModel) -> Bool) {
         model.wrapAround = Preferences.shared.wrapAround
-        guard move(&model) else {
+        var probe = model
+        guard move(&probe) else {
             hud.flash()
             return
         }
-        showCurrent()
+        resolveUnsavedEdits { [weak self] in
+            guard let self, !self.isClosing else { return }
+            self.model.wrapAround = Preferences.shared.wrapAround
+            guard move(&self.model) else {
+                self.hud.flash()
+                return
+            }
+            self.showCurrent()
+        }
     }
 
     /// Pages of a PDF or multi-page TIFF, from the Go menu, the control bar
@@ -873,8 +967,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         setFullScreen(!isFullScreen)
     }
 
+    /// Esc, ⌘W, the close button and a double-click, after unsaved edits are
+    /// dealt with.
     @objc func exitViewer(_ sender: Any?) {
-        closeViewer()
+        resolveUnsavedEdits { [weak self] in self?.closeViewer() }
     }
 
     @objc func revealInFinder(_ sender: Any?) {
@@ -906,6 +1002,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard !isClosing else { return }
         // The user may have moved on while the Finder worked.
         let wasCurrent = model.current == entry
+        // Its edits went to the Trash with it.
+        if wasCurrent || editSession?.document.entry == entry { endEditSession() }
         guard model.remove(entry) else {
             closeViewer()
             return
@@ -941,6 +1039,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         model.wrapAround = Preferences.shared.wrapAround
+        if let enabled = validateEditAction(menuItem.action) { return enabled }
         switch menuItem.action {
         case .nextImage: return model.canGoNext
         case .previousImage: return model.canGoPrevious
@@ -957,6 +1056,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return true
         case ViewerControlBar.toggleInfoAction:
             menuItem.state = flyouts.isPinned(.right) ? .on : .off
+            return true
+        case ViewerControlBar.toggleToolsAction:
+            menuItem.state = flyouts.isPinned(.left) ? .on : .off
             return true
         default:
             return true
@@ -985,7 +1087,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     // MARK: - Closing
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        closeViewer()
+        exitViewer(nil)
         return false
     }
 
@@ -1011,6 +1113,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func closeViewer(reportsCurrent: Bool = true) {
         guard !isClosing else { return }
         isClosing = true
+        // Unsaved edits were dealt with by the caller where that was possible
+        // (a browser with nothing left to show, or a window closing for good,
+        // can't wait for an answer).
+        endEditSession()
         // Clearing the canvas below reports a zoom change; nothing should
         // update (or schedule a HUD fade) on the way out.
         canvas.delegate = nil
@@ -1031,6 +1137,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         for window in [fullScreenWindow, windowedWindow].compactMap({ $0 }) {
             window.delegate = nil
             window.onMouseDown = nil
+            window.editUndoTarget = nil
             // Taking the canvas out of its window stops its display link,
             // which would otherwise keep the canvas and renderer alive.
             window.contentView = nil

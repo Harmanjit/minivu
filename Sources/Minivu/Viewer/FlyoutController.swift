@@ -145,7 +145,7 @@ final class FlyoutController: NSResponder {
 
     private struct Panel {
         let view: NSView
-        let thickness: CGFloat
+        var thickness: CGFloat
         /// Showing, or sliding in.
         var isOpen = false
         /// Stays open until toggled off (F for the filmstrip, the info button).
@@ -188,6 +188,16 @@ final class FlyoutController: NSResponder {
 
     func isOpen(_ edge: FlyoutEdge) -> Bool { panels[edge]?.isOpen ?? false }
     func isPinned(_ edge: FlyoutEdge) -> Bool { panels[edge]?.isPinned ?? false }
+    func thickness(_ edge: FlyoutEdge) -> CGFloat { panels[edge]?.thickness ?? 0 }
+
+    /// Widens or narrows a panel (the tools panel grows for an inspector).
+    /// An open panel changes size in place; a closed one waits off screen at
+    /// its new size.
+    func setThickness(_ thickness: CGFloat, edge: FlyoutEdge) {
+        guard let panel = panels[edge], panel.thickness != thickness else { return }
+        panels[edge]!.thickness = thickness
+        panel.view.frame = frame(for: edge, open: panel.isOpen)
+    }
 
     /// True while a panel the pointer opened (not a pinned one) is out.
     var hasTransientPanelOpen: Bool { panels.values.contains { $0.isOpen && !$0.isPinned } }
@@ -232,6 +242,17 @@ final class FlyoutController: NSResponder {
 
     func togglePinned(_ edge: FlyoutEdge) {
         setPinned(!isPinned(edge), edge: edge)
+    }
+
+    /// Unpins a panel but leaves it out while the pointer is over it, as if
+    /// the pointer had opened it: a tool closed from its own inspector shows
+    /// the list under the pointer instead of sliding away. `pointer` is in
+    /// the container's coordinates.
+    func unpinKeepingOpen(_ edge: FlyoutEdge, pointer: CGPoint?) {
+        guard panels[edge]?.isPinned == true else { return }
+        panels[edge]!.isPinned = false
+        if edge == .top || edge == .bottom { relayoutSides(animated: true) }
+        if let pointer { pointerMoved(to: pointer) } else { setOpen(false, edge: edge, animated: true) }
     }
 
     /// Closes panels the pointer opened; pinned ones stay.

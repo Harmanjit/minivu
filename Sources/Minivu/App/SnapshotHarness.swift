@@ -112,6 +112,8 @@ enum SnapshotHarness {
             exit(1)
         }
         report("wrote \(config.output.path) (\(image.width)x\(image.height) px)")
+        // A sheet left open would hold up quitting.
+        if let sheet = window.attachedSheet { window.endSheet(sheet) }
         NSApp.terminate(nil)
     }
 
@@ -135,7 +137,9 @@ enum SnapshotHarness {
         if config.capturesSettings { return app.settingsWindow }
         // Launched from a terminal the app may not become active, so there
         // may be no key window; the frontmost visible one is next best.
-        return NSApp.keyWindow ?? NSApp.orderedWindows.first { $0.isVisible }
+        let window = NSApp.keyWindow ?? NSApp.orderedWindows.first { $0.isVisible }
+        // A sheet is a window of its own; `capture` draws it onto its parent.
+        return window?.sheetParent ?? window
     }
 
     private static func pause(_ seconds: Double) async {
@@ -178,6 +182,11 @@ enum SnapshotHarness {
             fillBackdrops(of: window, root: root, in: context)
             root.layer?.render(in: context)
             compositeProviders(in: root, context: context)
+        }
+        // A sheet (Resize, an alert) on top, where it hangs from the title bar.
+        if let sheet = window.attachedSheet, let image = capture(sheet) {
+            let frame = sheet.frame.offsetBy(dx: -window.frame.minX, dy: -window.frame.minY)
+            context.draw(image, in: frame)
         }
         return context.makeImage()
     }

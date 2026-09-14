@@ -49,6 +49,14 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     weak var delegate: ImageCanvasViewDelegate?
     var clickAction: ClickAction = .toggleZoom
     var magnifierEnabled = true
+    /// While set, scrolling never flips to another image, whatever the wheel
+    /// preference: a mouse wheel zooms and a trackpad pans (pinch zooms).
+    /// Edit tools set it, since flipping away mid-crop would throw the tool
+    /// away.
+    var scrollingKeepsImage = false
+    /// Called after every change to zoom, pan or the view's size, so an
+    /// overlay drawn in image coordinates (the crop rectangle) can follow.
+    var onViewChange: (() -> Void)?
 
     private(set) var image: ImageTexture?
     private(set) var zoomMode: ZoomMode = .fit
@@ -220,6 +228,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     private func viewDidChange(zoomChanged: Bool) {
         updatePannable()
         setNeedsRedraw()
+        onViewChange?()
         if zoomChanged { delegate?.canvasDidChangeZoom(self) }
         requestFullResolutionIfNeeded()
     }
@@ -248,6 +257,28 @@ final class ImageCanvasView: NSView, SnapshotProviding {
             return CGPoint(x: size.width / 2, y: size.height / 2)
         }
         return CGPoint(x: viewPoint.x * backingScale, y: viewPoint.y * backingScale)
+    }
+
+    // MARK: - Image and view coordinates
+
+    /// Where an image pixel position (top-left origin, in the image's
+    /// `imageSize`) lands in view points. Overlays that share the canvas's
+    /// frame draw with these, so they stay on the pixels as it zooms and pans.
+    func viewPoint(forImagePoint point: CGPoint) -> CGPoint {
+        let pixel = transform.screenPoint(forImagePoint: point, viewSize: drawablePixelSize)
+        return CGPoint(x: pixel.x / backingScale, y: pixel.y / backingScale)
+    }
+
+    /// The image pixel position under a point of the view.
+    func imagePoint(forViewPoint point: CGPoint) -> CGPoint {
+        transform.imagePoint(forScreenPoint: pixelPoint(point), viewSize: drawablePixelSize)
+    }
+
+    /// An image rectangle in view points.
+    func viewRect(forImageRect rect: CGRect) -> CGRect {
+        let a = viewPoint(forImagePoint: rect.origin)
+        let b = viewPoint(forImagePoint: CGPoint(x: rect.maxX, y: rect.maxY))
+        return CGRect(x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y)
     }
 
     // MARK: - Drawing
@@ -402,6 +433,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         if zoomMode == .fit { applyFit() } else { clampTransform() }
         updatePannable()
         if image != nil, transform.zoom != oldZoom { delegate?.canvasDidChangeZoom(self) }
+        onViewChange?()
         requestFullResolutionIfNeeded()
         if inLiveResize, metalLayer?.presentsWithTransaction == true {
             // Draw now, inside the resize transaction, so the image never
@@ -550,6 +582,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         guard moved != transform else { return }
         transform = moved
         setNeedsRedraw()
+        onViewChange?()
     }
 
     // MARK: - Magnifier
@@ -607,9 +640,15 @@ final class ImageCanvasView: NSView, SnapshotProviding {
             return
         }
         let location = convert(event.locationInWindow, from: nil)
+        if scrollingKeepsImage, event.hasPreciseScrollingDeltas, !event.modifierFlags.contains(.command) {
+            // Content follows the fingers, momentum included, as when zoomed in.
+            if isPannable { pan(byPoints: CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY)) }
+            return
+        }
         let wheelEvent = CanvasInteraction.WheelEvent(
-            mode: Preferences.shared.wheelAction == .zoom ? .zoom : .navigate,
-            commandKey: event.modifierFlags.contains(.command),
+            mode: scrollingKeepsImage || Preferences.shared.wheelAction == .zoom ? .zoom : .navigate,
+            // Command swaps zoom for navigation, which a tool doesn't allow.
+            commandKey: !scrollingKeepsImage && event.modifierFlags.contains(.command),
             precise: event.hasPreciseScrollingDeltas,
             delta: CGSize(width: event.scrollingDeltaX, height: event.scrollingDeltaY),
             invertedFromDevice: event.isDirectionInvertedFromDevice,

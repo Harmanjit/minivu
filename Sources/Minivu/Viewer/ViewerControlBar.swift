@@ -7,13 +7,15 @@ import AppKit
 /// viewer controller. AppKit only validates menu items and toolbar items
 /// automatically, so the controller calls `update` when state changes.
 ///
-/// Rotate, slideshow and edit are placeholders for later phases (DESIGN.md
-/// 7): present so the layout is settled, and visibly disabled.
+/// Slideshow is a placeholder for a later phase (DESIGN.md 7): present so
+/// the layout is settled, and visibly disabled.
 final class ViewerControlBar: NSView {
     static let height: CGFloat = 48
 
     /// Toggles the right-hand info panel; implemented by the viewer.
     static let toggleInfoAction = #selector(ViewerWindowController.toggleInfoPanel(_:))
+    /// Pins the left-hand tools panel open, or unpins it.
+    static let toggleToolsAction = #selector(ViewerWindowController.toggleToolsPanel(_:))
     /// Pages and playback: only the viewer implements them; the Go and Image
     /// menus send the same actions.
     static let previousPageAction = Selector.previousPage
@@ -44,15 +46,15 @@ final class ViewerControlBar: NSView {
     private let infoButton = ViewerControlBar.button("info.circle", "Show Info", ViewerControlBar.toggleInfoAction)
     private let zoomLabel = NSTextField(labelWithString: "")
 
-    /// Later phases; never enabled here.
-    private let placeholders = [
-        ViewerControlBar.button("rotate.left", "Rotate Left (coming soon)", nil),
-        ViewerControlBar.button("rotate.right", "Rotate Right (coming soon)", nil),
-        ViewerControlBar.button("play.fill", "Slideshow (coming soon)", nil),
-        ViewerControlBar.button("slider.horizontal.3", "Edit (coming soon)", nil),
-    ]
-    private lazy var placeholderGroups = [Self.group([placeholders[0], placeholders[1]]),
-                                          Self.group([placeholders[2], placeholders[3]])]
+    private let rotateLeftButton = ViewerControlBar.button("rotate.left", "Rotate Left", .rotateLeft)
+    private let rotateRightButton = ViewerControlBar.button("rotate.right", "Rotate Right", .rotateRight)
+    private let toolsButton = ViewerControlBar.button("slider.horizontal.3", "Show Edit Tools",
+                                                      ViewerControlBar.toggleToolsAction)
+    /// A later phase; never enabled here.
+    private let slideshowButton = ViewerControlBar.button("play.fill", "Slideshow (coming soon)", nil)
+    /// Groups that give way when the bar is too narrow (see `fitPlaceholders`).
+    private lazy var placeholderGroups = [Self.group([rotateLeftButton, rotateRightButton]),
+                                          Self.group([slideshowButton, toolsButton])]
     private let stack = NSStackView()
 
     init() {
@@ -62,7 +64,7 @@ final class ViewerControlBar: NSView {
         zoomLabel.alignment = .center
         zoomLabel.translatesAutoresizingMaskIntoConstraints = false
         zoomLabel.widthAnchor.constraint(equalToConstant: 52).isActive = true
-        placeholders.forEach { $0.isEnabled = false }
+        slideshowButton.isEnabled = false
         pageLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         pageLabel.textColor = .secondaryLabelColor
         pageLabel.alignment = .center
@@ -102,9 +104,10 @@ final class ViewerControlBar: NSView {
         fitPlaceholders()
     }
 
-    /// The placeholders for later phases give way when the bar is too narrow
-    /// for every control that works: a document's page controls in a small
-    /// window would otherwise push Info and Full Screen off the end. Hiding
+    /// The rotate and slideshow/tools groups give way when the bar is too
+    /// narrow for the rest: a document's page controls in a small window
+    /// would otherwise push Info and Full Screen off the end (both groups'
+    /// commands are also in the menus and the tools panel). Hiding
     /// them lays the bar out again, which lands here once more and changes
     /// nothing, so this settles in one extra pass.
     private func fitPlaceholders() {
@@ -127,9 +130,16 @@ final class ViewerControlBar: NSView {
     /// - Parameters:
     ///   - pages: nil unless the image has more than one page.
     ///   - isPlaying: nil unless the image is animated.
+    ///   - canEdit: the image showing can be rotated and edited.
+    ///   - toolsShown: the tools panel is pinned open.
     func update(zoomPercent: Double?, canGoPrevious: Bool, canGoNext: Bool, isFullScreen: Bool, infoShown: Bool,
-                pages: Pages? = nil, isPlaying: Bool? = nil) {
+                pages: Pages? = nil, isPlaying: Bool? = nil, canEdit: Bool = false, toolsShown: Bool = false) {
         zoomLabel.stringValue = zoomPercent.map(ViewerHUD.zoomText) ?? "–"
+        rotateLeftButton.isEnabled = canEdit
+        rotateRightButton.isEnabled = canEdit
+        toolsButton.state = toolsShown ? .on : .off
+        toolsButton.contentTintColor = toolsShown ? .controlAccentColor : nil
+        toolsButton.toolTip = toolsShown ? "Hide Edit Tools" : "Show Edit Tools"
         previousButton.isEnabled = canGoPrevious
         nextButton.isEnabled = canGoNext
 
@@ -175,7 +185,7 @@ final class ViewerControlBar: NSView {
         // The toolbar look: no bezel until the pointer is over the button.
         button.bezelStyle = .accessoryBarAction
         button.showsBorderOnlyWhileMouseInside = true
-        button.setButtonType(action == toggleInfoAction ? .pushOnPushOff : .momentaryPushIn)
+        button.setButtonType(action == toggleInfoAction || action == toggleToolsAction ? .pushOnPushOff : .momentaryPushIn)
         button.toolTip = toolTip
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
