@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- App Sandbox: Agate sees only folders the user chooses, its own
+       container, and the Pictures folder. -->
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <!-- Folders and files chosen in open and save panels, read and write
+       (file management, Save As, batch conversion). -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <!-- Security-scoped bookmarks: sidebar folders reopen on next launch. -->
+  <key>com.apple.security.files.bookmarks.app-scope</key>
+  <true/>
+  <!-- The Pictures folder is browsable from the first launch. -->
+  <key>com.apple.security.assets.pictures.read-write</key>
+  <true/>
+  <!-- Printing. -->
+  <key>com.apple.security.print</key>
+  <true/>
+  <!-- Deliberately absent: com.apple.security.network.client and
+       network.server. Without them the app cannot open a socket. -->
+</dict>
+</plist>
