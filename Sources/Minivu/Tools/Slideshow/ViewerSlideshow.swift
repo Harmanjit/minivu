@@ -6,7 +6,7 @@ import MinivuCore
 extension ViewerWindowController {
     @objc func startSlideshow(_ sender: Any?) {
         guard model.count > 0 else { return }
-        SlideshowWindowController.start(images: model.images, startIndex: model.index, screen: window?.screen) {
+        SlideshowWindowController.start(images: model.images, startIndex: model.index, from: window) {
             [weak self] entry in self?.slideshowEnded(lastShown: entry)
         }
     }

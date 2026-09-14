@@ -44,9 +44,31 @@ final class SlideshowContentView: NSView {
     var onKey: ((NSEvent) -> Bool)?
     var onClick: (() -> Void)?
     var onPointerMoved: (() -> Void)?
+    /// The slide, kept clear of a notched display's camera housing: "fit"
+    /// must show the whole picture, not tuck its top behind the camera. The
+    /// strip above stays the window's black.
+    var picture: NSView? {
+        didSet { needsLayout = true }
+    }
 
     override var acceptsFirstResponder: Bool { true }
     override var isFlipped: Bool { true }
+
+    /// The camera housing's height on the display the show is on.
+    var topInset: CGFloat {
+        window.flatMap(Displays.provider.display(of:))?.safeAreaTop ?? 0
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        needsLayout = true
+    }
+
+    override func layout() {
+        let area = DisplayPlacement.pictureArea(in: bounds, safeAreaTop: topInset, flipped: isFlipped)
+        if let picture, picture.frame != area { picture.frame = area }
+        super.layout()
+    }
 
     override func keyDown(with event: NSEvent) {
         if onKey?(event) != true { super.keyDown(with: event) }
@@ -77,7 +99,7 @@ final class SlideshowContentView: NSView {
 ///   it; if it can't load, it is skipped.
 /// - **A key press never waits for a transition**: → or ← finishes the one
 ///   under way at once and starts a quick one.
-final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
+final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     /// The slideshow on screen, if any. There is one at a time.
     private(set) static var current: SlideshowWindowController?
     /// Where settings are read; tests use a store of their own.
@@ -90,18 +112,25 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     /// Pointer stillness before the control bar and cursor hide.
     static let controlsHideDelay: TimeInterval = 2
 
-    /// Starts a slideshow of `images` from `startIndex` on `screen` (nil for
-    /// the main screen). `onEnd` gets the image last shown, when the show
-    /// ends. With a slideshow already running, it comes forward instead.
+    /// Starts a slideshow of `images` from `startIndex`, started from
+    /// `origin` (the browser or viewer window; nil for none). It plays on the
+    /// display Settings > Viewer chooses for the full-screen viewer, as
+    /// FastStone's slideshow follows its viewer: over a full-screen viewer it
+    /// plays on the viewer's display, and with "Another display" a show
+    /// started in the browser leaves the browser's display free.
+    /// `onEnd` gets the image last shown, when the show ends. With a
+    /// slideshow already running, it comes forward instead.
     @discardableResult
-    static func start(images: [FolderEntry], startIndex: Int, screen: NSScreen?,
+    static func start(images: [FolderEntry], startIndex: Int, from origin: NSWindow?,
                       onEnd: @escaping (FolderEntry?) -> Void) -> SlideshowWindowController? {
         guard !images.isEmpty else { return nil }
         if let current {
             current.window?.makeKeyAndOrderFront(nil)
             return current
         }
-        let controller = SlideshowWindowController(images: images, startIndex: startIndex, screen: screen,
+        let from = origin.flatMap(Displays.provider.display(of:)) ?? Displays.originDisplay()
+        let controller = SlideshowWindowController(images: images, startIndex: startIndex,
+                                                   display: Displays.fullScreenDisplay(current: from),
                                                    store: settingsStore, onEnd: onEnd)
         current = controller
         controller.begin()
@@ -139,8 +168,10 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     private let store: SlideshowSettingsStore
     private var settings: SlideshowSettings { store.settings }
     private let onEnd: (FolderEntry?) -> Void
-    /// Long edge of the screen in pixels: the size slides decode at.
-    private let pixelSize: Int
+    /// Long edge of the display in pixels: the size slides decode at.
+    private var pixelSize: Int
+    /// The display the show covers, by id (see `ViewerWindowController.fullScreenDisplayID`).
+    private(set) var displayID: UInt32?
     private let music: SlideshowMusic?
 
     private let content = SlideshowContentView()
@@ -166,7 +197,6 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     private var activity: NSObjectProtocol?
     /// Settings' Volume and Play Music, followed by the music while the show runs.
     private var musicSettings: AnyCancellable?
-    private var savedPresentationOptions: NSApplication.PresentationOptions?
     private(set) var hasEnded = false
 
     private var controlsWork: DispatchWorkItem?
@@ -182,7 +212,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     private var debugFreeze: (kind: SlideshowTransition, progress: Float)?
     private var debugCaption: SlideshowSettings.Caption?
 
-    private init(images: [FolderEntry], startIndex: Int, screen: NSScreen?, store: SlideshowSettingsStore,
+    private init(images: [FolderEntry], startIndex: Int, display: DisplayInfo?, store: SlideshowSettingsStore,
                  onEnd: @escaping (FolderEntry?) -> Void) {
         self.images = images
         self.store = store
@@ -195,9 +225,9 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
                              player: Self.makeAudioPlayer(),
                              refreshBookmarks: { [store] refreshed in store.refreshPlaylistBookmarks(refreshed) })
             : nil
-        let screen = screen ?? NSScreen.main
-        let frame = screen?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        pixelSize = Int((max(frame.width, frame.height) * (screen?.backingScaleFactor ?? 2)).rounded())
+        let frame = display?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        pixelSize = display?.pixelLongEdge ?? 2880
+        displayID = display?.id
         let window = SlideshowWindow(frame: frame)
         super.init(window: window)
         // Borderless content rects can be adjusted on creation; the frame
@@ -218,7 +248,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
         content.onPointerMoved = { [weak self] in self?.pointerMoved() }
 
         slideView.frame = content.bounds
-        slideView.autoresizingMask = [.width, .height]
+        content.picture = slideView
         slideView.frameProvider = { [weak self] headroom in
             self?.currentFrame(headroom: headroom) ?? .still(nil)
         }
@@ -252,6 +282,8 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
         NSCursor.setHiddenUntilMouseMoves(true)
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowChangedScreen),
+                                               name: NSWindow.didChangeScreenNotification, object: window)
         NotificationCenter.default.addObserver(self, selector: #selector(displaySettingsChanged),
                                                name: .minivuDisplaySettingsChanged, object: nil)
         // Settings can be open beside the show (its gear pauses it): the
@@ -291,7 +323,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil
         NotificationCenter.default.removeObserver(self)
-        restorePresentationOptions()
+        FullScreenPresentation.shared.release(self)
         NSCursor.setHiddenUntilMouseMoves(false)
 
         let entry = shown.map { images[$0.index] }
@@ -621,42 +653,97 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Window, screen and settings
 
+    /// The menu bar and Dock make way while the show is key, and come back
+    /// whenever it isn't (Settings, another app, a full-screen viewer on
+    /// another display, which hides them again itself): see
+    /// `FullScreenPresentation`.
     func windowDidBecomeKey(_ notification: Notification) {
-        applyPresentationOptions()
+        guard !hasEnded else { return }
+        FullScreenPresentation.shared.hide(for: self)
         if pausedForSettings { setPaused(false) }
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        restorePresentationOptions()
+        FullScreenPresentation.shared.release(self)
     }
 
-    /// The menu bar and Dock make way while the show is key, and come back
-    /// whenever it isn't (Settings, another app), as in the viewer's full screen.
-    private func applyPresentationOptions() {
-        if savedPresentationOptions == nil { savedPresentationOptions = NSApp.presentationOptions }
-        NSApp.presentationOptions = [.autoHideMenuBar, .hideDock]
-    }
-
-    private func restorePresentationOptions() {
-        guard let saved = savedPresentationOptions else { return }
-        savedPresentationOptions = nil
-        NSApp.presentationOptions = saved
-    }
-
-    /// A resolution change: keep covering the screen. EDR headroom changes
-    /// post this too; the view redraws for those itself.
+    /// A resolution change: keep covering the display. Its display unplugged:
+    /// go on on one that is left, chosen as when a show starts, rather than
+    /// play on where nobody can see it. EDR headroom changes post this too;
+    /// the view redraws for those itself.
     @objc private func screensChanged() {
-        guard let window, let frame = (window.screen ?? NSScreen.main)?.frame, window.frame != frame else { return }
-        window.setFrame(frame, display: true)
+        guard !hasEnded, window != nil else { return }
+        let displays = Displays.provider.displays
+        guard !displays.isEmpty else { return }   // the last display went; wait for one to come
+        guard let display = displays.first(where: { $0.id == displayID }) ?? Displays.fullScreenDisplay(current: nil)
+        else { return }
+        place(on: display)
+    }
+
+    /// Covers `display`: the picture below any camera housing, slides decoded
+    /// for its size, and HDR for what it can show.
+    private func place(on display: DisplayInfo) {
+        guard let window else { return }
+        displayID = display.id
+        if window.frame != display.frame { window.setFrame(display.frame, display: true) }
+        content.needsLayout = true
+        displayChanged(to: display)
+    }
+
+    /// The window is on another display (moved, or its display replaced):
+    /// EDR headroom, the colour space the picture is converted to, backing
+    /// scale and the size slides decode at may all differ.
+    @objc private func windowChangedScreen() {
+        guard !hasEnded, let window, let display = Displays.provider.display(of: window) else { return }
+        content.needsLayout = true
+        displayChanged(to: display)
+    }
+
+    private func displayChanged(to display: DisplayInfo) {
+        updateDynamicRange()
+        slideView.screenChanged()
+        // Slides decoded for a smaller display would be soft on this one;
+        // decoded for a larger one they are only sampled down, and stay.
+        let size = display.pixelLongEdge
+        guard size != pixelSize else { return }
+        let sharper = size > pixelSize
+        pixelSize = size
+        if sharper { reloadNeighbours() }
+    }
+
+    /// Window > Move to Next Display (⌃⌥⌘→): the show goes on on the next
+    /// display, left to right.
+    @objc func moveToNextDisplay(_ sender: Any?) {
+        guard !hasEnded, let window else { return }
+        let provider = Displays.provider
+        let displays = provider.displays
+        let current = displays.first { $0.id == displayID } ?? provider.display(of: window)
+        guard displays.count > 1, let next = DisplayPlacement.next(after: current, in: displays),
+              next.id != current?.id else { return }
+        place(on: next)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case .moveToNextDisplay: !hasEnded && Displays.provider.displays.count > 1
+        default: true
+        }
     }
 
     /// HDR or RAW settings changed: decoded neighbours are stale. The slide
     /// on screen stays until the next one.
     @objc private func displaySettingsChanged() {
+        updateDynamicRange()
+        reloadNeighbours()
+    }
+
+    /// Forgets the decoded neighbours and decodes them again; a move waiting
+    /// for one waits for the new decode.
+    private func reloadNeighbours() {
         handles.values.forEach { $0.cancel() }
         handles = [:]
         ready = [:]
-        updateDynamicRange()
         preloadNeighbours()
         if let step = pendingStep { perform(step) }
     }
@@ -671,6 +758,10 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     var keepsDisplayAwake: Bool { activity != nil }
     var areControlsShown: Bool { controlBar.isShown }
     var captionText: String? { caption.text }
+    /// Long edge in pixels that slides decode at, for tests.
+    var decodePixelSize: Int { pixelSize }
+    /// The picture's frame in the window, for tests.
+    var pictureFrame: CGRect { slideView.frame }
     var musicPlayer: SlideshowMusic? { music }
     /// Whether image `index` has decoded ahead and is ready to show.
     func hasDecoded(_ index: Int) -> Bool { ready[index] != nil }

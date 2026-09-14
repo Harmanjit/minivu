@@ -277,6 +277,10 @@ enum MainMenu {
         menu.identifier = .window
         menu.add("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m")
         menu.add("Zoom", #selector(NSWindow.performZoom(_:)))
+        // FastStone's dual-monitor viewing: the viewer or slideshow goes to
+        // the next display, left to right. ⌃⌥⌘ with an arrow is free of the
+        // system's window tiling (fn⌃) and Spaces (⌃) shortcuts.
+        menu.add("Move to Next Display", .moveToNextDisplay, Key.right, [.control, .option, .command])
         menu.addItem(.separator())
         menu.add("Bring All to Front", #selector(NSApplication.arrangeInFront(_:)))
         return menu

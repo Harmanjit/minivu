@@ -129,11 +129,11 @@ extension AppWindowTests {
                 let last = try #require(FolderEntry(url: try folder.jpeg("c.jpg", width: 200, height: 300)))
                 var ended: [FolderEntry?] = []
                 let started = SlideshowWindowController.start(images: [good, broken, last], startIndex: 0,
-                                                              screen: nil) { ended.append($0) }
+                                                              from: nil) { ended.append($0) }
                 let slideshow = try #require(started)
                 defer { slideshow.end() }
                 // A second start while one runs brings that one forward.
-                #expect(SlideshowWindowController.start(images: [good], startIndex: 0, screen: nil) { _ in }
+                #expect(SlideshowWindowController.start(images: [good], startIndex: 0, from: nil) { _ in }
                     === slideshow)
                 await settle(on: 0, slideshow)
                 // After the interval: past b, which won't decode, to c.
@@ -155,7 +155,7 @@ extension AppWindowTests {
                     try #require(FolderEntry(url: try folder.jpeg($0, width: 400, height: 300)))
                 }
                 let slideshow = try #require(SlideshowWindowController.start(images: list, startIndex: 0,
-                                                                            screen: nil) { _ in })
+                                                                            from: nil) { _ in })
                 defer { slideshow.end() }
                 await settle(on: 0, slideshow)
                 slideshow.debugFreezeSlideshowTransition(nil)
@@ -184,7 +184,7 @@ extension AppWindowTests {
                 SlideshowWindowController.makeAudioPlayer = { player }
                 let only = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 300, height: 200)))
                 let slideshow = try #require(SlideshowWindowController.start(images: [only], startIndex: 0,
-                                                                            screen: nil) { _ in })
+                                                                            from: nil) { _ in })
                 defer { slideshow.end() }
                 let music = try #require(slideshow.musicPlayer)
                 await music.startTask?.value
@@ -213,7 +213,7 @@ extension AppWindowTests {
                 let only = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 300, height: 200)))
                 var ended: [FolderEntry?] = []
                 let slideshow = try #require(SlideshowWindowController.start(images: [only], startIndex: 0,
-                                                                            screen: nil) { ended.append($0) })
+                                                                            from: nil) { ended.append($0) })
                 defer { slideshow.end() }
                 await settle(on: 0, slideshow)
                 // Past the interval: still up, and idle.

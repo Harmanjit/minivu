@@ -98,6 +98,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var fullScreenWindow: ViewerWindow?
     private var windowedWindow: ViewerWindow?
     private(set) var isFullScreen = false
+    /// The display the full-screen window covers. Kept by id rather than read
+    /// from the window, so a display that goes away is noticed, and the
+    /// window moved, even while AppKit still reports it on its old frame.
+    private(set) var fullScreenDisplayID: UInt32?
 
     /// The screen-sized load for the image being navigated to.
     private var loadHandle: LoadHandle?
@@ -126,7 +130,6 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private(set) var player: AnimationPlayer?
     /// The HUD's exposure line, and which file it belongs to.
     private var exposure: (url: URL, text: String?)?
-    private var savedPresentationOptions: NSApplication.PresentationOptions?
     /// Files the Finder is moving to the Trash right now.
     private var trashing: Set<URL> = []
     private(set) var isClosing = false
@@ -204,6 +207,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // Ratings and tags set here, in the browser or anywhere else.
         NotificationCenter.default.addObserver(self, selector: #selector(catalogDidChange(_:)),
                                                name: Catalog.didChange, object: nil)
+        // A display connected, disconnected or rearranged, or its resolution
+        // changed: the full-screen window keeps covering its display.
+        NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
+                                               name: NSApplication.didChangeScreenParametersNotification, object: nil)
 
         // The surround can change in Settings while the viewer is open; the
         // window's own colour (title bar, camera strip) must follow the canvas.
@@ -285,10 +292,16 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Moves the one content view into the other window. The canvas keeps its
     /// zoom mode and the image point at its centre; only its size changes.
+    ///
+    /// Full screen goes to the display Settings > Viewer chooses (see
+    /// `DisplayPlacement.fullScreenDisplay`), starting from the viewer's own
+    /// display when a window goes full screen, or the browser's when the
+    /// viewer opens.
     private func setFullScreen(_ fullScreen: Bool) {
         let previous = window as? ViewerWindow
-        let screen = previous?.screen ?? Self.preferredScreen()
-        let target = fullScreen ? makeFullScreenWindow(on: screen) : makeWindowedWindow(on: screen)
+        let current = previous.flatMap(Displays.provider.display(of:)) ?? Displays.originDisplay()
+        let target = fullScreen ? makeFullScreenWindow(on: Displays.fullScreenDisplay(current: current))
+                                : makeWindowedWindow(on: current)
         guard target !== previous else { return }
         isFullScreen = fullScreen
 
@@ -307,22 +320,15 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if fullScreen {
             pointerMoved()
         } else {
-            restorePresentationOptions()
+            FullScreenPresentation.shared.release(self)
         }
         updateAnimationVisibility()
         updateChrome()
     }
 
-    /// The display the user is working on: the browser's, else the one under
-    /// the pointer.
-    private static func preferredScreen() -> NSScreen? {
-        if let screen = NSApp.keyWindow?.screen ?? NSApp.mainWindow?.screen { return screen }
-        let mouse = NSEvent.mouseLocation
-        return NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) } ?? NSScreen.main
-    }
-
-    private func makeFullScreenWindow(on screen: NSScreen?) -> ViewerWindow {
-        let frame = screen?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    private func makeFullScreenWindow(on display: DisplayInfo?) -> ViewerWindow {
+        fullScreenDisplayID = display?.id
+        let frame = display?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         if let window = fullScreenWindow {
             window.setFrame(frame, display: false)
             return window
@@ -334,14 +340,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
         window.editUndoTarget = self
         fullScreenWindow = window
-        NotificationCenter.default.addObserver(self, selector: #selector(screensChanged),
-                                               name: NSApplication.didChangeScreenParametersNotification, object: nil)
         return window
     }
 
-    private func makeWindowedWindow(on screen: NSScreen?) -> ViewerWindow {
+    private func makeWindowedWindow(on display: DisplayInfo?) -> ViewerWindow {
         if let window = windowedWindow { return window }
-        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let visible = display?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let size = NSSize(width: (visible.width * 0.75).rounded(), height: (visible.height * 0.8).rounded())
         let frame = NSRect(x: (visible.midX - size.width / 2).rounded(), y: (visible.midY - size.height / 2).rounded(),
                            width: size.width, height: size.height)
@@ -356,49 +360,75 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         return window
     }
 
-    /// A resolution change or a display unplugged: keep covering the screen.
+    /// A resolution change: keep covering the display. Its display unplugged:
+    /// move to one that is left, chosen as when the viewer opens, rather than
+    /// stay where no display shows it. Posted for every step of an EDR
+    /// headroom change too, when nothing here changes.
     @objc private func screensChanged() {
-        guard isFullScreen, let window = fullScreenWindow else { return }
-        if let frame = (window.screen ?? NSScreen.main)?.frame, window.frame != frame {
-            window.setFrame(frame, display: true)
+        guard !isClosing, isFullScreen, let window = fullScreenWindow else { return }
+        let displays = Displays.provider.displays
+        guard !displays.isEmpty else { return }   // the last display went; wait for one to come
+        let display = displays.first { $0.id == fullScreenDisplayID } ?? Displays.fullScreenDisplay(current: nil)
+        guard let display else { return }
+        place(window, on: display)
+    }
+
+    /// Puts the full-screen window over `display`. The container lays out
+    /// again even when the frame is the same, for a camera housing's inset.
+    private func place(_ window: ViewerWindow, on display: DisplayInfo) {
+        fullScreenDisplayID = display.id
+        if window.frame != display.frame { window.setFrame(display.frame, display: true) }
+        container.needsLayout = true
+    }
+
+    /// Window > Move to Next Display (⌃⌥⌘→): full screen covers the next
+    /// display, left to right; a window keeps its place on the new display's
+    /// usable area.
+    @objc func moveToNextDisplay(_ sender: Any?) {
+        guard !isClosing, let window else { return }
+        let provider = Displays.provider
+        let displays = provider.displays
+        let current = isFullScreen ? displays.first { $0.id == fullScreenDisplayID } ?? provider.display(of: window)
+                                   : provider.display(of: window)
+        guard displays.count > 1, let next = DisplayPlacement.next(after: current, in: displays),
+              next.id != current?.id else { return }
+        if isFullScreen, let fullScreenWindow {
+            place(fullScreenWindow, on: next)
+        } else {
+            window.setFrame(DisplayPlacement.movedFrame(window.frame, from: current, to: next), display: true)
         }
+        window.makeKeyAndOrderFront(nil)
     }
 
     /// The surround behind the image becomes the window's own colour, so the
-    /// title bar strip (and a notched display's camera strip) match the
-    /// canvas. Dark surrounds get dark window chrome whatever the app theme:
-    /// light title text on a black title bar, not black on black.
+    /// title bar strip matches the canvas. Dark surrounds get dark window
+    /// chrome whatever the app theme: light title text on a black title bar,
+    /// not black on black.
+    ///
+    /// In full screen the window is black whatever the surround: on a notched
+    /// display its colour is the camera housing strip, which is black around
+    /// the camera like the menu bar of any full-screen app.
     private func applyBackground(_ background: Preferences.ViewerBackground, to window: NSWindow) {
         let level = Double(background.linearLevel)
         let srgb = level <= 0.0031308 ? 12.92 * level : 1.055 * pow(level, 1 / 2.4) - 0.055
-        window.backgroundColor = NSColor(srgbRed: srgb, green: srgb, blue: srgb, alpha: 1)
+        window.backgroundColor = isFullScreen ? .black : NSColor(srgbRed: srgb, green: srgb, blue: srgb, alpha: 1)
         window.appearance = isFullScreen || srgb < 0.5 ? NSAppearance(named: .darkAqua) : nil
     }
 
     // MARK: - Presentation options
 
     /// The menu bar and Dock get out of the way while the full-screen window
-    /// is key, and come back whenever it isn't: switching to another app
-    /// mustn't leave the user without a menu bar. The Dock is hidden outright
-    /// rather than auto-hidden, because an auto-hidden Dock slides up over the
-    /// bottom control bar whenever the pointer reaches for it.
-    private func applyPresentationOptions() {
-        if savedPresentationOptions == nil { savedPresentationOptions = NSApp.presentationOptions }
-        NSApp.presentationOptions = [.autoHideMenuBar, .hideDock]
-    }
-
-    private func restorePresentationOptions() {
-        guard let saved = savedPresentationOptions else { return }
-        savedPresentationOptions = nil
-        NSApp.presentationOptions = saved
-    }
-
+    /// is key, and come back whenever it isn't: switching to another app, or
+    /// to the browser on another display, mustn't leave the user without a
+    /// menu bar. `FullScreenPresentation` shares this with the slideshow.
     func windowDidBecomeKey(_ notification: Notification) {
-        if isFullScreen, notification.object as? NSWindow === fullScreenWindow { applyPresentationOptions() }
+        if isFullScreen, notification.object as? NSWindow === fullScreenWindow {
+            FullScreenPresentation.shared.hide(for: self)
+        }
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        if notification.object as? NSWindow === fullScreenWindow { restorePresentationOptions() }
+        if notification.object as? NSWindow === fullScreenWindow { FullScreenPresentation.shared.release(self) }
     }
 
     // MARK: - Pointer
@@ -449,8 +479,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let size = canvas.drawablePixelSize
         let edge = Int(max(size.width, size.height))
         if edge > 0 { return edge }
-        guard let screen = window?.screen ?? NSScreen.main else { return 2560 }
-        return Int(max(screen.frame.width, screen.frame.height) * screen.backingScaleFactor)
+        let provider = Displays.provider
+        guard let display = window.flatMap(provider.display(of:)) ?? provider.mainDisplay else { return 2560 }
+        return display.pixelLongEdge
     }
 
     /// Shows `model.current` after a move to another image.
@@ -1162,6 +1193,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .toggleFullScreenViewer:
             menuItem.state = isFullScreen ? .on : .off
             return true
+        case .moveToNextDisplay: return Displays.provider.displays.count > 1
         case ViewerControlBar.toggleInfoAction, .toggleHistogram:
             menuItem.state = flyouts.isPinned(.right) ? .on : .off
             return true
@@ -1252,7 +1284,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         hud.cancelFade()
         filmstrip.setActive(false)
         AppServices.images.prefetch([], pixelSize: 0)
-        restorePresentationOptions()
+        FullScreenPresentation.shared.release(self)
         NotificationCenter.default.removeObserver(self)
 
         let entry = reportsCurrent ? model.current : nil

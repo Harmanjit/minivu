@@ -25,6 +25,11 @@ struct SlideshowSettingsView: View {
                 Picker("Captions", selection: $store.settings.caption) {
                     ForEach(SlideshowSettings.Caption.allCases) { Text($0.title).tag($0) }
                 }
+            } footer: {
+                // The display is the viewer's setting, not a second one here:
+                // a show started from a full-screen viewer plays over it.
+                Text("Slideshows play full screen on the display chosen for the full-screen viewer in Viewer settings.")
+                    .paragraphFooter()
             }
 
             Section("Transition") {

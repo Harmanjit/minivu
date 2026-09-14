@@ -87,6 +87,10 @@ final class Preferences: ObservableObject {
     @Published var showHiddenFiles: Bool { didSet { defaults.set(showHiddenFiles, forKey: Keys.showHidden) } }
     /// Double-click / Return opens the viewer in full screen rather than a window.
     @Published var openViewerFullScreen: Bool { didSet { defaults.set(openViewerFullScreen, forKey: Keys.openFullScreen) } }
+    /// The display the full-screen viewer and slideshows open on (Settings > Viewer).
+    @Published var fullScreenDisplay: FullScreenDisplayChoice {
+        didSet { defaults.set(fullScreenDisplay.rawValue, forKey: Keys.fullScreenDisplay) }
+    }
     /// Loop from the last image back to the first when navigating.
     @Published var wrapAround: Bool { didSet { defaults.set(wrapAround, forKey: Keys.wrapAround) } }
     /// Show HDR photos (gain maps, PQ, HLG) with highlights brighter than
@@ -133,6 +137,7 @@ final class Preferences: ObservableObject {
         sortOrder = (d.data(forKey: Keys.sortOrder)).flatMap { try? JSONDecoder().decode(FileSortOrder.self, from: $0) } ?? FileSortOrder()
         showHiddenFiles = d.bool(forKey: Keys.showHidden)
         openViewerFullScreen = d.object(forKey: Keys.openFullScreen) as? Bool ?? true
+        fullScreenDisplay = FullScreenDisplayChoice(rawValue: d.string(forKey: Keys.fullScreenDisplay) ?? "") ?? .browserDisplay
         wrapAround = d.bool(forKey: Keys.wrapAround)
         showHDR = d.object(forKey: Keys.showHDR) as? Bool ?? true
         hdrRaw = d.bool(forKey: Keys.hdrRaw)
@@ -165,6 +170,7 @@ final class Preferences: ObservableObject {
         static let sortOrder = "sortOrder"
         static let showHidden = "showHiddenFiles"
         static let openFullScreen = "openViewerFullScreen"
+        static let fullScreenDisplay = "fullScreenDisplay"
         static let wrapAround = "wrapAround"
         static let showHDR = "showHDR"
         static let hdrRaw = "hdrRaw"

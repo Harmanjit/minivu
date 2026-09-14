@@ -44,6 +44,9 @@ import AppKit
     @objc optional func toggleHiddenFiles(_ sender: Any?)
     @objc optional func togglePreviewPane(_ sender: Any?)
     @objc optional func toggleFullScreenViewer(_ sender: Any?)
+    /// Window > Move to Next Display: the viewer (windowed or full screen)
+    /// and the slideshow.
+    @objc optional func moveToNextDisplay(_ sender: Any?)
     @objc optional func exitViewer(_ sender: Any?)
     /// The sender's `tag` is the rating, 0 (none) to 5 stars.
     @objc optional func setRating(_ sender: Any?)
@@ -158,6 +161,7 @@ extension Selector {
     static let toggleHiddenFiles = #selector(MinivuActions.toggleHiddenFiles(_:))
     static let togglePreviewPane = #selector(MinivuActions.togglePreviewPane(_:))
     static let toggleFullScreenViewer = #selector(MinivuActions.toggleFullScreenViewer(_:))
+    static let moveToNextDisplay = #selector(MinivuActions.moveToNextDisplay(_:))
     static let exitViewer = #selector(MinivuActions.exitViewer(_:))
     static let setRating = #selector(MinivuActions.setRating(_:))
     static let saveImage = #selector(MinivuActions.saveImage(_:))

@@ -149,6 +149,14 @@ private struct ViewerSettings: View {
                 }
             }
             Section {
+                Picker("Full-screen viewer opens on", selection: $prefs.fullScreenDisplay) {
+                    ForEach(FullScreenDisplayChoice.allCases) { Text($0.title).tag($0) }
+                }
+            } footer: {
+                Text("“Another display” keeps the browser’s display free: browse on one display and view full screen on another. With one display connected, the viewer opens on it. Slideshows open where the viewer does, and Window > Move to Next Display moves either.")
+                    .paragraphFooter()
+            }
+            Section {
                 Toggle("Display HDR photos in HDR", isOn: $prefs.showHDR)
             } footer: {
                 Text("Highlights brighter than white show on HDR screens: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Other screens show HDR photos tone mapped.")
