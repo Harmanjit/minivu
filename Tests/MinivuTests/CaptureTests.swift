@@ -334,6 +334,46 @@ final class FakeCapturer: ScreenCapturing {
         #expect(target.trashed == 1)
     }
 
+    /// ⌘Q is the one shortcut the overlay passes on: the capture is abandoned
+    /// (overlay gone, nothing captured or written) and the menu bar gets it.
+    /// A fake Quit item stands in for the app's, so nothing terminates.
+    @Test func selectionOverlayLetsQuitThrough() async throws {
+        _ = NSApplication.shared
+        let scratch = try ScratchFolder()
+        let capturer = FakeCapturer()
+        let (controller, recorder) = controller(capturer, pictures: scratch.url)
+        func key(_ characters: String, _ flags: NSEvent.ModifierFlags) throws -> NSEvent {
+            try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                                          windowNumber: 0, context: nil, characters: characters,
+                                          charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 12))
+        }
+        final class Target: NSObject {
+            var quits = 0
+            @objc func quit(_ sender: Any?) { quits += 1 }
+        }
+        let target = Target()
+        let menu = NSMenu()
+        menu.addItem(withTitle: "Quit minivu", action: #selector(Target.quit(_:)), keyEquivalent: "q").target = target
+        let commandQ = try key("q", .command)
+
+        controller.captureSelection(preset: (CGRect(x: 100, y: 732, width: 300, height: 200), main))
+        let window = try #require(controller.overlay?.windows.first { $0.frame == main.frame })
+        // Other shortcuts with Q stay the overlay's.
+        #expect(window.performKeyEquivalent(with: try key("q", [.command, .option])))
+        #expect(controller.overlay != nil)
+
+        #expect(!window.performKeyEquivalent(with: commandQ), "passed on, not swallowed")
+        #expect(controller.overlay == nil && controller.work == nil)
+        #expect(window.performKeyEquivalent(with: commandQ) || menu.performKeyEquivalent(with: commandQ))
+        #expect(target.quits == 1)
+        #expect(capturer.displayRequests.isEmpty && recorder.opened.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: controller.capturesFolder.path))
+        // A new capture can start.
+        controller.captureSelection()
+        #expect(controller.overlay != nil)
+        controller.overlay?.cancel()
+    }
+
     /// Only the real app records the screen: a snapshot run or a test
     /// process can never bring up the permission prompt.
     @Test func harnessAndTestsNeverUseScreenCaptureKit() async {

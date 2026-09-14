@@ -634,7 +634,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         filmstrip.setCurrent(model.index)
         // The info panel reads metadata only while it can be seen.
         if infoHost.window != nil, !infoHost.isHiddenOrHasHiddenAncestor {
-            infoHost.rootView = InfoPanelView(url: entry.url)
+            infoHost.rootView = InfoPanelView(url: entry.url, modified: entry.modified)
         }
         histogramPanel.setEntry(entry)
         stopAnimation()
@@ -642,6 +642,15 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         readStructure(of: entry)
         updateChrome()
         hud.flash()
+    }
+
+    /// Another application saved the file of `entry`, which carries its new
+    /// date and size: the image is described again as a new one would be.
+    func refreshEntry(_ entry: FolderEntry) {
+        guard model.refresh(entry) else { return }
+        if displayed?.entry.url == entry.url { displayed?.entry = entry }   // keeps zoom and pan
+        filmstrip.setImages(model.images, current: model.index)
+        if model.current == entry { entryDidChange(entry) }
     }
 
     // MARK: - Pages and animation
@@ -1257,7 +1266,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .top:
             filmstrip.setActive(visible)
         case .right:
-            if visible { infoHost.rootView = InfoPanelView(url: model.current?.url) }
+            if visible { infoHost.rootView = InfoPanelView(url: model.current?.url, modified: model.current?.modified) }
             histogramPanel.setActive(visible)
             updateChrome()
         case .bottom, .left:

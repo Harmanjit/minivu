@@ -179,6 +179,17 @@ nonisolated struct ViewerModel: Equatable {
         return result + prefetchList.map { ($0, 0) }
     }
 
+    /// Another application saved the file of an entry: `entry` is it with
+    /// the new date and size, which replace the listed ones so what is keyed
+    /// on them (textures, thumbnails, the colour count) finds the new file.
+    /// False when it isn't listed here or nothing changed.
+    @discardableResult
+    mutating func refresh(_ entry: FolderEntry) -> Bool {
+        guard let at = images.firstIndex(where: { $0.url == entry.url }), images[at] != entry else { return false }
+        images[at] = entry
+        return true
+    }
+
     // MARK: - Removing
 
     /// Takes `entry` out of the list (it was moved to the Trash). When it was

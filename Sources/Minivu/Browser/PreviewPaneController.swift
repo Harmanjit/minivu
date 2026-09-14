@@ -269,7 +269,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             cancelLoads()
             showPlaceholder((NSWorkspace.shared.icon(for: .folder), entry.name, "Folder"))
             setInfoVisible(true)
-            info.rootView = InfoPanelView(url: entry.url)
+            info.rootView = InfoPanelView(url: entry.url, modified: entry.modified)
         case .multiple(let count, let bytes):
             cancelLoads()
             let icon = NSImage(named: NSImage.multipleDocumentsName) ?? NSWorkspace.shared.icon(for: .image)
@@ -278,7 +278,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             setInfoVisible(false)
         case .image(let entry, let neighbours):
             setInfoVisible(true)
-            info.rootView = InfoPanelView(url: entry.url)
+            info.rootView = InfoPanelView(url: entry.url, modified: entry.modified)
             showImage(entry, neighbours: neighbours)
         }
     }
