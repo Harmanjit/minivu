@@ -468,41 +468,11 @@ public enum MetadataReader {
 
     // MARK: - JPEG comments
 
-    /// Text in JPEG COM segments, which ImageIO doesn't report. Walks the
-    /// segment headers from the start of the file and stops at the first
-    /// scan, so it reads a few kilobytes, never the compressed image.
+    /// Text in JPEG COM segments, which ImageIO doesn't report. The segment
+    /// walk lives in `JPEGComment`, shared with the comment writer; it stops
+    /// at the first scan, so only the header pages of the file are read.
     static func jpegComments(_ url: URL) -> [String] {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return [] }
-        defer { try? handle.close() }
-        func read(_ count: Int) -> [UInt8]? {
-            guard let data = try? handle.read(upToCount: count), data.count == count else { return nil }
-            return [UInt8](data)
-        }
-        guard read(2) == [0xFF, 0xD8] else { return [] }
-        var comments: [String] = []
-        while let prefix = read(1), prefix[0] == 0xFF {
-            // A marker may be padded with any number of extra 0xFF bytes.
-            var type: UInt8 = 0xFF
-            while type == 0xFF {
-                guard let next = read(1) else { return comments }
-                type = next[0]
-            }
-            if type == 0xDA || type == 0xD9 { break }                     // start of scan / end
-            if type == 0x01 || (0xD0...0xD7).contains(type) { continue }   // no length field
-            guard let lengthBytes = read(2) else { break }
-            let length = Int(lengthBytes[0]) << 8 | Int(lengthBytes[1])
-            guard length >= 2 else { break }
-            if type == 0xFE {
-                guard let payload = read(length - 2) else { break }
-                let text = String(bytes: payload, encoding: .utf8) ?? String(bytes: payload, encoding: .isoLatin1) ?? ""
-                let clean = cleaned(text)
-                if !clean.isEmpty { comments.append(clean) }
-            } else {
-                guard let offset = try? handle.offset(),
-                      (try? handle.seek(toOffset: offset + UInt64(length - 2))) != nil else { break }
-            }
-        }
-        return comments
+        JPEGComment.commentTexts(at: url).map(cleaned).filter { !$0.isEmpty }
     }
 
     // MARK: - Helpers
