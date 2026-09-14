@@ -223,6 +223,8 @@ struct AnnotationSliderRow: View {
             }
             Slider(value: Binding(get: { min(max(value, range.lowerBound), range.upperBound) }, set: { setValue($0) }), in: range)
                 .controlSize(.small)
+                .accessibilityLabel(title)
+                .accessibilityValue(String(format: "%.\(decimals)f", value) + unit)
         }
     }
 }

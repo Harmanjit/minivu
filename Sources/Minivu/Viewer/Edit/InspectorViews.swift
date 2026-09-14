@@ -119,7 +119,10 @@ struct AdjustmentSliderRow: View {
                     .frame(width: 58)
             }
             ResettableSlider(value: slider.position(for: value), range: slider.positionRange,
-                             onChange: { setValue(slider.value(forPosition: $0)) }, onReset: reset)
+                             onChange: { setValue(slider.value(forPosition: $0)) }, onReset: reset,
+                             label: slider.title,
+                             valueText: String(format: "%.\(slider.decimals)f", value * slider.displayScale)
+                                 + slider.unit)
                 .help("Double-click to reset")
         }
     }
@@ -133,6 +136,10 @@ struct ResettableSlider: NSViewRepresentable {
     let range: ClosedRange<Double>
     let onChange: (Double) -> Void
     let onReset: () -> Void
+    /// What VoiceOver says: the row's name, and the value as the field shows
+    /// it (the slider's own position can be logarithmic).
+    var label = ""
+    var valueText = ""
 
     func makeNSView(context: Context) -> DoubleClickSlider {
         let slider = DoubleClickSlider(value: value, minValue: range.lowerBound, maxValue: range.upperBound,
@@ -148,6 +155,8 @@ struct ResettableSlider: NSViewRepresentable {
         if slider.minValue != range.lowerBound { slider.minValue = range.lowerBound }
         if slider.maxValue != range.upperBound { slider.maxValue = range.upperBound }
         if slider.doubleValue != value { slider.doubleValue = value }
+        if slider.accessibilityLabel() != label { slider.setAccessibilityLabel(label) }
+        if slider.accessibilityValueDescription() != valueText { slider.setAccessibilityValueDescription(valueText) }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }

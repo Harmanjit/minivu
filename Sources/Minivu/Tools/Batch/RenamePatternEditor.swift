@@ -91,6 +91,8 @@ struct RenamePatternEditor: View {
             Stepper(value: $pattern.counterDigits, in: 1...9) {
                 Text("\(pattern.counterDigits)").monospacedDigit()
             }
+            .accessibilityLabel("Minimum digits")
+            .accessibilityValue("\(pattern.counterDigits)")
             .padding(.leading, 8)
             Text(pattern.counterDigits == 1 ? "digit minimum" : "digits minimum").foregroundStyle(.secondary)
         }
