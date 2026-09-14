@@ -420,6 +420,49 @@ extension AppWindowTests {
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 120, height: 90))
         }
 
+        /// A file saved over by an application minivu didn't open it in: no
+        /// watcher saw it, so Save itself notices, before "Replace the
+        /// original?", and asks as the watcher would. Nothing is written.
+        @Test func saveNoticesAChangeNoWatcherSaw() async throws {
+            let folder = try ScratchFolder()
+            let a = try folder.jpeg("a.jpg", width: 600, height: 400)
+            let entry = try #require(FolderEntry(url: a))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            let savedQuestion = ViewerWindowController.askAboutExternalChange
+            let savedSaveAs = ViewerWindowController.presentSaveAs
+            defer {
+                ViewerWindowController.askAboutExternalChange = savedQuestion
+                ViewerWindowController.presentSaveAs = savedSaveAs
+            }
+            var asked: [String] = []
+            ViewerWindowController.askAboutExternalChange = { name, _, reply in
+                asked.append(name)
+                reply(.keepEdits)
+            }
+            var savesAs: [URL] = []
+            ViewerWindowController.presentSaveAs = { entry, _, _, completion in
+                savesAs.append(entry.url)
+                completion(nil)
+            }
+            await waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            try folder.jpeg("a.jpg", width: 200, height: 200)
+            let theirs = try Data(contentsOf: a)
+
+            viewer.saveImage(nil)
+            await waitUntil { !asked.isEmpty }
+            #expect(asked == ["a.jpg"])
+            #expect(viewer.hasUnsavedEdits && viewer.window?.attachedSheet == nil)
+            #expect(try Data(contentsOf: a) == theirs)
+            viewer.saveImage(nil)
+            #expect(savesAs == [a], "once the edits are kept, Save asks for a name")
+            #expect(try Data(contentsOf: a) == theirs)
+            viewer.endEditSession()
+        }
+
         @Test func browserOpensTheSelectionNotTheFolder() async throws {
             let t = try ScratchFolder()
             let first = try t.jpeg("a.jpg", width: 40, height: 20)

@@ -82,6 +82,7 @@ public final class Catalog: @unchecked Sendable {
     let db: SQLiteDatabase
     private let lock = NSLock()
     private var hasPrunedMissing = false
+    private var movesInFlight = 0
     private var _mirror: (any CatalogMirror)?
 
     /// Opens (creating if needed) the catalog at `url`, or a private one in
@@ -418,6 +419,8 @@ public final class Catalog: @unchecked Sendable {
     ///    exists (a folder renamed or moved in Finder), that folder's custom
     ///    orders move here too, unless this folder has its own.
     ///
+    /// Skipped while minivu's own moves are under way (`pauseHealing`).
+    ///
     /// **Limits.** A moved file is found when the folder it went *to* is
     /// healed, so marks follow files into folders the user opens, not
     /// before. A file moved away and replaced by a different file of the
@@ -428,6 +431,7 @@ public final class Catalog: @unchecked Sendable {
     /// year are pruned.
     @discardableResult
     public func heal(folder: URL) -> [URL] {
+        guard !isHealingPaused else { return [] }
         let folderKey = Self.folderKey(folder)
         struct Listed { var name: String; var fileID: Int64? }
         var listed: [String: Listed] = [:]
@@ -497,6 +501,9 @@ public final class Catalog: @unchecked Sendable {
                 }
             }
 
+            // Asked again after listing: moves may have begun meanwhile, and
+            // this listing may already show some of them.
+            guard !isHealingPaused else { return [] }
             let prunes = claimFirstPrune()
             // Marks of files that `.replace` sent to the Trash stay with them
             // so undo can restore them. Nobody opens the Trash in minivu, so
@@ -568,6 +575,24 @@ public final class Catalog: @unchecked Sendable {
         if !healed.isEmpty { post(healed) }
         return healed
     }
+
+    /// Holds `heal` off while minivu moves files and then reports the moves
+    /// (`fileMoved`, or a batch rename's `filesMoved` once every rename is
+    /// done). A folder listed in between (its watcher fires as files move)
+    /// would otherwise reattach the rows by identity first, and the report
+    /// would then find a row already at each new name and drop it as a
+    /// replaced file's: the marks would be lost. A skipped heal costs
+    /// nothing; the next listing heals. Calls nest; pair each with
+    /// `resumeHealing`.
+    public func pauseHealing() {
+        lock.withLock { movesInFlight += 1 }
+    }
+
+    public func resumeHealing() {
+        lock.withLock { movesInFlight = max(movesInFlight - 1, 0) }
+    }
+
+    var isHealingPaused: Bool { lock.withLock { movesInFlight > 0 } }
 
     /// True only the first time it's called, so pruning runs once a launch.
     private func claimFirstPrune() -> Bool {

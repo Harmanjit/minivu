@@ -156,6 +156,9 @@ One image goes from file to screen like this:
   five seconds. Only the nearest RAW neighbour is prefetched as a render,
   and on Macs with 8 GB of RAM or less none is (embedded previews still
   are).
+- The RAW Core Image context uses a 512 MB memory limit on Macs with 8 GB
+  or less: footprint 20-26% lower, full render about 10% slower; lower
+  limits cost much more time, 1024 MB saves nothing.
 
 ### 4.6 Catalog
 
@@ -167,6 +170,13 @@ Stars and the tag stay in the catalog; nothing writes them into files or
 Finder tags yet (`CatalogMirror` is the hook for XMP or Finder tags). Finder
 tags are read, shown and filtered by, never changed. JPEG comments are
 written into the file itself.
+
+Healing runs with every folder listing. It is paused while minivu itself
+moves or renames files (`Catalog.pauseHealing`) until the moves are
+reported: a listing in between (the folder watcher fires as files move)
+would reattach the rows by identity first, and the report would then drop
+them as a replaced file's. Ratings, tags and order changes still queued
+when the app quits are written before it exits.
 
 The browser reads a folder's marks in one catalog query, off the main
 thread with the folder listing, so a grid sorted by rating arrives already
@@ -210,6 +220,14 @@ quarter-size proxy.
 4. Saving renders at full resolution into a CGImage with the chosen colour
    profile and encodes with ImageIO.
 
+Each render lane caches an `EditStage`: committed operations up to the last
+shrinking resize, rendered once at the render's scale; later frames start
+from it (M4: 18-20 ms to 1.4-5.5 ms after a resize). A render the document
+has moved away from (cancel, apply, section switch, undo) is dropped when a
+newer render is queued or running; frames of a slider in motion are still
+shown. Retouch strokes stay drawn until `EditDocument.deliveredOperations`
+include them.
+
 **Resampling filters (11):** Box, Triangle (bilinear), Hermite, Bell,
 B-Spline, Mitchell–Netravali, Catmull-Rom, Cosine, Quadratic, Lanczos 3,
 Lanczos 8. One separable Metal kernel evaluates any of them: two passes
@@ -217,7 +235,9 @@ Lanczos 8. One separable Metal kernel evaluates any of them: two passes
 support widened by the downscale factor, weights normalised, filtering in
 linear light.
 
-**Undo:** the operation list with a cursor, capped at 50 steps. Undo is a
+**Undo:** the operation list with a cursor, capped at 50 steps; a step is
+one or more operations (a Colors visit that changed both sections is one
+step). Undo is a
 cursor move plus a re-render, so it costs no memory for pixels. Brush
 operations (clone, heal, red-eye) record their strokes as parameters, so
 they replay the same way.
@@ -253,7 +273,23 @@ decoded again from it (that would apply them twice); reloading means a new
 document, and undo history starts over after a save. As a safety net each
 document records the file's modification date and size at its first
 decode, and the renderer refuses to decode a changed file for it again.
-Quitting asks about unsaved edits and waits for queued writes to finish.
+Save compares that stamp with the file before asking "Replace the
+original?" and again in the write queue just before writing: a file
+another application saved since the edits began is never replaced (the
+viewer asks Reload or Keep My Edits, as for an external editor, and the
+write fails if the change lands while the question is up). minivu's own
+writes of the file (an earlier Save, a comment) don't count: `OwnWrites`
+keeps the stamp each `ImageEncoder` or `JPEGComment` write left. A lossless
+rotate does count, since the edits were made on the unrotated pixels.
+Save keeps a gain-map JPEG or HEIC HDR: the edit renders as half-float
+extended linear P3 with the original's headroom, and ImageIO (macOS 15,
+`kCGImageDestinationEncodeToISOGainmap`) writes an SDR base and an ISO gain
+map. PQ/HLG originals and gain maps in other formats are tone mapped to SDR
+(PNG can't hold a gain map; ISO HDR tone maps), and the Replace alert says
+which. The HDR decode for Save ignores the viewer's HDR setting. Save As
+stays SDR. Stale hdrgm/HDRGainMap XMP is never carried.
+Quitting asks about unsaved edits and waits for queued writes to finish,
+and a copy or move under way stops after the item it is on.
 Writes into a folder minivu hasn't opened (Save As onto the Desktop) put
 their temporary file in the volume's item-replacement folder, because the
 sandbox grants the save panel's file but not its folder.
@@ -529,6 +565,10 @@ Symbols, sidebar materials, system appearance).
 **Browser window:** folder sidebar (favourites, then the folder tree) |
 thumbnail grid | preview pane with file info and EXIF. Toolbar: back,
 forward, parent folder, sort, thumbnail size, filter, slideshow, compare.
+A folder deleted or moved in Finder relists its nearest existing parent's
+sidebar row. Rows removed from the tree are detached, and late listings for
+them are dropped. A folder the sandbox refuses shows a permission message
+pointing to File > Open Folder….
 
 **Ratings and tags.** Each image has 0–5 stars and FastStone's "tagged"
 flag for culling. A grid cell shows its stars under the name (hollow stars
@@ -557,7 +597,10 @@ the same folder (a symbolic link, `/tmp` for `/private/tmp`) can never make
 a file replace itself. Name clashes ask Replace, Keep Both or Skip (Apply
 to All), all before anything moves, and Replace puts the old item in the
 Trash rather than deleting it (an item that holds the file being moved is
-never replaced). The work runs off the main thread one file at a time,
+never replaced); if the new item then can't arrive (unreadable, disk full)
+the old one comes back from the Trash. A move to another volume copies to
+a hidden name, renames into place and only then deletes the original, so
+it never leaves a partial item under the real name. The work runs off the main thread one file at a time,
 with a progress sheet and Cancel for more than 20 files or anything still
 running after half a second; the arrivals are selected afterwards.
 Copy To and Move To choose a folder with an open panel and remember the
@@ -571,8 +614,13 @@ undoing a transfer that replaced something brings that back from the Trash.
 A file renamed in Custom Order keeps its place.
 
 **Viewer:** opens on double-click or Return. Windowed or true full screen
-(borderless, instant, on the current display). In full screen the edges
-reveal fly-out panels on hover:
+(borderless, instant). Full screen opens on the display Settings > Viewer
+chooses: the display with the browser (default), or another display
+(FastStone's dual-monitor mode). With one display it falls back to that
+display. A windowed viewer away from the browser's display goes full screen
+where it is. Slideshows use the same rule, so a show from a full-screen
+viewer plays over it. In full screen the edges reveal fly-out panels on
+hover:
 
 | Edge | Panel |
 |---|---|
@@ -580,6 +628,27 @@ reveal fly-out panels on hover:
 | Left | edit and effect tools |
 | Right | file info, EXIF, histogram |
 | Bottom | zoom, navigation, slideshow controls |
+
+**Displays.** Displays come from `Displays.provider` (`ScreenProviding`).
+A full-screen window keeps its display's id: on a resolution change it
+keeps covering the display, and if its display is unplugged it goes to a
+remaining one chosen by the same rule. Move to Next Display goes left to
+right and wraps; a titled window keeps its relative place on the new
+display's usable area. On notched displays the viewer and slideshow fit
+the image below `safeAreaInsets.top` (`auxiliaryTopLeftArea` height as a
+fallback); the strip is black whatever the surround, and the HUD and top
+panel sit below it (`MINIVU_DEBUG_SAFE_AREA_TOP` simulates a notch in DEBUG
+builds; `debugShowViewerSettings:` opens that pane). `FullScreenPresentation`
+is the one owner that hides the menu bar and Dock while any full-screen
+viewer or slideshow window is key: it saves the options from before the
+first hide and restores them on the next main-queue turn after the last
+release, so key swaps between displays and a slideshow ending over a viewer
+neither flash nor restore "hidden". Thumbnails use the colour space of the
+browser window's display (the grid draws nearly all of them); following the
+key window would empty the memory cache on every switch between displays.
+The slideshow re-decodes its neighbours only when moved to a larger
+display, and per-frame EDR reads use `headroom(of:)`: building a whole
+`DisplayInfo` reads frames and safe area, about 50 µs.
 
 **Mouse:** click toggles best fit and actual size at the clicked point;
 press and hold shows the magnifier; drag pans; the wheel is configurable
@@ -655,6 +724,7 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Capture > Entire Screen / Window… / Selection… | none (the system keeps ⇧⌘3–⇧⌘5) |
 | | Open in External Editor > editors…, Edit Editor List… | ⌘E for the first editor |
 | Window | Minimize | ⌘M |
+| | Move to Next Display | ⌃⌥⌘→ (fn⌃ is window tiling, ⌃ is Spaces) |
 | Help | minivu Help / Keyboard Shortcuts | ⌘? (as in every Mac app) / ⌘/ |
 
 **Tools (Phase 7).** In the browser each tool works on the selected
@@ -717,7 +787,19 @@ tables. The other pages are Markdown in Sources/Minivu/Help/HelpPages,
 parsed off the main thread with `AttributedString(markdown:)` in full
 syntax and split into blocks by presentation intent, because SwiftUI's
 `Text` ignores block structure. Pages link to each other as `help:Browser`;
-other links are refused.
+other links are refused. The window is a SwiftUI `NavigationSplitView` in
+an `NSHostingController` with `sizingOptions = []` (otherwise the window
+shrinks to its fitting size); `navigationSplitViewColumnWidth` must be the
+last modifier on the sidebar (after `.searchable` and `.overlay`) or it is
+ignored. The actions are `showMinivuHelp:` and `showKeyboardShortcuts:` on
+an AppDelegate extension, never `showHelp:`, which NSApplication answers
+first by looking for a Help Book. Under `defaultIsolation(MainActor)`
+SwiftPM's `Bundle.module` is main-actor isolated and fatalErrors when
+missing, so `Bundle.minivuHelp` searches Contents/Resources, beside the
+executable and beside the test bundle. `KeyboardShortcutsPage.menuSections`
+shows display-only shortcuts on the bar it is given, so it must get a fresh
+`MainMenu.make()`, never `NSApp.mainMenu`. Harness action
+`debugHelpSearch:` (`MINIVU_DEBUG_HELP_PAGE`, `MINIVU_DEBUG_HELP_SEARCH`).
 
 **Themes:** System, Bright, Gray or Dark.
 
@@ -748,8 +830,15 @@ other links are refused.
 
 ## 8. Known limits
 
-- **Editing:** saving an HDR photo in place writes tone-mapped SDR. Colors
-  and RGB changes made in one visit to the Colors tool are two undo steps.
+- **Editing:** Save keeps HDR only for gain-map JPEG and HEIC originals;
+  PQ/HLG files and gain maps in other formats are saved tone mapped to SDR,
+  and Save As is always SDR. Saving writes a new file in place of the old
+  (atomically), so a hard link to the old file keeps the old picture, and
+  a symbolic link is written through to the file it points at.
+- **Files:** Save's own-write record is by path, so a comment written in
+  minivu after another application changed a file being edited lets Save
+  replace that version. A Save As to a name that differs from the
+  original's only in letter case leaves the document marked unsaved.
 - **Marks:** stars and tags live only in the catalog; they aren't written
   to XMP or Finder tags, so other apps don't see them.
 - **Batch Convert:** only the first page or frame of multi-page and animated
@@ -758,8 +847,6 @@ other links are refused.
   longer than the space beside the control bar is truncated in the middle.
   Changing HDR or RAW settings mid-show changes the slide on screen only at
   the next slide.
-- **Notched displays:** the slideshow and the viewer's full screen cover the
-  whole screen, so the camera housing can hide the top of the picture.
 - **Print:** paper smaller than its unprintable edges gets empty cells; Page
   Setup scales below 10% count as 10%. The preview is recognised by the
   class name of its graphics context; if macOS renames

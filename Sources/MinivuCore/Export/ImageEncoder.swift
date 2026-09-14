@@ -57,6 +57,7 @@ public enum ImageEncoder {
             let data = try encode(image, options: options, metadataSource: metadataSource, comments: comments,
                                   gainMap: gainMap)
             try SafeFileWriter.write(data, to: url)
+            OwnWrites.record(url)
             return
         }
         // Otherwise ImageIO streams straight into the file: a 16-bit TIFF of
@@ -67,6 +68,7 @@ public enum ImageEncoder {
             }
             try encode(image, into: destination, options: options, metadataSource: metadataSource, gainMap: gainMap)
         }
+        OwnWrites.record(url)
     }
 
     /// Decodes encoded data back to a CGImage (what the compare view shows

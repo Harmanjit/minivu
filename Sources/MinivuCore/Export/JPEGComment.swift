@@ -66,6 +66,7 @@ public enum JPEGComment {
             try handle.write(contentsOf: rewrite.header)
             try handle.write(contentsOf: data[(data.startIndex + rewrite.scanStart)...])
         }
+        OwnWrites.record(url)
     }
 
     /// The same edit in memory, for freshly encoded files.

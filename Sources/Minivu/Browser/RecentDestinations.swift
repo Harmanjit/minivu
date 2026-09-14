@@ -37,9 +37,11 @@ final class RecentDestinations {
     /// Puts `folder` first, dropping the oldest past the limit.
     func add(_ folder: URL) {
         if let index = folders.firstIndex(where: { BrowserModel.samePath($0, folder) }) {
-            folders.remove(at: index)
+            // The URL already held moves up, not `folder`: it is the one whose
+            // access was started, and so the one to stop when it drops off.
+            let held = folders.remove(at: index)
             let data = bookmarks.remove(at: index)
-            folders.insert(folder, at: 0)
+            folders.insert(held, at: 0)
             bookmarks.insert(data, at: 0)
         } else {
             guard let data = Self.bookmark(for: folder) else { return }

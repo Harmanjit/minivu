@@ -321,7 +321,9 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     /// Save for `session`: over the file, unless another application has
     /// changed the file since the edits began, when it is Save As instead
     /// (asked again just before writing, since the change can arrive while
-    /// "Replace the original?" is up).
+    /// "Replace the original?" is up). A change the external-editor watcher
+    /// didn't see (the file was saved by an application minivu didn't open
+    /// it in) is found by Save itself, and asked about the same way.
     private func save(_ session: EditSession, on window: NSWindow, completion: @escaping (Bool) -> Void) {
         let entry = session.document.entry
         guard session.externalChange == .none else {
@@ -329,7 +331,11 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             return
         }
         SavePresenter.save(entry: entry, document: session.document, on: window,
-                           canReplace: { session.externalChange == .none }, completion: completion)
+                           canReplace: { session.externalChange == .none },
+                           fileChanged: { [weak self] in
+                               BrowserModel.invalidateCaches(entry.url)
+                               self?.reloadAfterExternalEdit(of: [entry.url])
+                           }, completion: completion)
     }
 
     /// Shows Save As; a hook so tests can record it instead of a panel.

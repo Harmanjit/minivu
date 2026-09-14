@@ -66,7 +66,12 @@ public enum BatchRenamer {
         // The catalog follows every step, in order, once the renames are done.
         var moves: [(from: URL, to: URL)] = []
         func moved(_ from: URL, _ to: URL) { moves.append((from, to)) }
-        defer { catalog.filesMoved(moves) }
+        // No healing of the folders until the marks have followed.
+        catalog.pauseHealing()
+        defer {
+            catalog.filesMoved(moves)
+            catalog.resumeHealing()
+        }
         var results: [Step?] = Array(repeating: nil, count: requests.count)
         var failures: [Failure?] = Array(repeating: nil, count: requests.count)
 

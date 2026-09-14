@@ -91,6 +91,29 @@ import MinivuCore
         #expect(Catalog.shared.marks(for: old).rating == 0, "the newcomer doesn't inherit the old file's stars")
         #expect(Catalog.shared.marks(for: trashed.to).rating == 2)
     }
+
+    /// Replace puts the old item in the Trash before the new one comes. If the
+    /// new one then can't come (here: the source can't be read), the old one
+    /// must be back in its place, marks and all, not left in the Trash with
+    /// nothing to undo.
+    @Test func replaceThatFailsPutsTheOldItemBack() async throws {
+        let t = try ScratchFolder()
+        let source = try t.folder("Source"), destination = try t.folder("Destination"), bin = try t.folder("Bin")
+        let incoming = try t.file("p.jpg", bytes: 4, in: source)
+        let old = try t.file("p.jpg", bytes: 1, in: destination)
+        Catalog.shared.setRating(3, for: [old])
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: incoming.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: incoming.path) }
+        let outcome = await FileTransfer.run(.init(files: [incoming], destination: destination, isMove: false),
+                                             window: nil, resolver: answerReplace,
+                                             trash: AppWindowTests.ManageUndoSafetyTests.trash(into: bin))
+        #expect(outcome.transfers.isEmpty)
+        #expect(outcome.failed.map(\.url) == [incoming])
+        #expect(outcome.trashed.isEmpty, "nothing is left in the Trash")
+        #expect((try FileManager.default.attributesOfItem(atPath: old.path)[.size] as? Int) == 1)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: bin.path).isEmpty)
+        #expect(Catalog.shared.marks(for: old).rating == 3)
+    }
 }
 
 extension AppWindowTests {

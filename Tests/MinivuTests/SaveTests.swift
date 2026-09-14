@@ -579,4 +579,51 @@ import MinivuRender
         let names = try FileManager.default.contentsOfDirectory(atPath: t.url.path)
         #expect(names == ["photo.jpg"])
     }
+
+    /// Another application saving the file after editing began (not through
+    /// External Editor, so no watcher saw it) must not lose its version to
+    /// Save, even with "Don't ask again" ticked.
+    @Test func saveNeverReplacesAVersionSavedElsewhere() async throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 64, height: 48)
+        let document = EditDocument(entry: try #require(FolderEntry(url: url)))
+        try await EditRenderer.shared.prepare(document)
+        defer { EditRenderer.shared.release(document) }
+        document.apply(.flip(horizontal: true))
+        try await Task.sleep(for: .milliseconds(20))
+        try t.jpeg("photo.jpg", width: 40, height: 40)
+        let theirs = try Data(contentsOf: url)
+        let options = SavePolicy.inPlaceOptions(remembered: .defaults(for: .jpeg), sourceBitDepth: 8)
+        await #expect(throws: InPlaceSaveError.fileChanged("photo.jpg")) {
+            try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                 options: options, to: url, renderer: .shared)
+        }
+        #expect(try Data(contentsOf: url) == theirs)
+        #expect(!document.snapshot().fileIsUnchangedSinceEditing())
+    }
+
+    /// minivu's own writes of the file are not "another application": a Save
+    /// whose document was edited again while it ran, then Save again, and a
+    /// comment written in between.
+    @Test func saveAgainAfterMinivusOwnWrites() async throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 64, height: 48)
+        let document = EditDocument(entry: try #require(FolderEntry(url: url)))
+        try await EditRenderer.shared.prepare(document)
+        defer { EditRenderer.shared.release(document) }
+        let options = SavePolicy.inPlaceOptions(remembered: .defaults(for: .jpeg), sourceBitDepth: 8)
+        let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
+        document.apply(.resize(width: 32, height: 24, filter: .lanczos3))
+        try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: sRGB, options: options, to: url,
+                                             renderer: .shared)
+        document.apply(.rotate90(turns: 1))
+        #expect(document.snapshot().fileIsUnchangedSinceEditing())
+        try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: sRGB, options: options, to: url,
+                                             renderer: .shared)
+        #expect(try size(url) == (24, 32), "both edits, each applied once, from the pixels first decoded")
+        try JPEGComment.write("note", to: url)
+        try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: sRGB, options: options, to: url,
+                                             renderer: .shared)
+        #expect(JPEGComment.read(from: url) == "note")
+    }
 }

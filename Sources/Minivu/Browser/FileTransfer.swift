@@ -42,6 +42,24 @@ final class FileTransfer {
     static let progressThreshold = 20
     static let progressDelay: Duration = .milliseconds(500)
 
+    /// Transfers moving files right now (clashes settled), so quitting can
+    /// stop them between items and wait for the item under way: a copy cut
+    /// off by the app exiting leaves its hidden temporary item behind, a
+    /// whole folder of it perhaps.
+    private(set) static var active: [TransferProgress] = []
+
+    static var isActive: Bool { !active.isEmpty }
+
+    /// Stops every transfer after the item it is on.
+    static func cancelActive() {
+        active.forEach { $0.cancel() }
+    }
+
+    /// Returns once no transfer is moving files.
+    static func waitUntilInactive() async {
+        while isActive { try? await Task.sleep(for: .milliseconds(20)) }
+    }
+
     /// Runs `request`, asking about clashes with `resolver` (an alert on
     /// `window` when nil) and showing progress on `window`.
     static func run(_ request: Request, window: NSWindow?, resolver: ConflictResolver? = nil,
@@ -103,6 +121,8 @@ final class FileTransfer {
         }
 
         let items = plan
+        active.append(progress)
+        defer { active.removeAll { $0 === progress } }
         let (result, trashed) = await BlockingWork.run {
             () -> (FileOperations.Result, [FileOperations.Transfer]) in
             var merged = FileOperations.Result()
@@ -113,6 +133,7 @@ final class FileTransfer {
                     break
                 }
                 var policy = item.policy
+                var displaced: FileOperations.Transfer?
                 if policy == .replace {
                     // The old item goes to the Trash rather than away for
                     // good, so Replace can be undone; one that can't be
@@ -120,7 +141,7 @@ final class FileTransfer {
                     let existing = destination.appendingPathComponent(item.url.lastPathComponent)
                     switch trash(existing) {
                     case .success(let place):
-                        if let place { trashed.append(FileOperations.Transfer(from: existing, to: place)) }
+                        displaced = place.map { FileOperations.Transfer(from: existing, to: $0) }
                         // Something turning up there meanwhile is kept too.
                         policy = .keepBoth
                     case .failure(let error):
@@ -135,6 +156,12 @@ final class FileTransfer {
                 merged.completed += one.completed
                 merged.skipped += one.skipped
                 merged.failed += one.failed
+                if let displaced {
+                    // The new item didn't arrive (unreadable, disk full): the
+                    // old one comes back, or the user would find it only in
+                    // the Trash, with nothing to undo.
+                    if !(one.completed.isEmpty && TransferChecks.putBack(displaced)) { trashed.append(displaced) }
+                }
                 progress.advance()
             }
             return (merged, trashed)
@@ -393,6 +420,16 @@ nonisolated enum TransferChecks {
         } catch {
             return .failure(error)
         }
+    }
+
+    /// Undoes `trash` for an item whose replacement never arrived: back to
+    /// where it was, marks and all, unless that place has been taken since.
+    static func putBack(_ trashed: FileOperations.Transfer) -> Bool {
+        Catalog.shared.pauseHealing()
+        defer { Catalog.shared.resumeHealing() }
+        guard (try? FileOperations.moveExclusively(trashed.to, to: trashed.from)) != nil else { return false }
+        Catalog.shared.fileMoved(from: trashed.to, to: trashed.from)
+        return true
     }
 
     static func moveToTrash(_ url: URL) throws -> URL? {

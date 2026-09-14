@@ -215,6 +215,18 @@ extension EditDocument {
         let settings: DisplaySettings
         /// See `EditDocument.sourceSignature`.
         let sourceSignature: FileSignature?
+
+        /// Whether writing these edits over the file replaces only what they
+        /// were made on: the file is still the one first decoded for them, or
+        /// minivu itself has written it since (an earlier Save whose document
+        /// was edited again meanwhile, a JPEG comment). False when another
+        /// application has changed it; true when the file was never decoded
+        /// (nothing to compare). Disk work: off the main thread.
+        public nonisolated func fileIsUnchangedSinceEditing() -> Bool {
+            guard let sourceSignature else { return true }
+            let now = FileStamp.read(url)
+            return now == sourceSignature || OwnWrites.isOwn(url, stamp: now)
+        }
     }
 
     public func snapshot() -> Snapshot {

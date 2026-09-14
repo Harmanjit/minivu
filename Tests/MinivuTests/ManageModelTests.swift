@@ -1,4 +1,5 @@
 import Testing
+import Synchronization
 import AppKit
 import MinivuCore
 @testable import Minivu
@@ -275,6 +276,43 @@ import MinivuCore
         let size = try FileManager.default.attributesOfItem(atPath: destination.appendingPathComponent("b.jpg").path)[.size]
         #expect(size as? Int == 4)
         #expect(FileManager.default.fileExists(atPath: files[0].path), "a copy leaves the original")
+    }
+
+    /// Quitting stops a transfer after the item under way: every file is
+    /// either copied whole or not at all, and no hidden temporary copy stays.
+    @Test func cancellingActiveTransfersStopsBetweenItems() async throws {
+        let t = try ScratchFolder()
+        let source = try t.folder("Source"), destination = try t.folder("Destination"), bin = try t.folder("Bin")
+        let names = (0..<30).map { "p\($0).jpg" }
+        let files = try names.map { try t.file($0, bytes: 8, in: source) }
+        for name in names { try t.file(name, bytes: 1, in: destination) }
+        // The fourth replacement waits until the test has cancelled.
+        let reached = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
+        let count = Mutex(0)
+        let trash: FileTransfer.Trasher = { url in
+            if count.withLock({ $0 += 1; return $0 }) == 4 {
+                reached.signal()
+                release.wait()
+            }
+            let place = bin.appendingPathComponent(UUID().uuidString)
+            return Result { try FileManager.default.moveItem(at: url, to: place); return place }
+        }
+        let job = Task {
+            await FileTransfer.run(.init(files: files, destination: destination, isMove: false), window: nil,
+                                   resolver: { _, _ in .init(policy: .replace, applyToAll: true) }, trash: trash)
+        }
+        await BlockingWork.run { reached.wait() }
+        // This test's own transfer (others may run alongside): the one of 30.
+        let mine = try #require(FileTransfer.active.first { $0.total == names.count })
+        mine.cancel()
+        release.signal()
+        let outcome = await job.value
+        #expect(!FileTransfer.active.contains { $0 === mine })
+        #expect(outcome.wasCancelled)
+        #expect(outcome.transfers.count == 4, "the item under way finishes; none starts after")
+        let left = try FileManager.default.contentsOfDirectory(atPath: destination.path)
+        #expect(left.allSatisfy { !$0.hasPrefix(".") }, "no temporary copies")
+        #expect(Set(left) == Set(names), "each name holds the old file or its whole replacement")
     }
 
     @Test func moveSkipsWhatTheUserSkips() async throws {

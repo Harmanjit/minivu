@@ -77,23 +77,40 @@ enum SavePresenter {
     /// `canReplace` is asked again once the overwrite is confirmed, just
     /// before writing: the file may have been changed by another application
     /// while the question was up, and then Save As opens instead.
+    ///
+    /// A file changed on disk since the edits began, by anything but minivu
+    /// (`EditDocument.Snapshot.fileIsUnchangedSinceEditing`), is never
+    /// replaced: `fileChanged` is called instead (Save As when nil), and the
+    /// write itself checks again, in the queue, and fails rather than
+    /// replace a version saved while "Replace the original?" was up.
     static func save(entry: FolderEntry, document: EditDocument, on window: NSWindow,
-                     canReplace: @escaping () -> Bool = { true }, completion: @escaping (Bool) -> Void) {
+                     canReplace: @escaping () -> Bool = { true }, fileChanged: (() -> Void)? = nil,
+                     completion: @escaping (Bool) -> Void) {
         save(entry: entry, document: document, on: window, store: SaveOptionsStore(),
-             preferences: .shared, canReplace: canReplace, completion: completion)
+             preferences: .shared, canReplace: canReplace, fileChanged: fileChanged, completion: completion)
     }
 
     static func save(entry: FolderEntry, document: EditDocument, on window: NSWindow, store: SaveOptionsStore,
                      preferences: Preferences, canReplace: @escaping () -> Bool = { true },
-                     completion: @escaping (Bool) -> Void) {
+                     fileChanged: (() -> Void)? = nil, completion: @escaping (Bool) -> Void) {
         let url = entry.url
+        let edited = document.snapshot()
         Task { [weak window] in
             // Reading the header is disk work: never on the main thread.
-            let (info, sourceSpace, hasGainMap) = await BlockingWork.run {
+            let (info, sourceSpace, hasGainMap, unchanged) = await BlockingWork.run {
                 let info = ImageDecoder.info(for: url)
-                return (info, SavePolicy.sourceColorSpace(of: url), info?.isHDR == true && SavePolicy.hasGainMap(url))
+                return (info, SavePolicy.sourceColorSpace(of: url), info?.isHDR == true && SavePolicy.hasGainMap(url),
+                        edited.fileIsUnchangedSinceEditing())
             }
             guard let window else { return completion(false) }
+            guard unchanged else {
+                guard let fileChanged else {
+                    presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
+                    return
+                }
+                fileChanged()
+                return completion(false)
+            }
             guard let format = SavePolicy.inPlaceFormat(for: url, info: info), let info else {
                 presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
                 return
@@ -165,6 +182,12 @@ enum SavePresenter {
     nonisolated static func writeInPlace(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
                                          options: ExportOptions, to url: URL, renderer: EditRenderer,
                                          gainMap: Bool = false) async throws {
+        // Checked here, in the write queue, after every earlier write of
+        // minivu's own has landed: another application's version saved since
+        // the edits began is not replaced.
+        guard await BlockingWork.run({ snapshot.fileIsUnchangedSinceEditing() }) else {
+            throw InPlaceSaveError.fileChanged(url.lastPathComponent)
+        }
         if gainMap, ImageEncoder.canWriteGainMap(options.format),
            let hdr = try await renderer.renderHDRForExport(snapshot) {
             try await BlockingWork.run {
@@ -213,6 +236,20 @@ enum SavePresenter {
 
     nonisolated static func sameFile(_ a: URL, _ b: URL) -> Bool {
         a.standardizedFileURL.resolvingSymlinksInPath().path == b.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+}
+
+/// Why an in-place Save refused to write.
+nonisolated enum InPlaceSaveError: LocalizedError, Equatable {
+    /// Another application changed the file after editing began.
+    case fileChanged(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .fileChanged(let name):
+            "“\(name)” was changed by another application after you started editing it, so it wasn’t replaced. "
+                + "Use Save As to keep your edits in a new file."
+        }
     }
 }
 

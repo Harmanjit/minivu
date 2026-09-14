@@ -91,6 +91,8 @@ public enum FileOperations {
                                 progress: ((Int, Int) -> Void)? = nil,
                                 isCancelled: () -> Bool = { false }) -> Result {
         var undo = Result()
+        catalog.pauseHealing()
+        defer { catalog.resumeHealing() }
         let transfers = Array(result.completed.reversed())
         for (i, transfer) in transfers.enumerated() {
             if isCancelled() { undo.wasCancelled = true; break }
@@ -148,6 +150,8 @@ public enum FileOperations {
                          progress: ((Int, Int) -> Void)?, isCancelled: () -> Bool) -> Result {
         var result = Result()
         let total = urls.count
+        catalog.pauseHealing()
+        defer { catalog.resumeHealing() }
 
         // The destination is checked once for the whole batch.
         let folderInfo = info(folder.path, followingLinks: true)
@@ -248,7 +252,9 @@ public enum FileOperations {
     /// an existing item of that name. A rename that changes only letter case
     /// (or Unicode normalisation) works on case-insensitive volumes.
     public static func rename(_ url: URL, to newName: String, catalog: Catalog = .shared) throws -> URL {
-        try rename(url, to: newName) { catalog.fileMoved(from: $0, to: $1) }
+        catalog.pauseHealing()
+        defer { catalog.resumeHealing() }
+        return try rename(url, to: newName) { catalog.fileMoved(from: $0, to: $1) }
     }
 
     /// `rename`, reporting the move to `moved` instead of the catalog, so a
@@ -264,7 +270,9 @@ public enum FileOperations {
     /// Undoes `rename`: `renamed` (what it returned) takes `original`'s name
     /// again. The old name isn't re-validated, only checked to be free.
     public static func undoRename(_ renamed: URL, to original: URL, catalog: Catalog = .shared) throws -> URL {
-        try undoRename(renamed, to: original) { catalog.fileMoved(from: $0, to: $1) }
+        catalog.pauseHealing()
+        defer { catalog.resumeHealing() }
+        return try undoRename(renamed, to: original) { catalog.fileMoved(from: $0, to: $1) }
     }
 
     static func undoRename(_ renamed: URL, to original: URL, moved: (URL, URL) -> Void) throws -> URL {
@@ -430,15 +438,27 @@ public enum FileOperations {
     }
 
     /// A rename that refuses to overwrite. Across volumes, where rename(2)
-    /// can't go, FileManager copies and then deletes the original.
-    static func moveExclusively(_ source: URL, to destination: URL) throws {
+    /// can't go, the item is copied and then the original deleted.
+    public static func moveExclusively(_ source: URL, to destination: URL) throws {
         if renamex_np(source.path, destination.path, UInt32(RENAME_EXCL)) == 0 { return }
         let code = errno
         if code == EXDEV {
-            try FileManager.default.moveItem(at: source, to: destination)
+            try moveByCopying(source, to: destination)
             return
         }
         throw cocoaError(errno: code, source: source, destination: destination)
+    }
+
+    /// A move to another volume: a complete copy under a hidden name, renamed
+    /// into place without overwriting, and only then the original deleted.
+    /// (`FileManager.moveItem` copies straight to the destination, so a copy
+    /// cut short by a full disk or a quit left a partial item under the real
+    /// name.) If the original can't be deleted afterwards (a locked file, a
+    /// folder partly removed), the copy stays: it is whole, and deleting it
+    /// could lose what is already gone from the original.
+    static func moveByCopying(_ source: URL, to destination: URL) throws {
+        try copyExclusively(source, to: destination)
+        try? FileManager.default.removeItem(at: source)
     }
 
     /// POSIX failures as Cocoa errors, whose descriptions read as sentences.
