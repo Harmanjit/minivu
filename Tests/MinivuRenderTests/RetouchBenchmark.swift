@@ -10,13 +10,15 @@ import CoreGraphics
 ///
 /// M4, debug build (2026-09-14; the release build of the test targets
 /// currently stops at BrowserModel's isolated deinit), request to delivery
-/// with the mip chain, while painting (each render one stroke more or less):
-///     heal 20 strokes spread, 3024 px proxy     median 24.1 ms, max 32.1 ms (first 50.9)
-///     heal 20 strokes on one spot               median 26.1 ms, max 35.1 ms
-///     clone 20 strokes spread                   median 9.5 ms
+/// with the mip chain, while painting (each render one stroke more or less),
+/// three runs after the review fixes (patches pasted by their mask bitmaps,
+/// padded, red-eye patches as intermediates):
+///     heal 20 strokes spread, 3024 px proxy     median 23-31 ms, max 29-36 ms (first 45-54)
+///     heal 20 strokes on one spot               median 31-35 ms, max 40-44 ms
+///     clone 20 strokes spread                   median 11.5 ms
 ///     graph for 20 new heal strokes (CPU masks) 7.5 ms (cached masks: under 1 ms)
-///     red-eye, 2 spots                          median 5.4 ms
-///     export of 20 heal strokes, 6032x4032      94 ms
+///     red-eye, 2 spots                          median 5 ms
+///     export of 20 heal strokes, 6032x4032      90-97 ms
 @MainActor @Suite(.serialized) struct RetouchBenchmark {
     nonisolated static let photo = DecodeBenchmark.folder?.appendingPathComponent("HSB_6548.jpg")
 

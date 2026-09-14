@@ -24,15 +24,27 @@ enum RetouchKernels {
     #include <CoreImage/CoreImage.h>
     using namespace metal;
 
-    // Pixels inside `rect` (minX, minY, maxX, maxY, whole pixels) come from
-    // `patch`, the rest from `prev`. How a retouched region goes back into
-    // the image: an exact replacement, alpha included, where a composite
-    // would blend a patch that isn't opaque.
-    [[stitchable]] float4 minivuRetouchPaste(coreimage::sample_t prev, coreimage::sample_t patch, float4 rect,
-                                            coreimage::destination dest) {
-        float2 p = dest.coord();
-        bool inside = p.x > rect.x && p.x < rect.z && p.y > rect.y && p.y < rect.w;
-        return inside ? patch : prev;
+    // Every kernel here is a pure function of the pixels under it, and
+    // every position comes in as a small bitmap drawn on the CPU (a
+    // stroke's mask, a red-eye circle), never as `destination::coord()`
+    // or a generator such as a radial gradient. Core Image fuses these
+    // colour kernels with the crops, clamps and blurs around them into
+    // shared programs, and with coordinate tests or generators in the
+    // mix it rendered graphs where one retouch reads another's patch
+    // wrongly on the GPU: garbage values that changed with whatever had
+    // been rendered before, a pupil left red, tiles that disagreed with
+    // the whole image (`RetouchRenderConsistencyTests` compares against
+    // each stroke rendered on its own).
+
+    // Pixels where `area` is opaque come from `patch`, the rest from
+    // `prev`. How a retouched region goes back into the image: an exact
+    // replacement, alpha included, where a composite would blend a patch
+    // that isn't opaque. A mix rather than a choice, so that where Core
+    // Image samples between pixels (a transform moved across this kernel)
+    // the edge blends instead of stepping.
+    [[stitchable]] float4 minivuRetouchPaste(coreimage::sample_t prev, coreimage::sample_t patch,
+                                            coreimage::sample_t area) {
+        return mix(prev, patch, clamp(area.a, 0.0, 1.0));
     }
 
     // Clone stamp: the source pixels over the destination by coverage.
@@ -92,38 +104,57 @@ enum RetouchKernels {
         return c.r / max(max(c.g, c.b), 0.005);
     }
 
-    // circle: centre x, y and radius in working pixels, feather fraction.
-    static float minivuRadial(float2 p, float4 circle) {
-        float d = distance(p, circle.xy);
-        return 1.0 - smoothstep(circle.z * (1.0 - circle.w), circle.z, d);
+    // How close to magenta-red rather than orange-brown: blue over green,
+    // each lifted by a fiftieth of the red so a near-black pupil's noise
+    // doesn't decide. The flash's red reflection leaves green and blue
+    // about equal (1); a dark, saturated brown iris, whose redness can
+    // reach a pupil's, keeps far more green than blue (about 0.35).
+    static float minivuPurple(float3 c) {
+        float lift = 0.02 * max(c.r, 0.0);
+        return smoothstep(0.35, 0.6, (max(c.b, 0.0) + lift) / max(max(c.g, 0.0) + lift, 1e-6));
+    }
+
+    // A pixel of the red pupil: red, and red the way a flash reflection is.
+    static float minivuPupilRed(float3 c, float2 thresholds) {
+        return smoothstep(thresholds.x, thresholds.y, minivuRedness(c)) * minivuPurple(c);
+    }
+
+    // The spot's circle with its feathered edge, drawn like a one-dab stroke.
+    static float minivuRadial(coreimage::sample_t circle) {
+        return circle.r;
     }
 
     // Red pixels inside the spot's circle, softly: the raw pupil mask.
     // thresholds: redness where the mask starts and where it is full.
-    [[stitchable]] float4 minivuRedEyeMask(coreimage::sample_t s, float4 circle, float2 thresholds,
-                                          coreimage::destination dest) {
+    [[stitchable]] float4 minivuRedEyeMask(coreimage::sample_t s, coreimage::sample_t circle, float2 thresholds) {
         if (s.a <= 0.0) { return float4(0.0); }
-        float red = smoothstep(thresholds.x, thresholds.y, minivuRedness(s.rgb / s.a));
-        return float4(red * minivuRadial(dest.coord(), circle));
+        return float4(minivuPupilRed(s.rgb / s.a, thresholds) * minivuRadial(circle));
     }
 
     // The correction. `smooth` is the raw mask blurred: high inside the red
     // pupil, low on a stray red pixel, so specks elsewhere in the circle are
     // left alone while the pupil's edge is corrected softly. Each pixel is
-    // also gated by its own redness, which keeps the white catchlight, the
-    // iris and the skin exactly as they were. The pupil becomes a neutral
-    // grey at the level of its green and blue channels, which the flash's
-    // red reflection doesn't reach: they still carry the pupil's real
-    // shading, so it reads as a dark pupil with depth rather than a black
-    // disc.
+    // also gated by its own colour, which keeps the white catchlight, the
+    // iris and the skin as they were: pupil red, or pink where the pupil's
+    // red blends into the catchlight (redness above 1.03 with green and
+    // blue equal), which would otherwise stay as a pink ring around it. The
+    // pupil becomes a neutral grey at the level of its green and blue
+    // channels, which the flash's red reflection doesn't reach: they still
+    // carry the pupil's real shading, so it reads as a dark pupil with
+    // depth rather than a black disc, and the catchlight's pink edge
+    // becomes the grey between white and that pupil.
     // params: mask gain, strength, darkening of the grey, unused.
-    [[stitchable]] float4 minivuRedEyeFix(coreimage::sample_t s, coreimage::sample_t smooth, float4 circle,
-                                         float2 thresholds, float4 params, coreimage::destination dest) {
+    [[stitchable]] float4 minivuRedEyeFix(coreimage::sample_t s, coreimage::sample_t smooth, coreimage::sample_t circle,
+                                         float2 thresholds, float4 params) {
         if (s.a <= 0.0) { return s; }
         float3 c = s.rgb / s.a;
-        float gate = smoothstep(thresholds.x, thresholds.y, minivuRedness(c));
-        float m = clamp(smooth.r * params.x, 0.0, 1.0) * gate * minivuRadial(dest.coord(), circle);
-        float y = max(min(c.g, c.b), 0.0) * params.z;
+        float greenBlue = max(max(c.g, c.b), 1e-6);
+        float pupil = minivuPupilRed(c, thresholds);
+        float pink = smoothstep(1.03, 1.35, minivuRedness(c)) * smoothstep(0.75, 0.9, min(c.g, c.b) / greenBlue);
+        float gate = max(pupil, pink);
+        float m = clamp(smooth.r * params.x, 0.0, 1.0) * gate * minivuRadial(circle);
+        // Pink edges keep their brightness; only the pupil itself darkens.
+        float y = max(min(c.g, c.b), 0.0) * mix(1.0, params.z, pupil);
         float3 o = mix(c, float3(y), clamp(m * params.y, 0.0, 1.0));
         return float4(o * s.a, s.a);
     }
@@ -145,12 +176,11 @@ enum RetouchKernels {
         return kernel
     }
 
-    /// `patch` in place of `prev` inside `rect` (whole pixels), over `extent`.
-    static func paste(_ patch: CIImage, rect: CGRect, over prev: CIImage, extent: CGRect) -> CIImage {
-        let vector = CIVector(x: rect.minX, y: rect.minY, z: rect.maxX, w: rect.maxY)
-        return kernel("minivuRetouchPaste").apply(extent: extent, roiCallback: { index, r in
-            index == 1 ? r.intersection(rect) : r
-        }, arguments: [prev, patch, vector]) ?? prev
+    /// `patch` in place of `prev` where `area` (an opaque bitmap, clear
+    /// outside its extent) is, over `extent`.
+    static func paste(_ patch: CIImage, area: CIImage, over prev: CIImage, extent: CGRect) -> CIImage {
+        kernel("minivuRetouchPaste").apply(extent: extent, roiCallback: { _, r in r },
+                                           arguments: [prev, patch, area]) ?? prev
     }
 
     static func clone(destination: CIImage, source: CIImage, mask: CIImage, opacity: Double, extent: CGRect) -> CIImage {
@@ -178,12 +208,12 @@ enum RetouchKernels {
         ]) ?? destination
     }
 
-    static func redEyeMask(_ image: CIImage, circle: CIVector, thresholds: CIVector, extent: CGRect) -> CIImage {
+    static func redEyeMask(_ image: CIImage, circle: CIImage, thresholds: CIVector, extent: CGRect) -> CIImage {
         kernel("minivuRedEyeMask").apply(extent: extent, roiCallback: { _, r in r },
                                          arguments: [image, circle, thresholds]) ?? image
     }
 
-    static func redEyeFix(_ image: CIImage, smoothMask: CIImage, circle: CIVector, thresholds: CIVector,
+    static func redEyeFix(_ image: CIImage, smoothMask: CIImage, circle: CIImage, thresholds: CIVector,
                           params: CIVector, extent: CGRect) -> CIImage {
         kernel("minivuRedEyeFix").apply(extent: extent, roiCallback: { _, r in r },
                                         arguments: [image, smoothMask, circle, thresholds, params]) ?? image

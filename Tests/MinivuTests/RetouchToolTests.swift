@@ -234,5 +234,38 @@ extension AppWindowTests {
             #expect(viewer.activeTool == nil && session.document.preview == nil)
             #expect(session.document.operations.isEmpty)
         }
+
+        /// Delete in a retouch tool never reaches the viewer, where it would
+        /// go to the previous image (asking about the unapplied strokes).
+        @Test func deleteStaysInTheRetouchTools() async throws {
+            let folder = try ScratchFolder()
+            let entries = try ["a.jpg", "b.jpg"].map {
+                try #require(FolderEntry(url: try folder.jpeg($0, width: 600, height: 400)))
+            }
+            ViewerWindowController.show(images: entries, index: 1, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            let window = try #require(viewer.window)
+            let delete = try key(String(Character(UnicodeScalar(NSDeleteCharacter)!)), window: window)
+
+            viewer.removeRedEye(nil)
+            await waitUntil { viewer.activeTool != nil }
+            guard case .custom(let open)? = viewer.activeTool, let redEye = open as? RedEyeToolState else {
+                Issue.record("Red-eye removal didn't open")
+                return
+            }
+            redEye.addSpot(center: CGPoint(x: 0.5, y: 0.5), radius: 0.05)
+            redEye.selection = nil
+            window.firstResponder?.keyDown(with: delete)
+            #expect(redEye.spots.count == 1 && viewer.activeTool != nil && viewer.model.index == 1)
+
+            viewer.healingBrush(nil)
+            await waitUntil { viewer.container.canvasOverlay is RetouchBrushOverlayView }
+            #expect(window.firstResponder is RetouchBrushOverlayView)
+            window.firstResponder?.keyDown(with: delete)
+            #expect(viewer.activeTool != nil && viewer.model.index == 1 && window.attachedSheet == nil)
+            window.contentView?.keyDown(with: try key("\u{1B}", window: window))
+        }
     }
 }

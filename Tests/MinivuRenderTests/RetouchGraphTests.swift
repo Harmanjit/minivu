@@ -300,6 +300,37 @@ import simd
         #expect(worst < 0.002, "unreddened eye changed by \(worst)")
     }
 
+    /// A dark, saturated brown iris measures as red as a pupil by redness
+    /// alone, and a catchlight's soft edge is a pink blend of white and
+    /// pupil: the iris must stay, the pink must go neutral.
+    @Test func redEyeKeepsADarkBrownIrisAndClearsTheCatchlightsPinkEdge() {
+        let darkIris = Self.linear(90, 40, 20)
+        let pupil = Self.pupil
+        let edge = Self.highlight * 0.7 + pupil * 0.3
+        let source = F.image(width: 300, height: 200) { x, y in
+            let d = Float((x - 100) * (x - 100) + (y - 100) * (y - 100)).squareRoot()
+            let c = Float((x - 97) * (x - 97) + (y - 97) * (y - 97)).squareRoot()
+            if c <= 2 { return Self.highlight }
+            if c <= 3.5 { return SIMD4(edge.x, edge.y, edge.z, 1) }
+            if d <= 10 { return pupil }
+            if d <= 20 { return darkIris }
+            return Self.skin
+        }
+        let before = F.pixels(source)
+        #expect(RedEyeTuning.redness(red: Double(darkIris.x), green: Double(darkIris.y), blue: Double(darkIris.z))
+            > RedEyeTuning.highThreshold, "the test's iris is as red as a pupil by redness")
+        let p = render([.redEye([Self.spots[0]])], source: source)
+        for (x, y) in [(97, 100), (100, 97), (94, 97)] {   // on the catchlight's edge ring
+            let e = p[x, y]
+            #expect(e.x <= max(e.y, e.z) * 1.12, "(\(x), \(y)) still pink: \(e) was \(before[x, y])")
+        }
+        #expect(relativeChange(p[97, 97], before[97, 97]) < 0.01, "catchlight \(p[97, 97])")
+        #expect(p[100, 106].x < 0.06, "pupil corrected: \(p[100, 106])")
+        for (x, y) in [(114, 100), (100, 115), (88, 112), (86, 100)] {
+            #expect(relativeChange(p[x, y], before[x, y]) < 0.02, "iris (\(x), \(y)): \(p[x, y]) was \(before[x, y])")
+        }
+    }
+
     @Test func redEyeStrengthBlends() {
         var half = Self.spots[0]
         half.strength = 0.5

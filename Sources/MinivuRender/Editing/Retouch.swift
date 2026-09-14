@@ -125,6 +125,15 @@ public enum RedEyeTuning {
     public static func redness(red: Double, green: Double, blue: Double) -> Double {
         red / max(max(green, blue), 0.005)
     }
+
+    /// Whether a colour (linear light) counts as pupil red: red enough for
+    /// the kernel's mask to start, and at least halfway from brown to
+    /// magenta-red (see `minivuPurple` in `RetouchKernels`).
+    public static func isPupilRed(red: Double, green: Double, blue: Double) -> Bool {
+        let lift = 0.02 * max(red, 0)
+        let purple = (max(blue, 0) + lift) / max(max(green, 0) + lift, 1e-6)
+        return redness(red: red, green: green, blue: blue) >= lowThreshold && purple >= 0.475
+    }
 }
 
 /// Renders `.retouch` and `.redEye` (see `EditGraph`).
@@ -157,11 +166,14 @@ enum RetouchGraph {
             let offset = CGPoint(x: (stroke.sourceOffset.dx * extent.width).rounded(),
                                  y: (-stroke.sourceOffset.dy * extent.height).rounded())
             let opacity = min(max(stroke.opacity, 0), 1)
+            let padded = Self.padded(mask.rect, in: extent)
             let patch = switch stroke.mode {
-            case .clone: clonePatch(mask: mask, offset: offset, opacity: opacity, base: base, patches: patches)
-            case .heal: healPatch(mask: mask, offset: offset, opacity: opacity, base: base, patches: patches)
+            case .clone: clonePatch(mask: mask, padded: padded, offset: offset, opacity: opacity, base: base,
+                                    patches: patches)
+            case .heal: healPatch(mask: mask, padded: padded, offset: offset, opacity: opacity, base: base,
+                                  patches: patches)
             }
-            patches.append(Patch(rect: mask.rect, image: patch))
+            patches.append(Patch(rect: mask.rect, area: mask.image, image: patch))
         }
         return pasted(patches, over: image)
     }
@@ -173,23 +185,32 @@ enum RetouchGraph {
         let extent = image.extent
         guard extent.width >= 1, extent.height >= 1 else { return image }
         let shortSide = Double(min(fullSize.width, fullSize.height)) * scale
-        let base = image.clampedToExtent()
         let thresholds = CIVector(x: RedEyeTuning.lowThreshold, y: RedEyeTuning.highThreshold)
         var patches: [Patch] = []
         for spot in spots where !spot.isIdentity {
             let centre = workingPoint(spot.center, in: extent)
             let radius = max(spot.radius * shortSide, 1)
-            let rect = CGRect(x: centre.x - radius, y: centre.y - radius, width: 2 * radius, height: 2 * radius)
-                .integral.intersection(extent)
-            guard !rect.isNull, rect.width >= 1, rect.height >= 1 else { continue }
-            let circle = CIVector(x: centre.x, y: centre.y, z: radius, w: RedEyeTuning.feather)
-            let before = state(in: rect, base: base, patches: patches)
-            let raw = RetouchKernels.redEyeMask(before, circle: circle, thresholds: thresholds, extent: rect)
-            let smooth = raw.applyingGaussianBlur(sigma: max(radius * RedEyeTuning.smoothing, 0.5)).cropped(to: rect)
+            // The circle with its feathered edge, 1 - smoothstep((1 - feather)
+            // r, r, d), drawn as a stroke of one dab (see `RetouchKernels` for
+            // why it is a bitmap).
+            guard let circle = StrokeMask(points: [centre], radius: radius,
+                                          hardness: (1 - RedEyeTuning.feather) / StrokeMask.hardEdge, bounds: extent)
+            else { continue }
+            let rect = circle.rect
+            let padded = Self.padded(rect, in: extent)
+            let disc = circle.image
+            let before = state(in: padded, base: image, patches: patches)
+            let raw = RetouchKernels.redEyeMask(before, circle: disc, thresholds: thresholds, extent: padded)
+            let smooth = raw.applyingGaussianBlur(sigma: max(radius * RedEyeTuning.smoothing, 0.5)).cropped(to: padded)
             let params = CIVector(x: RedEyeTuning.maskGain, y: min(spot.strength, 1), z: RedEyeTuning.darkening, w: 0)
-            let fixed = RetouchKernels.redEyeFix(before, smoothMask: smooth, circle: circle, thresholds: thresholds,
-                                                 params: params, extent: rect)
-            patches.append(Patch(rect: rect, image: fixed))
+            let fixed = RetouchKernels.redEyeFix(before, smoothMask: smooth, circle: disc, thresholds: thresholds,
+                                                 params: params, extent: padded)
+            // Rendered on its own pixels: a later transform moved across the
+            // correction would test the colours between pixels, where the
+            // pupil's edge blends into the iris and reads as less red, and
+            // leave a red ring. (Clone and heal are near enough linear in
+            // their inputs not to need it; `RetouchRenderConsistencyTests`.)
+            patches.append(Patch(rect: rect, area: disc, image: fixed.insertingIntermediate(cache: false)))
         }
         return pasted(patches, over: image)
     }
@@ -204,7 +225,24 @@ enum RetouchGraph {
     private struct Patch {
         /// Whole working pixels, inside the image.
         let rect: CGRect
+        /// Opaque exactly over `rect`: the stroke's mask or the spot's circle.
+        let area: CIImage
+        /// The retouched pixels over `rect` and a `padding` beyond it, where
+        /// they equal the image before the stroke.
         let image: CIImage
+    }
+
+    /// Patches are computed a little past the area they replace. Core
+    /// Image may move a later operation's transform (a straighten, a
+    /// resize) across the paste and sample the patch between pixels: at a
+    /// patch's hard edge it would blend in the clear outside and leave a
+    /// half-transparent seam around every stroke. Past `rect` the brush
+    /// has no coverage, so the padding is the unretouched image and the
+    /// edge blends into what is there anyway.
+    static let padding: CGFloat = 2
+
+    static func padded(_ rect: CGRect, in extent: CGRect) -> CGRect {
+        rect.insetBy(dx: -padding, dy: -padding).intersection(extent)
     }
 
     /// The image as it is before the next stroke, inside `region` (which may
@@ -213,7 +251,7 @@ enum RetouchGraph {
     private static func state(in region: CGRect, base: CIImage, patches: [Patch]) -> CIImage {
         var image = base.cropped(to: region)
         for patch in patches where patch.rect.intersects(region) {
-            image = RetouchKernels.paste(patch.image, rect: patch.rect, over: image, extent: region)
+            image = RetouchKernels.paste(patch.image, area: patch.area, over: image, extent: region)
         }
         return image
     }
@@ -221,14 +259,13 @@ enum RetouchGraph {
     private static func pasted(_ patches: [Patch], over image: CIImage) -> CIImage {
         var result = image
         for patch in patches {
-            result = RetouchKernels.paste(patch.image, rect: patch.rect, over: result, extent: image.extent)
+            result = RetouchKernels.paste(patch.image, area: patch.area, over: result, extent: image.extent)
         }
         return result
     }
 
-    private static func clonePatch(mask: StrokeMask, offset: CGPoint, opacity: Double, base: CIImage,
-                                   patches: [Patch]) -> CIImage {
-        let rect = mask.rect
+    private static func clonePatch(mask: StrokeMask, padded rect: CGRect, offset: CGPoint, opacity: Double,
+                                   base: CIImage, patches: [Patch]) -> CIImage {
         let destination = state(in: rect, base: base, patches: patches)
         let source = state(in: rect.offsetBy(dx: offset.x, dy: offset.y), base: base, patches: patches)
             .transformed(by: CGAffineTransform(translationX: -offset.x, y: -offset.y))
@@ -265,9 +302,8 @@ enum RetouchGraph {
     /// Sigma is half the brush radius (see `healSigma`): wider blurs reach
     /// further for their surroundings and follow curved gradients less
     /// closely (the sky above measured 0.80 / 1.24 with the full radius).
-    private static func healPatch(mask: StrokeMask, offset: CGPoint, opacity: Double, base: CIImage,
-                                  patches: [Patch]) -> CIImage {
-        let rect = mask.rect
+    private static func healPatch(mask: StrokeMask, padded rect: CGRect, offset: CGPoint, opacity: Double,
+                                  base: CIImage, patches: [Patch]) -> CIImage {
         let sigma = healSigma(radius: mask.radius, innerDistance: mask.innerDistance)
         let margin = (3 * sigma).rounded(.up) + 2
         let reach = rect.insetBy(dx: -margin, dy: -margin)
@@ -325,6 +361,8 @@ struct StrokeMask: @unchecked Sendable {
 
     /// Mask pixels per radius, at most.
     static let maximumRadius = 24.0
+    /// With hardness 1, coverage is full out to this fraction of the radius.
+    static let hardEdge = 0.9
 
     /// The mask for `stroke` on a working image of `extent` whose short side
     /// is `shortSide` working pixels (as a fraction of the full size, which
@@ -367,7 +405,7 @@ struct StrokeMask: @unchecked Sendable {
         let width = Int((rect.width / step).rounded(.up)), height = Int((rect.height / step).rounded(.up))
         let top = rect.minY + Double(height) * step
         let rm = r / step
-        let inner = rm * min(max(hardness.isFinite ? hardness : 0.5, 0), 1) * 0.9
+        let inner = rm * min(max(hardness.isFinite ? hardness : 0.5, 0), 1) * Self.hardEdge
         // Mask coordinates: x from the left, y down from the top row. Points
         // are recorded every quarter radius, so neighbouring segments cover
         // nearly the same pixels; dropping the points a straight line through

@@ -96,9 +96,8 @@ public enum RedEyeDetector {
                 total += 1
                 let i = (y * width + x) * 4
                 let alpha = max(Double(pixels[i + 3]), 1e-6)
-                let redness = RedEyeTuning.redness(red: Double(pixels[i]) / alpha, green: Double(pixels[i + 1]) / alpha,
-                                                   blue: Double(pixels[i + 2]) / alpha)
-                if redness >= RedEyeTuning.lowThreshold, Double(pixels[i]) / alpha > 0.02 { red += 1 }
+                let r = Double(pixels[i]) / alpha, g = Double(pixels[i + 1]) / alpha, b = Double(pixels[i + 2]) / alpha
+                if RedEyeTuning.isPupilRed(red: r, green: g, blue: b), r > 0.02 { red += 1 }
             }
         }
         return total > 0 ? Double(red) / Double(total) : 0

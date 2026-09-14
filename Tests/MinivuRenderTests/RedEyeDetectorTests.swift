@@ -36,6 +36,21 @@ import CoreGraphics
         #expect(spots.first?.radius == 0.1)
     }
 
+    /// Linear light, from sRGB 8-bit.
+    static func linear(_ r: Double, _ g: Double, _ b: Double) -> (Double, Double, Double) {
+        func d(_ v: Double) -> Double { let c = v / 255; return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+        return (d(r), d(g), d(b))
+    }
+
+    @Test func aDarkBrownEyeIsNotPupilRed() {
+        for (colour, red) in [((200.0, 40.0, 40.0), true), ((170, 70, 55), true), ((140, 20, 45), true),
+                              ((90, 40, 20), false), ((120, 70, 40), false), ((224, 172, 140), false),
+                              ((250, 250, 250), false)] {
+            let c = Self.linear(colour.0, colour.1, colour.2)
+            #expect(RedEyeTuning.isPupilRed(red: c.0, green: c.1, blue: c.2) == red, "\(colour)")
+        }
+    }
+
     @Test func noFacesNoSpots() {
         #expect(RedEyeDetector.detect(in: Self.eyes()).isEmpty)
     }

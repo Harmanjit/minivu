@@ -103,6 +103,12 @@ class RetouchOverlayView: NSView {
         context.restoreGState()
     }
 
+    /// Delete, Forward Delete or Backspace.
+    static func isDelete(_ event: NSEvent) -> Bool {
+        let key = event.charactersIgnoringModifiers?.unicodeScalars.first.map { Int($0.value) }
+        return key == NSDeleteCharacter || key == NSDeleteFunctionKey || key == NSBackspaceCharacter
+    }
+
     // MARK: - Zoom and pan pass through
 
     override func scrollWheel(with event: NSEvent) { canvas?.scrollWheel(with: event) }
@@ -293,7 +299,9 @@ final class RetouchBrushOverlayView: RetouchOverlayView {
         case "]":
             state.stepBrushSize(larger: true)
         default:
-            super.keyDown(with: event)
+            // Delete means nothing to a brush, and must not reach the
+            // viewer, where it goes to the previous image.
+            if !Self.isDelete(event) { super.keyDown(with: event) }
         }
     }
 }
@@ -388,12 +396,11 @@ final class RedEyeOverlayView: RetouchOverlayView {
         }
     }
 
+    /// Delete removes the selected circle. With none selected it is still
+    /// swallowed: in the viewer it would go to the previous image.
     override func keyDown(with event: NSEvent) {
-        let key = event.charactersIgnoringModifiers?.unicodeScalars.first.map { Int($0.value) }
-        if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
-           key == NSDeleteCharacter || key == NSDeleteFunctionKey || key == NSBackspaceCharacter,
-           let selected = state.selection {
-            state.removeSpot(selected)
+        if event.modifierFlags.intersection([.command, .control, .option]).isEmpty, Self.isDelete(event) {
+            if let selected = state.selection { state.removeSpot(selected) }
             return
         }
         super.keyDown(with: event)
