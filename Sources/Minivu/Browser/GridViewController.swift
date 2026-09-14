@@ -444,6 +444,12 @@ final class GridCollectionView: NSCollectionView {
         let menu = NSMenu()
         menu.addItem(withTitle: "Open", action: .openInViewer, keyEquivalent: "")
         menu.addItem(.separator())
+        // Validated like the menu bar's items, so they grey out for folders,
+        // RAW files and anything else that can't turn without re-encoding.
+        menu.addItem(withTitle: "Rotate Left", action: .rotateLeft, keyEquivalent: "")
+        menu.addItem(withTitle: "Rotate Right", action: .rotateRight, keyEquivalent: "")
+        menu.addItem(withTitle: "Edit Comment…", action: .editComment, keyEquivalent: "")
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Reveal in Finder", action: .revealInFinder, keyEquivalent: "")
         menu.addItem(withTitle: "Move to Trash", action: .moveToTrash, keyEquivalent: "")
         return menu

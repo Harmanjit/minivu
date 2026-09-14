@@ -208,7 +208,26 @@ they replay the same way.
 **Lossless actions:** rotating a JPEG in the browser changes its EXIF
 orientation tag with `CGImageDestinationCopyImageSource`, never re-encoding
 pixels. JPEG comments are rewritten in the COM segment without touching
-image data.
+image data. A browser selection rotates a few files at a time off the main
+thread; files that can't turn without re-encoding (RAW, GIF, BMP…) are
+skipped and named in one alert afterwards, and batches run one after
+another so two quick ⌘R presses turn a photo twice.
+
+**Saving:** Save (⌘S) writes over the original in its own format, colour
+space and depth, with the options last used for that format and metadata
+always kept, after a "Replace the original?" confirmation that can be
+turned off. Files minivu can't write back (RAW, WebP, AVIF, PDF, animations,
+multi-page files) go to Save As instead. Save As is the system save panel
+as a sheet, with an accessory for format, quality, colour profile,
+metadata, progressive, 16-bit, TIFF compression and background; the
+options are remembered per format. The image is rendered once while the
+panel is open (an edit through `EditRenderer`, an unedited original decoded
+by ImageIO) and shared by the live size estimate, the quality comparison
+and the final write. The estimate is an exact full encode 150 ms after the
+last change, one at a time; an encode slower than 400 ms first shows a
+figure extrapolated from a 1024 px centre crop. The quality comparison is a
+separate window showing the original and the encoded result side by side
+at 100/200/400%, re-encoding only the region on screen as the slider moves.
 
 ## 5. User interface
 
@@ -240,6 +259,46 @@ of a document, Page Down and Page Up a page first and then the next or
 previous image at either end, P plays and pauses an animation, Return
 toggles full screen, Esc back to the browser, `+` `-` zoom, `/` actual
 size, `*` fit, 0–5 rating, ⌘Z / ⇧⌘Z undo and redo.
+
+**Menu shortcuts.** One table for the whole menu bar; a test checks that
+no two items share a shortcut (display-only ones included) and that each
+resolves to its item. Preview's shortcuts win where it has one, then
+Photoshop's letters, moved to a free modifier when the plain one is taken.
+Items marked "display" show their key only while the menu is open, so the
+key reaches the grid, the viewer or a text field otherwise.
+
+| Menu | Item | Shortcut |
+|---|---|---|
+| minivu | Settings… | ⌘, |
+| | Hide minivu / Hide Others / Quit | ⌘H / ⌥⌘H / ⌘Q |
+| File | Open Folder… / Add Folder to Sidebar… | ⌘O / ⇧⌘O |
+| | Open in Viewer / Close Window | ⌘↓ / ⌘W |
+| | Save / Save As… | ⌘S / ⇧⌘S |
+| | Revert to Saved | none (as in every Mac app) |
+| | Reveal in Finder / Move to Trash | ⌥⌘R / ⌘⌫ |
+| Edit | Undo / Redo | ⌘Z / ⇧⌘Z |
+| | Cut / Copy / Paste / Select All | ⌘X / ⌘C / ⌘V / ⌘A |
+| View | Show Hidden Files | ⇧⌘. |
+| | Show Sidebar / Show Preview Pane / Enter Full Screen | ⌃⌘S / ⌥⌘P / ⌃⌘F |
+| Image | Fit to Window / Actual Size / Zoom In / Zoom Out | ⌘9 / ⌘0 / ⌘= / ⌘- |
+| | Rotate Left / Rotate Right | ⌘L / ⌘R (Preview) |
+| | Flip Horizontal / Flip Vertical | none |
+| | Resize/Resample… | ⌥⌘I (Photoshop's Image Size) |
+| | Crop… | ⌘K (Preview) |
+| | Straighten… | none |
+| | Adjust > Lighting… | ⌥⌘L |
+| | Adjust > Colors… | ⌥⌘C (Preview's Adjust Color) |
+| | Adjust > Curves… | ⇧⌘M (Photoshop's ⌘M is Minimize here) |
+| | Adjust > Levels… | ⇧⌘L (Photoshop's ⌘L is Rotate Left here) |
+| | Adjust > Sharpen… / Blur… | none |
+| | Effects > Grayscale / Sepia / Negative | none |
+| | Edit Comment… | none |
+| | Play/Pause Animation | P (display) |
+| | Rating > Clear, 1–5 Stars | ⌃0–⌃5 (the viewer also takes bare 0–5) |
+| Go | Next / Previous / First / Last Image | → ← Home End (display) |
+| | Next Page / Previous Page | ⌥→ / ⌥← (display) |
+| | Enclosing Folder / Back / Forward | ⌘↑ / ⌘[ / ⌘] |
+| Window | Minimize | ⌘M |
 
 **Themes:** Light, Gray, Dark, or follow the system.
 

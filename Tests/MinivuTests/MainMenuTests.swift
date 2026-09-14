@@ -28,13 +28,90 @@ import MinivuCore
     }
 
     /// Two items with the same shortcut would make one of them unreachable.
+    /// Checked across the whole menu bar with the display-only shortcuts
+    /// shown too, since those are real equivalents while their menu is open.
+    /// An uppercase letter is the same key as Shift and the lowercase one.
     @Test func noShortcutIsUsedTwice() {
+        let displayOnly = bar.items.compactMap { $0.submenu?.delegate as? DisplayOnlyShortcuts }
+        #expect(displayOnly.count == 2)
+        displayOnly.forEach { $0.showShortcuts(true) }
+        defer { displayOnly.forEach { $0.showShortcuts(false) } }
+
         var seen: [String: String] = [:]
         for item in allItems where !item.keyEquivalent.isEmpty {
-            let shortcut = "\(item.keyEquivalentModifierMask.rawValue)-\(item.keyEquivalent)"
+            var modifiers = item.keyEquivalentModifierMask.intersection([.command, .shift, .option, .control])
+            if item.keyEquivalent != item.keyEquivalent.lowercased() { modifiers.insert(.shift) }
+            let shortcut = "\(modifiers.rawValue)-\(item.keyEquivalent.lowercased())"
             #expect(seen[shortcut] == nil, "\(item.title) reuses the shortcut of \(seen[shortcut] ?? "")")
             seen[shortcut] = item.title
         }
+    }
+
+    /// Every action in the menu bar is either one of minivu's commands,
+    /// declared in `MinivuActions`, or a standard AppKit one.
+    @Test func everyActionIsDeclared() {
+        let appKitOwners: [AnyClass] = [NSApplication.self, NSWindow.self, NSTextView.self, NSSplitViewController.self,
+                                        AppDelegate.self]
+        let undo = [Selector(("undo:")), Selector(("redo:"))]
+        // AppKit gives items with a submenu its own `submenuAction:`.
+        for item in allItems where item.submenu == nil {
+            guard let action = item.action else { continue }
+            let declared = protocol_getMethodDescription(MinivuActions.self, action, false, true).name != nil
+            let standard = undo.contains(action) || appKitOwners.contains { $0.instancesRespond(to: action) }
+            #expect(declared || standard, "\(item.title): \(action) is not declared anywhere")
+        }
+    }
+
+    @Test func editingItems() throws {
+        let image = try #require(bar.items.first { $0.title == "Image" }?.submenu)
+        let titles = image.items.map { $0.isSeparatorItem ? "-" : $0.title }
+        #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
+                           "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
+                           "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "-", "Edit Comment…", "-",
+                           "Play/Pause Animation", "-", "Rating"])
+        let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
+        #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
+                                                      .sharpenImage, .blurImage])
+        let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
+        #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative])
+        let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
+        #expect(file.items.compactMap(\.action).filter { [.saveImage, .saveImageAs, .revertToSaved].contains($0) }
+            == [.saveImage, .saveImageAs, .revertToSaved])
+    }
+
+    /// The editing shortcuts, as key presses, reach the right commands.
+    /// Letters need real key events (AppKit matches Shift combinations from
+    /// the key code), so a press is skipped on a layout where that key code
+    /// isn't the letter.
+    @Test func editingShortcutsResolve() throws {
+        let recorder = Recorder()
+        for item in allItems where item.action.map({ recorder.responds(to: $0) }) == true {
+            item.target = recorder
+        }
+        let presses: [(letter: String, keyCode: CGKeyCode, flags: CGEventFlags, expected: String)] = [
+            ("s", 1, .maskCommand, "saveImage:"),
+            ("s", 1, [.maskCommand, .maskShift], "saveImageAs:"),
+            ("l", 37, .maskCommand, "rotateLeft:"),
+            ("r", 15, .maskCommand, "rotateRight:"),
+            ("i", 34, [.maskCommand, .maskAlternate], "resizeImage:"),
+            ("k", 40, .maskCommand, "cropImage:"),
+            ("l", 37, [.maskCommand, .maskAlternate], "adjustLighting:"),
+            ("c", 8, [.maskCommand, .maskAlternate], "adjustColors:"),
+            ("m", 46, [.maskCommand, .maskShift], "adjustCurves:"),
+            ("l", 37, [.maskCommand, .maskShift], "adjustLevels:"),
+            ("r", 15, [.maskCommand, .maskAlternate], "revealInFinder:"),
+        ]
+        var checked = 0
+        for press in presses {
+            let event = keyPress(press.keyCode, press.flags)
+            guard event.charactersIgnoringModifiers?.lowercased() == press.letter else { continue }
+            recorder.calls = []
+            #expect(bar.performKeyEquivalent(with: event), "\(press.expected) not taken")
+            #expect(recorder.calls == [press.expected])
+            checked += 1
+        }
+        // S, L and R sit on these key codes in QWERTY, QWERTZ and AZERTY alike.
+        #expect(checked >= 6)
     }
 
     @Test func sortItemTagsFollowSortKeyOrder() {
@@ -60,6 +137,9 @@ import MinivuCore
             .actualSize, .zoomIn, .zoomOut, .nextImage, .previousImage, .firstImage, .lastImage,
             .goToEnclosingFolder, .goBack, .goForward, .sortBy, .toggleSortDirection, .toggleHiddenFiles,
             .togglePreviewPane, .setRating, .nextPage, .previousPage, .togglePlayback,
+            .saveImage, .saveImageAs, .revertToSaved, .rotateLeft, .rotateRight, .flipHorizontal, .flipVertical,
+            .resizeImage, .cropImage, .straightenImage, .adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
+            .sharpenImage, .blurImage, .applyGrayscale, .applySepia, .applyNegative, .editComment,
         ]
         for selector in expected {
             #expect(inMenu.contains(selector), "\(selector) missing")
@@ -205,5 +285,16 @@ import MinivuCore
         @objc func nextPage(_ sender: Any?) { calls.append("nextPage:") }
         @objc func previousPage(_ sender: Any?) { calls.append("previousPage:") }
         @objc func togglePlayback(_ sender: Any?) { calls.append("togglePlayback:") }
+        @objc func revealInFinder(_ sender: Any?) { calls.append("revealInFinder:") }
+        @objc func saveImage(_ sender: Any?) { calls.append("saveImage:") }
+        @objc func saveImageAs(_ sender: Any?) { calls.append("saveImageAs:") }
+        @objc func rotateLeft(_ sender: Any?) { calls.append("rotateLeft:") }
+        @objc func rotateRight(_ sender: Any?) { calls.append("rotateRight:") }
+        @objc func resizeImage(_ sender: Any?) { calls.append("resizeImage:") }
+        @objc func cropImage(_ sender: Any?) { calls.append("cropImage:") }
+        @objc func adjustLighting(_ sender: Any?) { calls.append("adjustLighting:") }
+        @objc func adjustColors(_ sender: Any?) { calls.append("adjustColors:") }
+        @objc func adjustCurves(_ sender: Any?) { calls.append("adjustCurves:") }
+        @objc func adjustLevels(_ sender: Any?) { calls.append("adjustLevels:") }
     }
 }
