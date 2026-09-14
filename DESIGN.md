@@ -37,7 +37,9 @@ together, and the rules that keep it small and fast.
 - **Swift 6.2**, strict concurrency. The app target defaults to the main
   actor; background work is explicitly `nonisolated` or in actors.
 - **SwiftPM, no Xcode project.** `scripts/make_app.sh` assembles and
-  signs `build/minivu.app`, as in Latent.
+  signs `build/minivu.app`, as in Latent, copying both resource bundles
+  (MinivuRender's shaders, the app's help pages) into Contents/Resources,
+  where `Bundle.minivuRender` and `Bundle.minivuHelp` look first.
 - **App Sandbox + hardened runtime**, ad-hoc signed. Entitlements: user
   selected files (read-write), app-scoped bookmarks, the Pictures folder,
   printing. No network.
@@ -161,8 +163,10 @@ One SQLite database (system `libsqlite3`, no wrapper library) in the app's
 Application Support folder stores ratings, labels, tags and custom sort
 order. Each row keeps the path and the file's APFS file identifier, so a
 file moved in Finder is found again by identifier and its path healed.
-Tags are also written as Finder tags so they show up in Finder and
-Spotlight. JPEG comments are written into the file itself.
+Stars and the tag stay in the catalog; nothing writes them into files or
+Finder tags yet (`CatalogMirror` is the hook for XMP or Finder tags). Finder
+tags are read, shown and filtered by, never changed. JPEG comments are
+written into the file itself.
 
 The browser reads a folder's marks in one catalog query, off the main
 thread with the folder listing, so a grid sorted by rating arrives already
@@ -283,8 +287,239 @@ Core Image rules learned the hard way, which every new kernel follows:
 - Core Image submits its own command buffers when rendering to a texture;
   sharing one of ours broke tiled renders around processor kernels.
 
-Known limits: saving an HDR photo in place writes tone-mapped SDR; Colors
-and RGB changes made in one visit to the Colors tool are two undo steps.
+### 4.8 Tools
+
+Section 5 describes what each tool does; these are the implementation
+rules a maintainer needs.
+
+**Batch Rename.** `RenamePattern` (MinivuCore) is text with tokens:
+`{name}`; `{#}` or `{###}` for the counter (the digits setting is a
+minimum; start and step can be set); `{date[:format]}` for the date taken
+(EXIF DateTimeOriginal, else DateTimeDigitized, else the modification date,
+in the camera's EXIF offset zone when one is recorded); `{modified[:format]}`;
+`{width}` `{height}` as displayed; `{ext}`. Keywords work in any case;
+formats are Unicode date patterns (yyyy-MM-dd by default) in en_US_POSIX
+and the Gregorian calendar, so names are the same on every Mac. Tokens come
+first, then find and replace, then letter case; the extension goes on last
+in its own case. Unknown tokens stay visible and block Rename. EXIF is read
+only when the pattern needs it.
+
+- `RenamePlanner` checks everything before any change, one `lstat` per file
+  and per new name: invalid names, two files getting one name (compared as
+  APFS compares: normalisation ignored, case ignored on case-insensitive
+  volumes), a name held outside the batch, a source that has gone. A name
+  held by another file of the batch is allowed. Planning runs off the main
+  thread; batches of 300 or more wait 150 ms after typing stops.
+- `BatchRenamer` renames with exclusive `rename(2)`. A file waits until its
+  new name is freed; only a cycle can't be ordered, and one file of the
+  ring steps aside under a hidden temporary name. A crash leaves at most one
+  hidden file per ring, and a temporary file that can't take its name goes
+  back under its own (or a numbered) one. A failure fails the files waiting
+  on it.
+- Every move, temporary names included, reaches the catalog in one
+  `Catalog.filesMoved` transaction when the renames are done (one
+  `Catalog.didChange`), so stars and Custom Order places follow, and a swap
+  swaps places. 5000 renames take about 1 s, and their undo the same (debug
+  build, in-memory catalog).
+- Undo is the same operation reversed: one step, "Rename N Items". Batches
+  in a window run one after another, and an undo or redo reads the names to
+  restore only when it starts. Afterwards only the folder shown is listed
+  again.
+
+**Batch Convert.** `BatchConvertSettings` (MinivuRender, Codable, defaults
+for missing keys) holds the `ExportOptions`, the destination (beside the
+originals, or a chosen folder's security-scoped bookmark, kept and
+refreshed when stale), naming, the existing-file policy (skip, keep both,
+replace to the Trash), resize (long side, width, height or percent, any of
+the 11 filters, don't enlarge; 0, or past 32768 px or 1000%, disables
+Convert), quarter turns and flips. Operations run turn, flip, resize.
+
+- A format change with no operations encodes ImageIO's full decode with
+  the orientation baked in (exact pixels, as Save As does). Operations, and
+  every RAW file, go through an `EditDocument.Snapshot` into
+  `EditRenderer.renderForExport` (RAW with the viewer's RAW setting), always
+  SDR. Colour is the chosen profile, or for Keep original the Save policy's
+  render space; formats without profiles get sRGB. Metadata is kept or
+  stripped by `ImageEncoder`, orientation reset to 1.
+- `BatchOutputPlanner` settles every clash before anything is written.
+  Outputs never share a name and never land on another source of the batch
+  (recognised by path and by file identity); both are numbered ("photo
+  2.jpg") whatever the policy. A folder is never replaced.
+  `BatchReplacements` lists what the batch would send to the Trash, and the
+  app asks once, naming up to three files: Replace, Keep Both (planned
+  again for this run only) or Cancel, the default. A file that takes an
+  output's name after planning was never named, so that output is written
+  with Keep Both even under Replace.
+- `BatchConvertJob` converts 2 files at a time (1 on Macs with 8 GB or
+  less) and at most one camera RAW at a time (about 1.6 GB per render).
+  Work runs on GCD through `BatchWorkExecutor`, a task executor preference
+  that keeps the async renderer off the cooperative pool. Encodes are
+  parallel; writes go through `FileWriteQueue.shared`. `BatchFileWriter`
+  writes a hidden sibling, fsyncs, and renames it into place with
+  `RENAME_EXCL`; a name taken since planning gets the policy again. Replace
+  writes the new file, trashes the old one, renames the new one in, and
+  brings the old one back if that fails.
+- Cancel stops new files (including a RAW waiting for its slot) and drops
+  encodes that finish later; a queued write completes, so only whole files
+  remain. The summary lists up to 8 failed and 8 skipped files; outputs in
+  the folder shown are selected and their caches invalidated.
+- Marks: an original replaced by its own conversion keeps its stars, tag and
+  Custom Order place, following a case-only change of name. Any other
+  replaced file takes its marks to the Trash, as Copy's Replace does.
+- The Tools menu disables Batch Rename, Batch Convert, Print, Contact Sheet
+  and Montage while a sheet is up (`BatchTools.beginSheet/endSheet`), and
+  the two batches also while a batch or copy runs. The Convert sheet focuses
+  nothing when it opens and ends editing before converting.
+
+**Slideshow rendering.** `SlideshowRenderer` (MinivuRender/Slideshow) draws
+one full-screen triangle with one fragment shader, `slideshowFragment`,
+switching on the transition index: the order of `SlideshowTransition`'s
+cases (its raw values are what settings store). Slides are aspect-fit in
+whole pixels on black, small ones as "enlarge small images" says, with the
+mip level from texels per screen pixel. Slide, push and zoom move the
+slide's rectangle on the CPU (`SlideshowGeometry`); the shader only decides
+how much of the new slide each pixel shows: a half-pixel edge for slide and
+push, a soft edge 3% of the short side for wipe and iris (starting beyond
+the screen, so t=0 and t=1 show one slide; iris measured in pixels), and
+two octaves of hashed value noise for dissolve. Progress is eased with
+smoothstep. Each slide is tone mapped with its own content headroom before
+mixing (`toneMapToHeadroom` in Common.h), and tests pin it to the canvas's
+tone map. 1.0–2.5 ms a frame at 5K on M4.
+
+**Slideshow playback.** `SlideshowWindowController` opens a borderless,
+normal-level window on the originating window's screen; menu bar and Dock
+hide while it is key.
+
+- Between slides nothing renders: one `DispatchWorkItem` waits the interval,
+  counted from the end of each transition, and the display link runs only
+  during a transition. → and ← finish a transition at once and start a
+  quick one (0.35 s).
+- Neighbours load through `ImageLoader.shared` at the screen's long edge,
+  and only those textures are kept. A move waits for a slide not yet
+  decoded (cleared before the texture is requested, so a cache hit can't
+  run it twice). Failed files are marked in `SlideshowSequence` and skipped
+  both ways; if nothing loads, the show ends.
+- `SlideshowSequence.isOverAfterCurrent` ends a show after its last slide
+  only when Loop is off or nothing can play. Shuffle puts the starting image
+  first and fixes the order for the run. When the show ends the viewer moves
+  to the last slide shown.
+- Captions are read ahead off the main thread; one that needs metadata
+  fades out until it is read. EDR is on only while an HDR slide is on either
+  side of a transition. `ProcessInfo.beginActivity` keeps the display awake.
+- Esc, a click outside the control bar, its close button and ⌘W end the
+  show. The borderless window enables Close Window itself, as the viewer's
+  full-screen window must too. Control bar buttons never take focus, so
+  Space always pauses.
+- `SlideshowSettings` is one Codable value in `SlideshowSettingsStore`
+  (key "slideshowSettings"); missing fields default and numbers are clamped
+  (interval 1–60 s, duration 0.3–3 s, volume 0–1). A running show reads
+  interval, transition and caption afresh for each slide; order, loop and
+  playlist are fixed at the start. Volume ramps over 0.1 s, and Play Music
+  off mutes over 0.25 s.
+- `SlideshowAudioPlayer` is the only file that imports AVFoundation, behind
+  `SlideshowAudioPlaying`. `SlideshowMusic` resolves bookmarks off the main
+  thread (remaking stale ones), adds the songs directly inside a chosen
+  folder by name, and holds security-scoped access until it stops, released
+  even if the show ended while resolving. Songs open through `BlockingWork`;
+  a generation count drops a song that finishes opening after the show
+  ended. It fades in over 1 s, and out over 1.5 s at the end, outliving the
+  window for that fade.
+- The Settings pane's preview is a small Metal view with the same shader;
+  its display link runs only while it plays. Snapshot switches:
+  `debugFreezeSlideshowTransition:` (MINIVU_DEBUG_TRANSITION,
+  MINIVU_DEBUG_PROGRESS, MINIVU_DEBUG_CAPTION) and
+  `debugShowSlideshowSettings:`.
+
+**Print and contact sheets.** `PageLayout` (MinivuCore/Layout) is the one
+piece of page geometry: pure, in page units (points for print, pixels for
+sheets), top-left origin with a `flipped` helper. It places the grid inside
+margins, header and footer bands and caption bands, fit or fill, and turns
+a picture when the turned shape covers more of its cell. Images-per-page
+choices become the grid whose cells are closest to square.
+
+- One Core Graphics renderer (Tools/Print/LayoutRendering.swift) draws a
+  page into any y-up context, decoding four cells at a time, so memory is
+  one page and four pictures. `LayoutImageProvider` is a thread-safe LRU by
+  bytes: an entry serves requests from half its long edge up to the size it
+  was decoded for, and decodes more than twice the size asked are shrunk
+  before they are kept (otherwise the preview decoded forever). ImageIO
+  thumbnails up to 512 px, the display decode above; HDR comes out SDR.
+- Print uses a copy of `NSPrintInfo.shared` with zero margins; afterwards
+  only printer, paper, orientation and scale are written back. The page
+  view's `knowsPageRange`, `rectForPage` and `draw` are nonisolated and
+  touch only a locked `PrintJob`, which makes `canSpawnSeparateThread` safe.
+  Pages are stacked at a fixed 100 000 pt pitch.
+- Measured by printing to PDF, and guarded by PrintTests: with
+  `knowsPageRange`, AppKit puts each page rectangle's corner at the
+  printable area's corner at 100% whatever `scalingFactor` says. So a page
+  rectangle is the printable part of the sheet, `draw` applies Page Setup's
+  scale itself, and margins never go below the unprintable edge.
+- Print decodes at cell × printer dpi/72 × scale (dpi clamped to 150–600,
+  300 when unknown; long edge at most 6000 px). The print panel's preview is
+  recognised by its context class (`NSPrintPreviewGraphicsContext`) and
+  never decodes on the main thread: cached ≤384 px pictures and grey
+  placeholders, decoded on one serial queue per job, then a KVO
+  `layoutRevision` redraw. The viewer prints its edited render when it has
+  unsaved edits, else the file and page shown.
+- Contact sheets: A4 and Letter at 300 dpi (a PDF's media box is the paper),
+  4K and Custom at one point per pixel; PDF pages at most 14,400 pt a side.
+  The preview renders page 1 at 600 px, 150 ms after the last change. Page
+  names come from the header made safe ("/" and ":" to "-", no control
+  characters or leading dots, 200 bytes at most) and are chosen so none
+  exists. Pages are made in the volume's item-replacement folder and moved
+  in through `FileWriteQueue`; a failure removes the pages that save placed.
+
+**Montage wallpaper.** Pure geometry in MinivuCore/Montage/MontageLayout.
+Grid picks the columns and rows whose cells best match the photos' median
+shape, with spare cells repeating photos. Mosaic builds justified rows,
+picks the row count whose height is closest to the screen, then scales
+every row by one factor to fill the height exactly (photos crop by those
+few percent). Scattered gives each photo a cell, a print 1.3× the cell,
+jitter, up to 12° of tilt and a 4% border, from a SplitMix64 seed that
+Shuffle replaces. Rendering is Core Graphics in 8-bit Display P3 at the
+display's pixel size: ImageIO thumbnails at each photo's largest tile, four
+decoded at a time on GCD, drawn in one `BlockingWork` job at a time into the
+single context. The JPEG (quality 0.9) goes through `FileWriteQueue` to
+Pictures/minivu Wallpapers and is set per display. Cancel is checked again
+after each write, and a cancelled or failed run deletes the files it wrote.
+Harness debug actions never save remembered choices.
+
+**Set as Desktop Picture.** The wallpaper agent reopens the file later and
+after restarts, so a JPEG, PNG, HEIC or TIFF inside Pictures (by real path)
+with no unsaved edits is used as it is. Anything else is exported to
+Pictures/minivu Wallpapers ("Desktop <timestamp> <name>.jpg", HEIC when
+transparent), SDR and no larger than twice the screen's long edge, edits
+through `renderForExport`. The newest 10 copies are kept, never one still
+on a screen; montages are never pruned.
+
+**Capture.** ScreenCaptureKit behind `ScreenCapturing`; tests and snapshot
+runs get a capturer that never records or asks. Entire Screen captures the
+display under the pointer at its pixel size, excluding minivu as an
+application (its own windows as the fallback), after ordering out the
+overlay and the menu. Window… uses `SCContentSharingPicker` in single-window
+mode without a permission check, since choosing a window is consent.
+Selection… puts a borderless, transparent overlay at screen-saver level on
+every screen; the window under a new drag becomes key, the crosshair uses
+`cursorUpdate` tracking areas, and switching apps cancels. Entire Screen
+and Selection check screen recording first: the very first request
+(remembered in defaults) shows the system prompt, later denials minivu's
+own alert; never both. Captures are 8-bit PNGs in Pictures/minivu Captures.
+
+**External editors.** An ordered list in its own defaults key (name, bundle
+identifier, path, app-scoped bookmark); the app is found by bookmark, then
+path, then bundle identifier. The menu is rebuilt when the list changes, not
+in `menuNeedsUpdate`, because AppKit looks up key equivalents without
+updating menus. The browser opens the selection or its lead image (asking
+above 20). Files sent are watched with one FSEvents stream per folder, for
+the 8 most recent folders; stamps are read after the previous comparison
+finishes, with cached resource values dropped, and a missing file isn't
+reported. A changed file's caches drop and the viewer reloads it, keeping
+the zoom when the size is unchanged. With unsaved edits the viewer asks as a
+sheet, after any other sheet ends: Keep My Edits (the default) or Reload.
+From the moment the change is seen, the session's `externalChange` turns
+Save into Save As, even for a "Replace the original?" already on screen.
+minivu's own writes (`SavePresenter.didWrite`) re-stamp watched files, so a
+Save is never reported back.
 
 ## 5. User interface
 
@@ -420,6 +655,7 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Capture > Entire Screen / Window… / Selection… | none (the system keeps ⇧⌘3–⇧⌘5) |
 | | Open in External Editor > editors…, Edit Editor List… | ⌘E for the first editor |
 | Window | Minimize | ⌘M |
+| Help | minivu Help / Keyboard Shortcuts | ⌘? (as in every Mac app) / ⌘/ |
 
 **Tools (Phase 7).** In the browser each tool works on the selected
 images, or on every image shown when none is selected; a slideshow of a
@@ -469,7 +705,21 @@ work on the image shown, and the slideshow plays the viewer's list from it.
   that file it asks first: Reload (discarding them) or Keep My Edits, after
   which Save asks for a name, so neither version is lost.
 
-**Themes:** Light, Gray, Dark, or follow the system.
+**Help.** Help > minivu Help opens a window of bundled pages (Getting
+Started, Browser, Viewer, Editing, Effects & Retouching, Tools, Settings,
+Privacy, Keyboard Shortcuts) with a page sidebar and search that filters the
+pages and highlights matches. There is no Help Book and nothing is fetched.
+Help > Keyboard Shortcuts opens the last page, which is generated: the menu
+part from a fresh `MainMenu.make()` (display-only keys shown), then
+`KeyboardShortcutsPage.directKeySections` for keys no menu item carries,
+which HelpTests press through the grid's, viewer's and compare window's key
+tables. The other pages are Markdown in Sources/Minivu/Help/HelpPages,
+parsed off the main thread with `AttributedString(markdown:)` in full
+syntax and split into blocks by presentation intent, because SwiftUI's
+`Text` ignores block structure. Pages link to each other as `help:Browser`;
+other links are refused.
+
+**Themes:** System, Bright, Gray or Dark.
 
 ## 6. Efficiency rules
 
@@ -485,159 +735,42 @@ work on the image shown, and the slideshow plays the viewer's list from it.
 
 ## 7. Roadmap
 
-| Phase | Deliverable |
-|---|---|
-| 1 | Skeleton: package, app bundle, sandbox, Metal shader loading, tests |
-| 2 | The viewer: browser, thumbnails, canvas, zoom and pan, magnifier, full screen with fly-outs, EXIF, themes, preferences |
-| 3 | Formats and HDR: RAW refinement, gain maps, PDF pages, SVG, animation, multi-page TIFF |
-| 4 | Editing core: undo/redo, resize with 11 filters, rotate, flip, crop, sharpen, blur, lighting, colour, curves, levels, colour effects, Save As with quality preview, JPEG comments |
-| 5 | Management: ratings, tags, drag and drop, rename, histogram with colour count, compare up to 4 |
-| 6 | Effects, drawing, clone stamp, healing brush, red-eye |
-| 7 | Tools: batch convert and rename, slideshow (8 transitions, music), contact sheet, montage wallpaper, print, screen capture, external editors |
-| 8 | Polish: dual display, shortcuts, documentation |
+| Phase | Deliverable | Status |
+|---|---|---|
+| 1 | Skeleton: package, app bundle, sandbox, Metal shader loading, tests | Done |
+| 2 | The viewer: browser, thumbnails, canvas, zoom and pan, magnifier, full screen with fly-outs, EXIF, themes, preferences | Done |
+| 3 | Formats and HDR: RAW refinement, gain maps, PDF pages, SVG, animation, multi-page TIFF | Done |
+| 4 | Editing core: undo/redo, resize with 11 filters, rotate, flip, crop, sharpen, blur, lighting, colour, curves, levels, colour effects, Save As with quality preview, JPEG comments | Done |
+| 5 | Management: ratings, tags, drag and drop, rename, histogram with colour count, compare up to 4 | Done |
+| 6 | Effects, drawing, clone stamp, healing brush, red-eye | Done |
+| 7 | Tools: batch convert and rename, slideshow (8 transitions, music), contact sheet, montage wallpaper, print, screen capture, external editors | Done |
+| 8 | Polish: dual display, shortcuts, documentation | In progress |
 
-## Appendix: Phase 7 implementation notes
+## 8. Known limits
 
-Written by the implementer and the reviewer of each package when it was built. Section 5 has the user-facing summary.
-
-### Batch Convert and Batch Rename
-
-Proposed DESIGN.md text (section 5, Tools, or 4.7):
-
-Batch Rename. A RenamePattern (MinivuCore) is text with tokens: {name}; {#}/{###} for the counter (the digits setting is a minimum, and the larger of it and the token's own count wins; start and step can be set); {date[:format]} for the date taken (EXIF DateTimeOriginal, else DateTimeDigitized, else the modification date, formatted in the camera's EXIF offset zone when one is recorded); {modified[:format]}; {width} {height} as displayed; {ext}. Keywords work in any letter case; the format is a Unicode date pattern, yyyy-MM-dd by default, with the en_US_POSIX locale and the Gregorian calendar so names are the same on every Mac. The order is: tokens, then plain-text find and replace (optionally case-sensitive), then the name's letter case; the extension (the original's, or the converter's) goes on last in its own case. Unknown tokens stay visible in the preview and block Rename. EXIF is read only when the pattern uses dates or sizes, once per sheet, several files at a time.
-
-RenamePlanner checks everything before any change, one lstat per file and per new name: invalid names (FileOperations' rules), two files getting the same name (compared as APFS compares names: Unicode normalisation always ignored, letter case ignored on case-insensitive volumes), a name held by an item outside the batch, and a source that has gone. A name held by another file of the batch is allowed. The sheet plans off the main thread, and batches of 300 or more wait 150 ms after typing stops.
-
-BatchRenamer carries out the renames with exclusive rename(2) through FileOperations.rename. A file waits until its new name has been freed; when a name is freed, the file waiting for it goes next. Only a cycle (a swap or a longer ring) can't be ordered: one file of the ring steps aside under a hidden temporary name and takes its final name last. So a crash part way leaves at most one hidden file per ring, and if a temporary file can't take its name it goes back under its own name, or a numbered one, never left hidden. A failure releases the files waiting on that file, which then fail rather than wait forever.
-
-Catalog.fileMoved keeps stars and the Custom Order place for every step, temporary names included, so a swap swaps places. Undo is the same operation with every pair reversed, run with restoring (names checked only to be free): one undo step "Rename N Items" whose record is filled in when the work ends, as TransferRecord does.
-
-Batch Convert. BatchConvertSettings (MinivuRender, Codable, defaults for missing keys) holds ExportOptions, destination (.besideOriginals or .chosenFolder with a security-scoped bookmark), naming (.keep or .pattern), the existing-file policy (skip, keep both, replace to the Trash), resize (long side, width, height or percent, any of the 11 filters, don't enlarge), quarter turns and flips. Operations run turn, then flip, then resize, so a width or long side is the output's. A format change with no operations decodes with ImageIO at full resolution with the orientation baked in and hands the pixels to the encoder (exact pixels, as Save As does for an unedited original). Operations, and every RAW file, go through an EditDocument.Snapshot into EditRenderer.renderForExport: EditGraph plus the resampling kernel, RAW through loadRaw with the viewer's RAW decoding setting, always SDR. Colour: a named profile, or for Keep original the Save policy's render space (the source's own, P3 for RAW and HDR); formats without profiles get sRGB. Metadata keep or strip goes through ImageEncoder (orientation reset to 1).
-
-BatchOutputPlanner settles every clash before anything is written. Outputs of one batch never share a name, and an output never lands on another source of the batch; both cases are numbered as "photo 2.jpg" whatever the policy. An existing file follows the policy. Replacing the output's own source is flagged, and the app asks "Replace N originals?" with Cancel as the default button before starting. A folder is never replaced.
-
-BatchConvertJob works on 2 files at a time (1 on Macs with 8 GB or less) and at most one camera RAW at a time on any Mac, because of the RAW engine's roughly 1.6 GB per render. Each file is decoded, rendered and encoded on GCD threads through BatchWorkExecutor, a TaskExecutor used as the task executor preference so the async renderer runs on dispatch threads and not Swift's cooperative pool. Encoding happens before queueing, so conversions stay parallel while the write itself goes through FileWriteQueue.shared (replacing: destination). BatchFileWriter writes the complete file to a hidden sibling, fsyncs it, then renames it into place with RENAME_EXCL. If something has taken the name since planning, the policy applies again. Replace writes the new file first, then moves the old one to the Trash, then renames the new one in, and brings the old one back if that last step fails. Cancel stops new files starting and drops any file whose encode finishes afterwards; a write already queued completes, and writes are atomic, so only whole files remain. The summary alert lists failed and skipped files with reasons, up to 8 of each. Outputs in the folder shown are selected afterwards, and caches are invalidated for every written file. The chosen folder stays security-scoped for the whole run.
-
-Known limits: only the first page or frame of multi-page and animated files is converted. A replaced file's marks stay with the old file in the Trash (as with Copy and Replace).
-
-Additions or corrections to the implementer's proposed DESIGN.md text (section 5, Tools):
-
-- Marks when replacing. The Trash step moves only the file; the batch writer decides what happens to the marks. When the user has confirmed replacing an original with its own conversion, the new file keeps the stars, tag and Custom Order place under the same name, as Save does. If only the letter case of the name changed, the marks follow the new name. Any other replaced file (an earlier export, or a file that isn't part of the batch) takes its marks to the Trash, as Copy's Replace does. Moving marks twice deletes them: the second move finds the new file under the old path and clears its rows first.
-
-- Sources by identity. The output planner recognises the other sources of the batch by path and by file identity. An output that would land on one of them gets a numbered name whatever the policy, even when the chosen folder is a source folder under another path. Only an output's own original can be replaced, and only after "Replace N originals?" is confirmed.
-
-- Batch renames in a window run one after another. Each undo or redo waits for the batch before it and reads the names to put back only when it starts, so pressing ⌘Z ⇧⌘Z quickly never loses a step or renames the same files twice at once. After a rename, only the folder shown is listed again.
-
-- Cancel also stops a camera RAW that is still waiting for the one-RAW slot, so it isn't rendered only to be thrown away.
-
-- Convert sheet. A resize to 0 px or 0% (or past 32768 px or 1000%) disables Convert and says why. The chosen folder's security-scoped bookmark is kept rather than made again, and a stale one is refreshed while access is open.
-
-- Known limits to add:
-
-Phase 8 changes:
-
-- *Replace asks about every file.* `BatchReplacements` (MinivuRender) lists what a planned batch would send to the Trash: originals replaced by their own conversions, and existing files that aren't part of the batch (the camera's JPEG beside a NEF converted to JPEG with the names kept). Before starting, the app asks once, naming up to three of the other files and how many more: Replace, Keep Both (the batch is planned again with Keep Both, for this run only; the policy chosen isn't changed) or Cancel, the default. A file that takes an output's name after planning was never named, so the job writes that output with Keep Both even under Replace.
-- *Tools menu.* Batch Rename, Batch Convert, Print, Contact Sheet and Montage are disabled while a sheet is up on the window; Batch Rename and Convert also while a batch or a copy runs. `BatchTools.beginSheet/endSheet` keep track of batch sheets, since tests record them without attaching them. The viewer's Print is disabled while a sheet is up.
-- *Catalog in one step.* BatchRenamer records every move, temporary names included, and applies them in order with `Catalog.filesMoved` when the renames are done: one transaction, one Catalog.didChange naming every step. With the in-memory catalog in a debug build, 5000 renames took 1.0 s and their undo 1.1 s (was 1.5 s and 4.2 s); the transaction itself takes about 0.3 s, during which other catalog reads wait.
-- *Convert sheet focus.* Nothing is focused when the sheet opens (AppKit gave the keyboard to Quality); Convert ends editing first, so a number being typed counts.
-
-### Slideshow
-
-Suggested DESIGN.md text (section 5, the Tools > Slideshow bullet, and section 4):
-
-- **Rendering.** `SlideshowRenderer` (MinivuRender/Slideshow) draws one full-screen triangle. A single fragment shader (`slideshowFragment` in Slideshow.metal) switches on a transition index; the order of `SlideshowTransition`'s cases is that index, and its raw values are what settings store. Each slide is aspect-fit in whole pixels on black. Small images follow the viewer's "enlarge small images" setting. Mip level comes from texels per screen pixel.
-- **Where motion happens.** Slide, push and zoom move or scale the slide's rectangle on the CPU (`SlideshowGeometry`, unit tested). The shader only decides how much of the new slide each pixel shows:
-  - slide and push: a half-pixel antialiased edge;
-  - wipe and iris: a soft edge 3% of the short side wide, which starts beyond the screen so t=0 and t=1 show exactly one slide;
-  - iris: measured in pixels, so the circle is round on any screen;
-  - dissolve: two octaves of value noise from an integer hash, 9 cells across the short side, with a ±0.08 band.
-- **Timing and HDR.** Progress is eased with smoothstep, so t=0.5 stays 0.5. Pixels that are wholly old or wholly new sample only one texture. Each slide is tone mapped to the display headroom with its own content headroom before mixing, so an HDR and an SDR slide each keep their look.
-- **Cost.** 1.0–2.5 ms a frame at 5K on M4. `toneMapToHeadroom` now lives in Common.h so any shader file can use it.
-- **Playback.** `SlideshowWindowController` opens a borderless, normal-level window on the originating window's screen. Menu bar and Dock are hidden while it is key, as in the viewer's full screen. The pointer hides until it moves.
-  - Between slides nothing renders: one DispatchWorkItem waits out the interval, counted from the end of each transition. The display link runs only during a transition.
-  - The next and previous slides load through `ImageLoader.shared.load` at the screen's long edge in pixels, and only those textures are kept.
-  - If the next slide isn't decoded yet, the move waits for it. A file that fails is marked in `SlideshowSequence` and skipped in both directions; if nothing can load, the show ends.
-  - → and ← finish any transition under way at once and start a quick one.
-  - Caption metadata (MetadataReader.summary) is read ahead for the neighbours, off the main thread.
-  - ProcessInfo.beginActivity([.idleDisplaySleepDisabled, .userInitiated]) runs for the life of the show.
-  - EDR is on only while an HDR slide is on either side of a transition, Show HDR is on, and the screen can show some of it.
-  - When the show ends the viewer moves to the last slide shown, through its normal navigation.
-- **Order.** Shuffle puts the starting image first and the rest in an order fixed for the run; a loop repeats that order. A single image never transitions into itself.
-- **Settings.** `SlideshowSettings` is one Codable value under the key "slideshowSettings" in `SlideshowSettingsStore`, which tests build on a scratch defaults suite. Each field falls back to its default when missing or unreadable, and numbers are clamped: interval 1–60 s, transition duration 0.3–3 s, volume 0–1. A running show reads interval, transition and caption style afresh for each slide; order, loop and music are fixed when it starts.
-- **Music.** `SlideshowAudioPlayer` is the only file that imports AVFoundation, behind `SlideshowAudioPlaying`. `SlideshowMusic` resolves the playlist's security-scoped bookmarks off the main thread; a folder adds the MP3, AAC/M4A, WAV and AIFF files directly inside it, by name. It holds access until it stops, plays in order or shuffled round and round, drops songs that won't open, fades in over 1 s, pauses with the show, mutes with a 0.25 s ramp, and at the end fades out over 1.5 s before stopping and releasing the files. It outlives the closed window for that fade.
-- **Opening songs (Phase 8).** `AVAudioPlayer(contentsOf:)` and `prepareToPlay` run through BlockingWork, never on the main thread; `play(volume:)` then starts the opened file. A song opening when the show pauses starts on resume, one opening when the show ends is dropped (a generation count in the player and in the music), and mute or volume changes made meanwhile apply when it starts. While a show runs, the window follows the settings store: Volume ramps the music over 0.1 s, and turning Play Music off silences it like mute (0.25 s) until it is turned on again. The playlist, shuffle and order stay as the show started.
-- **Settings pane.** The preview is a small Metal view using the same shader, between two drawn pictures. It rests at the halfway point; changing the transition or duration, or clicking it, plays it once, holds the new picture 0.7 s and settles back. Its display link runs only while playing.
-- **Snapshot switches (debug only).** `debugFreezeSlideshowTransition:` reads MINIVU_DEBUG_TRANSITION (default iris), MINIVU_DEBUG_PROGRESS (default 0.5) and MINIVU_DEBUG_CAPTION (none, name, nameAndDate, exif), and pins the control bar up. `debugShowSlideshowSettings:` is on AppDelegate.
-- **Known limits.**
-  - Resuming after a pause waits a full interval.
-  - A caption longer than the space left of the control bar is truncated in the middle.
-  - Changing HDR or RAW settings mid-show refreshes the neighbours, but the slide on screen stays until the next one.
-
-Suggested additions to the slideshow notes in DESIGN.md (on top of the implementer's):
-
-- **When a show ends.** `SlideshowSequence.isOverAfterCurrent` decides it. A show ends after its last slide only when Loop is off, or when nothing can play at all. A looping show whose only playable slide is on screen (a single image, or every other file failed) keeps showing that slide, doing nothing, until the user leaves. The arrow keys at either end of a show that doesn't loop only bring up the controls.
-- **Captions.** A caption that needs metadata (name and date, or EXIF) fades out until that slide's metadata has been read, usually ahead of time. The previous slide's caption never stays under a new slide, and a file name never flashes before the camera line.
-- **Closing.** Esc, a click outside the control bar, the close button and File > Close Window (⌘W) all end the show. The borderless window enables Close Window itself, because AppKit only enables it for windows with a close button. The viewer's borderless full-screen window needs the same.
-- **Control bar.** Its buttons never take keyboard focus, so Space always pauses and resumes, even with keyboard navigation turned on.
-- **Music files.** Security-scoped access to playlist files is always paired: if the show ends while bookmarks are still resolving, the files are released as soon as resolution finishes, even though the music object is gone. Bookmarks that resolve stale (a moved or renamed song or folder) are made again while access is held and saved to Settings, as BookmarkStore does.
-- **Stepping.** A move waiting for its image to decode is cleared before the texture is requested, so a cache hit that answers at once can't run the same move twice.
-- **HDR.** Tests pin the slideshow's tone map to the canvas: an HDR slide at any display headroom looks exactly as the viewer shows it, and a cross-fade mixes each slide as it would look alone.
-- **Known limit (shared with the viewer).** On notched displays the window covers the whole screen, so the camera housing can hide the top of a slide.
-
-### Print and Contact Sheets
-
-Suggested DESIGN.md notes (Phase 7, Print and Contact Sheet):
-
-- PageLayout (MinivuCore/Layout) is the one piece of page geometry. It is pure and in page units (points for print, pixels for contact sheets), with a top-left origin and a `flipped` helper for Core Graphics. It covers the grid inside margins, header and footer bands, a caption band at the bottom of each cell, and fit or fill. Auto-rotate turns a picture when the turned shape covers more of the cell; that single measure (narrower aspect over wider) is both less empty space for fit and less crop for fill. Pages holding fewer pictures than cells can centre them (print does, contact sheets don't). Images-per-page choices become the exact grid whose cells are closest to square (portrait: 2 is 1×2, 6 is 2×3, 12 is 3×4, 20 is 4×5, 30 is 5×6).
-- One CG renderer (Tools/Print/LayoutRendering.swift) draws a page into any y-up context: printer, bitmap or PDF. It decodes four cells at a time with concurrentPerform and draws each batch as it arrives, so memory is one page plus four pictures. LayoutImageProvider is a thread-safe LRU bounded by bytes. It reuses a decode from 0.97× to 2× the size wanted and uses ImageIO's thumbnail route up to 512 px (embedded RAW previews, fast HEIC), the display decode above that; HDR comes out as SDR. Captions are Core Text lines, shortened in the middle, in dark or light text depending on the background.
-- Print uses a copy of NSPrintInfo.shared with zero margins, so Page Setup's paper, scale and printer apply and each page rect is the whole sheet. After a successful print the paper and printer chosen in the panel are written back to NSPrintInfo.shared. The page view's knowsPageRange, rectForPage and draw are nonisolated overrides that touch only a locked PrintJob, which is what makes canSpawnSeparateThread safe under Swift 6. Pages are stacked at a fixed 100 000-pt pitch so page rects never depend on the view's frame, which can't change off the main thread. The layout is rebuilt from the running operation's printInfo in knowsPageRange, so panel paper and orientation changes follow.
-- Print decode sizes: the cell's draw rect × printer dpi/72 × scale, with dpi clamped to 150–600 (from PMPrinter, else 300) and the long edge capped at 6000 px. The preview never decodes on the main thread: it draws cached ≤384 px pictures and grey placeholders, decodes the missing ones in the background, then bumps the accessory's KVO `layoutRevision` (its keyPathsForValuesAffectingPreview) to redraw.
-- The viewer prints the edited render (renderForExport in Display P3, 8-bit) when the document is dirty, otherwise the file and page shown.
-- Contact sheets: A4 and Letter presets are 300 dpi, so a PDF's media box is the paper size; 4K and Custom are one point per pixel. Rows "Auto" puts every picture on one page. The preview renders page 1 at a 600 px long edge, 150 ms after the last change, cancelling any older render, with its own small cache. Saving asks with NSSavePanel for a PDF or single page and NSOpenPanel for a folder of pages. Page names ("<base> 1.jpg"…) are chosen so none exists, before anything is written. Pages are made in the volume's item-replacement folder and moved into place through FileWriteQueue. Cancel leaves nothing, and a file that appears in the meantime keeps its name. PDF pictures are JPEG-backed CGImages, which Quartz embeds as-is.
-- Known limits: a print on paper smaller than the unprintable edges gets empty cells; Page Setup scales below 10% are treated as 10%.
-
-Suggested additions to DESIGN.md (Phase 7, Print), on top of the implementer's notes:
-
-- Print pagination facts, measured by printing to PDF through NSPrintOperation:
-  - When a view answers knowsPageRange, AppKit puts each rectForPage rectangle's corner at the corner of the printable area, at 100%, whatever NSPrintInfo.scalingFactor says.
-  - So the print view's page rectangle is exactly the printable part of the sheet, in sheet points, offset by the unprintable edge. Content drawn there lands where it is on paper.
-  - draw applies Page Setup's scale itself: the layout is built at paper/scale and drawn scaled down.
-  - The layout's margins are never smaller than the printer's unprintable edge.
-  - PrintTests prints to a PDF with no printer or panel, to guard all of this.
-- Page Setup after a print takes only the printer, paper, orientation and scale from the job. Copies, page range and destination (a PDF's file, Preview) stay with that job.
-- LayoutImageProvider cache rule: an entry serves any request up to the size it was decoded for, and up to half its own long edge. Decodes more than twice the size asked are shrunk before they are kept. This makes a decode the preview asked for always a hit on its next redraw; without it a JPEG 1/8-scale snap or a small RAW preview made the preview decode forever. A thumbnail counts as full resolution only when the file itself is that small.
-- Preview decodes run on one serial queue per print job, four pictures at a time.
-- The panel draws previews only for the pages it shows.
-- Contact sheet names:
-  - The header text is made a safe file name before it names pages: "/" and ":" become "-", control characters and leading dots are removed, and the length is capped at 200 bytes.
-  - A custom page size is exactly the width and height typed; Orientation applies to presets only.
-  - PDF pages are capped at 14,400 pt (200 in) per side.
-- Contact sheet dialog and saving:
-  - Numbers typed out of range are clamped in the dialog, so what it shows is what is made.
-  - Cancelling the save panel returns to the dialog.
-  - If placing a page fails, the pages already placed by that save are removed. A file replaced after the user chose Replace stays in the Trash.
-  - Moves and trashing run on GCD (BlockingWork) inside the FileWriteQueue job.
-- Known limit: the print preview is recognised by the class name of its graphics context (NSPrintPreviewGraphicsContext). If a future macOS renames it, the preview decodes at print quality on the main thread.
-
-### Montage, Desktop Picture, Capture and External Editors
-
-Proposed additions for DESIGN.md, under "Tools (Phase 7)":
-
-- *Montage Wallpaper:* three layouts, pure geometry in MinivuCore/Montage/MontageLayout. **Grid**: the columns and rows whose cell shape is closest to the photos' median shape, with the fewest spare cells; photos fill and are cropped to their cells, and spare cells repeat photos. **Mosaic**: justified rows (a photo joins a row while that brings the row's width closer to the target), each scaled to span the margins exactly. The row count is the one whose total height comes closest to the screen; then every row's height is scaled by one factor so the rows fill the height between the margins exactly, and each photo fills its cell, cropped by that same few percent (Phase 8; before, a band of background could show at the top and bottom). When a few wide photos can't fill the height, photos repeat from the first, at most once each. **Scattered**: rows filled edge to edge with one cell per photo. Each print is 1.3× its cell, jittered, tilted up to 12°, has a border of 4% of its shorter side, and stays inside the margins. Placement, tilt and drawing order come from a SplitMix64 seed, which Shuffle replaces. Spacing is set in points and multiplied by each display's scale. The sheet's preview uses the browser's 256/512 px thumbnails (at most 200), redraws 50 ms after the last change, one at a time, and lays out off the main thread. The wallpaper is drawn with Core Graphics in 8-bit Display P3 at frame × backing scale. Photos are ImageIO thumbnails at the long edge their largest tile needs, decoded four at a time, drawn in order and released after their last tile. The result is a JPEG at quality 0.9, written through FileWriteQueue as "Montage yyyy-MM-dd at HH.mm.ss[ (n)].jpg", then set per display.
-- *Set as Desktop Picture:* the wallpaper agent opens the file itself, later and after every restart. A JPEG, PNG, HEIC or TIFF inside Pictures (by real path) with no unsaved edits is used as it is. Anything else is exported to Pictures/minivu Wallpapers as "Desktop <timestamp> <name>.jpg" (HEIC when transparent), decoded in SDR no larger than twice the screen's long edge; unsaved edits go through renderForExport. Options are scale proportionally with clipping allowed. Only the newest 10 copies are kept, never one still on a screen, and montages are never pruned.
-- *Capture:* ScreenCaptureKit behind `ScreenCapturing`. Tests and snapshot runs get a capturer that never records or asks. Entire Screen captures the display under the pointer at its pixel size, without minivu's own windows (matched by process ID). Window… opens SCContentSharingPicker in single-window mode without asking for screen recording permission (Phase 8): on macOS 15 choosing a window in the system picker is consent to capture it; a refusal from the capture itself is still explained. The capture is sized from the filter's contentRect × pointPixelScale. Selection… puts a borderless, transparent overlay at screen-saver level on every screen: 35% dim, crosshair, white outline, a size label in pixels, selection snapped outwards to whole pixels; Esc cancels, Return or mouse-up captures. The overlay closes before capture. The rectangle is converted to display-local top-left points for sourceRect, and its size × scale gives the output pixels. When permission is denied, an alert points to System Settings > Privacy & Security > Screen & System Audio Recording with an Open System Settings button; the first attempt may also show the system's own prompt. Captures are 8-bit PNGs, "Capture yyyy-MM-dd at HH.mm.ss.png" in Pictures/minivu Captures, and open in the viewer. HDR captures (float capture with a gain map) are future work.
-- *External editors:* an ordered list in its own defaults key (name, bundle identifier, path, app-scoped bookmark when chosen in the open panel). The app is found by bookmark, then path, then bundle identifier. The menu is rebuilt when the list changes, not in menuNeedsUpdate, because AppKit looks up key equivalents without updating menus. Settings > Editors has icons, move up/down, drag reorder, remove, Add… (open panel in /Applications), and suggestions: apps that open JPEG and are either known image editors or claim the Editor role for images, excluding Apple's other apps and minivu. The browser opens the selected images or the lead image, never the whole folder, and asks above 20. The viewer opens the image shown and warns when unsaved edits won't reach the editor. Files sent to an editor are watched with one FSEvents stream per folder (the 8 most recent folders). When a watched file's date or size changes, its caches are dropped and the viewer reloads it if shown, keeping zoom when the size is unchanged. Unsaved edits made in minivu stay on screen, and a clean edit session is ended first.
-- Known limit: after an external save the viewer's stored entry keeps the old date and size, so its info panel and colour-count cache lag until you move to another image.
-
-Additions for DESIGN.md, under Tools (Phase 7), on top of the implementer's notes:
-
-- *Montage rendering:* decoding and drawing both run on GCD. Each group of up to 4 tiles is decoded concurrently, then drawn in one BlockingWork job into the single bitmap context. One job at a time, so the context is never shared between threads; the final makeImage runs there too. The cooperative pool only coordinates.
-- *Montage cancel:* a write already queued can't be stopped. Cancel is therefore checked again after each montage is written; on cancel or failure the files that run wrote are deleted through the write queue (minivu's own files that no desktop shows yet), so a cancelled montage leaves nothing in Pictures/minivu Wallpapers.
-- *Harness:* debug actions that change a remembered choice (montage layout) don't save it, so snapshots are repeatable and the user's next sheet isn't changed.
-- *Capture exclusion:* the capture lists all windows (not only on-screen ones) and excludes minivu as an application (SCContentFilter(display:excludingApplications:exceptingWindows:)), with its own windows as the fallback. The selection overlay and the menu that chose the command are ordered out moments before, and a window appearing mid-capture must be left out as well.
-- *Permission:* Entire Screen and Selection check screen recording first. When it is denied, minivu explains with its own alert, except on the very first request (remembered in defaults), when the system shows its own prompt. The two are never stacked.
-- *Selection overlay across screens:* the window under a new drag becomes key, so Return and Esc act on that rectangle. The crosshair uses cursorUpdate tracking areas, because cursor rects only work in the key window. The arrow is restored on close. Switching to another app cancels, so dimmed screens never outlive the user's attention.
-- *External edit watcher:* stamps are read after the previous comparison has finished, so one save is reported once. A watched file that is missing (renamed, moved, deleted, or mid-save) isn't reported, and keeps its old stamp until it comes back changed. Stamps drop the URL's cached resource values before reading, since the same URL is read after every save (Phase 8; a second save could go unreported).
-- *Edits and an editor's save (Phase 8):* when the file shown changes on disk while the viewer has unsaved edits, the viewer asks as a sheet, "“name” was changed by another application.": Keep My Edits (the default) or Reload (discard the edits and show the file). If another sheet is up, the question waits for it to end (NSWindow.didEndSheetNotification). From the moment the change is seen, the session's `externalChange` makes Save open Save As, and an in-place save whose "Replace the original?" was already up turns into Save As when confirmed, so the other application's version is never overwritten silently. Once kept, further saves by the editor aren't asked about. minivu's own writes (`SavePresenter.didWrite`) re-stamp a watched file, so a Save isn't reported back as an external change (no second reload, no question).
-- *Known limits:*
-  - Desktop picture copies on other Spaces can be pruned.
+- **Editing:** saving an HDR photo in place writes tone-mapped SDR. Colors
+  and RGB changes made in one visit to the Colors tool are two undo steps.
+- **Marks:** stars and tags live only in the catalog; they aren't written
+  to XMP or Finder tags, so other apps don't see them.
+- **Batch Convert:** only the first page or frame of multi-page and animated
+  files is converted.
+- **Slideshow:** resuming after a pause waits a full interval. A caption
+  longer than the space beside the control bar is truncated in the middle.
+  Changing HDR or RAW settings mid-show changes the slide on screen only at
+  the next slide.
+- **Notched displays:** the slideshow and the viewer's full screen cover the
+  whole screen, so the camera housing can hide the top of the picture.
+- **Print:** paper smaller than its unprintable edges gets empty cells; Page
+  Setup scales below 10% count as 10%. The preview is recognised by the
+  class name of its graphics context; if macOS renames
+  `NSPrintPreviewGraphicsContext`, the preview decodes at print quality on
+  the main thread.
+- **Capture:** captures are 8-bit SDR PNGs; HDR capture is future work.
+- **External editors:** after an editor saves, the viewer's entry keeps the
+  old date and size, so the info panel and colour count lag until you move
+  to another image.
+- **Desktop picture:** copies set on other Spaces can be pruned while still
+  in use there.
+- **Help:** without a Help Book, the Help menu's search field finds menu
+  items only, not the text of the help pages; the Help window's own search
+  does that.

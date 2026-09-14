@@ -32,6 +32,8 @@ let package = Package(
             name: "Minivu",
             dependencies: ["MinivuCore", "MinivuRender"],
             path: "Sources/Minivu",
+            // Help > minivu Help: Markdown pages, rendered in the app.
+            resources: [.copy("Help/HelpPages")],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
         .testTarget(

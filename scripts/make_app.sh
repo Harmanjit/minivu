@@ -8,6 +8,7 @@
 #   build/minivu.app/Contents/Info.plist
 #   build/minivu.app/Contents/MacOS/minivu
 #   build/minivu.app/Contents/Resources/minivu_MinivuRender.bundle   (shaders)
+#   build/minivu.app/Contents/Resources/minivu_Minivu.bundle         (help pages)
 #
 # Usage: scripts/make_app.sh [version] [--dev]
 #   --dev  skip the sandbox (lets `open build/minivu.app --args <path>` reach
@@ -31,7 +32,10 @@ APP="build/minivu.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/minivu "$APP/Contents/MacOS/minivu"
+# Both resource bundles, found in Contents/Resources by Bundle.minivuRender
+# and Bundle.minivuHelp. Without the second, Help shows "Page Unavailable".
 cp -R .build/release/minivu_MinivuRender.bundle "$APP/Contents/Resources/"
+cp -R .build/release/minivu_Minivu.bundle "$APP/Contents/Resources/"
 
 # Precompile shaders when the Metal toolchain is installed; otherwise the
 # app compiles the bundled sources at launch (a fraction of a second).
