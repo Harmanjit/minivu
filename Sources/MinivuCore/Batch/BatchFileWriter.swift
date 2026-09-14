@@ -41,6 +41,10 @@ public enum BatchFileWriter {
 
     /// Moves an item to the Trash and says where it went. Tests pass a
     /// folder of their own so the user's Trash is never touched.
+    ///
+    /// Only the file moves: the writer itself decides where its marks go
+    /// (a trasher that moved them too would have them moved twice, and the
+    /// second move, finding the new file under the old name, deletes them).
     public typealias Trasher = @Sendable (URL) throws -> URL
 
     public static let systemTrash: Trasher = { url in
@@ -52,8 +56,14 @@ public enum BatchFileWriter {
     /// Writes `data` as `url`. When something is already there (planned, or
     /// appeared meanwhile), `policy` decides; `isTaken` names other outputs
     /// of the batch that Keep Both must not pick. A folder is never replaced.
+    ///
+    /// - Parameter original: the source this output was converted from, when
+    ///   the user confirmed replacing it. The new file then keeps the
+    ///   original's stars, tag and Custom Order place, as Save does: it is
+    ///   the same photo under the same name. Any other replaced file takes
+    ///   its marks to the Trash, as Copy's Replace does.
     public static func commit(_ data: Data, to url: URL, policy: ExistingFilePolicy,
-                              catalog: Catalog = .shared, trash: Trasher = systemTrash,
+                              catalog: Catalog = .shared, trash: Trasher = systemTrash, original: URL? = nil,
                               isTaken: (String) -> Bool = { _ in false }) throws -> Result {
         let folder = url.deletingLastPathComponent()
         let temporary = try writeTemporary(data, beside: url)
@@ -74,7 +84,8 @@ public enum BatchFileWriter {
                         target = folder.appendingPathComponent(
                             BatchNameKey.uniqueName(for: url.lastPathComponent, in: folder, isTaken: isTaken))
                     case .replace:
-                        let trashed = try replace(target, with: temporary, catalog: catalog, trash: trash)
+                        let trashed = try replace(target, with: temporary, catalog: catalog, trash: trash,
+                                                  original: original)
                         return .written(target, trashed: trashed)
                     }
                 }
@@ -87,7 +98,8 @@ public enum BatchFileWriter {
 
     /// The Trash step of Replace: the old item out, the new one in, the old
     /// one back if the new one can't go in.
-    private static func replace(_ url: URL, with temporary: URL, catalog: Catalog, trash: Trasher) throws -> URL {
+    private static func replace(_ url: URL, with temporary: URL, catalog: Catalog, trash: Trasher,
+                                original: URL?) throws -> URL {
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             throw CocoaError(.fileWriteFileExists, userInfo: [
@@ -108,8 +120,16 @@ public enum BatchFileWriter {
             }
             throw error
         }
-        // The marks stay with the old file, as they do when Copy replaces one.
-        catalog.fileMoved(from: url, to: trashed)
+        if let original {
+            // Marks are kept by path, so under the same name they stay put;
+            // a name that changed only in letter case takes them along.
+            if original.standardizedFileURL.path != url.standardizedFileURL.path {
+                catalog.fileMoved(from: original, to: url)
+            }
+        } else {
+            // The marks go with the old file, as they do when Copy replaces one.
+            catalog.fileMoved(from: url, to: trashed)
+        }
         return trashed
     }
 

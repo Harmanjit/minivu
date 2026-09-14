@@ -95,13 +95,18 @@ struct BatchConvertView: View {
             }
             .formStyle(.grouped)
 
+            // The form scrolls when the sheet is short; the line keeps the
+            // buttons from looking like one more row of it.
+            Divider()
+
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.previewText)
                         .font(.callout)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    if let problem = model.previewProblem ?? model.unknownTokens.first.map({ "Unknown token \($0)" }) {
+                    if let problem = model.resizeProblem ?? model.previewProblem
+                        ?? model.unknownTokens.first.map({ "Unknown token \($0)" }) {
                         Text(problem)
                             .font(.callout)
                             .foregroundStyle(.red)
@@ -116,8 +121,7 @@ struct BatchConvertView: View {
                     .disabled(!model.canConvert)
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-            .padding(.top, 4)
+            .padding(.vertical, 14)
         }
         .frame(minWidth: 560, minHeight: 480)
     }

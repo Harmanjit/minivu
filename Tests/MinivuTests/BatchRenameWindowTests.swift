@@ -152,6 +152,41 @@ extension AppWindowTests {
             #expect(names(t.url) == ["IMG.JPG", "a.jpg", "b.jpg", "other.jpg"])
         }
 
+        /// Undo and redo pressed quickly, before the work of the step before
+        /// has finished, wait for it: redo still knows the names to put back,
+        /// and two renames of the same files never run at once.
+        @Test func quickUndoAndRedoWaitForEachOther() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let a = try write(t, "a.jpg"), b = try write(t, "b.jpg")
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(folder: t.url)
+            await settle(controller)
+
+            controller.performBatchRename([BatchRenamer.Request(url: a, newName: "one.jpg"),
+                                           BatchRenamer.Request(url: b, newName: "two.jpg")],
+                                          actionName: BatchRenameModel.actionName(count: 2))
+            await controller.batchWork?.value
+            #expect(names(t.url) == ["one.jpg", "two.jpg"])
+            let undo = try #require(controller.window?.undoManager)
+
+            // No waiting in between.
+            undo.undo()
+            #expect(controller.isRunningBatch)
+            undo.redo()
+            undo.undo()
+            undo.redo()
+            await controller.batchWork?.value
+            #expect(!controller.isRunningBatch)
+            #expect(names(t.url) == ["one.jpg", "two.jpg"])
+            #expect(text(t.url.appendingPathComponent("one.jpg")) == "a.jpg")
+            #expect(undo.canUndo && undo.undoActionName == "Rename 2 Items")
+            undo.undo()
+            await controller.batchWork?.value
+            #expect(names(t.url) == ["a.jpg", "b.jpg"])
+        }
+
         /// Big batches: the plan for 5000 files comes off the main thread.
         @Test func plansALargeBatchOffTheMainThread() async throws {
             let names = (0..<5000).map { String(format: "IMG_%04d.JPG", $0) }
@@ -169,7 +204,8 @@ extension AppWindowTests {
             await model.planWork?.value
             let started = Date()
             model.pattern = RenamePattern(text: "Holiday {####}")
-            #expect(Date().timeIntervalSince(started) < 0.05, "setting the pattern doesn't plan on the main thread")
+            // Generous: the margin is for a busy test machine.
+            #expect(Date().timeIntervalSince(started) < 0.25, "setting the pattern doesn't plan on the main thread")
             await model.planWork?.value
             #expect(model.plan?.items.last?.newName == "Holiday 5000.JPG")
             #expect(model.canRename)

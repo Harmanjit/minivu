@@ -171,6 +171,40 @@ import Foundation
         #expect(try names(t) == [".FakeTrash", "out 2.jpg", "out 4.jpg", "out.jpg"])
     }
 
+    /// Replacing someone else's file sends its marks to the Trash with it;
+    /// replacing the original (confirmed) keeps them on the converted file,
+    /// under the same name or one that differs only in letter case.
+    @Test func replacedFilesMarksGoWhereTheFileBelongs() throws {
+        let t = try TemporaryFolder()
+        let (trash, _) = try fakeTrash(t)
+        let catalog = Catalog.inMemory()
+        let other = try write(t, "other.jpg", "an earlier export")
+        let original = try write(t, "photo.jpg", "the original")
+        let upper = try write(t, "SHOT.JPG", "another original")
+        catalog.setRating(2, for: [other])
+        catalog.setRating(5, for: [original])
+        catalog.setTagged(true, for: [upper])
+        catalog.setCustomOrder(["SHOT.JPG", "photo.jpg", "other.jpg"], in: t.url)
+
+        let replaced = try BatchFileWriter.commit(Data("new".utf8), to: other, policy: .replace, catalog: catalog,
+                                                  trash: trash)
+        guard case .written(_, let trashedOther?) = replaced else { Issue.record("expected a replace"); return }
+        #expect(catalog.marks(for: trashedOther).rating == 2, "the old file's stars went to the Trash with it")
+        #expect(catalog.marks(for: other).rating == 0)
+
+        _ = try BatchFileWriter.commit(Data("converted".utf8), to: original, policy: .replace, catalog: catalog,
+                                       trash: trash, original: original)
+        #expect(text(original) == "converted")
+        #expect(catalog.marks(for: original).rating == 5, "the converted photo keeps the original's stars")
+
+        let lower = t.url.appendingPathComponent("SHOT.jpg")
+        let result = try BatchFileWriter.commit(Data("converted".utf8), to: lower, policy: .replace, catalog: catalog,
+                                                trash: trash, original: upper)
+        #expect(result != .skipped)
+        #expect(catalog.marks(for: lower).isTagged, "a change of letter case takes the marks along")
+        #expect(catalog.customOrder(in: t.url) == ["SHOT.jpg", "photo.jpg"], "places kept for the originals")
+    }
+
     @Test func writerNeverReplacesAFolderOrLosesAFileWhenTrashFails() throws {
         let t = try TemporaryFolder()
         let (trash, _) = try fakeTrash(t)

@@ -186,11 +186,11 @@ public struct RenameSource: Hashable, Sendable {
     public var url: URL
     public var modified: Date?
     public var dateTaken: Date?
-    /// As displayed (EXIF orientation applied).
     /// The zone the camera recorded the date in (EXIF's offset), so a name
     /// shows the time on the camera's clock wherever the Mac is; nil for
     /// dates without an offset, which are wall-clock times already.
     public var dateTakenTimeZone: TimeZone?
+    /// As displayed (EXIF orientation applied).
     public var pixelWidth: Int?
     public var pixelHeight: Int?
 

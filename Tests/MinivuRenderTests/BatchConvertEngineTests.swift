@@ -115,6 +115,24 @@ import UniformTypeIdentifiers
         #expect(outputs.map(\.action) == [.fail(reason: "The name can’t contain “/” or “:”.")])
     }
 
+    /// A chosen folder that is the sources' folder under another path (a
+    /// symbolic link): an output still never replaces another source, even
+    /// with Replace, because sources are recognised by identity too.
+    @Test func anotherSpellingOfTheSourceFolderNeverReplacesASource() {
+        let disk = FakeDisk()
+        disk.add("/p/a.png")
+        disk.add("/p/a.jpg")
+        // "/link" is "/p" seen through a symbolic link: the same items.
+        disk.items["/link/a.png"] = disk.items["/p/a.png"]
+        disk.items["/link/a.jpg"] = disk.items["/p/a.jpg"]
+        let settings = BatchConvertSettings(options: .defaults(for: .jpeg), existingFiles: .replace)
+        let outputs = BatchOutputPlanner.plan(sources(["a.png", "a.jpg"]), settings: settings,
+                                              folder: URL(fileURLWithPath: "/link"), probe: disk.probe)
+        #expect(outputs.map(\.destination.lastPathComponent) == ["a 2.jpg", "a.jpg"])
+        #expect(outputs.map(\.action) == [.write, .replace(original: true)],
+                "a.png's output steps aside; a.jpg's replaces only its own original, after confirmation")
+    }
+
     // MARK: - Converting
 
     let srgb = CGColorSpace(name: CGColorSpace.sRGB)!

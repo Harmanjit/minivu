@@ -36,6 +36,11 @@ import MinivuRender
 
     /// The chosen folder, resolved from its bookmark, for showing its name.
     private(set) var chosenFolder: URL?
+    /// Its security-scoped bookmark, kept rather than made again when the
+    /// popup goes back to the folder: under the sandbox a scoped bookmark can
+    /// only be made while the folder is open to the app, which a folder
+    /// remembered from an earlier session no longer is.
+    @ObservationIgnored private var chosenBookmark: Data?
     /// "IMG_0001.NEF → IMG_0001.jpg", or why the first file can't convert.
     private(set) var previewText = ""
     private(set) var previewProblem: String?
@@ -51,11 +56,17 @@ import MinivuRender
         var settings = store.convertSettings
             ?? BatchConvertSettings(options: saveOptions.options(for: saveOptions.lastFormat ?? .jpeg))
         var folder: URL?
+        var folderBookmark: Data?
         if case .chosenFolder(let bookmark) = settings.destination {
-            folder = Self.resolve(bookmark)
-            // The folder has gone (or can't be reached): start beside the
-            // originals rather than fail on Convert.
-            if folder == nil { settings.destination = .besideOriginals }
+            if let resolved = Self.resolveRefreshing(bookmark) {
+                folder = resolved.url
+                folderBookmark = resolved.bookmark
+                settings.destination = .chosenFolder(bookmark: resolved.bookmark)
+            } else {
+                // The folder has gone (or can't be reached): start beside the
+                // originals rather than fail on Convert.
+                settings.destination = .besideOriginals
+            }
         }
         self.entries = entries
         self.store = store
@@ -70,6 +81,7 @@ import MinivuRender
         }
         self.settings = settings
         chosenFolder = folder
+        chosenBookmark = folderBookmark
         schedulePreview()
     }
 
@@ -103,8 +115,8 @@ import MinivuRender
     func setUsesChosenFolder(_ chosen: Bool) {
         if !chosen {
             settings.destination = .besideOriginals
-        } else if let chosenFolder, let bookmark = Self.bookmark(for: chosenFolder) {
-            settings.destination = .chosenFolder(bookmark: bookmark)
+        } else if chosenFolder != nil, let chosenBookmark {
+            settings.destination = .chosenFolder(bookmark: chosenBookmark)
         }
     }
 
@@ -113,6 +125,7 @@ import MinivuRender
     func choose(folder: URL) -> Bool {
         guard VolumePolicy.isAllowed(folder), let bookmark = Self.bookmark(for: folder) else { return false }
         chosenFolder = folder
+        chosenBookmark = bookmark
         settings.destination = .chosenFolder(bookmark: bookmark)
         return true
     }
@@ -125,6 +138,13 @@ import MinivuRender
     /// A bookmark back to its folder, without asking the user anything or
     /// mounting a volume. The caller starts and stops access itself.
     nonisolated static func resolve(_ bookmark: Data) -> URL? {
+        resolveRefreshing(bookmark)?.url
+    }
+
+    /// `resolve`, and the bookmark to keep: a fresh one when the old one is
+    /// stale (the folder was moved or renamed), made while access is open,
+    /// so it keeps working in later sessions.
+    nonisolated static func resolveRefreshing(_ bookmark: Data) -> (url: URL, bookmark: Data)? {
         var stale = false
         let quiet: URL.BookmarkResolutionOptions = [.withoutUI, .withoutMounting]
         let url = (try? URL(resolvingBookmarkData: bookmark, options: quiet.union(.withSecurityScope), relativeTo: nil,
@@ -134,7 +154,10 @@ import MinivuRender
         // Under the sandbox even asking whether it exists needs the access.
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let kept = stale ? (try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil,
+                                                 relativeTo: nil)) ?? bookmark : bookmark
+        return (url, kept)
     }
 
     // MARK: - Checks and preview
@@ -144,7 +167,23 @@ import MinivuRender
     }
 
     var canConvert: Bool {
-        !entries.isEmpty && unknownTokens.isEmpty && (!usesChosenFolder || chosenFolder != nil)
+        !entries.isEmpty && unknownTokens.isEmpty && (!usesChosenFolder || chosenFolder != nil) && resizeProblem == nil
+    }
+
+    /// Why the size asked for can't be used, or nil. A 0 px width would
+    /// otherwise make 1 px images, and 0% silently no resize at all.
+    var resizeProblem: String? {
+        let resize = settings.resize
+        switch resize.mode {
+        case .none:
+            return nil
+        case .percent:
+            return resize.percent.isFinite && resize.percent > 0 && resize.percent <= 1000
+                ? nil : "The scale must be between 0 and 1000%."
+        case .longSide, .width, .height:
+            return (1...BatchResize.maximumSide).contains(resize.pixels)
+                ? nil : "The size must be between 1 and \(BatchResize.maximumSide.formatted()) pixels."
+        }
     }
 
     /// "Convert 12 Images".

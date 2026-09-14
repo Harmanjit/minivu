@@ -29,6 +29,17 @@ public struct BatchOutput: Hashable, Sendable {
     public var replacesOriginal: Bool { action == .replace(original: true) }
 }
 
+/// A file's identity without its kind, for looking items up by identity.
+struct BatchFileIdentityKey: Hashable {
+    var device: Int32
+    var inode: UInt64
+
+    init(_ identity: BatchItemIdentity) {
+        device = identity.device
+        inode = identity.inode
+    }
+}
+
 public enum BatchOutputPlanner {
     /// The outputs of converting `sources` (in batch order) with `settings`
     /// into `folder` (nil: beside each original). Reads the file system but
@@ -61,8 +72,14 @@ public enum BatchOutputPlanner {
 
         var sourceIdentity: [URL: BatchItemIdentity] = [:]
         var sourceKeys: Set<String> = []
+        // By file identity as well as by path: a chosen folder that is a
+        // source folder under another spelling (a symbolic link) must not
+        // let an output replace a source that hasn't been converted yet.
+        var sourceItems: [BatchFileIdentityKey: URL] = [:]
         for source in sources {
-            sourceIdentity[source.url] = probe.identity(source.url)
+            let identity = probe.identity(source.url)
+            sourceIdentity[source.url] = identity
+            if let identity { sourceItems[BatchFileIdentityKey(identity)] = source.url }
             sourceKeys.insert(key(source.url.deletingLastPathComponent(), source.url.lastPathComponent))
         }
 
@@ -90,10 +107,13 @@ public enum BatchOutputPlanner {
             }
 
             var action = BatchOutput.Action.write
-            if isTaken(name) {
+            let takenInBatch = isTaken(name)
+            let existing = takenInBatch ? nil : probe.identity(destination)
+            let isOwnSource = existing.flatMap { item in sourceIdentity[source.url].map { item.isSameItem(as: $0) } } ?? false
+            let isOtherSource = existing.map { !isOwnSource && sourceItems[BatchFileIdentityKey($0)] != nil } ?? false
+            if takenInBatch || isOtherSource {
                 destination = numbered()
-            } else if let existing = probe.identity(destination) {
-                let isOwnSource = sourceIdentity[source.url].map { existing.isSameItem(as: $0) } ?? false
+            } else if let existing {
                 if existing.isDirectory && settings.existingFiles == .replace {
                     action = .fail(reason: "A folder named “\(name)” is in the way.")
                 } else {

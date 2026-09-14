@@ -21,7 +21,8 @@ extension AppWindowTests {
             defaults.removePersistentDomain(forName: suite)
             BatchTools.store = BatchStore(defaults: defaults)
             BatchTools.confirmReplacingOriginals = nil
-            BatchTools.trash = nil
+            // Never the user's Trash: a test that replaces sets its own folder.
+            BatchTools.trash = { url in throw CocoaError(.fileWriteNoPermission, userInfo: [NSFilePathErrorKey: url.path]) }
             BatchTools.concurrency = nil
             BatchTools.sheets = sheets.presenter
         }
@@ -164,6 +165,14 @@ extension AppWindowTests {
             model.format = .jpeg
             #expect(model.qualityPercent == 55, "switching formats keeps what was chosen for each")
 
+            model.settings.resize = BatchResize(mode: .width, pixels: 0)
+            #expect(!model.canConvert && model.resizeProblem != nil, "a 0 px width is refused, not made 1 px")
+            model.settings.resize = BatchResize(mode: .percent, percent: 0)
+            #expect(!model.canConvert)
+            model.settings.resize = BatchResize(mode: .percent, percent: 50)
+            #expect(model.canConvert && model.resizeProblem == nil)
+            model.settings.resize = BatchResize()
+
             model.usesPattern = true
             model.pattern = RenamePattern(text: "Web {nmae}")
             #expect(!model.canConvert && model.unknownTokens == ["{nmae}"])
@@ -175,6 +184,11 @@ extension AppWindowTests {
             #expect(!model.usesChosenFolder, "no folder chosen yet")
             #expect(model.choose(folder: try t.folder("web")))
             #expect(model.usesChosenFolder && model.canConvert)
+            // Back and forth in the popup reuses the folder's bookmark.
+            let chosen = model.settings.destination
+            model.setUsesChosenFolder(false)
+            model.setUsesChosenFolder(true)
+            #expect(model.settings.destination == chosen)
             let settings = model.commit()
             #expect(settings.naming == .pattern(RenamePattern(text: "Web {##}")))
             let again = BatchConvertModel(entries: [first], store: BatchTools.store)
@@ -233,9 +247,13 @@ extension AppWindowTests {
             #expect(try Data(contentsOf: a) == originalA, "not confirmed: the original is untouched")
 
             BatchTools.confirmReplacingOriginals = { _ in true }
+            catalog.setRating(4, for: [a])
+            catalog.setCustomOrder(["b.jpg", "a.jpg"], in: t.url)
             controller.runBatchConvert([try #require(FolderEntry(url: a))], settings: settings)
             await controller.batchWork?.value
             #expect(pixelSize(a) == CGSize(width: 40, height: 30))
+            #expect(catalog.marks(for: a).rating == 4, "the converted photo keeps the original's stars, as Save does")
+            #expect(catalog.customOrder(in: t.url).suffix(2) == ["b.jpg", "a.jpg"], "and its place")
             let trashed = try FileManager.default.contentsOfDirectory(at: t.url.appendingPathComponent(".FakeTrash"),
                                                                       includingPropertiesForKeys: nil)
             #expect(try trashed.map { try Data(contentsOf: $0) } == [originalA], "the original is in the Trash, whole")

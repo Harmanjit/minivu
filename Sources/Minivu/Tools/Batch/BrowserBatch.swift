@@ -7,26 +7,42 @@ import MinivuRender
 /// answer to "Replace the originals?".
 @MainActor enum BatchTools {
     static var store = BatchStore()
-    /// nil: the browser window's `transferTrash`, which moves marks too.
-    static var trash: BatchFileWriter.Trasher?
+    /// Moves a replaced file to the Trash (the file only: the writer moves
+    /// its marks). Tests put a folder of their own here.
+    static var trash: BatchFileWriter.Trasher = BatchFileWriter.systemTrash
     /// nil asks with an alert on the window.
     static var confirmReplacingOriginals: ((_ count: Int) async -> Bool)?
     static var converter: @MainActor () -> BatchConverter = { BatchConvertJob.makeConverter() }
     static var concurrency: Int?
     static var sheets = BatchSheetPresenter.system
 
-    /// Browser windows with a batch under way (one at a time per window:
-    /// their sheets would collide).
-    fileprivate static var running: Set<ObjectIdentifier> = []
-    /// The batch in flight per window, for tests to await.
+    /// Batches under way per browser window (one started from a menu at a
+    /// time: their sheets would collide; an undo or redo may queue behind).
+    fileprivate static var running: [ObjectIdentifier: Int] = [:]
+    /// The newest batch per window, which finishes last, for tests to await
+    /// and for the next undo or redo to wait for.
     static var work: [ObjectIdentifier: Task<Void, Never>] = [:]
+
+    fileprivate static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
+        work[id] = task
+    }
+
+    fileprivate static func begin(_ id: ObjectIdentifier) {
+        running[id, default: 0] += 1
+    }
+
+    fileprivate static func end(_ id: ObjectIdentifier) {
+        let count = (running[id] ?? 1) - 1
+        running[id] = count > 0 ? count : nil
+        if count <= 0 { work[id] = nil }
+    }
 }
 
 /// Tools > Batch Rename… and Batch Convert… for the browser (DESIGN.md 5,
 /// "Tools"). Both work on `toolImages`: the selected images, or every image
 /// shown when none is selected.
 extension BrowserWindowController {
-    var isRunningBatch: Bool { BatchTools.running.contains(ObjectIdentifier(self)) }
+    var isRunningBatch: Bool { BatchTools.running[ObjectIdentifier(self)] != nil }
 
     /// The batch under way in this window, for tests.
     var batchWork: Task<Void, Never>? { BatchTools.work[ObjectIdentifier(self)] }
@@ -71,29 +87,47 @@ extension BrowserWindowController {
     /// Marks and Custom Order places follow the files in the catalog.
     func performBatchRename(_ requests: [BatchRenamer.Request], restoring: Bool = false, actionName: String,
                             completion: ((BatchRenamer.Outcome) -> Void)? = nil) {
+        performBatchRename({ requests }, restoring: restoring, actionName: actionName, completion: completion)
+    }
+
+    /// `requests` is read when the work starts, after any batch still under
+    /// way in this window: a redo pressed while its undo still runs only
+    /// learns the names to put back when that undo has finished, and two
+    /// renames of the same files must never run at once.
+    private func performBatchRename(_ requests: @escaping @MainActor () -> [BatchRenamer.Request], restoring: Bool,
+                                    actionName: String, completion: ((BatchRenamer.Outcome) -> Void)?) {
+        let id = ObjectIdentifier(self)
         let record = BatchRenameRecord()
         let done = undoRegistration(actionName) { controller in
-            controller.performBatchRename(record.requests, restoring: !restoring, actionName: actionName)
+            controller.performBatchRename({ record.requests }, restoring: !restoring, actionName: actionName,
+                                          completion: nil)
         }
         let catalog = model.catalog
-        BatchTools.running.insert(ObjectIdentifier(self))
+        let previous = BatchTools.work[id]
+        BatchTools.begin(id)
         let work = Task {
+            await previous?.value
+            let requests = requests()
             let outcome = await BlockingWork.run {
                 BatchRenamer.perform(requests, restoring: restoring, catalog: catalog)
             }
-            BatchTools.running.remove(ObjectIdentifier(self))
-            BatchTools.work[ObjectIdentifier(self)] = nil
+            BatchTools.end(id)
             record.requests = outcome.inverse
             for step in outcome.renamed {
                 BrowserModel.invalidateCaches(step.from)
                 BrowserModel.invalidateCaches(step.to)
             }
             done(!outcome.renamed.isEmpty)
-            if !outcome.renamed.isEmpty { model.reload(thenSelect: outcome.renamed.map(\.to)) }
+            // Only the folder shown is listed again: an undo can run after
+            // the user has moved on to another folder.
+            let renamed = outcome.renamed.map(\.to)
+            if let folder = model.folder, renamed.contains(where: { BrowserModel.samePath($0.deletingLastPathComponent(), folder) }) {
+                model.reload(thenSelect: renamed)
+            }
             completion?(outcome)
             reportRenameFailures(outcome.failed)
         }
-        BatchTools.work[ObjectIdentifier(self)] = work
+        BatchTools.started(id, work)
     }
 
     private func reportRenameFailures(_ failures: [BatchRenamer.Failure]) {
@@ -129,13 +163,12 @@ extension BrowserWindowController {
     func runBatchConvert(_ entries: [FolderEntry], settings: BatchConvertSettings) {
         guard !isRunningBatch else { return NSSound.beep() }
         let id = ObjectIdentifier(self)
-        BatchTools.running.insert(id)
+        BatchTools.begin(id)
         let work = Task {
             await convert(entries, settings: settings)
-            BatchTools.running.remove(id)
-            BatchTools.work[id] = nil
+            BatchTools.end(id)
         }
-        BatchTools.work[id] = work
+        BatchTools.started(id, work)
     }
 
     private func convert(_ entries: [FolderEntry], settings: BatchConvertSettings) async {
@@ -168,15 +201,8 @@ extension BrowserWindowController {
             guard confirmed else { return }
         }
 
-        let transferTrash = self.transferTrash
-        let trash = BatchTools.trash ?? { url in
-            switch transferTrash(url) {
-            case .success(let place?): return place
-            case .success(nil): throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: url.path])
-            case .failure(let error): throw error
-            }
-        }
-        let job = BatchConvertJob(outputs: outputs, settings: settings, converter: BatchTools.converter(), trash: trash,
+        let job = BatchConvertJob(outputs: outputs, settings: settings, converter: BatchTools.converter(),
+                                  trash: BatchTools.trash, catalog: model.catalog,
                                   concurrency: BatchTools.concurrency ?? BatchConvertJob.defaultConcurrency())
         let format = settings.options.format.title
         let count = entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images"

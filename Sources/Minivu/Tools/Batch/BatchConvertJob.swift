@@ -43,6 +43,8 @@ import MinivuRender
     let settings: BatchConvertSettings
     let converter: BatchConverter
     let trash: BatchFileWriter.Trasher
+    /// Where marks follow replaced files: the browser window's catalog.
+    let catalog: Catalog
     let writes: FileWriteQueue
     let concurrency: Int
     let progress: BatchProgress
@@ -61,12 +63,13 @@ import MinivuRender
     }
 
     init(outputs: [BatchOutput], settings: BatchConvertSettings, converter: BatchConverter,
-         trash: @escaping BatchFileWriter.Trasher, writes: FileWriteQueue = .shared,
+         trash: @escaping BatchFileWriter.Trasher, catalog: Catalog = .shared, writes: FileWriteQueue = .shared,
          concurrency: Int = BatchConvertJob.defaultConcurrency()) {
         self.outputs = outputs
         self.settings = settings
         self.converter = converter
         self.trash = trash
+        self.catalog = catalog
         self.writes = writes
         self.concurrency = max(1, concurrency)
         progress = BatchProgress(total: outputs.count)
@@ -138,7 +141,15 @@ import MinivuRender
 
             progress.currentName = output.source.lastPathComponent
             let isRaw = ImageFormats.kind(of: output.source) == .raw
-            if isRaw { await rawSlot.acquire() }
+            if isRaw {
+                await rawSlot.acquire()
+                // Cancelled while waiting for the other RAW: don't start a
+                // render of seconds only to drop it.
+                if progress.isCancelled {
+                    rawSlot.release()
+                    break
+                }
+            }
             let data: Data
             do {
                 let converter = self.converter, settings = self.settings, source = output.source
@@ -156,11 +167,13 @@ import MinivuRender
             // Converted after Cancel: dropped, never written.
             guard !progress.isCancelled else { break }
 
-            let destination = output.destination, trash = self.trash
+            let destination = output.destination, trash = self.trash, catalog = self.catalog
+            let original = output.replacesOriginal ? output.source : nil
             let folder = destination.deletingLastPathComponent()
             let write = writes.enqueue(replacing: [destination]) {
                 try await BlockingWork.run {
-                    try BatchFileWriter.commit(data, to: destination, policy: policy, trash: trash) { name in
+                    try BatchFileWriter.commit(data, to: destination, policy: policy, catalog: catalog, trash: trash,
+                                               original: original) { name in
                         taken.contains(Self.pathKey(folder.appendingPathComponent(name)))
                     }
                 }
