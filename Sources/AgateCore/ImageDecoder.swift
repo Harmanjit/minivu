@@ -145,28 +145,43 @@ public enum ImageDecoder {
         }
     }
 
-    /// HEIC and HEIF thumbnails: decode at a quarter of full size, then
-    /// shrink on the CPU.
+    /// HEIC and HEIF thumbnails, which ImageIO's direct route makes slow.
     ///
-    /// The HEVC decoder has a cheap reduced-resolution path at 1/2 and 1/4
-    /// scale, but asking ImageIO for a small thumbnail directly decodes at
-    /// full size and resamples 24 MP down. Measured on HSB_6548.heic
-    /// (6032x4032, M4, median of 10):
+    /// 1. **Embedded thumbnail**, when the file carries one at least as big
+    ///    as asked (iPhones store one of about 320 px). Decoding that is a
+    ///    tiny HEVC frame. A plain "if absent" request can't be used blindly:
+    ///    it returns the embedded image even when it is smaller than asked.
+    /// 2. **Quarter-size decode, then shrink on the CPU.** The HEVC decoder
+    ///    has a cheap reduced-resolution path, but asking ImageIO for a small
+    ///    thumbnail directly decodes at full size and resamples 24 MP down.
     ///
-    ///     direct 256 px                 92 ms
-    ///     direct 512 px                 75 ms
-    ///     1508 px (1/4), then CG 256    68 ms  (min 45)
-    ///     754 px (1/8), then CG 256     77 ms
-    ///     40 thumbnails on 10 threads:  1490 ms direct, 714 ms via 1/4
+    /// Measured on HSB_6548.heic (6032x4032, M4, median of 10), 256 px:
     ///
-    /// The concurrent number matters most: the browser decodes many at
-    /// once. AVIF (an SVT-AV1 encode of the same photo) gains nothing, 37 ms
-    /// either way, so it keeps the direct path. Returns nil for other
-    /// formats, or when a quarter-size decode would be smaller than asked.
+    ///     direct                        92 ms  (512 px: 75 ms)
+    ///     1508 px (1/4), then CG        61 ms  (754 px (1/8), then CG: 77 ms)
+    ///     embedded 368 px thumbnail      2.5 ms (a re-encode with one)
+    ///     40 on 10 threads: direct 1490 ms, 1/4 route 714 ms, embedded 25 ms
+    ///
+    /// The concurrent numbers matter most: the browser decodes many at once.
+    /// AVIF (an SVT-AV1 encode of the same photo) gains nothing from the
+    /// quarter route, 37 ms either way, so it keeps the direct path. Returns
+    /// nil for other formats, or when neither route can make the size asked.
     static func heifThumbnail(source: CGImageSource, maxPixelSize: Int) -> CGImage? {
-        guard let type = CGImageSourceGetType(source) as String?, type == "public.heic" || type == "public.heif",
-              let props = CGImageSourceCopyPropertiesAtIndex(source, primaryIndex(source), nil) as? [CFString: Any]
+        guard let type = CGImageSourceGetType(source) as String?, type == "public.heic" || type == "public.heif"
         else { return nil }
+        let index = primaryIndex(source)
+        if embeddedThumbnailLongEdge(source: source, index: index) >= maxPixelSize {
+            let options: [CFString: Any] = [
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
+                kCGImageSourceShouldCacheImmediately: true,
+            ]
+            if let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) {
+                return image
+            }
+        }
+        guard let props = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any] else { return nil }
         let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue ?? 0
         let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue ?? 0
         let quarter = (max(w, h) + 3) / 4
@@ -176,9 +191,24 @@ public enum ImageDecoder {
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceCreateThumbnailFromImageAlways: true,
         ]
-        guard let large = CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
+        guard let large = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary)
         else { return nil }
         return downscale(large, maxPixelSize: maxPixelSize, hasAlpha: (props[kCGImagePropertyHasAlpha] as? Bool) ?? false)
+    }
+
+    /// The long edge of the largest thumbnail stored in the file for image
+    /// `index`, or 0. Read from the container's table of contents, which
+    /// ImageIO has already parsed; no pixels are touched.
+    static func embeddedThumbnailLongEdge(source: CGImageSource, index: Int) -> Int {
+        guard let props = CGImageSourceCopyProperties(source, nil) as? [CFString: Any],
+              let contents = props[kCGImagePropertyFileContentsDictionary] as? [CFString: Any],
+              let images = contents[kCGImagePropertyImages] as? [[CFString: Any]],
+              let image = images.first(where: { ($0[kCGImagePropertyImageIndex] as? Int) == index }),
+              let thumbnails = image[kCGImagePropertyThumbnailImages] as? [[CFString: Any]]
+        else { return 0 }
+        return thumbnails.map {
+            max(($0[kCGImagePropertyWidth] as? Int) ?? 0, ($0[kCGImagePropertyHeight] as? Int) ?? 0)
+        }.max() ?? 0
     }
 
     /// Draws `image` smaller with Core Graphics' high-quality filter, keeping

@@ -66,6 +66,21 @@ public final class ThumbnailService: @unchecked Sendable {
     /// Bumped by `invalidate`, and part of the memory cache key, so old
     /// entries for a path stop matching without having to find them.
     private var generations: [String: Int] = [:]
+    /// Paths whose disk rows `invalidate` is still deleting. Their disk
+    /// copies must not be read in the meantime.
+    private var pendingDiskDeletes: Set<String> = []
+    /// Cache keys of thumbnails that failed to decode (a damaged file, a
+    /// camera raw format macOS doesn't know). Without this, every time the
+    /// cell scrolls back into view the doomed decode would run again. The
+    /// key holds the file's date and size, so a file that changes is retried;
+    /// `invalidate` also clears it.
+    private var failures: Set<NSString> = []
+
+    /// Held around disk writes and `invalidate`'s disk delete, so a decode
+    /// that started before an invalidate can't write its now-stale result
+    /// after the delete. SQLite serialises these writes anyway, so this
+    /// costs no extra waiting; encoding happens before taking it.
+    private let diskLock = NSLock()
 
     /// - Parameters:
     ///   - store: the disk cache, or nil to keep thumbnails in memory only.
@@ -122,6 +137,11 @@ public final class ThumbnailService: @unchecked Sendable {
         let tier = Self.tier(forPixelSize: pixelSize)
         let key = JobKey(path: entry.url.path, tier: tier)
         lock.lock()
+        if failures.contains(cacheKey(entry, tier: tier, generation: generations[key.path] ?? 0)) {
+            lock.unlock()
+            Self.deliver(nil, to: [waiter])
+            return request
+        }
         let job: Job
         let sameFile = { (other: FolderEntry) in other.modified == entry.modified && other.fileSize == entry.fileSize }
         if let existing = jobs[key], !existing.started || sameFile(existing.entry) {
@@ -152,15 +172,30 @@ public final class ThumbnailService: @unchecked Sendable {
     }
 
     /// Forgets a file's thumbnails in memory and on disk, for a file that
-    /// was edited in place or deleted.
+    /// was edited in place or deleted. A request made right after this
+    /// always decodes the file again.
     public func invalidate(_ url: URL) {
         let path = url.path
         lock.lock()
         generations[path, default: 0] += 1
+        failures = failures.filter { !$0.hasSuffix("|" + path) }
+        // A decode already running read the file before this call. New
+        // requests must start a fresh job rather than join it; the old job
+        // still finishes for the waiters it has.
+        for tier in Self.tiers {
+            let key = JobKey(path: path, tier: tier)
+            if jobs[key]?.started == true { jobs[key] = nil }
+        }
+        if store != nil { pendingDiskDeletes.insert(path) }
         lock.unlock()
+
         // The disk delete is a database write, so it never runs on the
         // caller's (probably the main) thread.
-        if let store { workQueue.async { store.invalidate(url) } }
+        guard let store else { return }
+        workQueue.async {
+            self.diskLock.withLock { store.invalidate(url) }
+            self.lock.withLock { _ = self.pendingDiskDeletes.remove(path) }
+        }
     }
 
     /// While suspended, requests queue up but no decode starts. Only for
@@ -216,20 +251,33 @@ public final class ThumbnailService: @unchecked Sendable {
     private func produce(_ job: Job) -> CGImage? {
         lock.lock()
         let entry = job.entry
-        let generation = generations[entry.url.path] ?? 0
+        let path = entry.url.path
+        let generation = generations[path] ?? 0
+        let diskIsStale = pendingDiskDeletes.contains(path)
         lock.unlock()
 
         let key = cacheKey(entry, tier: job.key.tier, generation: generation)
         if let image = memory.object(forKey: key) { return image }
 
-        if let image = store?.image(for: entry.url, modified: entry.modified, fileSize: entry.fileSize,
-                                    tier: job.key.tier) {
+        if !diskIsStale, let image = store?.image(for: entry.url, modified: entry.modified,
+                                                  fileSize: entry.fileSize, tier: job.key.tier) {
             memory.setObject(image, forKey: key, cost: Self.cost(of: image))
             return image
         }
-        guard let image = ImageDecoder.thumbnail(for: entry.url, maxPixelSize: job.key.tier) else { return nil }
+        guard let image = ImageDecoder.thumbnail(for: entry.url, maxPixelSize: job.key.tier) else {
+            lock.withLock { _ = failures.insert(key) }
+            return nil
+        }
         memory.setObject(image, forKey: key, cost: Self.cost(of: image))
-        store?.store(image, for: entry.url, modified: entry.modified, fileSize: entry.fileSize, tier: job.key.tier)
+
+        if let store, let data = ThumbnailStore.encode(image) {
+            diskLock.withLock {
+                // Invalidated while decoding: this picture may be of the old file.
+                guard lock.withLock({ generations[path] ?? 0 }) == generation else { return }
+                store.store(encoded: data, for: entry.url, modified: entry.modified, fileSize: entry.fileSize,
+                            tier: job.key.tier)
+            }
+        }
         return image
     }
 

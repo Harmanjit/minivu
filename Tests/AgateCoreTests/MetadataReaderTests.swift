@@ -75,6 +75,46 @@ import UniformTypeIdentifiers
         #expect(MetadataReader.flashDescription(32) == "No flash function")
     }
 
+    /// Damaged files carry NaN, infinity and absurd numbers. They must be
+    /// skipped or shown as-is, never crash the app.
+    @Test func corruptNumbersDoNotCrash() {
+        let exif: [CFString: Any] = [
+            kCGImagePropertyExifExposureTime: 1e-320,                 // 1/x overflows Int
+            kCGImagePropertyExifFNumber: NSNumber(value: Double.nan),
+            kCGImagePropertyExifISOSpeedRatings: [1e300],
+            kCGImagePropertyExifFocalLength: "inf",
+            kCGImagePropertyExifFlash: -1e40,
+        ]
+        let p = MetadataReader.Properties(root: [
+            kCGImagePropertyExifDictionary: exif,
+            kCGImagePropertyPixelWidth: 40, kCGImagePropertyPixelHeight: 30,
+            kCGImagePropertyOrientation: -6,
+        ])
+        #expect(p.double(p.exif, kCGImagePropertyExifFNumber) == nil)
+        #expect(p.double(p.exif, kCGImagePropertyExifFocalLength) == nil)
+        #expect(p.int(p.exif, kCGImagePropertyExifISOSpeedRatings) == nil)
+        #expect(p.iso == nil)
+        #expect(p.orientedPixelSize == CGSize(width: 40, height: 30))
+        #expect(MetadataReader.exposureLine(p)?.hasPrefix("1/") == true)
+        #expect(!MetadataReader.exposureItems(p).isEmpty)
+        #expect(MetadataReader.formatCoordinate(1e300, ref: "N", positive: "N", negative: "S").hasSuffix("N"))
+    }
+
+    /// JPEG allows 0xFF fill bytes before a marker; the comment reader must
+    /// skip them rather than lose its place.
+    @Test func jpegCommentAfterFillBytes() throws {
+        let t = try TemporaryFolder()
+        let plain = TestImages.write(TestImages.gradient(), to: t.url.appendingPathComponent("plain.jpg"))
+        var bytes = [UInt8](try Data(contentsOf: plain))
+        let comment = Array("Padded".utf8)
+        let length = comment.count + 2
+        // One fill byte: an odd count is what throws a two-bytes-at-a-time reader off.
+        bytes.insert(contentsOf: [0xFF, 0xFF, 0xFE, UInt8(length >> 8), UInt8(length & 0xFF)] + comment, at: 2)
+        let url = t.url.appendingPathComponent("padded.jpg")
+        try Data(bytes).write(to: url)
+        #expect(MetadataReader.jpegComments(url) == ["Padded"])
+    }
+
     @Test func formatNames() {
         #expect(MetadataReader.formatName(for: URL(fileURLWithPath: "/a/b.NEF")) == "Nikon NEF")
         #expect(MetadataReader.formatName(for: URL(fileURLWithPath: "/a/b.jpeg")) == "JPEG")

@@ -15,8 +15,11 @@ import os
 /// catalog, a build directory) must not make it reload over and over.
 ///
 /// `onChange` runs on a private serial queue, never on the main thread.
-/// Hop to the main actor there if you touch UI. The watcher stops when it
-/// is deallocated or `stop()` is called, and never calls back afterwards.
+/// Hop to the main actor there if you touch UI, asynchronously: `stop()`
+/// waits for a running `onChange` to return, so an `onChange` that waited
+/// for the main thread while the main thread calls `stop()` would deadlock.
+/// The watcher stops when it is deallocated or `stop()` is called, and
+/// never calls back afterwards.
 public final class FolderWatcher: @unchecked Sendable {
     /// What the C callback can see. It is retained by the event stream
     /// itself (through the context's retain/release callbacks), so the
@@ -34,6 +37,10 @@ public final class FolderWatcher: @unchecked Sendable {
 
     private let handler: Handler
     private let queue = DispatchQueue(label: "agate.folder-watcher", qos: .utility)
+    /// Marks `queue`, so `stop()` can tell whether it is running inside a
+    /// callback. One key per watcher: a shared key would make watcher A's
+    /// callback look like watcher B's.
+    private let onQueueKey = DispatchSpecificKey<Bool>()
     private let lock = NSLock()
     private var stream: FSEventStreamRef?
 
@@ -82,6 +89,7 @@ public final class FolderWatcher: @unchecked Sendable {
         guard let stream = FSEventStreamCreate(nil, callback, &context, [path] as CFArray,
                                                FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
                                                latency, flags) else { return nil }
+        queue.setSpecific(key: onQueueKey, value: true)
         FSEventStreamSetDispatchQueue(stream, queue)
         guard FSEventStreamStart(stream) else {
             FSEventStreamInvalidate(stream)
@@ -91,7 +99,8 @@ public final class FolderWatcher: @unchecked Sendable {
         self.stream = stream
     }
 
-    /// Stops watching. Safe to call more than once and from any thread.
+    /// Stops watching. Safe to call more than once and from any thread,
+    /// including from inside `onChange`.
     public func stop() {
         handler.stopped.withLock { $0 = true }
         lock.lock()
@@ -102,6 +111,14 @@ public final class FolderWatcher: @unchecked Sendable {
         FSEventStreamStop(stream)
         FSEventStreamInvalidate(stream)
         FSEventStreamRelease(stream)
+        // The `stopped` flag only stops callbacks that haven't begun. One
+        // may already be inside `onChange` on the queue; waiting for the
+        // queue to drain makes "never calls back after stop()" hold. From
+        // inside a callback that wait would deadlock, and isn't needed: the
+        // callback returns right after `onChange`.
+        if DispatchQueue.getSpecific(key: onQueueKey) == nil {
+            queue.sync {}
+        }
     }
 
     deinit { stop() }

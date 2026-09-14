@@ -118,17 +118,37 @@ import UniformTypeIdentifiers
         #expect(service.cachedImage(for: skipped, pixelSize: 256) == nil)   // never decoded
     }
 
-    @Test func invalidateDropsMemoryAndDiskCopies() async throws {
+    /// A request right after `invalidate` must decode the file again, not
+    /// pick up the old disk copy while the asynchronous delete is pending.
+    @Test func invalidateThenRequestNeverServesOldDiskCopy() async throws {
         let store = try ThumbnailStore.inMemory()
-        let service = ThumbnailService(store: store)
         let entry = imageEntry("edited.jpg")
-        #expect(await thumbnail(service, entry) != nil)
+        // A stand-in "old" thumbnail on disk, recognisable by its size.
+        store.store(TestImages.gradient(width: 10, height: 10), for: entry.url, modified: entry.modified,
+                    fileSize: entry.fileSize, tier: 256)
+        let service = ThumbnailService(store: store)
+        #expect(await thumbnail(service, entry)?.width == 10)      // served from disk
+
         service.invalidate(entry.url)
         #expect(service.cachedImage(for: entry, pixelSize: 256) == nil)
-        // The disk delete is asynchronous; a new request after it re-decodes.
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(store.image(for: entry.url, modified: entry.modified, fileSize: entry.fileSize, tier: 256) == nil)
-        #expect(await thumbnail(service, entry) != nil)
+        #expect(await thumbnail(service, entry)?.width == 256)     // decoded again, immediately
+        #expect(service.cachedImage(for: entry, pixelSize: 256)?.width == 256)
+    }
+
+    /// A file that can't be decoded fails once; asking again answers nil
+    /// without another decode, until the file is invalidated.
+    @Test func failedDecodesAreRememberedUntilInvalidated() async throws {
+        let service = ThumbnailService(store: nil)
+        let url = try folder.file("later.jpg", bytes: 100)
+        let broken = try #require(FolderEntry(url: url))
+        #expect(await thumbnail(service, broken) == nil)
+
+        // Make the file decodable without changing the entry's date and size,
+        // so only a fresh decode attempt could now succeed.
+        TestImages.write(TestImages.gradient(width: 640, height: 480), to: url)
+        #expect(await thumbnail(service, broken) == nil)            // remembered, not retried
+        service.invalidate(url)
+        #expect(await thumbnail(service, broken)?.width == 256)     // retried after invalidate
     }
 
     // MARK: - HEIF route
@@ -160,6 +180,7 @@ import UniformTypeIdentifiers
         TestImages.write(TestImages.gradient(width: 2048, height: 1024), to: url, type: .heic,
                          properties: [kCGImagePropertyOrientation: CGImagePropertyOrientation.right.rawValue])
         let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        #expect(ImageDecoder.embeddedThumbnailLongEdge(source: source, index: 0) == 0)   // so the quarter route runs
         #expect(ImageDecoder.heifThumbnail(source: source, maxPixelSize: 256) != nil)   // the route applies
 
         let fast = try #require(ImageDecoder.thumbnail(for: url, maxPixelSize: 256))
@@ -169,6 +190,29 @@ import UniformTypeIdentifiers
         #expect(fast.alphaInfo == .noneSkipFirst)   // opaque, so the store keeps it as JPEG
         let difference = zip(Self.samples(fast), Self.samples(direct)).map { abs($0 - $1) }.max() ?? 0
         #expect(difference <= 12)
+    }
+
+    /// A HEIC carrying its own thumbnail uses it when it's big enough, with
+    /// orientation applied, and falls back to decoding when it's too small.
+    @Test func heicEmbeddedThumbnailRoute() throws {
+        let url = folder.url.appendingPathComponent("embedded.heic")
+        TestImages.write(TestImages.gradient(width: 2048, height: 1024), to: url, type: .heic,
+                         properties: [kCGImagePropertyOrientation: CGImagePropertyOrientation.right.rawValue,
+                                      kCGImageDestinationEmbedThumbnail: true])
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let embedded = ImageDecoder.embeddedThumbnailLongEdge(source: source, index: 0)
+        try #require(embedded >= 256, "ImageIO wrote no usable embedded thumbnail (\(embedded) px)")
+
+        let fast = try #require(ImageDecoder.thumbnail(for: url, maxPixelSize: 256))
+        let direct = try #require(Self.directThumbnail(url, maxPixelSize: 256))
+        #expect(fast.width == direct.width && fast.height == direct.height)
+        #expect(fast.width == 128 && fast.height == 256)
+        let difference = zip(Self.samples(fast), Self.samples(direct)).map { abs($0 - $1) }.max() ?? 0
+        #expect(difference <= 12)
+
+        // Bigger than the embedded thumbnail: a real decode at full size.
+        let large = try #require(ImageDecoder.thumbnail(for: url, maxPixelSize: embedded + 100))
+        #expect(max(large.width, large.height) == embedded + 100)
     }
 
     @Test func smallHeicUsesDirectPath() throws {

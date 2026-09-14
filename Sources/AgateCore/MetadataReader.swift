@@ -276,13 +276,15 @@ public enum MetadataReader {
 
     /// 0.004 -> "1/250 s", 0.4 -> "1/2.5 s", 2.5 -> "2.5 s", 30 -> "30 s".
     static func formatShutter(_ seconds: Double) -> String {
-        guard seconds > 0 else { return "" }
+        guard seconds > 0, seconds.isFinite else { return "" }
         if seconds >= 1 { return "\(trimmed(seconds)) s" }
         let denominator = 1 / seconds
         // Cameras step in thirds of a stop, so 1/2.5 and 1/1.3 are real
-        // settings; long denominators are always whole numbers.
-        if denominator >= 10 || abs(denominator - denominator.rounded()) < 0.1 {
-            return "1/\(Int(denominator.rounded())) s"
+        // settings; long denominators are always whole numbers. `exactly`
+        // because a corrupt tiny value would overflow Int and crash.
+        if denominator >= 10 || abs(denominator - denominator.rounded()) < 0.1,
+           let whole = Int(exactly: denominator.rounded()) {
+            return "1/\(whole) s"
         }
         return "1/\(trimmed(denominator)) s"
     }
@@ -307,7 +309,9 @@ public enum MetadataReader {
         if value < 0 { hemisphere = hemisphere == positive ? negative : positive }
         // Work in tenths of a second so rounding carries into minutes and
         // degrees (59.96″ becomes 1′ 0.0″, never 60.0″).
-        let tenths = Int((abs(value) * 36_000).rounded())
+        guard let tenths = Int(exactly: (abs(value) * 36_000).rounded()) else {
+            return "\(trimmed(value))° \(hemisphere)"   // a corrupt, absurdly large value
+        }
         let degrees = tenths / 36_000
         let minutes = (tenths % 36_000) / 600
         let seconds = Double(tenths % 600) / 10
@@ -476,10 +480,15 @@ public enum MetadataReader {
         }
         guard read(2) == [0xFF, 0xD8] else { return [] }
         var comments: [String] = []
-        while let marker = read(2), marker[0] == 0xFF {
-            let type = marker[1]
-            if type == 0xDA || type == 0xD9 { break }                                    // start of scan / end
-            if type == 0x01 || (0xD0...0xD7).contains(type) || type == 0xFF { continue }  // no length field
+        while let prefix = read(1), prefix[0] == 0xFF {
+            // A marker may be padded with any number of extra 0xFF bytes.
+            var type: UInt8 = 0xFF
+            while type == 0xFF {
+                guard let next = read(1) else { return comments }
+                type = next[0]
+            }
+            if type == 0xDA || type == 0xD9 { break }                     // start of scan / end
+            if type == 0x01 || (0xD0...0xD7).contains(type) { continue }   // no length field
             guard let lengthBytes = read(2) else { break }
             let length = Int(lengthBytes[0]) << 8 | Int(lengthBytes[1])
             guard length >= 2 else { break }
@@ -529,6 +538,11 @@ public enum MetadataReader {
         let root: [CFString: Any]
         let type: String?
 
+        init(root: [CFString: Any], type: String? = nil) {
+            self.root = root
+            self.type = type
+        }
+
         init?(url: URL) {
             guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
                   CGImageSourceGetCount(source) > 0,
@@ -567,23 +581,29 @@ public enum MetadataReader {
             }
         }
 
+        /// nil for NaN and infinity too: damaged files contain both, and
+        /// no photographic value is either.
         func double(_ dict: [CFString: Any]?, _ key: CFString) -> Double? {
-            switch dict?[key] {
+            let value: Double? = switch dict?[key] {
             case let n as NSNumber: n.doubleValue
             case let s as String: Double(s.trimmingCharacters(in: .whitespaces))
             case let a as [Any]: (a.first as? NSNumber)?.doubleValue
             default: nil
             }
+            return value.flatMap { $0.isFinite ? $0 : nil }
         }
 
+        /// `Int(exactly:)`, because a plain `Int(double)` crashes the app on
+        /// an out-of-range value.
         func int(_ dict: [CFString: Any]?, _ key: CFString) -> Int? {
-            double(dict, key).map { Int($0) }
+            double(dict, key).flatMap { Int(exactly: $0.rounded(.towardZero)) }
         }
 
         var orientedPixelSize: CGSize? {
             guard let w = double(root, kCGImagePropertyPixelWidth), let h = double(root, kCGImagePropertyPixelHeight)
             else { return nil }
-            let orientation = CGImagePropertyOrientation(rawValue: UInt32(int(root, kCGImagePropertyOrientation) ?? 1))
+            let raw = int(root, kCGImagePropertyOrientation).flatMap { UInt32(exactly: $0) } ?? 1
+            let orientation = CGImagePropertyOrientation(rawValue: raw)
             return orientation?.swapsAxes == true ? CGSize(width: h, height: w) : CGSize(width: w, height: h)
         }
 

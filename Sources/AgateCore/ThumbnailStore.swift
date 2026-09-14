@@ -2,6 +2,7 @@ import Foundation
 import ImageIO
 import CoreGraphics
 import UniformTypeIdentifiers
+import SQLite3
 
 /// The on-disk thumbnail cache: small encoded images in one SQLite file
 /// (DESIGN.md 4.5).
@@ -36,22 +37,32 @@ public final class ThumbnailStore: @unchecked Sendable {
             .appendingPathComponent("thumbnails.sqlite")
     }
 
+    /// Opens the cache at `url`. A file that isn't a readable SQLite
+    /// database (damaged, or overwritten by something else) is deleted and
+    /// recreated: it only holds thumbnails, and keeping it would disable the
+    /// disk cache on every launch from now on.
     public init(url: URL) throws {
-        db = try SQLiteDatabase(url: url)
-        try migrate()
+        do {
+            db = try Self.migrated(SQLiteDatabase(url: url))
+        } catch let error as SQLiteError where error.code == SQLITE_CORRUPT || error.code == SQLITE_NOTADB {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: url.path + suffix)
+            }
+            db = try Self.migrated(SQLiteDatabase(url: url))
+        }
     }
 
     private init(database: SQLiteDatabase) throws {
-        db = database
-        try migrate()
+        db = try Self.migrated(database)
     }
 
     public static func inMemory() throws -> ThumbnailStore {
         try ThumbnailStore(database: .inMemory())
     }
 
-    private func migrate() throws {
-        guard try db.userVersion() != Self.schemaVersion else { return }
+    /// Returns `db` with the current table layout.
+    private static func migrated(_ db: SQLiteDatabase) throws -> SQLiteDatabase {
+        guard try db.userVersion() != Self.schemaVersion else { return db }
         // auto_vacuum only takes effect on a database with no tables yet (or
         // after a VACUUM). INCREMENTAL lets prune() hand freed pages back to
         // the file system cheaply instead of leaving the file at its peak size.
@@ -75,6 +86,7 @@ public final class ThumbnailStore: @unchecked Sendable {
                 """)
             try db.setUserVersion(Self.schemaVersion)
         }
+        return db
     }
 
     // MARK: - Reading and writing
@@ -117,6 +129,12 @@ public final class ThumbnailStore: @unchecked Sendable {
     /// file and tier.
     public func store(_ image: CGImage, for file: URL, modified: Date, fileSize: Int64, tier: Int) {
         guard let data = Self.encode(image) else { return }
+        store(encoded: data, for: file, modified: modified, fileSize: fileSize, tier: tier)
+    }
+
+    /// Saves an already encoded thumbnail. `ThumbnailService` encodes on its
+    /// worker threads in parallel, then writes under its own ordering lock.
+    func store(encoded data: Data, for file: URL, modified: Date, fileSize: Int64, tier: Int) {
         try? db.execute("""
             INSERT OR REPLACE INTO thumbnails (path, tier, modified, size, data, accessed)
             VALUES (?, ?, ?, ?, ?, ?)

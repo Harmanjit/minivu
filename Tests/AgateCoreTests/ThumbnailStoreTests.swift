@@ -117,6 +117,16 @@ enum TestImages {
         #expect(try db.query("PRAGMA auto_vacuum").first?.int("auto_vacuum") == 2)   // INCREMENTAL
     }
 
+    /// A damaged cache file is replaced, not a permanent failure.
+    @Test func recreatesCacheFileThatIsNotADatabase() throws {
+        let t = try TemporaryFolder()
+        let url = t.url.appendingPathComponent("thumbnails.sqlite")
+        try Data(repeating: 0xAB, count: 8192).write(to: url)
+        let store = try ThumbnailStore(url: url)
+        store.store(TestImages.gradient(), for: file, modified: modified, fileSize: 9, tier: 256)
+        #expect(store.image(for: file, modified: modified, fileSize: 9, tier: 256) != nil)
+    }
+
     @Test func defaultURLIsInCaches() {
         #expect(ThumbnailStore.defaultURL.path.contains("/Caches/Agate/thumbnails.sqlite"))
     }

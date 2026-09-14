@@ -60,6 +60,38 @@ import os
         #expect(await !counter.waitForMore(than: 0, timeout: .milliseconds(700)))
     }
 
+    /// A callback already running when `stop()` is called must finish
+    /// before `stop()` returns, or the caller could see it afterwards.
+    @Test func stopWaitsForRunningCallback() async throws {
+        let t = try TemporaryFolder()
+        let started = Counter()
+        let finished = OSAllocatedUnfairLock(initialState: false)
+        let watcher = try #require(FolderWatcher(folder: t.url, latency: 0.05) {
+            started.increment()
+            Thread.sleep(forTimeInterval: 0.3)
+            finished.withLock { $0 = true }
+        })
+        try t.file("slow.jpg")
+        #expect(await started.waitForMore(than: 0, timeout: .seconds(5)))
+        watcher.stop()
+        #expect(finished.withLock { $0 })
+    }
+
+    /// Stopping from inside the callback must not deadlock.
+    @Test func stopFromInsideCallback() async throws {
+        let t = try TemporaryFolder()
+        let counter = Counter()
+        let box = OSAllocatedUnfairLock<FolderWatcher?>(uncheckedState: nil)
+        let watcher = try #require(FolderWatcher(folder: t.url, latency: 0.05) {
+            box.withLockUnchecked { $0 }?.stop()
+            counter.increment()
+        })
+        box.withLockUnchecked { $0 = watcher }
+        try t.file("stop-inside.jpg")
+        #expect(await counter.waitForMore(than: 0, timeout: .seconds(5)))
+        box.withLockUnchecked { $0 = nil }
+    }
+
     @Test func stopsWhenReleased() async throws {
         let t = try TemporaryFolder()
         let counter = Counter()
