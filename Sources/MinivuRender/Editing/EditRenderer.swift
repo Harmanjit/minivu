@@ -76,7 +76,10 @@ final class EditProxy: @unchecked Sendable {
 /// them. A finished render is delivered only if nothing newer is already on
 /// screen: a full-resolution render of an older state never replaces a
 /// preview of the current one, and a preview never replaces a
-/// full-resolution render of the same state.
+/// full-resolution render of the same state. Nor is one delivered that the
+/// document has moved away from, rather than along (a preview cancelled or
+/// applied, an undo), while a render of the newer state is on its way: it
+/// would show the dropped state for a frame (see `isOvertaken`).
 ///
 /// **Measured** on M4, release build, 6032 x 4032 JPEG (`EditBenchmark`):
 ///
@@ -277,6 +280,10 @@ final class EditProxy: @unchecked Sendable {
         guard let source = document.source else { return }
         let operations = document.renderedOperations
         let revision = document.revision
+        let committed = document.operations, preview = document.preview
+        let lane = full ? document.fullLane : document.previewLane
+        lane.runningRevision = revision
+        defer { lane.runningRevision = nil }
         let outputSize = EditGraph.outputSize(source: source.size, operations: operations)
         let proxy = document.proxy
         let plan = full
@@ -312,6 +319,17 @@ final class EditProxy: @unchecked Sendable {
             document.proxy = newProxy
         }
         guard Self.shouldDeliver(revision: revision, full: full, after: document.lastDelivered) else { return }
+        if revision != document.revision,
+           Self.isOvertaken(committed: committed, preview: preview,
+                            by: document.operations, preview: document.preview) {
+            // A render of the current state is waiting or running: show that.
+            let other = full ? document.previewLane : document.fullLane
+            // (The other lane's render takes the document's state when it
+            // starts, which is at least the current one.)
+            let newerComing = lane.pending != nil || other.pending != nil
+                || (other.isRunning && (other.runningRevision ?? .max) > revision)
+            if newerComing { return }
+        }
         document.lastDelivered = (revision, full)
         request.completion(texture)
     }
@@ -323,6 +341,18 @@ final class EditProxy: @unchecked Sendable {
     nonisolated static func shouldDeliver(revision: Int, full: Bool, after last: (revision: Int, full: Bool)?) -> Bool {
         guard let last else { return true }
         return revision > last.revision || (revision == last.revision && (full || !last.full))
+    }
+
+    /// Whether a render of one state, finished after the document changed,
+    /// shows something the user has left behind rather than a step on the
+    /// way: true unless the committed operations are the same and a preview
+    /// of the same kind is still live (a slider still moving, whose
+    /// in-between frames are what keeps a drag responsive). A preview
+    /// cancelled or applied, a section switched, an undo: all overtaken.
+    nonisolated static func isOvertaken(committed: [EditOperation], preview: EditOperation?,
+                                        by currentCommitted: [EditOperation], preview currentPreview: EditOperation?) -> Bool {
+        guard let preview, let currentPreview else { return true }
+        return committed != currentCommitted || preview.title != currentPreview.title
     }
 
     // MARK: - Plans

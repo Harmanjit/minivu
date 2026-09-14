@@ -229,4 +229,6 @@ extension EditDocument {
 
     var isRunning = false
     var pending: Request?
+    /// The document revision the running render took, once it has.
+    var runningRevision: Int?
 }

@@ -152,6 +152,49 @@ import Metal
         #expect(shown.last! > 0.7)
     }
 
+    /// A preview cancelled while its render runs never reaches the screen:
+    /// the render of the state without it is already on its way.
+    @Test func aCancelledPreviewIsNeverShown() async throws {
+        let doc = document(quadrantFile(width: 1600, height: 800))
+        try await renderer.prepare(doc, proxyPixelSize: 400)
+        var shown: [Float] = []
+        func record(_ texture: ImageTexture) { shown.append(F.pixels(texture.texture).at(0.1, 0.1).x) }
+
+        for full in [true, false] {
+            shown = []
+            doc.preview = .rgbAdjust(red: -1, green: 0, blue: 0)
+            if full {
+                renderer.renderFullResolution(doc) { record($0) }
+            } else {
+                renderer.renderPreview(doc, pixelSize: 400) { record($0) }
+            }
+            // Once it has taken its snapshot of the document, and before it
+            // can deliver (that needs the main actor, which this holds):
+            let lane = full ? doc.fullLane : doc.previewLane
+            while lane.runningRevision == nil { await Task.yield() }
+            doc.preview = nil
+            renderer.renderPreview(doc, pixelSize: 400) { record($0) }
+            await waitUntilIdle(doc)
+            #expect(!shown.isEmpty)
+            #expect(shown.allSatisfy { $0 > 0.7 }, "full \(full): \(shown)")
+        }
+    }
+
+    @Test func overtakenStates() {
+        let brighter = EditOperation.lighting(brightness: 0.2, contrast: 0, gamma: 1, shadows: 0, highlights: 0)
+        let darker = EditOperation.lighting(brightness: -0.2, contrast: 0, gamma: 1, shadows: 0, highlights: 0)
+        let red = EditOperation.rgbAdjust(red: 0.3, green: 0, blue: 0)
+        func overtaken(_ c: [EditOperation], _ p: EditOperation?, by c2: [EditOperation], _ p2: EditOperation?) -> Bool {
+            EditRenderer.isOvertaken(committed: c, preview: p, by: c2, preview: p2)
+        }
+        #expect(!overtaken([], brighter, by: [], darker), "a slider still moving")
+        #expect(overtaken([], brighter, by: [], nil), "cancelled")
+        #expect(overtaken([], brighter, by: [darker], nil), "applied at another value")
+        #expect(overtaken([brighter], red, by: [brighter, red], .grayscale), "another tool since")
+        #expect(overtaken([.grayscale], nil, by: [], nil), "undone")
+        #expect(overtaken([], brighter, by: [], red), "a Colors section switched")
+    }
+
     @Test func deliveryOrder() {
         func ok(_ revision: Int, _ full: Bool, after last: (Int, Bool)?) -> Bool {
             EditRenderer.shouldDeliver(revision: revision, full: full, after: last.map { (revision: $0.0, full: $0.1) })
