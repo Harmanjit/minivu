@@ -32,6 +32,33 @@ import MinivuRender
                                               includingShortLast: true) == [near])
     }
 
+    /// A finished stroke stays drawn on the overlay until a render with it
+    /// is on screen; one taken back or applied doesn't.
+    @Test func finishedStrokesAreDrawnUntilRendered() {
+        let doc = document()
+        let state = RetouchToolState(mode: .clone, document: doc, imageSize: size)
+        state.setSource(CGPoint(x: 0.2, y: 0.3))
+        state.beginStroke(at: CGPoint(x: 0.5, y: 0.5))
+        state.continueStroke(to: CGPoint(x: 0.6, y: 0.5))
+        state.endStroke()
+        #expect(state.liveStroke == nil && state.strokesNotYetRendered() == state.strokes)
+        state.beginStroke(at: CGPoint(x: 0.5, y: 0.8))
+        state.endStroke()
+        #expect(state.strokesNotYetRendered() == state.strokes)
+        #expect(state.undoStroke())
+        #expect(state.strokesNotYetRendered() == state.strokes)
+        state.cancel()
+        #expect(state.strokesNotYetRendered().isEmpty)
+
+        let a = state.strokes[0]
+        let b = RetouchStroke(mode: .clone, points: [CGPoint(x: 0.1, y: 0.1)], radius: 0.01, hardness: 0.5, opacity: 1,
+                              sourceOffset: CGVector(dx: 0.1, dy: 0))
+        #expect(RetouchToolState.unrendered([a, b], shown: nil) == [a, b])
+        #expect(RetouchToolState.unrendered([a, b], shown: [.retouch([a])]) == [b])
+        #expect(RetouchToolState.unrendered([b], shown: [.retouch([a]), .grayscale]) == [b])
+        #expect(RetouchToolState.unrendered([a, b], shown: [.grayscale, .retouch([a, b])]).isEmpty)
+    }
+
     @Test func optionClickThenAlignedStrokesUndoAndApply() {
         let doc = document()
         let state = RetouchToolState(mode: .clone, document: doc, imageSize: size)
@@ -186,6 +213,10 @@ extension AppWindowTests {
             state.endStroke()
             let session = try #require(viewer.editSession)
             #expect(session.document.preview == .retouch(state.strokes))
+            // Drawn on the overlay until the render with them is delivered.
+            await waitUntil { state.strokesNotYetRendered().isEmpty }
+            #expect(state.strokesNotYetRendered().isEmpty)
+            #expect(session.document.deliveredOperations == [.retouch(state.strokes)])
 
             // Edit > Undo takes back a stroke and leaves the tool open.
             let undo = NSMenuItem(title: "Undo", action: ViewerWindow.undoAction, keyEquivalent: "z")

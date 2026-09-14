@@ -176,6 +176,11 @@ import MinivuCore
     /// The newest render handed to a completion: its revision, and whether
     /// it was full resolution.
     var lastDelivered: (revision: Int, full: Bool)?
+    /// The operations (committed, then the preview) of the newest render
+    /// handed to a completion. A tool that draws a stand-in for its change
+    /// (a brush stroke) keeps drawing it until a render showing the change
+    /// is on screen.
+    public internal(set) var deliveredOperations: [EditOperation]?
 
     private func operationsChanged() {
         operations = history[..<cursor].flatMap(\.operations)

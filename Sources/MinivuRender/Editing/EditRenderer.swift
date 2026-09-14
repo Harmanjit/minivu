@@ -172,6 +172,7 @@ final class EditProxy: @unchecked Sendable {
         document.previewLane.pending = nil
         document.fullLane.pending = nil
         document.lastDelivered = nil
+        document.deliveredOperations = nil
         context.clearCaches()
     }
 
@@ -331,6 +332,7 @@ final class EditProxy: @unchecked Sendable {
             if newerComing { return }
         }
         document.lastDelivered = (revision, full)
+        document.deliveredOperations = operations
         request.completion(texture)
     }
 
