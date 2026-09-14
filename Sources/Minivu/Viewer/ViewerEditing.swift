@@ -241,7 +241,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
                 proceed()
             case .save:
                 self.closeTool(applying: true)
-                SavePresenter.save(entry: session.document.entry, document: session.document, on: window) { [weak self] saved in
+                self.save(session, on: window) { [weak self] saved in
                     guard saved, let self, self.editSession === session else {
                         cancelled?()
                         return
@@ -302,7 +302,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
               window.attachedSheet == nil else { return }
         closeTool(applying: true)
         guard session.document.isDirty else { return }
-        SavePresenter.save(entry: session.document.entry, document: session.document, on: window) { [weak self] saved in
+        save(session, on: window) { [weak self] saved in
             if saved { self?.editsWereSaved(session) }
             self?.updateChrome()
         }
@@ -312,10 +312,30 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         guard canEditCurrent, let entry = current?.entry, let window, window.attachedSheet == nil else { return }
         closeTool(applying: true)
         let session = editSession
-        SavePresenter.presentSaveAs(entry: entry, document: session?.document, on: window) { [weak self] url in
+        Self.presentSaveAs(entry, session?.document, window) { [weak self] url in
             if url != nil, let session { self?.editsWereSaved(session) }
             self?.updateChrome()
         }
+    }
+
+    /// Save for `session`: over the file, unless another application has
+    /// changed the file since the edits began, when it is Save As instead
+    /// (asked again just before writing, since the change can arrive while
+    /// "Replace the original?" is up).
+    private func save(_ session: EditSession, on window: NSWindow, completion: @escaping (Bool) -> Void) {
+        let entry = session.document.entry
+        guard session.externalChange == .none else {
+            Self.presentSaveAs(entry, session.document, window) { completion($0 != nil) }
+            return
+        }
+        SavePresenter.save(entry: entry, document: session.document, on: window,
+                           canReplace: { session.externalChange == .none }, completion: completion)
+    }
+
+    /// Shows Save As; a hook so tests can record it instead of a panel.
+    static var presentSaveAs: (_ entry: FolderEntry, _ document: EditDocument?, _ window: NSWindow,
+                               _ completion: @escaping (URL?) -> Void) -> Void = { entry, document, window, completion in
+        SavePresenter.presentSaveAs(entry: entry, document: document, on: window, completion: completion)
     }
 
     @objc func revertToSaved(_ sender: Any?) {

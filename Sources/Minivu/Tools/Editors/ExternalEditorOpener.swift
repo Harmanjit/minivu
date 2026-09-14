@@ -202,13 +202,32 @@ final class WorkspaceLauncher: ApplicationLaunching {
         }
     }
 
+    /// minivu itself has just written `url` (Save): if it is watched, its
+    /// stamp becomes the new file's, in line with the comparisons, so the
+    /// FSEvents report of that write (0.3 s later) finds nothing changed.
+    func noteOwnWrite(_ url: URL) {
+        let file = url.standardizedFileURL
+        guard let watch = watches.first(where: { $0.files[file] != nil }) else { return }
+        let previous = work
+        work = Task {
+            await previous?.value
+            let stamp = await BlockingWork.run(qos: .utility) { Self.stamp(of: file) }
+            if stamp.modified != nil { watch.files[file] = stamp }
+        }
+    }
+
     nonisolated static func stamp(of url: URL) -> Stamp {
+        // URLs cache resource values; the same watched URL is read after
+        // every save, so each reading must go to the disk.
+        var url = url
+        url.removeAllCachedResourceValues()
         let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
         return Stamp(modified: values?.contentModificationDate, size: values?.fileSize)
     }
 
     static func filesChanged(_ urls: [URL]) {
-        urls.forEach(SavePresenter.didWrite)
+        // Not `SavePresenter.didWrite`: that would note the change as minivu's own.
+        urls.forEach(BrowserModel.invalidateCaches)
         ViewerWindowController.current?.reloadAfterExternalEdit(of: urls)
     }
 }

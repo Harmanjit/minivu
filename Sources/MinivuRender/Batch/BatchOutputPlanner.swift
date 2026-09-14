@@ -29,6 +29,26 @@ public struct BatchOutput: Hashable, Sendable {
     public var replacesOriginal: Bool { action == .replace(original: true) }
 }
 
+/// What a batch would send to the Trash, which the app names and confirms
+/// before anything is written: sources replaced by their own conversions,
+/// and existing files that aren't part of the batch at all (the camera's
+/// JPEG beside a NEF converted to JPEG with the names kept). The Replace
+/// policy was chosen for earlier exports; a file that only happens to have
+/// an output's name is the user's to decide about.
+public struct BatchReplacements: Equatable, Sendable {
+    /// Sources that their own conversion replaces.
+    public var originals: [URL]
+    /// Existing files outside the batch, in batch order.
+    public var others: [URL]
+
+    public init(_ outputs: [BatchOutput]) {
+        originals = outputs.filter(\.replacesOriginal).map(\.source)
+        others = outputs.filter { $0.action == .replace(original: false) }.map(\.destination)
+    }
+
+    public var isEmpty: Bool { originals.isEmpty && others.isEmpty }
+}
+
 /// A file's identity without its kind, for looking items up by identity.
 struct BatchFileIdentityKey: Hashable {
     var device: Int32

@@ -248,26 +248,36 @@ public enum FileOperations {
     /// an existing item of that name. A rename that changes only letter case
     /// (or Unicode normalisation) works on case-insensitive volumes.
     public static func rename(_ url: URL, to newName: String, catalog: Catalog = .shared) throws -> URL {
+        try rename(url, to: newName) { catalog.fileMoved(from: $0, to: $1) }
+    }
+
+    /// `rename`, reporting the move to `moved` instead of the catalog, so a
+    /// batch can move the marks of all its files in one transaction.
+    static func rename(_ url: URL, to newName: String, moved: (URL, URL) -> Void) throws -> URL {
         if let problem = validateName(newName, in: url.deletingLastPathComponent(), excluding: url) {
             throw CocoaError(.fileWriteInvalidFileName,
                              userInfo: [NSLocalizedDescriptionKey: problem, NSFilePathErrorKey: url.path])
         }
-        return try performRename(url, to: newName, catalog: catalog)
+        return try performRename(url, to: newName, moved: moved)
     }
 
     /// Undoes `rename`: `renamed` (what it returned) takes `original`'s name
     /// again. The old name isn't re-validated, only checked to be free.
     public static func undoRename(_ renamed: URL, to original: URL, catalog: Catalog = .shared) throws -> URL {
+        try undoRename(renamed, to: original) { catalog.fileMoved(from: $0, to: $1) }
+    }
+
+    static func undoRename(_ renamed: URL, to original: URL, moved: (URL, URL) -> Void) throws -> URL {
         let name = original.lastPathComponent
         let destination = renamed.deletingLastPathComponent().appendingPathComponent(name)
         if let existing = info(destination.path, followingLinks: false),
            existing.identity != info(renamed.path, followingLinks: false)?.identity {
             throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: destination.path])
         }
-        return try performRename(renamed, to: name, catalog: catalog)
+        return try performRename(renamed, to: name, moved: moved)
     }
 
-    private static func performRename(_ url: URL, to newName: String, catalog: Catalog) throws -> URL {
+    private static func performRename(_ url: URL, to newName: String, moved: (URL, URL) -> Void) throws -> URL {
         guard newName != url.lastPathComponent else { return url }
         let folder = url.deletingLastPathComponent()
         let destination = folder.appendingPathComponent(newName)
@@ -285,7 +295,7 @@ public enum FileOperations {
                 throw error
             }
         }
-        catalog.fileMoved(from: url, to: destination)
+        moved(url, destination)
         return destination
     }
 

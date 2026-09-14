@@ -19,9 +19,9 @@ final class FakeLauncher: ApplicationLaunching {
     /// A store in a defaults domain of its own; `body` gets the domain's
     /// name to read it back.
     func withStore(_ body: (ExternalEditorsStore, String) async throws -> Void) async rethrows {
-        let name = "minivu-editors-tests-\(UUID().uuidString)"
-        defer { UserDefaults(suiteName: name)?.removePersistentDomain(forName: name) }
-        try await body(ExternalEditorsStore(defaults: UserDefaults(suiteName: name)), name)
+        let scratch = ScratchDefaults("minivu-editors-tests")
+        defer { scratch.remove() }
+        try await body(ExternalEditorsStore(defaults: scratch.defaults), scratch.name)
     }
 
     func editor(_ name: String, _ identifier: String? = nil, path: String? = nil) -> ExternalEditor {
@@ -298,6 +298,32 @@ final class FakeLauncher: ApplicationLaunching {
         #expect(reports == [[photo.standardizedFileURL]])
     }
 
+    /// minivu's own save of a watched file isn't reported as another
+    /// application's: no second reload, and no question about edits.
+    @Test func watcherIgnoresMinivusOwnWrites() async throws {
+        let scratch = try ScratchFolder()
+        let photo = try scratch.jpeg("a.jpg", width: 40, height: 30)
+        let watcher = ExternalEditWatcher()
+        var reports: [[URL]] = []
+        watcher.onChange = { reports.append($0) }
+        watcher.watch([photo])
+        await watcher.work?.value
+        let folder = scratch.url.standardizedFileURL
+
+        try scratch.jpeg("a.jpg", width: 80, height: 30)   // as Save writes it
+        watcher.noteOwnWrite(photo)
+        watcher.folderChanged(folder)                       // the write's own FSEvents report
+        await watcher.work?.value
+        #expect(reports.isEmpty)
+
+        // A file that isn't watched is ignored; an editor's save still counts.
+        watcher.noteOwnWrite(scratch.url.appendingPathComponent("other.jpg"))
+        try scratch.jpeg("a.jpg", width: 90, height: 30)
+        watcher.folderChanged(folder)
+        await watcher.work?.value
+        #expect(reports == [[photo.standardizedFileURL]])
+    }
+
     @Test func watcherKeepsTheMostRecentFolders() async throws {
         let scratch = try ScratchFolder()
         let watcher = ExternalEditWatcher()
@@ -345,16 +371,53 @@ extension AppWindowTests {
             await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500))
 
-            // With unsaved edits the edited image stays.
+            // With unsaved edits the user is asked. Keep My Edits: the edited
+            // image stays, and Save becomes Save As, leaving the file alone.
+            let savedQuestion = ViewerWindowController.askAboutExternalChange
+            let savedSaveAs = ViewerWindowController.presentSaveAs
+            defer {
+                ViewerWindowController.askAboutExternalChange = savedQuestion
+                ViewerWindowController.presentSaveAs = savedSaveAs
+            }
+            var asked: [String] = []
+            var answer = ExternalChangeChoice.keepEdits
+            ViewerWindowController.askAboutExternalChange = { name, _, reply in
+                asked.append(name)
+                reply(answer)
+            }
+            var savesAs: [URL] = []
+            ViewerWindowController.presentSaveAs = { entry, _, _, completion in
+                savesAs.append(entry.url)
+                completion(nil)
+            }
             await waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
             await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 500, height: 300) }
             try folder.jpeg("a.jpg", width: 200, height: 200)
+            let editorsVersion = try Data(contentsOf: a)
             ExternalEditWatcher.filesChanged([a])
+            #expect(asked == ["a.jpg"])
             try await Task.sleep(for: .milliseconds(200))
             #expect(viewer.hasUnsavedEdits)
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 500, height: 300))
+            viewer.saveImage(nil)
+            #expect(savesAs == [a], "Save asks for a name instead of replacing the other version")
+            #expect(try Data(contentsOf: a) == editorsVersion)
+            // A later save in the editor isn't asked about again.
+            ExternalEditWatcher.filesChanged([a])
+            #expect(asked.count == 1 && viewer.hasUnsavedEdits)
             viewer.endEditSession()
+
+            // Reload: the edits go and the file as it is now shows.
+            await waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            await waitUntil { viewer.hasUnsavedEdits }
+            try folder.jpeg("a.jpg", width: 120, height: 90)
+            answer = .reload
+            ExternalEditWatcher.filesChanged([a])
+            #expect(asked.count == 2 && !viewer.hasUnsavedEdits && viewer.editSession == nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 120, height: 90) }
+            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 120, height: 90))
         }
 
         @Test func browserOpensTheSelectionNotTheFolder() async throws {
@@ -369,9 +432,9 @@ extension AppWindowTests {
             controller.open(folder: t.url)
             await controller.model.work?.value
 
-            let name = "minivu-editors-window-\(UUID().uuidString)"
-            let defaults = UserDefaults(suiteName: name)!
-            defer { defaults.removePersistentDomain(forName: name) }
+            let scratchDefaults = ScratchDefaults("minivu-editors-window")
+            defer { scratchDefaults.remove() }
+            let defaults = scratchDefaults.defaults
             let store = ExternalEditorsStore(defaults: defaults)
             store.add(ExternalEditor(name: "Preview", bundleIdentifier: "com.apple.Preview",
                                      path: "/System/Applications/Preview.app"))

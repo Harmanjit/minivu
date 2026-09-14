@@ -30,8 +30,18 @@ extension BrowserWindowController {
 
     /// Validation for the Tools commands; nil for any other action. Cheap,
     /// because menus validate often: counts, never a walk of the folder.
+    ///
+    /// The commands that open a sheet are off while one is up (a batch
+    /// sheet, its progress, the print panel, an alert): the sheet is key, but
+    /// the browser stays the main window, so the menu bar would still reach
+    /// it and the command could only beep or queue a second sheet. Batch
+    /// Rename and Convert also stay off while a batch or a copy is still
+    /// running without its sheet.
     func canPerformTools(_ action: Selector) -> Bool? {
-        switch action {
+        let opensSheet: [Selector] = [.batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage]
+        if opensSheet.contains(action), let window, BatchTools.hasSheet(on: window) { return false }
+        if [.batchConvert, .batchRename].contains(action), isRunningBatch || isTransferring { return false }
+        return switch action {
         case .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage:
             model.imageCount > 0
         case .setAsDesktopPicture, .openInExternalEditor:

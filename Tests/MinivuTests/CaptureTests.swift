@@ -148,9 +148,8 @@ final class FakeCapturer: ScreenCapturing {
         capturer.allowed = false
         let (controller, recorder) = controller(capturer, pictures: scratch.url)
         controller.captureEntireScreen()
-        controller.captureWindow()
         controller.captureSelection()
-        #expect(recorder.denied == 3)
+        #expect(recorder.denied == 2)
         #expect(controller.work == nil && controller.overlay == nil)
         #expect(capturer.displayRequests.isEmpty && capturer.pickerRequests == 0)
         #expect(!FileManager.default.fileExists(atPath: controller.capturesFolder.path))
@@ -158,7 +157,7 @@ final class FakeCapturer: ScreenCapturing {
         // The first refusal comes with the system's own prompt: no second alert.
         capturer.systemPromptedForPermission = true
         controller.captureEntireScreen()
-        #expect(recorder.denied == 3 && controller.work == nil)
+        #expect(recorder.denied == 2 && controller.work == nil)
         capturer.systemPromptedForPermission = false
 
         // Refused during the capture itself (the user turned it off meanwhile).
@@ -166,7 +165,27 @@ final class FakeCapturer: ScreenCapturing {
         capturer.failure = CaptureError.permissionDenied
         controller.captureEntireScreen()
         await controller.work?.value
-        #expect(recorder.denied == 4 && recorder.failures.isEmpty && recorder.opened.isEmpty)
+        #expect(recorder.denied == 3 && recorder.failures.isEmpty && recorder.opened.isEmpty)
+    }
+
+    /// Window… opens the system's picker without asking for screen
+    /// recording: choosing a window there is consent enough on macOS 15.
+    @Test func windowPickerNeedsNoScreenRecordingPermission() async throws {
+        let scratch = try ScratchFolder()
+        let capturer = FakeCapturer()
+        capturer.allowed = false
+        let (controller, recorder) = controller(capturer, pictures: scratch.url)
+        controller.captureWindow()
+        await controller.work?.value
+        #expect(capturer.permissionRequests == 0, "never asked")
+        #expect(capturer.pickerRequests == 1 && recorder.denied == 0)
+        #expect(recorder.opened.count == 1, "the chosen window was captured and opened")
+
+        // A refusal from the capture itself is still explained.
+        capturer.failure = CaptureError.permissionDenied
+        controller.captureWindow()
+        await controller.work?.value
+        #expect(capturer.permissionRequests == 0 && recorder.denied == 1 && recorder.opened.count == 1)
     }
 
     @Test func entireScreenCapturesTheScreenUnderThePointerAndOpensIt() async throws {

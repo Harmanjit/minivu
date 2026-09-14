@@ -73,14 +73,19 @@ enum SavePresenter {
     /// decode this document again from the file (`EditRenderer.release`
     /// then `prepare`): the edits would be applied a second time. To reload,
     /// start a new `EditDocument` on the saved file.
+    ///
+    /// `canReplace` is asked again once the overwrite is confirmed, just
+    /// before writing: the file may have been changed by another application
+    /// while the question was up, and then Save As opens instead.
     static func save(entry: FolderEntry, document: EditDocument, on window: NSWindow,
-                     completion: @escaping (Bool) -> Void) {
+                     canReplace: @escaping () -> Bool = { true }, completion: @escaping (Bool) -> Void) {
         save(entry: entry, document: document, on: window, store: SaveOptionsStore(),
-             preferences: .shared, completion: completion)
+             preferences: .shared, canReplace: canReplace, completion: completion)
     }
 
     static func save(entry: FolderEntry, document: EditDocument, on window: NSWindow, store: SaveOptionsStore,
-                     preferences: Preferences, completion: @escaping (Bool) -> Void) {
+                     preferences: Preferences, canReplace: @escaping () -> Bool = { true },
+                     completion: @escaping (Bool) -> Void) {
         let url = entry.url
         Task { [weak window] in
             // Reading the header is disk work: never on the main thread.
@@ -98,6 +103,10 @@ enum SavePresenter {
                                                     sourceBitDepth: info.bitDepth)
             confirmOverwrite(of: entry, options: options, on: window, preferences: preferences) { confirmed in
                 guard confirmed else { return completion(false) }
+                guard canReplace() else {
+                    presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
+                    return
+                }
                 let space = SavePolicy.renderColorSpace(source: sourceSpace, isHDR: info.isHDR, preferWideGamut: false)
                 writeInPlace(entry: entry, document: document, options: options, colorSpace: space, on: window,
                              completion: completion)
@@ -175,11 +184,15 @@ enum SavePresenter {
         }
     }
 
-    /// After any write: the browser's thumbnails and the viewer's textures
-    /// of that file show the old picture.
+    /// After any write minivu made: the browser's thumbnails and the
+    /// viewer's textures of that file show the old picture. A file also
+    /// open in an external editor is watched; the watcher takes this write's
+    /// date and size as its own, so it doesn't report minivu's save back as
+    /// another application's (a second reload, or a needless question).
     static func didWrite(_ url: URL) {
         AppServices.thumbnails.invalidate(url)
         AppServices.images.invalidate(url)
+        ExternalEditWatcher.shared.noteOwnWrite(url)
     }
 
     nonisolated static func sameFile(_ a: URL, _ b: URL) -> Bool {

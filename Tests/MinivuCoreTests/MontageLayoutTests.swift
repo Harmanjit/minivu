@@ -57,7 +57,7 @@ import Foundation
 
     // MARK: Mosaic
 
-    @Test func mosaicRowsFillTheWidthAndKeepShapes() throws {
+    @Test func mosaicRowsFillTheWidthAndTheHeight() throws {
         let spacing = 12.0
         let tiles = MontageLayout.mosaic(aspectRatios: aspects, canvas: canvas, spacing: spacing)
         // Every photo in order, then repeats from the first when the rows
@@ -66,6 +66,11 @@ import Foundation
         #expect(tiles.map(\.image) == (0..<tiles.count).map { $0 % aspects.count })
         let rows = Dictionary(grouping: tiles) { ($0.frame.minY * 1000).rounded() }
         #expect(rows.count > 1)
+        // One factor stretches (or squashes) every cell's height, so every
+        // photo is cropped by the same small share.
+        let first = try #require(tiles.first)
+        let scale = aspects[first.image] / (first.frame.width / first.frame.height)
+        #expect(abs(scale - 1) < 0.1, "the crop is slight: \(scale)")
         for (_, row) in rows {
             let sorted = row.sorted { $0.frame.minX < $1.frame.minX }
             let first = try #require(sorted.first), last = try #require(sorted.last)
@@ -77,26 +82,46 @@ import Foundation
             for tile in sorted {
                 #expect(abs(tile.frame.height - first.frame.height) < tolerance)
                 let shape = tile.frame.width / tile.frame.height
-                #expect(abs(shape - aspects[tile.image]) < 1e-6, "photo \(tile.image) keeps its shape")
+                #expect(abs(aspects[tile.image] / shape - scale) < 1e-6, "photo \(tile.image) is cropped like the rest")
             }
         }
-        // Rows are spaced and centred vertically.
+        // Rows are spaced, and the block fills the height between the
+        // margins exactly: no band of background at the top or bottom.
         let ordered = rows.values.map { $0[0].frame }.sorted { $0.minY < $1.minY }
         for (upper, lower) in zip(ordered, ordered.dropFirst()) {
             #expect(abs(lower.minY - upper.maxY - spacing) < 1e-6)
         }
-        let top = ordered[0].minY - spacing, bottom = canvas.height - ordered[ordered.count - 1].maxY - spacing
-        #expect(abs(top - bottom) < 1e-6)
-        // The chosen rows come close to the screen's height.
-        #expect(abs(top) < canvas.height * 0.15)
+        #expect(abs(ordered[0].minY - spacing) < 1e-6)
+        #expect(abs(ordered[ordered.count - 1].maxY - (canvas.height - spacing)) < 1e-6)
     }
 
-    @Test func mosaicOfOnePhotoSpansTheWidth() throws {
+    /// The rows fill the height whichever way they missed it: too short
+    /// (cells grow taller) or too tall (cells get shorter).
+    @Test func mosaicFillsTheHeightFromBothSides() throws {
+        let screen = CGSize(width: 2560, height: 1600)
+        for spacing in [0.0, 8, 30] {
+            for photos in [Array(repeating: 1.5, count: 9), Array(repeating: 0.75, count: 13), aspects, [1.5, 1.5, 1.5, 2.8]] {
+                let tiles = MontageLayout.mosaic(aspectRatios: photos, canvas: screen, spacing: spacing)
+                let top = try #require(tiles.map(\.frame.minY).min())
+                let bottom = try #require(tiles.map(\.frame.maxY).max())
+                #expect(abs(top - spacing) < 1e-6 && abs(bottom - (screen.height - spacing)) < 1e-6,
+                        "\(photos.count) photos, spacing \(spacing): \(top)...\(bottom)")
+                let left = try #require(tiles.map(\.frame.minX).min())
+                let right = try #require(tiles.map(\.frame.maxX).max())
+                #expect(abs(left - spacing) < 1e-6 && abs(right - (screen.width - spacing)) < 1e-6)
+            }
+        }
+    }
+
+    @Test func mosaicOfOnePhotoFillsTheCanvas() throws {
         let tiles = MontageLayout.mosaic(aspectRatios: [0.5], canvas: CGSize(width: 1000, height: 500), spacing: 10)
         let tile = try #require(tiles.first)
         #expect(tiles.count == 1)
-        #expect(abs(tile.frame.width - 980) < tolerance && abs(tile.frame.height - 1960) < tolerance)
-        #expect(abs(tile.frame.midY - 250) < tolerance)
+        #expect(tile.frame == CGRect(x: 10, y: 10, width: 980, height: 480))
+        // Spacing that leaves no height at all: the row stays centred.
+        let tight = MontageLayout.mosaic(aspectRatios: [2], canvas: CGSize(width: 1000, height: 100), spacing: 60)
+        let row = try #require(tight.first)
+        #expect(abs(row.frame.midY - 50) < tolerance && abs(row.frame.width / row.frame.height - 2) < tolerance)
     }
 
     @Test func mosaicRepeatsPhotosOnlyToReachTheBottom() {

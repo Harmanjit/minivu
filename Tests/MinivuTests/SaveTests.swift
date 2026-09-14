@@ -97,9 +97,9 @@ import MinivuRender
 
 @MainActor @Suite struct SaveOptionsStoreTests {
     func withStore(_ body: (SaveOptionsStore) throws -> Void) rethrows {
-        let name = "minivu-tests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratchDefaults = ScratchDefaults("minivu-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         try body(SaveOptionsStore(defaults: defaults))
     }
 
@@ -254,9 +254,9 @@ import MinivuRender
 
 @MainActor @Suite struct SaveAsModelTests {
     func withStore(_ body: (SaveOptionsStore) async throws -> Void) async rethrows {
-        let name = "minivu-tests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratchDefaults = ScratchDefaults("minivu-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         try await body(SaveOptionsStore(defaults: defaults))
     }
 

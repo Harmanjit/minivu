@@ -1,4 +1,5 @@
 import AVFoundation
+import MinivuCore
 
 /// Plays one audio file at a time for the slideshow's music.
 ///
@@ -8,9 +9,12 @@ import AVFoundation
 protocol SlideshowAudioPlaying: AnyObject {
     /// Called when the file playing reaches its end (or can't go on).
     var onFinish: (() -> Void)? { get set }
-    /// Starts `url` from the beginning at `volume` (0...1), replacing
-    /// whatever was playing. False when the file can't be played.
-    func play(_ url: URL, volume: Float) -> Bool
+    /// Opens `url` off the main thread, ready to play from the beginning,
+    /// replacing whatever was open. False when the file can't be played, or
+    /// when `stop()` was called before it finished opening.
+    func open(_ url: URL) async -> Bool
+    /// Starts the file just opened at `volume` (0...1). False when it can't.
+    func play(volume: Float) -> Bool
     func pause()
     func resume()
     /// Ramps the volume to `volume` over `fadeDuration` seconds (0: at once).
@@ -24,16 +28,40 @@ protocol SlideshowAudioPlaying: AnyObject {
 final class SlideshowAudioPlayer: NSObject, SlideshowAudioPlaying, AVAudioPlayerDelegate {
     var onFinish: (() -> Void)?
     private var player: AVAudioPlayer?
+    /// Bumped by `stop()`, so a file still opening when the music stops (or
+    /// moves on) is dropped rather than left open.
+    private var generation = 0
 
-    func play(_ url: URL, volume: Float) -> Bool {
+    /// An opened player handed from the opening thread to the main actor,
+    /// which is the only place it is used from then on.
+    private nonisolated struct Opened: @unchecked Sendable {
+        let player: AVAudioPlayer
+    }
+
+    func open(_ url: URL) async -> Bool {
         stop()
-        // Opening reads the file's header only; the audio decodes on
+        let generation = self.generation
+        // Opening reads and parses the file (for an MP3, enough of it to
+        // find its frames), which can take a moment on a slow or sleeping
+        // disk: never on the main thread. The audio then decodes on
         // AVFoundation's own thread as it plays.
-        guard let player = try? AVAudioPlayer(contentsOf: url) else { return false }
+        let opened = await BlockingWork.run(qos: .userInitiated) { () -> Opened? in
+            guard let player = try? AVAudioPlayer(contentsOf: url), player.prepareToPlay() else { return nil }
+            return Opened(player: player)
+        }
+        guard generation == self.generation, let player = opened?.player else { return false }
         player.delegate = self
-        player.volume = volume
-        guard player.play() else { return false }
         self.player = player
+        return true
+    }
+
+    func play(volume: Float) -> Bool {
+        guard let player else { return false }
+        player.volume = volume
+        guard player.play() else {
+            stop()
+            return false
+        }
         return true
     }
 
@@ -46,6 +74,7 @@ final class SlideshowAudioPlayer: NSObject, SlideshowAudioPlaying, AVAudioPlayer
     }
 
     func stop() {
+        generation += 1
         player?.delegate = nil
         player?.stop()
         player = nil

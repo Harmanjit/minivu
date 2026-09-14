@@ -6,7 +6,9 @@ import Foundation
 ///
 /// Synchronous file-system work: call it off the main thread. Each rename
 /// is an exclusive `rename(2)` (never overwriting), and marks follow the
-/// files in the catalog.
+/// files in the catalog: every step (temporary names included) is recorded
+/// in order and applied in one catalog transaction when the renames are
+/// done, with one `Catalog.didChange`.
 ///
 /// **Order.** A file whose new name is still held by another file of the
 /// batch waits until that file has moved away; the moment a name is freed,
@@ -61,6 +63,10 @@ public enum BatchRenamer {
     public static func perform(_ requests: [Request], restoring: Bool = false, catalog: Catalog = .shared,
                                probe: BatchFileProbe = .system) -> Outcome {
         var outcome = Outcome()
+        // The catalog follows every step, in order, once the renames are done.
+        var moves: [(from: URL, to: URL)] = []
+        func moved(_ from: URL, _ to: URL) { moves.append((from, to)) }
+        defer { catalog.filesMoved(moves) }
         var results: [Step?] = Array(repeating: nil, count: requests.count)
         var failures: [Failure?] = Array(repeating: nil, count: requests.count)
 
@@ -130,7 +136,7 @@ public enum BatchRenamer {
                     .appendingPathComponent(".minivu-rename-\(UUID().uuidString)")
                 do {
                     try FileOperations.moveExclusively(from, to: temporary)
-                    catalog.fileMoved(from: from, to: temporary)
+                    moved(from, temporary)
                     current[i] = temporary
                     release(key(from), from: i)
                 } catch {
@@ -156,9 +162,9 @@ public enum BatchRenamer {
                 let renamed: URL
                 if wasTemporary || restoring {
                     renamed = try FileOperations.undoRename(from, to: request.url.deletingLastPathComponent()
-                        .appendingPathComponent(request.newName), catalog: catalog)
+                        .appendingPathComponent(request.newName), moved: moved)
                 } else {
-                    renamed = try FileOperations.rename(from, to: request.newName, catalog: catalog)
+                    renamed = try FileOperations.rename(from, to: request.newName, moved: moved)
                 }
                 // (The catalog followed original → temporary → new, which
                 // also keeps the file's place in its folder's Custom Order.)
@@ -174,7 +180,7 @@ public enum BatchRenamer {
                     let name = BatchNameKey.uniqueName(for: request.url.lastPathComponent, in: folder, probe: probe) { _ in false }
                     let back = folder.appendingPathComponent(name)
                     if (try? FileOperations.moveExclusively(from, to: back)) != nil {
-                        catalog.fileMoved(from: from, to: back)
+                        moved(from, back)
                         if name != request.url.lastPathComponent { message += " It is now named “\(name)”." }
                     }
                 } else {

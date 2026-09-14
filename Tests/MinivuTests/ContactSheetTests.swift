@@ -140,9 +140,9 @@ import MinivuCore
     }
 
     @Test func storeRoundTripsAndRepairs() throws {
-        let suite = "minivu-contact-sheet-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-contact-sheet-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let store = ContactSheetStore(defaults: defaults)
         #expect(store.settings == ContactSheetSettings())
         var settings = bareSettings
@@ -357,9 +357,9 @@ extension AppWindowTests {
             _ = NSApplication.shared
             let scratch = try ScratchFolder()
             let entry = try ContactSheetTests.png("a.png", in: scratch.url, 1, 0, 0)
-            let suite = "minivu-contact-sheet-tests-\(UUID().uuidString)"
-            let defaults = try #require(UserDefaults(suiteName: suite))
-            defer { defaults.removePersistentDomain(forName: suite) }
+            let scratchDefaults = ScratchDefaults("minivu-contact-sheet-tests")
+            defer { scratchDefaults.remove() }
+            let defaults = scratchDefaults.defaults
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled],
                                   backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false

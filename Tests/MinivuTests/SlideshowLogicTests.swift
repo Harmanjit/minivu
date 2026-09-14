@@ -161,9 +161,9 @@ struct SlideshowTestGenerator: RandomNumberGenerator {
         #expect(String(decoding: data, as: UTF8.self).contains(#""transition":"iris""#))
         #expect(settings.playsMusic)
 
-        let suite = "minivu-slideshow-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-slideshow-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let store = SlideshowSettingsStore(defaults: defaults)
         #expect(store.settings == SlideshowSettings())
         store.settings = settings

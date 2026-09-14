@@ -88,6 +88,10 @@ import UniformTypeIdentifiers
                                           folder: nil, probe: disk.probe)
         #expect(outputs.map(\.destination.lastPathComponent) == ["a.jpg", "a 2.jpg", "b.jpg", "c.jpg"])
         #expect(outputs.map(\.action) == [.write, .write, .replace(original: true), .replace(original: false)])
+        // Both kinds are named for the confirmation: the original, and the
+        // existing file that isn't part of the batch.
+        #expect(BatchReplacements(outputs).originals.map(\.path) == ["/p/b.jpg"])
+        #expect(BatchReplacements(outputs).others.map(\.path) == ["/p/c.jpg"])
 
         // An output never lands on another source of the batch, even with Replace.
         outputs = BatchOutputPlanner.plan(sources(["c.heic", "c.jpg"]), settings: settings, folder: nil, probe: disk.probe)

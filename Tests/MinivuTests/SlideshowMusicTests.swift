@@ -12,14 +12,25 @@ import Foundation
 
     var onFinish: (() -> Void)?
     var calls: [Call] = []
-    /// File names that refuse to play.
+    /// File names that refuse to open.
     var unplayable: Set<String> = []
+    /// Awaited while a file opens, so a test can act part way.
+    var openGate: (() async -> Void)?
+    private(set) var opened: String?
     private(set) var playing: String?
 
-    func play(_ url: URL, volume: Float) -> Bool {
-        calls.append(.play(url.lastPathComponent, volume))
+    func open(_ url: URL) async -> Bool {
+        opened = nil
+        await openGate?()
         guard !unplayable.contains(url.lastPathComponent) else { return false }
-        playing = url.lastPathComponent
+        opened = url.lastPathComponent
+        return true
+    }
+
+    func play(volume: Float) -> Bool {
+        guard let opened else { return false }
+        calls.append(.play(opened, volume))
+        playing = opened
         return true
     }
 
@@ -33,7 +44,10 @@ import Foundation
     }
 
     /// The song playing reaches its end.
-    func finishTrack() { onFinish?() }
+    func finishTrack() {
+        playing = nil
+        onFinish?()
+    }
 
     var played: [String] {
         calls.compactMap { if case .play(let name, _) = $0, !unplayable.contains(name) { name } else { nil } }
@@ -59,6 +73,12 @@ import Foundation
         return music
     }
 
+    /// A song ends, and the next has opened.
+    func finishTrack(_ player: FakeSlideshowAudioPlayer, _ music: SlideshowMusic) async {
+        player.finishTrack()
+        await music.playTask?.value
+    }
+
     final class Box<T> {
         var value: T
         init(_ value: T) { self.value = value }
@@ -70,10 +90,10 @@ import Foundation
         let music = await music(["1.mp3", "2.m4a", "3.wav"], player: player, released: released)
         #expect(music.state == .playing)
         #expect(player.calls == [.play("1.mp3", 0), .volume(0.5, SlideshowMusic.fadeInDuration)])
-        player.finishTrack()
+        await finishTrack(player, music)
         #expect(player.calls.last == .play("2.m4a", 0.5))   // no fade between songs
-        player.finishTrack()
-        player.finishTrack()
+        await finishTrack(player, music)
+        await finishTrack(player, music)
         #expect(player.played == ["1.mp3", "2.m4a", "3.wav", "1.mp3"])   // round again
         #expect(released.value.isEmpty)
     }
@@ -119,8 +139,8 @@ import Foundation
         let released = Box<[URL]>([])
         let music = await music(["broken.mp3", "2.mp3", "3.mp3"], player: player, released: released)
         #expect(player.playing == "2.mp3")
-        player.finishTrack()
-        player.finishTrack()
+        await finishTrack(player, music)
+        await finishTrack(player, music)
         #expect(player.played == ["2.mp3", "3.mp3", "2.mp3"])
         #expect(music.playlist.tracks.map(\.lastPathComponent) == ["2.mp3", "3.mp3"])
     }
@@ -144,6 +164,7 @@ import Foundation
         await music.startTask?.value
         #expect(player.calls.isEmpty)
         music.resume()
+        await music.playTask?.value
         #expect(player.calls == [.play("1.mp3", 0), .volume(1, SlideshowMusic.fadeInDuration)])
     }
 
@@ -184,6 +205,97 @@ import Foundation
         await task?.value
         #expect(player.calls.isEmpty)
         #expect(released.value == [URL(fileURLWithPath: "/M")])
+    }
+
+    /// Settings' Volume and Play Music reach a show that is running; a
+    /// muted show stays silent until unmuted, at the new volume.
+    @Test func volumeAndPlayMusicApplyToARunningShow() async {
+        let player = FakeSlideshowAudioPlayer()
+        let released = Box<[URL]>([])
+        let music = await music(["1.mp3"], player: player, released: released)
+        music.setVolume(0.3)
+        #expect(player.calls.last == .volume(0.3, SlideshowMusic.volumeFadeDuration))
+        music.setVolume(0.3)
+        music.setVolume(7)   // clamped
+        #expect(player.calls.last == .volume(1, SlideshowMusic.volumeFadeDuration))
+        let count = player.calls.count
+
+        music.setMuted(true)
+        music.setVolume(0.6)
+        #expect(player.calls.count == count + 1, "muted: only the mute's own ramp")
+        music.setMuted(false)
+        #expect(player.calls.last == .volume(0.6, SlideshowMusic.muteFadeDuration))
+
+        music.setEnabled(false)
+        #expect(player.calls.last == .volume(0, SlideshowMusic.muteFadeDuration))
+        music.setEnabled(true)
+        #expect(player.calls.last == .volume(0.6, SlideshowMusic.muteFadeDuration))
+        music.finish()
+    }
+
+    /// Songs open off the main thread. A show paused while one opens starts
+    /// it on resume; one muted meanwhile starts it silent; one that ends
+    /// meanwhile never plays it and lets the files go.
+    @Test func whatHappensWhileASongOpens() async {
+        final class Gate {
+            var continuation: CheckedContinuation<Void, Never>?
+            func open() {
+                continuation?.resume()
+                continuation = nil
+            }
+        }
+        let urls = Self.tracks(["1.mp3", "2.mp3"])
+        func makeMusic(_ player: FakeSlideshowAudioPlayer, _ released: Box<[URL]>) -> SlideshowMusic {
+            SlideshowMusic(items: [], shuffle: false, volume: 0.5, player: player,
+                           resolve: { _ in ResolvedPlaylist(tracks: urls, scopedURLs: [URL(fileURLWithPath: "/M")]) },
+                           release: { released.value += $0 }, schedule: { _, work in work() })
+        }
+        func waitForOpening(_ music: SlideshowMusic, _ gate: Gate) async {
+            // Polled with a sleep, not Task.yield: yielding would spin on the
+            // main actor, taking turns from every other test waiting there.
+            while gate.continuation == nil { try? await Task.sleep(for: .milliseconds(2)) }
+            #expect(music.track == .opening)
+        }
+
+        // Paused, then resumed.
+        var gate = Gate()
+        var player = FakeSlideshowAudioPlayer()
+        player.openGate = { [gate] in await withCheckedContinuation { gate.continuation = $0 } }
+        var released = Box<[URL]>([])
+        var music = makeMusic(player, released)
+        await waitForOpening(music, gate)
+        music.pause()
+        gate.open()
+        await music.startTask?.value
+        #expect(player.calls.isEmpty && music.track == .ready)
+        music.resume()
+        #expect(player.calls == [.play("1.mp3", 0), .volume(0.5, SlideshowMusic.fadeInDuration)])
+        music.finish()
+
+        // Muted.
+        gate = Gate()
+        player = FakeSlideshowAudioPlayer()
+        player.openGate = { [gate] in await withCheckedContinuation { gate.continuation = $0 } }
+        music = makeMusic(player, released)
+        await waitForOpening(music, gate)
+        music.setMuted(true)
+        gate.open()
+        await music.startTask?.value
+        #expect(player.calls == [.play("1.mp3", 0)], "no fade in to silence")
+        music.finish()
+
+        // Ended.
+        gate = Gate()
+        player = FakeSlideshowAudioPlayer()
+        player.openGate = { [gate] in await withCheckedContinuation { gate.continuation = $0 } }
+        released = Box<[URL]>([])
+        music = makeMusic(player, released)
+        await waitForOpening(music, gate)
+        music.finish()
+        #expect(music.state == .finished && released.value.count == 1, "nothing sounding: stopped at once")
+        gate.open()
+        await music.startTask?.value
+        #expect(!player.calls.contains { if case .play = $0 { true } else { false } })
     }
 
     @Test func shuffleKeepsEverySongOnce() {
@@ -238,9 +350,9 @@ import Foundation
         #expect(resolved.tracks.map(\.lastPathComponent) == ["after.mp3"])
         let fresh = try #require(resolved.refreshedBookmarks[item.id])
 
-        let suite = "minivu-slideshow-music-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-slideshow-music-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let store = SlideshowSettingsStore(defaults: defaults)
         let other = SlideshowSettings.PlaylistItem(name: "Other", isFolder: true, bookmark: Data([9]))
         store.settings.playlist = [item, other]

@@ -136,7 +136,9 @@ import MinivuRender
             case .replace:
                 policy = .replace
             case .write:
-                policy = settings.existingFiles
+                // A file that took the name after planning was never named in
+                // "Replace …?", so Replace keeps both rather than trash it.
+                policy = settings.existingFiles == .replace ? .keepBoth : settings.existingFiles
             }
 
             progress.currentName = output.source.lastPathComponent

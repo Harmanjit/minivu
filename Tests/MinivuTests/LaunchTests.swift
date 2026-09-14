@@ -6,9 +6,9 @@ import AppKit
     /// Runs `body` with a private defaults domain, deleted afterwards, so
     /// tests never touch the app's settings or leave files behind.
     func withScratchDefaults(_ body: (UserDefaults) throws -> Void) rethrows {
-        let name = "minivu-tests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratchDefaults = ScratchDefaults("minivu-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         try body(defaults)
     }
 

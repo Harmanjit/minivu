@@ -102,10 +102,17 @@ nonisolated struct SlideshowPlaylist: Equatable {
 
 /// The slideshow's music: the playlist from Settings, fading in when the
 /// show starts, pausing with it, and fading out over 1.5 s when it ends.
+///
+/// Songs are opened off the main thread (`SlideshowAudioPlaying.open`), so
+/// anything can happen while one opens: the show pauses (the song starts on
+/// resume), ends (it is dropped), or is muted or turned down (it starts at
+/// the volume of that moment).
 final class SlideshowMusic {
     static let fadeInDuration: TimeInterval = 1
     static let fadeOutDuration: TimeInterval = 1.5
     static let muteFadeDuration: TimeInterval = 0.25
+    /// A volume change from Settings during the show: quick, but without a click.
+    static let volumeFadeDuration: TimeInterval = 0.1
 
     enum State: Equatable {
         /// Resolving the bookmarks off the main thread.
@@ -116,21 +123,41 @@ final class SlideshowMusic {
         case finished
     }
 
+    /// Where the current song is.
+    enum Track: Equatable {
+        /// Nothing open: before the first song, or between songs.
+        case idle
+        case opening
+        /// Open, waiting for the show to resume.
+        case ready
+        /// Started (and possibly paused with the show).
+        case playing
+    }
+
     private(set) var state: State = .starting
+    private(set) var track: Track = .idle
     private(set) var isPaused = false
     private(set) var isMuted = false
+    /// False when Play Music is turned off in Settings during the show: the
+    /// music goes quiet, as muted, until it is turned on again.
+    private(set) var isEnabled = true
     private(set) var playlist = SlideshowPlaylist()
-    /// The bookmark resolution, for tests to await.
+    /// The bookmark resolution and the first song's opening, for tests to await.
     private(set) var startTask: Task<Void, Never>?
+    /// The song opening now, for tests to await.
+    private(set) var playTask: Task<Void, Never>?
 
     private let player: SlideshowAudioPlaying
-    private let volume: Float
+    private var volume: Float
     private let shuffle: Bool
     private let release: ([URL]) -> Void
     private let schedule: (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void
     private var scopedURLs: [URL] = []
     /// The first song hasn't started: it waits for the show to resume.
     private var waitingToStart = false
+    /// Counts song openings, so one overtaken by another (or by the end of
+    /// the show) is dropped.
+    private var playGeneration = 0
 
     /// - Parameters:
     ///   - resolve: turns the playlist into files; runs off the main thread.
@@ -145,7 +172,7 @@ final class SlideshowMusic {
              DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { work() } }
          }) {
         self.player = player
-        self.volume = Float(min(max(volume, 0), 1))
+        self.volume = Self.clamped(volume)
         self.shuffle = shuffle
         self.release = release
         self.schedule = schedule
@@ -153,18 +180,25 @@ final class SlideshowMusic {
         startTask = Task { [weak self, release, refreshBookmarks] in
             let resolved = await BlockingWork.run(qos: .userInitiated) { resolve(items) }
             if !resolved.refreshedBookmarks.isEmpty { refreshBookmarks(resolved.refreshedBookmarks) }
-            guard let self else {
-                // The slideshow ended and let go of its music while the
-                // bookmarks resolved: nothing will play, but the files
-                // started being accessed and must be released.
-                release(resolved.scopedURLs)
-                return
+            let opening: Task<Void, Never>?
+            do {
+                guard let self else {
+                    // The slideshow ended and let go of its music while the
+                    // bookmarks resolved: nothing will play, but the files
+                    // started being accessed and must be released.
+                    release(resolved.scopedURLs)
+                    return
+                }
+                self.begin(resolved)
+                opening = self.playTask
             }
-            self.begin(resolved)
+            await opening?.value
         }
     }
 
-    private var targetVolume: Float { isMuted ? 0 : volume }
+    private static func clamped(_ volume: Double) -> Float { Float(min(max(volume, 0), 1)) }
+
+    private var targetVolume: Float { isMuted || !isEnabled ? 0 : volume }
 
     /// The files are known: play the first that opens, fading in.
     func begin(_ resolved: ResolvedPlaylist) {
@@ -187,35 +221,62 @@ final class SlideshowMusic {
     func pause() {
         guard !isPaused else { return }
         isPaused = true
-        if state == .playing, !waitingToStart { player.pause() }
+        if state == .playing, track == .playing { player.pause() }
     }
 
     func resume() {
         guard isPaused else { return }
         isPaused = false
         guard state == .playing else { return }
-        if waitingToStart {
+        switch track {
+        case .playing:
+            player.resume()
+        case .ready:
+            start(fadeIn: true)
+        case .idle where waitingToStart:
             waitingToStart = false
             playCurrent(fadeIn: true)
-        } else {
-            player.resume()
+        case .idle, .opening:
+            break   // an opening song starts when it is open
         }
     }
 
     func setMuted(_ muted: Bool) {
         guard muted != isMuted else { return }
         isMuted = muted
-        if state == .playing { player.setVolume(targetVolume, fadeDuration: Self.muteFadeDuration) }
+        applyVolume(fadeDuration: Self.muteFadeDuration)
     }
 
-    /// The show is over: fade out, then stop and let the files go. Paused
-    /// music has nothing to fade, so it stops at once.
+    /// Settings' Volume, changed while the show runs.
+    func setVolume(_ newVolume: Double) {
+        let clamped = Self.clamped(newVolume)
+        guard clamped != volume else { return }
+        volume = clamped
+        if !isMuted, isEnabled { applyVolume(fadeDuration: Self.volumeFadeDuration) }
+    }
+
+    /// Settings' Play Music, changed while the show runs: off silences the
+    /// music (it keeps its place), on brings it back.
+    func setEnabled(_ enabled: Bool) {
+        guard enabled != isEnabled else { return }
+        isEnabled = enabled
+        if !isMuted { applyVolume(fadeDuration: Self.muteFadeDuration) }
+    }
+
+    /// Ramps a started song to the volume wanted now. A song not started yet
+    /// picks the volume up when it starts.
+    private func applyVolume(fadeDuration: TimeInterval) {
+        if state == .playing, track == .playing { player.setVolume(targetVolume, fadeDuration: fadeDuration) }
+    }
+
+    /// The show is over: fade out, then stop and let the files go. Music that
+    /// isn't sounding (paused, or a song still opening) stops at once.
     func finish() {
         switch state {
         case .starting:
             state = .finished   // `begin` releases what it resolved
         case .playing:
-            if isPaused || waitingToStart {
+            if isPaused || track != .playing {
                 stopAndRelease()
             } else {
                 state = .finishing
@@ -230,27 +291,59 @@ final class SlideshowMusic {
     private func stopAndRelease() {
         guard state != .finished else { return }
         state = .finished
+        track = .idle
+        playGeneration += 1
         player.onFinish = nil
         player.stop()
         release(scopedURLs)
         scopedURLs = []
     }
 
-    /// Plays the playlist's current song, dropping songs that won't open;
-    /// with none left the music is over.
+    /// Opens the playlist's current song off the main thread, dropping songs
+    /// that won't open; with none left the music is over. The song starts
+    /// once open, unless the show was paused meanwhile.
     private func playCurrent(fadeIn: Bool) {
-        while let url = playlist.current {
-            if player.play(url, volume: fadeIn ? 0 : targetVolume) {
-                if fadeIn, targetVolume > 0 { player.setVolume(targetVolume, fadeDuration: Self.fadeInDuration) }
-                return
+        playGeneration += 1
+        let generation = playGeneration
+        track = .opening
+        playTask = Task { [weak self] in
+            while let self, let url = self.playlist.current {
+                let opened = await self.player.open(url)
+                // Overtaken while opening: the show ended, or another song began.
+                guard generation == self.playGeneration, self.state == .playing else { return }
+                if opened {
+                    if self.isPaused {
+                        self.track = .ready
+                        return
+                    }
+                    if self.start(fadeIn: fadeIn, retrying: false) { return }
+                }
+                self.playlist.removeCurrent()
             }
-            playlist.removeCurrent()
+            self?.stopAndRelease()
         }
-        stopAndRelease()
+    }
+
+    /// Starts the song that is open. One that won't start is dropped and
+    /// the next opened (when `retrying`; the opening loop moves on itself).
+    @discardableResult
+    private func start(fadeIn: Bool, retrying: Bool = true) -> Bool {
+        if player.play(volume: fadeIn ? 0 : targetVolume) {
+            track = .playing
+            if fadeIn, targetVolume > 0 { player.setVolume(targetVolume, fadeDuration: Self.fadeInDuration) }
+            return true
+        }
+        track = .idle
+        if retrying {
+            playlist.removeCurrent()
+            playCurrent(fadeIn: fadeIn)
+        }
+        return false
     }
 
     private func trackFinished() {
         guard state == .playing else { return }
+        track = .idle
         playlist.advance()
         playCurrent(fadeIn: false)
     }

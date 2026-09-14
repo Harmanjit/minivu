@@ -63,7 +63,11 @@ nonisolated struct FolderSnapshot: Sendable {
 /// Folders are listed off the main thread. Every load or re-sort gets a
 /// generation number, and a result whose generation is no longer current is
 /// dropped: the user moved on while it was being read.
-final class BrowserModel {
+///
+/// `@MainActor` is spelled out although it is the target's default: the
+/// isolated deinit needs it, and a release build of the tests (which
+/// compiles this target for testing) doesn't apply the default to it.
+@MainActor final class BrowserModel {
     /// What changed, so views update only what they need to.
     struct Changes: OptionSet {
         let rawValue: Int

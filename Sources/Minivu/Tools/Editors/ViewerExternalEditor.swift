@@ -12,16 +12,94 @@ extension ViewerWindowController {
 
     /// One of `urls` changed on disk (an editor saved it). If it is the image
     /// shown, it is decoded again, keeping zoom and pan when its size didn't
-    /// change. Caches of the files were already dropped.
+    /// change. Caches of the files were already dropped. An edit session
+    /// without changes is ended first, since it holds the pixels decoded
+    /// before the editor's save.
     ///
-    /// Unsaved edits made here stay on screen: reloading would throw them
-    /// away. An edit session without changes is ended first, since it holds
-    /// the pixels decoded before the editor's save.
+    /// With unsaved edits here, reloading would throw them away and saving
+    /// over the file would throw the editor's work away, so the user is
+    /// asked: Reload (discarding the edits) or Keep My Edits. From the moment
+    /// the change is seen, Save becomes Save As for this session, so neither
+    /// version is lost while the question waits for another sheet. Once the
+    /// edits are kept, later saves by the editor aren't asked about again.
     func reloadAfterExternalEdit(of urls: [URL]) {
         guard !isClosing, let shown = current,
               urls.contains(where: { SavePresenter.sameFile($0, shown.entry.url) }) else { return }
-        guard !hasUnsavedEdits else { return }
-        if editSession != nil { endEditSession() }
-        loadCurrentPage(reloading: true)
+        guard hasUnsavedEdits, let session = editSession else {
+            if editSession != nil { endEditSession() }
+            loadCurrentPage(reloading: true)
+            return
+        }
+        guard session.externalChange == .none else { return }
+        session.externalChange = .asking
+        askAboutExternalChange(session)
     }
+
+    /// Asks as a sheet, once the window has no other sheet up.
+    private func askAboutExternalChange(_ session: EditSession) {
+        guard let window, !isClosing, editSession === session, session.externalChange == .asking else { return }
+        guard hasUnsavedEdits else {
+            // The edits went (undone, or saved as a new file) while waiting:
+            // nothing to lose, so show what the other application saved.
+            endEditSession()
+            loadCurrentPage(reloading: true)
+            return
+        }
+        guard window.attachedSheet == nil else {
+            // Once, however many times this waits: asked when that sheet ends.
+            NotificationCenter.default.removeObserver(self, name: NSWindow.didEndSheetNotification, object: window)
+            NotificationCenter.default.addObserver(self, selector: #selector(sheetEndedBeforeExternalChangeQuestion(_:)),
+                                                   name: NSWindow.didEndSheetNotification, object: window)
+            return
+        }
+        Self.askAboutExternalChange(session.document.entry.name, window) { [weak self] choice in
+            guard let self, self.editSession === session else { return }
+            switch choice {
+            case .reload:
+                self.endEditSession()
+                self.loadCurrentPage(reloading: true)
+            case .keepEdits:
+                session.externalChange = .kept
+                self.updateChrome()
+            }
+        }
+    }
+
+    @objc private func sheetEndedBeforeExternalChangeQuestion(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didEndSheetNotification, object: window)
+        // After AppKit has finished detaching the sheet (and after whatever
+        // its handler starts, such as a save's next sheet).
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, let session = self.editSession else { return }
+                self.askAboutExternalChange(session)
+            }
+        }
+    }
+
+    /// Asks what to do about a file changed elsewhere, as a sheet on
+    /// `window`. A static hook so tests can answer without an alert.
+    static var askAboutExternalChange: (_ name: String, _ window: NSWindow,
+                                        _ answer: @escaping (ExternalChangeChoice) -> Void) -> Void = { name, window, answer in
+        let alert = NSAlert()
+        alert.messageText = "“\(name)” was changed by another application."
+        alert.informativeText = "Reload shows the version saved there and discards your edits. "
+            + "If you keep your edits, saving them asks for a name, so the other version isn’t replaced."
+        // The default keeps what is on screen; nothing is lost either way
+        // until the user chooses Reload.
+        alert.addButton(withTitle: "Keep My Edits")
+        let reload = alert.addButton(withTitle: "Reload")
+        reload.hasDestructiveAction = true
+        alert.beginSheetModal(for: window) { response in
+            answer(response == .alertSecondButtonReturn ? .reload : .keepEdits)
+        }
+    }
+}
+
+/// What the user chose when the image being edited changed on disk.
+enum ExternalChangeChoice {
+    /// Show the file as it is now; the edits here are discarded.
+    case reload
+    /// Carry on editing; Save becomes Save As.
+    case keepEdits
 }

@@ -33,6 +33,20 @@ final class EditSession {
     /// After every change to the document: operations, preview, saved state.
     var onChange: (() -> Void)?
 
+    /// Another application changed the file while this session had unsaved
+    /// edits (see `ViewerWindowController.reloadAfterExternalEdit`).
+    enum ExternalChange {
+        case none
+        /// The question is up, or waits for another sheet to end.
+        case asking
+        /// The user kept the edits.
+        case kept
+    }
+
+    /// Anything but `.none` means Save becomes Save As: writing over the
+    /// file would silently replace the other application's version.
+    var externalChange = ExternalChange.none
+
     /// The geometry-changing operations behind the texture on the canvas, or
     /// nil while the canvas still shows the viewer's unedited texture.
     private(set) var displayedGeometry: [EditOperation]?

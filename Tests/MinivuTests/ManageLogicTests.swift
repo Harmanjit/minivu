@@ -121,9 +121,9 @@ import MinivuCore
     }
 
     @Test func sortKeysRememberTheirDirection() throws {
-        let suite = "minivu-sort-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-sort-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
 
         let name = FileSortOrder(key: .name, ascending: true)
         let rating = SortDirectionMemory.switching(from: name, to: .rating, defaults: defaults)

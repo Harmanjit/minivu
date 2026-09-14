@@ -13,14 +13,13 @@ extension AppWindowTests {
     /// Replaced files go to a Trash folder of the test's own.
     @MainActor @Suite(.serialized) struct BatchConvertWindowTests {
         let catalog = Catalog.inMemory()
-        let defaults: UserDefaults
+        /// Removed when the test's suite instance goes.
+        let scratchDefaults = ScratchDefaults("minivu-batch-convert-tests")
+        var defaults: UserDefaults { scratchDefaults.defaults }
 
         init() {
-            let suite = "minivu-batch-convert-tests-\(UUID().uuidString)"
-            defaults = UserDefaults(suiteName: suite)!
-            defaults.removePersistentDomain(forName: suite)
             BatchTools.store = BatchStore(defaults: defaults)
-            BatchTools.confirmReplacingOriginals = nil
+            BatchTools.confirmReplacing = nil
             // Never the user's Trash: a test that replaces sets its own folder.
             BatchTools.trash = { url in throw CocoaError(.fileWriteNoPermission, userInfo: [NSFilePathErrorKey: url.path]) }
             BatchTools.concurrency = nil
@@ -99,6 +98,86 @@ extension AppWindowTests {
             #expect(trashed.deletingLastPathComponent().lastPathComponent == trashURL.lastPathComponent)
             #expect(hiddenNames(t.url).isEmpty, "no temporary files")
             #expect(visibleNames(t.url) == ["photo 2.jpg", "photo.jpg", "photo.png"])
+
+            // A file that takes an output's name after planning was never
+            // named in the question: even with Replace it is kept.
+            let late = try t.jpeg("late.png", width: 20, height: 10)
+            let outputs = plan([late], settings)
+            #expect(outputs.map(\.action) == [.write])
+            try Data("arrived meanwhile".utf8).write(to: t.url.appendingPathComponent("late.jpg"))
+            let job = BatchConvertJob(outputs: outputs, settings: settings, converter: BatchConvertJob.makeConverter(),
+                                      trash: trash, concurrency: 1)
+            outcome = await job.run()
+            #expect(outcome.written.map(\.lastPathComponent) == ["late 2.jpg"] && outcome.trashed.isEmpty)
+            #expect(try Data(contentsOf: t.url.appendingPathComponent("late.jpg")) == Data("arrived meanwhile".utf8))
+        }
+
+        /// With Replace, a file outside the batch that only shares an
+        /// output's name (the camera's JPEG beside a converted RAW) is named
+        /// in the question, and nothing goes to the Trash unless the user
+        /// chooses Replace: Keep Both numbers the output, Cancel writes nothing.
+        @Test func filesOutsideTheBatchAreNamedBeforeTheyAreReplaced() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let (trash, trashURL) = try trashFolder(t)
+            BatchTools.trash = trash
+            let sources = try ["DSC_1.png", "DSC_2.png"].map { try t.jpeg($0, width: 40, height: 30) }
+            let cameraJPEGs = t.url.appendingPathComponent("DSC_1.jpg")
+            try Data("the camera's JPEG".utf8).write(to: cameraJPEGs)
+            try Data("another".utf8).write(to: t.url.appendingPathComponent("DSC_2.jpg"))
+            let controller = BrowserWindowController(catalog: catalog)
+            _ = controller.grid.view
+            defer { controller.window?.close() }
+            controller.preview.isVisible = false
+            let entries = try sources.map { try #require(FolderEntry(url: $0)) }
+            let settings = BatchConvertSettings(options: .defaults(for: .jpeg), existingFiles: .replace)
+
+            var asked: [BatchReplacements] = []
+            BatchTools.confirmReplacing = { asked.append($0); return .cancel }
+            controller.runBatchConvert(entries, settings: settings)
+            await controller.batchWork?.value
+            #expect(asked.last?.originals == [])
+            #expect(asked.last?.others.map(\.lastPathComponent) == ["DSC_1.jpg", "DSC_2.jpg"])
+            #expect(visibleNames(t.url) == ["DSC_1.jpg", "DSC_1.png", "DSC_2.jpg", "DSC_2.png"], "Cancel writes nothing")
+
+            BatchTools.confirmReplacing = { asked.append($0); return .keepBoth }
+            controller.runBatchConvert(entries, settings: settings)
+            await controller.batchWork?.value
+            #expect(try Data(contentsOf: cameraJPEGs) == Data("the camera's JPEG".utf8))
+            #expect(visibleNames(t.url) == ["DSC_1 2.jpg", "DSC_1.jpg", "DSC_1.png", "DSC_2 2.jpg", "DSC_2.jpg", "DSC_2.png"])
+            #expect(visibleNames(trashURL).isEmpty)
+
+            BatchTools.confirmReplacing = { asked.append($0); return .replace }
+            controller.runBatchConvert([entries[0]], settings: settings)
+            await controller.batchWork?.value
+            #expect(type(cameraJPEGs) == UTType.jpeg.identifier, "replaced once confirmed")
+            let trashed = try FileManager.default.contentsOfDirectory(at: trashURL, includingPropertiesForKeys: nil)
+            #expect(try trashed.map { try Data(contentsOf: $0) } == [Data("the camera's JPEG".utf8)])
+            #expect(asked.count == 3)
+        }
+
+        /// The question names what it would replace.
+        @Test func replaceQuestionNamesTheFiles() {
+            let folder = URL(fileURLWithPath: "/Photos")
+            func urls(_ names: [String]) -> [URL] { names.map { folder.appendingPathComponent($0) } }
+            var replacements = BatchReplacements([])
+            #expect(replacements.isEmpty)
+            replacements.originals = urls(["a.jpg"])
+            var question = BrowserWindowController.replaceQuestion(replacements)
+            #expect(question.message == "Replace the original with the converted file?")
+            replacements.originals = []
+            replacements.others = urls(["DSC_1.JPG"])
+            question = BrowserWindowController.replaceQuestion(replacements)
+            #expect(question.message == "Replace “DSC_1.JPG”?")
+            #expect(question.detail.hasPrefix("“DSC_1.JPG” isn’t one of the images being converted"))
+            replacements.originals = urls(["x.jpg", "y.jpg"])
+            replacements.others = urls(["DSC_1.JPG", "DSC_2.JPG", "DSC_3.JPG", "DSC_4.JPG", "DSC_5.JPG"])
+            question = BrowserWindowController.replaceQuestion(replacements)
+            #expect(question.message == "Replace 2 originals and 5 files?")
+            #expect(question.detail == "The converted files take the originals’ names. "
+                + "“DSC_1.JPG”, “DSC_2.JPG”, “DSC_3.JPG” and 2 more aren’t among the images being converted, "
+                + "but converted files would take their names. "
+                + "Replaced files go to the Trash. Keep Both gives the converted files numbered names instead.")
         }
 
         /// Cancel stops the batch between files and nothing partial is left.
@@ -235,18 +314,18 @@ extension AppWindowTests {
             var settings = BatchConvertSettings(options: .defaults(for: .jpeg), existingFiles: .replace,
                                                 resize: BatchResize(mode: .width, pixels: 40))
             settings.options.keepMetadata = false
-            var asked = 0
-            BatchTools.confirmReplacingOriginals = { count in
-                asked = count
-                return false
+            var asked: BatchReplacements?
+            BatchTools.confirmReplacing = { replacements in
+                asked = replacements
+                return .cancel
             }
             controller.runBatchConvert([try #require(FolderEntry(url: a)), try #require(FolderEntry(url: b))],
                                        settings: settings)
             await controller.batchWork?.value
-            #expect(asked == 2)
+            #expect(asked?.originals == [a, b] && asked?.others == [])
             #expect(try Data(contentsOf: a) == originalA, "not confirmed: the original is untouched")
 
-            BatchTools.confirmReplacingOriginals = { _ in true }
+            BatchTools.confirmReplacing = { _ in .replace }
             catalog.setRating(4, for: [a])
             catalog.setCustomOrder(["b.jpg", "a.jpg"], in: t.url)
             controller.runBatchConvert([try #require(FolderEntry(url: a))], settings: settings)

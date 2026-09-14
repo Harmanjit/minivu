@@ -33,7 +33,12 @@ import MinivuRender
         // As tall as the window allows, up to what the form needs with its
         // name pattern open, so most of it shows without scrolling.
         window.setContentSize(NSSize(width: 620, height: min(max(parent.frame.height - 90, 480), 940)))
-        BatchTools.sheets.begin(window, parent)
+        BatchTools.beginSheet(window, on: parent)
+        // Nothing focused at first. AppKit would otherwise give the keyboard
+        // to the first text field in the form, Quality, selecting its number
+        // as if it were the thing to change; Return converts, and Tab still
+        // reaches every field.
+        window.makeFirstResponder(nil)
     }
 
     /// Asks for the destination with an open panel over the sheet. Cancelling
@@ -61,6 +66,8 @@ import MinivuRender
     }
 
     private func convert() {
+        // A number being typed is committed when its field loses focus.
+        window.makeFirstResponder(nil)
         guard model.canConvert else { return NSSound.beep() }
         let settings = model.commit()
         let onConvert = self.onConvert
@@ -69,7 +76,7 @@ import MinivuRender
     }
 
     func end() {
-        if let parent { BatchTools.sheets.end(window, parent) }
+        if let parent { BatchTools.endSheet(window, on: parent) }
         onConvert = nil
         retainedSelf = nil
     }

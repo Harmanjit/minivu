@@ -282,42 +282,56 @@ public final class Catalog: @unchecked Sendable {
     /// a rename, dropped when it leaves the folder). Rows already at the
     /// destination (a replaced file) are dropped. Call after the move.
     public func fileMoved(from: URL, to: URL) {
+        filesMoved([(from, to)])
+    }
+
+    /// `fileMoved` for many moves, applied in order in one transaction with
+    /// one `didChange` naming every item. A batch rename of thousands of
+    /// files moves their marks this way once the renames are done: one
+    /// transaction and one notification per file cost more than a second
+    /// of catalog work and thousands of main-queue updates.
+    public func filesMoved(_ moves: [(from: URL, to: URL)]) {
+        guard !moves.isEmpty else { return }
+        do {
+            try db.transaction {
+                for move in moves { try applyMove(from: move.from, to: move.to) }
+            }
+        } catch {
+            log.error("Moving marks failed: \(String(describing: error), privacy: .public)")
+        }
+        post(moves.flatMap { [$0.from, $0.to] })
+    }
+
+    private func applyMove(from: URL, to: URL) throws {
         let f = Self.key(from), t = Self.key(to)
         let fParent = Self.parent(ofKey: f), tParent = Self.parent(ofKey: t)
         // ?1 source, ?2 ?3 its descendants' range; ?4 destination, ?5 ?6 its range.
         let args: [SQLiteValue] = [.text(f), .text(f + "/"), .text(f + "0"), .text(t), .text(t + "/"), .text(t + "0")]
         let four = Array(args.prefix(4))
-        do {
-            try db.transaction {
-                try db.execute("""
-                    DELETE FROM files WHERE (path = ?4 OR (path >= ?5 AND path < ?6))
-                        AND NOT (path = ?1 OR (path >= ?2 AND path < ?3))
-                    """, args)
-                try db.execute("UPDATE files SET path = ?4, folder = ?7, missing_since = NULL WHERE path = ?1",
-                               args + [.text(tParent)])
-                try db.execute("""
-                    UPDATE files SET path = ?4 || substr(path, length(?1) + 1), folder = ?4 || substr(folder, length(?1) + 1)
-                    WHERE path >= ?2 AND path < ?3
-                    """, four)
-                try db.execute("""
-                    DELETE FROM folder_order WHERE (folder = ?4 OR (folder >= ?5 AND folder < ?6))
-                        AND NOT (folder = ?1 OR (folder >= ?2 AND folder < ?3))
-                    """, args)
-                try db.execute("""
-                    UPDATE folder_order SET folder = ?4 || substr(folder, length(?1) + 1)
-                    WHERE folder = ?1 OR (folder >= ?2 AND folder < ?3)
-                    """, four)
-                let place: [SQLiteValue] = [.text(fParent), .text(Self.name(ofKey: f)), .text(Self.name(ofKey: t))]
-                if fParent.lowercased() == tParent.lowercased() {
-                    try db.execute("UPDATE OR REPLACE folder_order SET name = ?3 WHERE folder = ?1 AND name = ?2", place)
-                } else {
-                    try db.execute("DELETE FROM folder_order WHERE folder = ?1 AND name = ?2", Array(place.prefix(2)))
-                }
-            }
-        } catch {
-            log.error("Moving marks failed: \(String(describing: error), privacy: .public)")
+        try db.execute("""
+            DELETE FROM files WHERE (path = ?4 OR (path >= ?5 AND path < ?6))
+                AND NOT (path = ?1 OR (path >= ?2 AND path < ?3))
+            """, args)
+        try db.execute("UPDATE files SET path = ?4, folder = ?7, missing_since = NULL WHERE path = ?1",
+                       args + [.text(tParent)])
+        try db.execute("""
+            UPDATE files SET path = ?4 || substr(path, length(?1) + 1), folder = ?4 || substr(folder, length(?1) + 1)
+            WHERE path >= ?2 AND path < ?3
+            """, four)
+        try db.execute("""
+            DELETE FROM folder_order WHERE (folder = ?4 OR (folder >= ?5 AND folder < ?6))
+                AND NOT (folder = ?1 OR (folder >= ?2 AND folder < ?3))
+            """, args)
+        try db.execute("""
+            UPDATE folder_order SET folder = ?4 || substr(folder, length(?1) + 1)
+            WHERE folder = ?1 OR (folder >= ?2 AND folder < ?3)
+            """, four)
+        let place: [SQLiteValue] = [.text(fParent), .text(Self.name(ofKey: f)), .text(Self.name(ofKey: t))]
+        if fParent.lowercased() == tParent.lowercased() {
+            try db.execute("UPDATE OR REPLACE folder_order SET name = ?3 WHERE folder = ?1 AND name = ?2", place)
+        } else {
+            try db.execute("DELETE FROM folder_order WHERE folder = ?1 AND name = ?2", Array(place.prefix(2)))
         }
-        post([from, to])
     }
 
     /// Gives a copy the marks of its original, including everything inside a

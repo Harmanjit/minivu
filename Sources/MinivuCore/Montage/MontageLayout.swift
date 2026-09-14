@@ -134,9 +134,15 @@ public enum MontageLayout {
 
     /// Justified rows. Each row is scaled so its photos, at their own
     /// shapes, span exactly the width between the margins; the number of
-    /// rows is the one whose total height comes closest to the canvas. The
-    /// rows are centred vertically: any shortfall shows the background above
-    /// and below, any excess is cropped equally at top and bottom.
+    /// rows is the one whose total height comes closest to the canvas.
+    ///
+    /// Those rows rarely add up to the canvas's height exactly (a few
+    /// percent over or under), and a wallpaper with bands of background at
+    /// the top and bottom looks unfinished. So every row's height is then
+    /// scaled by one factor that makes the block fill the height between the
+    /// margins exactly. Widths don't change, so each cell is a little taller
+    /// or shorter than its photo and the photo fills it, cropped (as grid
+    /// cells are) by the same few percent in every cell.
     ///
     /// A few wide photos can't reach the bottom of a screen at any row count
     /// (a row of one 3:2 photo is already two thirds of a 16:10 screen's
@@ -168,16 +174,26 @@ public enum MontageLayout {
             }
         }
 
-        let heights = best.rows.map { rowHeight(aspects[$0], width: width, spacing: spacing) }
-        var y = (canvas.height - best.total) / 2 + spacing
+        // Each row's height at which its photos keep their shapes.
+        let natural = best.rows.map { rowHeight(aspects[$0], width: width, spacing: spacing) }
+        // Fill the height exactly. Only when there is height to fill: with
+        // spacing so wide that the gaps alone take the canvas, the rows stay
+        // as they are, centred.
+        let available = canvas.height - Double(best.rows.count + 1) * spacing
+        let naturalTotal = natural.reduce(0, +)
+        let fills = available > 0 && naturalTotal > 0
+        let scale = fills ? available / naturalTotal : 1
+        var y = fills ? spacing : (canvas.height - best.total) / 2 + spacing
         var tiles: [MontageTile] = []
         tiles.reserveCapacity(aspects.count)
-        for (row, height) in zip(best.rows, heights) {
+        for (row, rowNatural) in zip(best.rows, natural) {
+            let height = rowNatural * scale
             var x = spacing
             for index in row {
-                // The last photo takes what is left, so rounding never leaves
-                // the row a hair short of the margin.
-                let photoWidth = index == row.upperBound - 1 ? canvas.width - spacing - x : aspects[index] * height
+                // Widths come from the natural height, so the row spans the
+                // margins; the last photo takes what is left, so rounding
+                // never leaves the row a hair short.
+                let photoWidth = index == row.upperBound - 1 ? canvas.width - spacing - x : aspects[index] * rowNatural
                 tiles.append(MontageTile(image: index % count,
                                          frame: CGRect(x: x, y: y, width: photoWidth, height: height)))
                 x += photoWidth + spacing

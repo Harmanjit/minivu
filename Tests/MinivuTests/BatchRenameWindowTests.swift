@@ -9,12 +9,11 @@ extension AppWindowTests {
     /// and a settings store of its own.
     @MainActor @Suite(.serialized) struct BatchRenameWindowTests {
         let catalog = Catalog.inMemory()
-        let defaults: UserDefaults
+        /// Removed when the test's suite instance goes.
+        let scratchDefaults = ScratchDefaults("minivu-batch-rename-tests")
+        var defaults: UserDefaults { scratchDefaults.defaults }
 
         init() {
-            let suite = "minivu-batch-rename-tests-\(UUID().uuidString)"
-            defaults = UserDefaults(suiteName: suite)!
-            defaults.removePersistentDomain(forName: suite)
             BatchTools.store = BatchStore(defaults: defaults)
             BatchTools.sheets = sheets.presenter
         }
@@ -85,6 +84,38 @@ extension AppWindowTests {
             #expect(model.beginRenaming()?.count == 3)
             #expect(BatchStore(defaults: defaults).renamePattern == RenamePattern(text: "Trip {##}"))
             #expect(BatchRenameModel(entries: [], store: BatchTools.store).pattern.text == "Trip {##}")
+        }
+
+        /// While a batch sheet is up, or a batch runs, the Tools commands that
+        /// would open a second sheet are off; a slideshow is still on.
+        @Test func toolsThatOpenSheetsWaitForTheSheetAndTheBatch() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let a = try write(t, "a.jpg"), b = try write(t, "b.jpg")
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(folder: t.url)
+            await settle(controller)
+            func enabled(_ action: Selector) -> Bool {
+                controller.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: ""))
+            }
+            let sheetTools: [Selector] = [.batchRename, .batchConvert, .printImages, .makeContactSheet, .makeMontage]
+            #expect(sheetTools.allSatisfy(enabled))
+
+            controller.batchRename(nil)
+            let sheet = try #require(sheets.shown.last)
+            #expect(!sheetTools.contains(where: enabled), "no second sheet while the rename sheet is up")
+            #expect(enabled(.startSlideshow))
+            let host = try #require(sheet.contentView as? NSHostingView<BatchRenameView>)
+            host.rootView.onCancel()
+            #expect(sheets.shown.isEmpty)
+            #expect(sheetTools.allSatisfy(enabled))
+
+            controller.performBatchRename([BatchRenamer.Request(url: a, newName: "c.jpg"),
+                                           BatchRenamer.Request(url: b, newName: "d.jpg")], actionName: "Rename 2 Items")
+            #expect(!enabled(.batchRename) && !enabled(.batchConvert), "not while the batch runs")
+            await controller.batchWork?.value
+            #expect(enabled(.batchRename) && enabled(.batchConvert))
         }
 
         /// The sheet renames the selection off the main thread (a swap and a

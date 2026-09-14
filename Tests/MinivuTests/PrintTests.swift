@@ -146,9 +146,9 @@ import MinivuCore
     func printToPDF(_ items: [LayoutItem], settings: PrintLayoutSettings, in folder: URL,
                     configure: (NSPrintInfo) -> Void = { _ in }) throws -> (CGPDFDocument, PrintJob) {
         let url = folder.appendingPathComponent("Printed \(UUID().uuidString).pdf")
-        let suite = "minivu-print-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-print-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let store = PrintLayoutStore(defaults: defaults)
         store.settings = settings
         let info = NSPrintInfo()
@@ -355,9 +355,9 @@ import MinivuCore
     }
 
     @Test func storeRoundTripsAndRepairs() throws {
-        let suite = "minivu-print-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-print-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let store = PrintLayoutStore(defaults: defaults)
         #expect(store.settings == PrintLayoutSettings())
 
@@ -383,9 +383,9 @@ import MinivuCore
 
     @Test func accessoryUpdatesTheJobThePreviewAndTheStore() throws {
         _ = NSApplication.shared
-        let suite = "minivu-print-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-print-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let store = PrintLayoutStore(defaults: defaults)
         let session = PrintPresenter.makeSession(items: fileItems(8), title: "8 Pictures", store: store,
                                                  printInfo: NSPrintInfo())

@@ -253,9 +253,9 @@ import MinivuCore
     }
 
     @Test func recentDestinationsKeepFiveNewestFirst() throws {
-        let suite = "minivu-recent-tests-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let scratchDefaults = ScratchDefaults("minivu-recent-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         let t = try ScratchFolder()
         let folders = try (1...6).map { try t.folder("F\($0)") }
         let store = RecentDestinations(defaults: defaults)

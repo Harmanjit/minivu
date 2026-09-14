@@ -2,16 +2,25 @@ import AppKit
 import MinivuCore
 import MinivuRender
 
+/// The answer to "Replace these files?" before a batch conversion.
+enum BatchReplaceChoice {
+    /// Every file named goes to the Trash.
+    case replace
+    /// Nothing is replaced: those outputs get numbered names instead.
+    case keepBoth
+    case cancel
+}
+
 /// What the batch tools use from outside the browser window, replaceable in
 /// tests: where settings are remembered, where replaced files go, and the
-/// answer to "Replace the originals?".
+/// answer to "Replace these files?".
 @MainActor enum BatchTools {
     static var store = BatchStore()
     /// Moves a replaced file to the Trash (the file only: the writer moves
     /// its marks). Tests put a folder of their own here.
     static var trash: BatchFileWriter.Trasher = BatchFileWriter.systemTrash
     /// nil asks with an alert on the window.
-    static var confirmReplacingOriginals: ((_ count: Int) async -> Bool)?
+    static var confirmReplacing: ((BatchReplacements) async -> BatchReplaceChoice)?
     static var converter: @MainActor () -> BatchConverter = { BatchConvertJob.makeConverter() }
     static var concurrency: Int?
     static var sheets = BatchSheetPresenter.system
@@ -22,6 +31,30 @@ import MinivuRender
     /// The newest batch per window, which finishes last, for tests to await
     /// and for the next undo or redo to wait for.
     static var work: [ObjectIdentifier: Task<Void, Never>] = [:]
+
+    /// The batch sheets up on each window. In the app `attachedSheet` says
+    /// as much, but tests record sheets without attaching them, and the
+    /// Tools menu must know either way.
+    private static var sheetsUp: [ObjectIdentifier: Set<ObjectIdentifier>] = [:]
+
+    static func beginSheet(_ sheet: NSWindow, on parent: NSWindow) {
+        sheetsUp[ObjectIdentifier(parent), default: []].insert(ObjectIdentifier(sheet))
+        sheets.begin(sheet, parent)
+    }
+
+    /// Ends `sheet`; ending one already ended does nothing more.
+    static func endSheet(_ sheet: NSWindow, on parent: NSWindow) {
+        let id = ObjectIdentifier(parent)
+        sheetsUp[id]?.remove(ObjectIdentifier(sheet))
+        if sheetsUp[id]?.isEmpty == true { sheetsUp[id] = nil }
+        sheets.end(sheet, parent)
+    }
+
+    /// Whether `window` has any sheet up: a batch sheet, or anything else
+    /// AppKit has attached (the print panel, an alert).
+    static func hasSheet(on window: NSWindow) -> Bool {
+        window.attachedSheet != nil || sheetsUp[ObjectIdentifier(window)] != nil
+    }
 
     fileprivate static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
         work[id] = task
@@ -48,7 +81,7 @@ extension BrowserWindowController {
     var batchWork: Task<Void, Never>? { BatchTools.work[ObjectIdentifier(self)] }
 
     private func canStartBatch() -> NSWindow? {
-        guard let window, window.attachedSheet == nil, !isRunningBatch, !isTransferring, !toolImages.isEmpty else {
+        guard let window, !BatchTools.hasSheet(on: window), !isRunningBatch, !isTransferring, !toolImages.isEmpty else {
             return nil
         }
         return window
@@ -186,19 +219,36 @@ extension BrowserWindowController {
 
         let sources = entries.map { RenameSource(url: $0.url, modified: $0.modified) }
         let needsMetadata = settings.pattern?.needsImageMetadata == true
-        let outputs = await BlockingWork.run {
+        let planned = await BlockingWork.run {
             BatchOutputPlanner.plan(needsMetadata ? RenameSource.withImageMetadata(sources) : sources,
                                     settings: settings, folder: folder)
         }
 
-        let originals = outputs.filter(\.replacesOriginal).count
-        if originals > 0 {
-            let confirmed = if let confirm = BatchTools.confirmReplacingOriginals {
-                await confirm(originals)
+        // Nothing goes to the Trash without being named: originals replaced
+        // by their conversions, and files outside the batch that only share
+        // an output's name. Keep Both plans again with numbered names.
+        var settings = settings
+        var outputs = planned
+        let replacements = BatchReplacements(outputs)
+        if !replacements.isEmpty {
+            let choice = if let confirm = BatchTools.confirmReplacing {
+                await confirm(replacements)
             } else {
-                await confirmReplacingOriginals(originals)
+                await confirmReplacing(replacements)
             }
-            guard confirmed else { return }
+            switch choice {
+            case .cancel:
+                return
+            case .replace:
+                break
+            case .keepBoth:
+                settings.existingFiles = .keepBoth
+                let keepBoth = settings
+                outputs = await BlockingWork.run {
+                    BatchOutputPlanner.plan(needsMetadata ? RenameSource.withImageMetadata(sources) : sources,
+                                            settings: keepBoth, folder: folder)
+                }
+            }
         }
 
         let job = BatchConvertJob(outputs: outputs, settings: settings, converter: BatchTools.converter(),
@@ -207,10 +257,10 @@ extension BrowserWindowController {
         let format = settings.options.format.title
         let count = entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images"
         let sheet = BatchProgressSheet(title: "Converting \(count) to \(format)", progress: job.progress)
-        let presented = window.flatMap { $0.attachedSheet == nil ? $0 : nil }
-        if let presented { BatchTools.sheets.begin(sheet.window, presented) }
+        let presented = window.flatMap { BatchTools.hasSheet(on: $0) ? nil : $0 }
+        if let presented { BatchTools.beginSheet(sheet.window, on: presented) }
         let outcome = await job.run()
-        if let presented { BatchTools.sheets.end(sheet.window, presented) }
+        if let presented { BatchTools.endSheet(sheet.window, on: presented) }
 
         for url in outcome.written { BrowserModel.invalidateCaches(url) }
         if let current = model.folder {
@@ -226,24 +276,61 @@ extension BrowserWindowController {
         }
     }
 
-    private func confirmReplacingOriginals(_ count: Int) async -> Bool {
-        guard let window else { return false }
+    /// "Replace …?" as a sheet: Replace, Keep Both, or Cancel (the default,
+    /// so Return never replaces anything by accident).
+    private func confirmReplacing(_ replacements: BatchReplacements) async -> BatchReplaceChoice {
+        guard let window else { return .cancel }
+        let question = Self.replaceQuestion(replacements)
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = count == 1
-            ? "Replace the original with the converted file?"
-            : "Replace \(count.formatted()) originals with the converted files?"
-        alert.informativeText = "The converted files take the originals’ names. The originals go to the Trash."
+        alert.messageText = question.message
+        alert.informativeText = question.detail
         let replace = alert.addButton(withTitle: "Replace")
         replace.hasDestructiveAction = true
-        // Cancel is the default: Return mustn't replace originals by accident.
         replace.keyEquivalent = ""
+        alert.addButton(withTitle: "Keep Both")
         let cancel = alert.addButton(withTitle: "Cancel")
         cancel.keyEquivalent = "\r"
         let response = await withCheckedContinuation { done in
             alert.beginSheetModal(for: window) { done.resume(returning: $0) }
         }
-        return response == .alertFirstButtonReturn
+        return switch response {
+        case .alertFirstButtonReturn: .replace
+        case .alertSecondButtonReturn: .keepBoth
+        default: .cancel
+        }
+    }
+
+    /// The question's text. Files outside the batch are named (the first
+    /// few, and how many more), since the user may not know they are there.
+    static func replaceQuestion(_ replacements: BatchReplacements) -> (message: String, detail: String) {
+        let originals = replacements.originals.count, others = replacements.others
+        func files(_ count: Int) -> String { count == 1 ? "1 file" : "\(count.formatted()) files" }
+        let message = switch (originals, others.count) {
+        case (1, 0): "Replace the original with the converted file?"
+        case (_, 0): "Replace \(originals.formatted()) originals with the converted files?"
+        case (0, 1): "Replace “\(others[0].lastPathComponent)”?"
+        case (0, _): "Replace \(others.count.formatted()) existing files?"
+        default: "Replace \(originals == 1 ? "1 original" : "\(originals.formatted()) originals") "
+            + "and \(files(others.count))?"
+        }
+        var parts: [String] = []
+        if originals > 0 {
+            parts.append(originals == 1 ? "The converted file takes the original’s name."
+                                        : "The converted files take the originals’ names.")
+        }
+        if !others.isEmpty {
+            let shown = 3
+            var names = others.prefix(shown).map { "“\($0.lastPathComponent)”" }
+            if others.count > shown { names.append("\((others.count - shown).formatted()) more") }
+            let list = names.count == 1 ? names[0]
+                : names.dropLast().joined(separator: ", ") + " and " + names[names.count - 1]
+            parts.append(others.count == 1
+                ? "\(list) isn’t one of the images being converted, but a converted file would take its name."
+                : "\(list) aren’t among the images being converted, but converted files would take their names.")
+        }
+        parts.append("Replaced files go to the Trash. Keep Both gives the converted files numbered names instead.")
+        return (message, parts.joined(separator: " "))
     }
 
     private static func show(_ alert: NSAlert, on window: NSWindow) {
@@ -283,7 +370,7 @@ extension BrowserWindowController {
         for _ in 0..<17 { progress.advance() }
         progress.currentName = toolImages.first?.name ?? "HSB_6548.NEF"
         let sheet = BatchProgressSheet(title: "Converting 48 Images to HEIC", progress: progress)
-        BatchTools.sheets.begin(sheet.window, window)
+        BatchTools.beginSheet(sheet.window, on: window)
     }
 }
 

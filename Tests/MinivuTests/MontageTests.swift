@@ -17,9 +17,9 @@ final class FileThumbnails: MontageThumbnailProviding {
 
 @MainActor @Suite struct MontageTests {
     func withSettings(_ body: (MontageSettingsStore) async throws -> Void) async rethrows {
-        let name = "minivu-montage-tests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: name)!
-        defer { defaults.removePersistentDomain(forName: name) }
+        let scratchDefaults = ScratchDefaults("minivu-montage-tests")
+        defer { scratchDefaults.remove() }
+        let defaults = scratchDefaults.defaults
         try await body(MontageSettingsStore(defaults: defaults))
     }
 
@@ -176,7 +176,7 @@ final class FileThumbnails: MontageThumbnailProviding {
             let queue = FileWriteQueue.shared
             queue.enqueue { await gate.wait() }
             let task = Task { try await model.makeMontages(in: output, date: Date(timeIntervalSince1970: 1_789_381_805)) }
-            let deadline = Date().addingTimeInterval(10)
+            let deadline = Date().addingTimeInterval(30)   // as generous, for the same reason
             while model.writesQueued == 0, Date() < deadline { try await Task.sleep(for: .milliseconds(5)) }
             #expect(model.writesQueued == 1, "the montage is queued behind the gate")
             task.cancel()
@@ -197,7 +197,9 @@ final class FileThumbnails: MontageThumbnailProviding {
             model.start()
             defer { model.stop() }
             await model.waitForThumbnails()
-            let deadline = Date().addingTimeInterval(5)
+            // Generous: under the full test run the main actor is shared by
+            // every window test, and this only waits as long as it must.
+            let deadline = Date().addingTimeInterval(30)
             while model.preview == nil || model.previewWork == nil, Date() < deadline {
                 try await Task.sleep(for: .milliseconds(20))
             }

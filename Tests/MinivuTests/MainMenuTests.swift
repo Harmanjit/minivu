@@ -52,7 +52,10 @@ import MinivuCore
     @Test func everyActionIsDeclared() {
         let appKitOwners: [AnyClass] = [NSApplication.self, NSWindow.self, NSTextView.self, NSSplitViewController.self,
                                         AppDelegate.self]
-        let undo = [Selector(("undo:")), Selector(("redo:"))]
+        // NSWindow answers undo: and redo: without declaring them to Swift;
+        // the viewer's window declares the same selectors, so they can be
+        // named with #selector (a Selector made from a string warns).
+        let undo = [#selector(ViewerWindow.undo(_:)), #selector(ViewerWindow.redo(_:))]
         // AppKit gives items with a submenu its own `submenuAction:`.
         for item in allItems where item.submenu == nil {
             guard let action = item.action else { continue }

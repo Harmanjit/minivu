@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import MinivuCore
 import MinivuRender
 
@@ -163,6 +164,8 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     /// Paused by the gear button; resumes when the slideshow is key again.
     private var pausedForSettings = false
     private var activity: NSObjectProtocol?
+    /// Settings' Volume and Play Music, followed by the music while the show runs.
+    private var musicSettings: AnyCancellable?
     private var savedPresentationOptions: NSApplication.PresentationOptions?
     private(set) var hasEnded = false
 
@@ -251,6 +254,18 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(displaySettingsChanged),
                                                name: .minivuDisplaySettingsChanged, object: nil)
+        // Settings can be open beside the show (its gear pauses it): the
+        // volume and Play Music apply to the music at once. The playlist,
+        // shuffle and order stay as the show started.
+        if let music {
+            musicSettings = store.$settings
+                .map { ($0.volume, $0.musicEnabled) }
+                .removeDuplicates { $0 == $1 }
+                .sink { [weak music] volume, enabled in
+                    music?.setVolume(volume)
+                    music?.setEnabled(enabled)
+                }
+        }
         slideView.setNeedsRedraw()
         perform(.first)
     }
@@ -271,6 +286,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
         pendingStep = nil
         transition = nil
         slideView.stopAnimating()
+        musicSettings = nil
         music?.finish()
         if let activity { ProcessInfo.processInfo.endActivity(activity) }
         activity = nil

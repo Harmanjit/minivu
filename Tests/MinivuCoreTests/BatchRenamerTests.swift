@@ -91,6 +91,61 @@ import Foundation
         #expect(catalog.customOrder(in: t.url) == ["z.jpg", "b.jpg", "a.jpg"])
     }
 
+    /// However many files a batch renames, the catalog changes in one
+    /// transaction and says so once: thousands of notifications, each a
+    /// main-queue update of every window, made big renames slow.
+    @Test func aBatchPostsOneCatalogChange() async throws {
+        let t = try TemporaryFolder()
+        let count = 300
+        let urls = try (0..<count).map { try write(t, String(format: "IMG_%04d.jpg", $0), "\($0)") }
+        let catalog = Catalog.inMemory()
+        catalog.setRating(3, for: [urls[0], urls[1], urls[299]])
+        catalog.setCustomOrder(urls.reversed().map(\.lastPathComponent), in: t.url)
+        await Self.drainMainQueue()
+
+        let folder = t.url.standardizedFileURL.path
+        let posts = Counter()
+        let observer = NotificationCenter.default.addObserver(forName: Catalog.didChange, object: nil, queue: nil) { note in
+            // Other tests' catalogs post too; count this folder's only.
+            let urls = note.object as? [URL] ?? []
+            if urls.contains(where: { $0.deletingLastPathComponent().standardizedFileURL.path == folder }) {
+                posts.add(urls.count)
+            }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        // A swap (through a temporary name) and a new name for all the rest.
+        var requests = [request(urls[0], "IMG_0001.jpg"), request(urls[1], "IMG_0000.jpg")]
+        requests += urls.dropFirst(2).enumerated().map { request($1, String(format: "Trip %03d.jpg", $0)) }
+        let outcome = BatchRenamer.perform(requests, catalog: catalog)
+        #expect(outcome.failed.isEmpty && outcome.renamed.count == count)
+        await Self.drainMainQueue()
+        #expect(posts.value == (1, 2 * (count + 1)), "one notification naming every step, the temporary name's too")
+
+        #expect(catalog.marks(for: t.url.appendingPathComponent("IMG_0001.jpg")).rating == 3, "the swap kept the stars")
+        #expect(catalog.marks(for: t.url.appendingPathComponent("IMG_0000.jpg")).rating == 3)
+        #expect(catalog.marks(for: t.url.appendingPathComponent("Trip 297.jpg")).rating == 3)
+        let order = catalog.customOrder(in: t.url)
+        #expect(order.first == "Trip 297.jpg" && order.suffix(2) == ["IMG_0000.jpg", "IMG_0001.jpg"])
+
+        // Undo is one change too.
+        _ = BatchRenamer.perform(outcome.inverse, restoring: true, catalog: catalog)
+        await Self.drainMainQueue()
+        #expect(posts.value.posts == 2)
+        #expect(catalog.marks(for: urls[299]).rating == 3)
+    }
+
+    static func drainMainQueue() async {
+        await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
+    }
+
+    final class Counter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var posts = 0, urls = 0
+        func add(_ count: Int) { lock.withLock { posts += 1; urls += count } }
+        var value: (posts: Int, urls: Int) { lock.withLock { (posts, urls) } }
+    }
+
     /// A name taken by another app meanwhile fails that file only; the rest
     /// go ahead, and a file that stepped aside is never left hidden.
     @Test func aNameTakenMeanwhileFailsOnlyThatFile() throws {

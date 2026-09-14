@@ -1,8 +1,9 @@
 import AppKit
 import MinivuCore
 
-/// Tools > Capture: Entire Screen, Window… and Selection…. Each checks
-/// permission, captures through `ScreenCapturing`, saves a PNG to
+/// Tools > Capture: Entire Screen, Window… and Selection…. Entire Screen
+/// and Selection check screen recording permission first; Window… goes
+/// straight to the system's picker, which needs none. Each captures through `ScreenCapturing`, saves a PNG to
 /// Pictures/minivu Captures and opens it in the viewer.
 ///
 /// Captures are SDR PNGs: ScreenCaptureKit's still capture hands back an
@@ -56,9 +57,14 @@ import MinivuCore
     }
 
     /// A window chosen in the system's picker.
+    ///
+    /// No screen recording permission is asked for first. On macOS 15 the
+    /// picker is itself the consent: choosing a window there lets minivu
+    /// capture that window, so someone who only ever captures windows never
+    /// needs to turn on screen recording in System Settings. A refusal that
+    /// still comes back from the capture is explained as for the others.
     func captureWindow() {
         guard work == nil, overlay == nil else { return }
-        guard hasPermission() else { return }
         let capturer = self.capturer
         run { try await capturer.captureWindowFromPicker() }
     }

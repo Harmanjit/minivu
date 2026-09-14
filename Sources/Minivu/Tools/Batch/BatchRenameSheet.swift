@@ -31,7 +31,7 @@ import MinivuCore
         self.parent = parent
         self.onRename = onRename
         retainedSelf = self
-        BatchTools.sheets.begin(window, parent)
+        BatchTools.beginSheet(window, on: parent)
     }
 
     private func rename() {
@@ -40,7 +40,7 @@ import MinivuCore
     }
 
     func end() {
-        if let parent { BatchTools.sheets.end(window, parent) }
+        if let parent { BatchTools.endSheet(window, on: parent) }
         onRename = nil
         retainedSelf = nil
     }

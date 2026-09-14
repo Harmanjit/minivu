@@ -22,9 +22,8 @@ extension AppWindowTests {
         /// Runs `body` with slideshow settings from a suite of its own.
         func withSettings(_ change: (inout SlideshowSettings) -> Void,
                           _ body: () async throws -> Void) async rethrows {
-            let suite = "minivu-slideshow-window-tests-\(UUID().uuidString)"
-            let defaults = UserDefaults(suiteName: suite)!
-            let store = SlideshowSettingsStore(defaults: defaults)
+            let scratchDefaults = ScratchDefaults("minivu-slideshow-window-tests")
+            let store = SlideshowSettingsStore(defaults: scratchDefaults.defaults)
             change(&store.settings)
             let savedStore = SlideshowWindowController.settingsStore
             let savedPlayer = SlideshowWindowController.makeAudioPlayer
@@ -33,7 +32,7 @@ extension AppWindowTests {
             defer {
                 SlideshowWindowController.settingsStore = savedStore
                 SlideshowWindowController.makeAudioPlayer = savedPlayer
-                defaults.removePersistentDomain(forName: suite)
+                scratchDefaults.remove()
             }
             try await body()
         }
@@ -167,6 +166,37 @@ extension AppWindowTests {
                 let content = try #require(slideshow.window?.contentView)
                 let view = try #require(content.subviews.compactMap { $0 as? SlideshowView }.first)
                 #expect(view.snapshotImage() != nil)
+            }
+        }
+
+        /// Volume and Play Music changed in Settings while a show plays reach
+        /// its music at once.
+        @Test func settingsReachTheMusicOfARunningShow() async throws {
+            let folder = try ScratchFolder()
+            let item = try #require(SlideshowPlaylistResolver.item(for: try folder.file("song.mp3")))
+            try await withSettings({
+                $0.interval = 60
+                $0.musicEnabled = true
+                $0.playlist = [item]
+                $0.volume = 0.8
+            }) {
+                let player = FakeSlideshowAudioPlayer()
+                SlideshowWindowController.makeAudioPlayer = { player }
+                let only = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 300, height: 200)))
+                let slideshow = try #require(SlideshowWindowController.start(images: [only], startIndex: 0,
+                                                                            screen: nil) { _ in })
+                defer { slideshow.end() }
+                let music = try #require(slideshow.musicPlayer)
+                await music.startTask?.value
+                #expect(player.playing == "song.mp3")
+
+                let store = SlideshowWindowController.settingsStore
+                store.settings.volume = 0.25
+                #expect(player.calls.last == .volume(0.25, SlideshowMusic.volumeFadeDuration))
+                store.settings.musicEnabled = false
+                #expect(player.calls.last == .volume(0, SlideshowMusic.muteFadeDuration))
+                store.settings.musicEnabled = true
+                #expect(player.calls.last == .volume(0.25, SlideshowMusic.muteFadeDuration))
             }
         }
 
