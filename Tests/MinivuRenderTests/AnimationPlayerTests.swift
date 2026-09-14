@@ -87,10 +87,13 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         await waitUntil { times.count >= 13 }
         player.stop()
         try #require(times.count >= 13)
-        // Twelve 50 ms steps after the first frame: 600 ms, give or take
-        // scheduling. Lateness must not accumulate.
-        let elapsed = times[12] - times[0]
-        #expect(elapsed > 0.57 && elapsed < 0.7, "\(elapsed)")
+        // Eleven 50 ms steps from the second frame: 550 ms, give or take
+        // scheduling. Measured from the second frame because the player
+        // schedules against deadlines: if the first frame arrives late (a
+        // busy test machine), the next one catches up, which is intended.
+        // Lateness must not accumulate.
+        let elapsed = times[12] - times[1]
+        #expect(elapsed > 0.50 && elapsed < 0.65, "\(elapsed)")
     }
 
     @Test func pauseAndSuspendStopTheClock() async throws {
