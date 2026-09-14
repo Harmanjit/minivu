@@ -17,10 +17,15 @@ public enum FolderListingError: Error, CustomStringConvertible {
     /// The folder is on a volume minivu doesn't browse (VolumePolicy).
     case notAllowed(URL)
     case unreadable(URL, String)
+    /// Reading was refused: under the sandbox, a folder the user hasn't
+    /// opened in minivu (or granted by an enclosing folder), such as the
+    /// parent of a folder opened with File > Open Folder.
+    case notPermitted(URL)
 
     public var description: String {
         switch self {
         case .notAllowed(let url): "\(url.lastPathComponent) is not on this Mac's internal storage."
+        case .notPermitted(let url): "\(url.lastPathComponent) could not be read: permission denied"
         case .unreadable(let url, let reason): "\(url.lastPathComponent) could not be read: \(reason)"
         }
     }
@@ -31,6 +36,16 @@ public enum FolderListingError: Error, CustomStringConvertible {
 /// Everything here touches the disk, so call it off the main thread. The
 /// functions are stateless and thread-safe.
 public enum FolderListing {
+    /// Foundation's "no permission" read error, or the POSIX error beneath
+    /// it (EPERM from the sandbox, EACCES from file permissions).
+    static func isPermissionError(_ error: Error) -> Bool {
+        let error = error as NSError
+        if error.domain == NSCocoaErrorDomain, error.code == NSFileReadNoPermissionError { return true }
+        if error.domain == NSPOSIXErrorDomain, error.code == Int(EPERM) || error.code == Int(EACCES) { return true }
+        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? Error { return isPermissionError(underlying) }
+        return false
+    }
+
     /// Every attribute the browser needs, fetched in the same system call
     /// that reads the directory. Asking for a key later, one file at a time,
     /// would cost a separate `stat` per file: the difference between a few
@@ -61,7 +76,9 @@ public enum FolderListing {
             urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: entryKeys,
                                                                options: [])
         } catch {
-            throw FolderListingError.unreadable(folder, error.localizedDescription)
+            throw isPermissionError(error)
+                ? FolderListingError.notPermitted(folder)
+                : FolderListingError.unreadable(folder, error.localizedDescription)
         }
 
         var subfolders: [FolderEntry] = []

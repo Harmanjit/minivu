@@ -702,6 +702,11 @@ nonisolated struct FolderSnapshot: Sendable {
         switch error {
         case FolderListingError.notAllowed:
             "minivu only works with folders on this Mac’s internal storage."
+        case FolderListingError.notPermitted(let url):
+            // Most often Go > Enclosing Folder past the folder the user
+            // opened, or a Back to one whose access has since gone.
+            "minivu doesn’t have permission to open “\(url.lastPathComponent)”. To give it access, "
+                + "choose File > Open Folder… and select the folder."
         case FolderListingError.unreadable(let url, _):
             "“\(url.lastPathComponent)” can’t be opened. It may have been moved or deleted, "
                 + "or minivu may not have permission to read it."

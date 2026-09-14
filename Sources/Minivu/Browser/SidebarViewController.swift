@@ -87,6 +87,12 @@ final class SidebarNode {
     /// The user or a reveal asked to expand this row before its children
     /// were listed.
     var wantsExpansion = false
+    /// Removed from the tree (its folder went, or the favourites were
+    /// rebuilt) while work for it may still be out. A listing that lands on
+    /// a detached row is dropped: applying it would insert rows under an
+    /// item the outline view no longer has, and a pending relist would read
+    /// the disk for a row nobody can see.
+    private(set) var isDetached = false
 
     init(kind: Kind, title: String, url: URL?, symbolName: String, children: [SidebarNode]? = nil,
          mayHaveChildren: Bool = false) {
@@ -99,6 +105,12 @@ final class SidebarNode {
     }
 
     var isPictures: Bool { kind == .favorite && symbolName == SidebarViewController.picturesSymbol }
+
+    /// Marks this row and every row below it as gone from the tree.
+    func detach() {
+        isDetached = true
+        children?.forEach { $0.detach() }
+    }
 }
 
 /// The source-list sidebar: Favorites, each expandable into its folder tree.
@@ -210,7 +222,9 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     // MARK: - Favourites
 
-    private func reloadFavorites() {
+    /// Internal so tests can rebuild the rows as a favourites change does.
+    func reloadFavorites() {
+        header.children?.forEach { $0.detach() }
         let pictures = SidebarNode(kind: .favorite, title: "Pictures", url: picturesFolder,
                                    symbolName: Self.picturesSymbol)
         let others = favoriteFolders()
@@ -233,7 +247,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
                 urls.map { FolderListing.hasSubfolders($0) }
             }
             guard let self else { return }
-            for (node, answer) in zip(nodes, answers) where node.children == nil && node.mayHaveChildren != answer {
+            for (node, answer) in zip(nodes, answers)
+            where !node.isDetached && node.children == nil && node.mayHaveChildren != answer {
                 node.mayHaveChildren = answer
                 self.reloadRow(node, children: false)
             }
@@ -262,7 +277,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// changes one level deep, so its refreshes skip that: in a folder of
     /// big subfolders it would be a directory scan each, per change.
     private func listChildren(of node: SidebarNode, refresh: Bool = false, recheckChildren: Bool = true) {
-        guard let url = node.url, refresh || node.children == nil else { return }
+        guard let url = node.url, !node.isDetached, refresh || node.children == nil else { return }
         guard !node.isListing else {
             if refresh { node.needsRelist = true }
             return
@@ -282,16 +297,25 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             // stops at its first subfolder: cheap even beside folders of
             // 10,000 photos. Display names are looked up here too: each is a
             // file system call, too many to make on the main thread.
-            let found = await BlockingWork.run(qos: .userInitiated) {
-                FolderListing.subfolders(of: url).map { folder in
+            let (found, missing) = await BlockingWork.run(qos: .userInitiated) {
+                let found = FolderListing.subfolders(of: url).map { folder in
                     let old = known[SidebarPaths.key(folder)]
                     return Found(url: folder,
                                  title: old?.title ?? FileManager.default.displayName(atPath: folder.path),
                                  hasSubfolders: old?.hasSubfolders ?? FolderListing.hasSubfolders(folder))
                 }
+                // Nothing found may mean the folder itself is gone: one more
+                // stat, only then.
+                return (found, found.isEmpty ? Self.missingFolder(url) : nil)
             }
             guard let self else { return }
             node.isListing = false
+            guard !node.isDetached else { return }
+            if let missing {
+                node.needsRelist = false
+                self.folderWentAway(missing)
+                return
+            }
             self.apply(found, to: node)
             if node.needsRelist {
                 node.needsRelist = false
@@ -316,6 +340,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             return
         }
 
+        // Rows that go take their subtrees with them: work still out for
+        // any of those must not land.
+        defer {
+            let kept = Set(node.children?.map(ObjectIdentifier.init) ?? [])
+            for child in old where !kept.contains(ObjectIdentifier(child)) { child.detach() }
+        }
         var existing: [String: SidebarNode] = [:]
         for child in old { if let url = child.url { existing[SidebarPaths.key(url)] = child } }
         var triangleChanged: [SidebarNode] = []
@@ -380,6 +410,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// The browser's folder changed on disk. If its row has been listed, its
     /// subfolders are listed again; if not, only whether it has any is
     /// checked again, for the disclosure triangle.
+    ///
+    /// The folder itself deleted or moved away is reported here too (the
+    /// browser watches the folder, not its parent), and then its row, not
+    /// its children, is what's stale: the nearest folder above it that's
+    /// still there is listed again, which removes the row.
     func folderChangedOnDisk(_ folder: URL) {
         guard isViewLoaded, let node = listedNode(for: folder) else { return }
         if node.children != nil {
@@ -388,11 +423,37 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         }
         guard let url = node.url else { return }
         Task { [weak self] in
-            let answer = await BlockingWork.run(qos: .utility) { FolderListing.hasSubfolders(url) }
-            guard let self, node.children == nil, node.mayHaveChildren != answer else { return }
+            let (answer, missing) = await BlockingWork.run(qos: .utility) {
+                let answer = FolderListing.hasSubfolders(url)
+                return (answer, answer ? nil : Self.missingFolder(url))
+            }
+            guard let self, !node.isDetached else { return }
+            if let missing { return self.folderWentAway(missing) }
+            guard node.children == nil, node.mayHaveChildren != answer else { return }
             node.mayHaveChildren = answer
             self.reloadRow(node, children: false)
         }
+    }
+
+    /// Where a folder went: nil while it's still a folder; otherwise the
+    /// nearest folder above it that still is, to list again. Reads the disk.
+    nonisolated private static func missingFolder(_ url: URL) -> URL? {
+        func isFolder(_ url: URL) -> Bool {
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
+        }
+        guard !isFolder(url) else { return nil }
+        var parent = url.standardizedFileURL.deletingLastPathComponent()
+        while parent.path != "/", !isFolder(parent) { parent = parent.deletingLastPathComponent() }
+        return parent
+    }
+
+    /// Lists again the row of `ancestor`, the nearest folder still there
+    /// above one that went, dropping the stale rows below it. Nothing when
+    /// the favourite itself went: its row stands for the bookmark.
+    private func folderWentAway(_ ancestor: URL) {
+        guard let node = listedNode(for: ancestor), node.children != nil else { return }
+        listChildren(of: node, refresh: true, recheckChildren: false)
     }
 
     /// The row for `folder` if the tree already has one, listing nothing.

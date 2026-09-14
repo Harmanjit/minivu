@@ -498,6 +498,69 @@ extension AppWindowTests {
         #expect(sidebar.outlineView.isExpandable(echoNode))
     }
 
+    /// The browser's own folder deleted or moved away in Finder: its
+    /// watcher reports the change to the folder, not to its parent, so the
+    /// row was left behind pointing at nothing. The nearest parent still
+    /// there is listed again instead.
+    @Test func aDeletedCurrentFolderLeavesTheTree() async throws {
+        let alpha = try t.folder("Alpha")
+        let inner = try t.folder("Inner", in: alpha)
+        try t.folder("Deep", in: inner)
+        try t.folder("Bravo")
+        sidebar.reveal(inner)
+        try await waitUntil { isSelected(inner) }
+        let innerNode = try #require(node(inner))
+        sidebar.outlineView.expandItem(innerNode)
+        try await waitUntil { sidebar.rowOutline.contains("      Deep") }
+        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "      Deep", "  Bravo"])
+
+        // Alpha goes with Inner inside it: two levels up is what's left.
+        try FileManager.default.removeItem(at: alpha)
+        sidebar.folderChangedOnDisk(inner)
+        try await waitUntil { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"] }
+        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"])
+
+        // A row never listed itself (only its disclosure triangle checked).
+        let charlie = try t.folder("Charlie")
+        sidebar.folderChangedOnDisk(t.url)
+        try await waitUntil { sidebar.rowOutline.contains("  Charlie") }
+        #expect(node(charlie)?.children == nil)
+        try FileManager.default.moveItem(at: charlie, to: t.url.appendingPathComponent("Delta"))
+        sidebar.folderChangedOnDisk(charlie)
+        try await waitUntil { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"] }
+        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"])
+    }
+
+    /// A listing still out for a row that leaves the tree is dropped when it
+    /// lands: inserting its rows under an item the outline view no longer
+    /// has would corrupt it, and a relist waiting on it would read the disk
+    /// for a row nobody can see.
+    @Test func aListingForARemovedRowIsDropped() async throws {
+        let alpha = try t.folder("Alpha")
+        let inner = try t.folder("Inner", in: alpha)
+        sidebar.reveal(inner)
+        try await waitUntil { isSelected(inner) }
+        let oldAlpha = try #require(node(alpha))
+        let started = sidebar.listingsStarted
+
+        try t.folder("Second", in: alpha)
+        sidebar.folderChangedOnDisk(alpha)     // out now
+        sidebar.folderChangedOnDisk(alpha)     // queued behind it
+        #expect(oldAlpha.isListing)
+        sidebar.reloadFavorites()              // Alpha's row replaced before either lands
+        #expect(oldAlpha.isDetached)
+        try await waitUntil { isSelected(inner) && !oldAlpha.isListing }
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(!oldAlpha.isListing)
+        #expect(oldAlpha.children?.count == 1, "the old row never took the new listing")
+        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "    Second"])
+        #expect(node(alpha) !== oldAlpha)
+        // Alpha's first listing, the refresh, and the new rows' root and
+        // Alpha: the queued relist of the old row never ran.
+        #expect(sidebar.listingsStarted == started + 3)
+    }
+
     /// Going to a folder made after its parent was listed lists the parent
     /// again, once, and selects the new row.
     @Test func revealingANewFolderListsItsParentAgain() async throws {
