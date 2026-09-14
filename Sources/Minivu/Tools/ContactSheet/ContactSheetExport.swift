@@ -115,15 +115,25 @@ enum ContactSheetExport {
     /// keeps its name; the page takes the next free one instead.
     nonisolated static func place(_ temp: URL, at final: URL, replacing: Bool, trash: Trasher) throws -> URL {
         let manager = FileManager.default
+        guard replacing else {
+            // Renames that never overwrite: a name taken between the check
+            // and the move (by another app) moves on to the next free one.
+            let folder = final.deletingLastPathComponent()
+            var target = final
+            for _ in 0..<20 {
+                do {
+                    try FileOperations.moveExclusively(temp, to: target)
+                    return target
+                } catch let error as CocoaError where error.code == .fileWriteFileExists {
+                    target = folder.appendingPathComponent(FileOperations.uniqueName(for: final.lastPathComponent,
+                                                                                     in: folder))
+                }
+            }
+            throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: final.path])
+        }
         guard manager.fileExists(atPath: final.path) else {
             try manager.moveItem(at: temp, to: final)
             return final
-        }
-        guard replacing else {
-            let folder = final.deletingLastPathComponent()
-            let free = folder.appendingPathComponent(FileOperations.uniqueName(for: final.lastPathComponent, in: folder))
-            try manager.moveItem(at: temp, to: free)
-            return free
         }
         if (try? trash(final)) != nil, !manager.fileExists(atPath: final.path) {
             try manager.moveItem(at: temp, to: final)

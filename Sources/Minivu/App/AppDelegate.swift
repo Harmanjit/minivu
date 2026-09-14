@@ -143,19 +143,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     ///    and no hidden temporary file is left behind.
     /// 3. A copy or move under way: it stops after the item it is on (its
     ///    hidden temporary copy would otherwise stay in the destination),
-    ///    leaving every item either transferred or where it was.
+    ///    leaving every item either transferred or where it was. A batch
+    ///    rename under way finishes (a swap hides a file for a moment).
     ///
     /// `.terminateLater` keeps the app alive until `reply` is called.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let viewer = ViewerWindowController.current
         let hasEdits = viewer?.hasUnsavedEdits == true
         let writes = FileWriteQueue.shared
-        guard hasEdits || writes.pendingCount > 0 || FileTransfer.isActive else { return .terminateNow }
+        guard hasEdits || writes.pendingCount > 0 || FileTransfer.isActive || BatchTools.renamesRunning > 0 else {
+            return .terminateNow
+        }
 
         func finishWritesThenQuit() {
             FileTransfer.cancelActive()
             Task {
                 await FileTransfer.waitUntilInactive()
+                await BatchTools.waitForRenames()
                 await writes.waitUntilIdle()
                 NSApp.reply(toApplicationShouldTerminate: true)
             }

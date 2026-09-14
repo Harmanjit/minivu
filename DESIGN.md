@@ -288,8 +288,9 @@ map. PQ/HLG originals and gain maps in other formats are tone mapped to SDR
 (PNG can't hold a gain map; ISO HDR tone maps), and the Replace alert says
 which. The HDR decode for Save ignores the viewer's HDR setting. Save As
 stays SDR. Stale hdrgm/HDRGainMap XMP is never carried.
-Quitting asks about unsaved edits and waits for queued writes to finish,
-and a copy or move under way stops after the item it is on.
+Quitting asks about unsaved edits and waits for queued writes to finish;
+a copy or move under way stops after the item it is on, and a batch rename
+under way finishes (a swap hides a file under a temporary name meanwhile).
 Writes into a folder minivu hasn't opened (Save As onto the Desktop) put
 their temporary file in the volume's item-replacement folder, because the
 sandbox grants the save panel's file but not its folder.
