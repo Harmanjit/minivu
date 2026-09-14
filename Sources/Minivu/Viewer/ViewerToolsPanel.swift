@@ -55,12 +55,12 @@ final class ViewerToolsPanel: NSView {
             Tool(title: "Lens", symbol: "circle.dashed", action: .applyLens),
         ]),
         Group(title: "Draw", tools: [
-            Tool(title: "Text & Shapes", symbol: "pencil.tip.crop.circle", action: .drawAnnotations),
+            Tool(title: "Text and Shapes", symbol: "pencil.tip.crop.circle", action: .drawAnnotations),
         ]),
         Group(title: "Retouch", tools: [
             Tool(title: "Clone Stamp", symbol: "square.on.square", action: .cloneStamp),
             Tool(title: "Healing Brush", symbol: "bandage", action: .healingBrush),
-            Tool(title: "Red-Eye", symbol: "eye", action: .removeRedEye),
+            Tool(title: "Red-Eye Removal", symbol: "eye", action: .removeRedEye),
         ]),
     ]
 
@@ -185,13 +185,19 @@ final class ViewerToolsPanel: NSView {
         return button
     }
 
+    static let symbolBoxWidth: CGFloat = 20
+
     /// The symbol centred in a fixed-width box. Symbols differ in width, and
     /// titles beside them would otherwise start at ragged positions.
     private static func symbol(_ name: String) -> NSImage {
         guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
             .withSymbolConfiguration(.init(pointSize: 13, weight: .regular)) else { return NSImage() }
-        let size = symbol.size
-        let box = NSSize(width: 22, height: max(16, size.height))
+        // A symbol wider than the box (Bump Map's mountains) is scaled down to
+        // fit it, so it can't run into its title.
+        let natural = symbol.size
+        let fit = min(1, Self.symbolBoxWidth / max(natural.width, 1))
+        let size = NSSize(width: natural.width * fit, height: natural.height * fit)
+        let box = NSSize(width: Self.symbolBoxWidth, height: max(16, natural.height))
         let image = NSImage(size: box, flipped: false) { rect in
             symbol.draw(in: NSRect(x: (rect.width - size.width) / 2, y: (rect.height - size.height) / 2,
                                    width: size.width, height: size.height))

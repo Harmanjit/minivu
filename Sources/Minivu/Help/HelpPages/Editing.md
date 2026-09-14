@@ -47,13 +47,13 @@ After you save, the undo history starts again.
 ## Save
 
 - **File > Save** writes the edited image over the original, in the same
-  format, colour space and bit depth, with its metadata. minivu asks before
+  format, color space and bit depth, with its metadata. minivu asks before
   replacing the original; if you told it not to ask again, turn **Ask before
   saving over the original** back on in **Settings > General**.
 - minivu can’t write some formats back, such as RAW, WebP, AVIF, PDF,
   animated and multi-page files. For those, Save opens Save As.
 - **File > Save As…** saves a new file. Choose the format (JPEG, PNG, HEIC,
-  TIFF, BMP, GIF, TGA, JPEG 2000 or ICO) and its options: quality, colour
+  TIFF, BMP, GIF, TGA, JPEG 2000 or ICO) and its options: quality, color
   profile, metadata, progressive, 16-bit, TIFF compression and the
   background for transparency. The panel shows the file size the options
   will give, and can open a side-by-side comparison of the original and the

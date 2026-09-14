@@ -277,6 +277,7 @@ struct QualityCompareView: View {
                         Text("Quality")
                             .foregroundStyle(.secondary)
                         Slider(value: Bindable(save).qualityPercent, in: 1...100)
+                            .accessibilityLabel("Quality")
                             .frame(width: 180)
                         Text("\(Int(save.qualityPercent))")
                             .monospacedDigit()

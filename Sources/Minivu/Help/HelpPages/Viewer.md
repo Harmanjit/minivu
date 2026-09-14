@@ -19,7 +19,7 @@ the top of the screen.
 
 ## Zoom and pan
 
-- Click to switch between fitting the window and actual size, centred on
+- Click to switch between fitting the window and actual size, centered on
   the point you clicked.
 - Drag to pan. When the image is larger than the window, the arrow keys pan
   it instead of changing images.
@@ -54,9 +54,9 @@ untag it. The overlay shows both.
   through the pages first, then on to the next or previous image.
 - Animated GIFs and PNGs play on their own. Press **P** to pause and play.
 
-## Colour and HDR
+## Color and HDR
 
-Every image is colour managed, so wide-gamut photos look right on every
+Every image is color managed, so wide-gamut photos look right on every
 screen. HDR photos show real highlights on an HDR screen: the Liquid Retina
 XDR display of a MacBook Pro, a Pro Display XDR, or an external display with
 HDR turned on. Other screens show them tone mapped. You can turn HDR display
@@ -67,8 +67,8 @@ off, and choose how RAW files are decoded, in **Settings > Viewer**.
 With a second display, the browser can stay on one screen while photos fill
 the other:
 
-- A setting in **Settings** opens the full-screen viewer on another
-  display.
+- Set **Full-screen viewer opens on** in **Settings > Viewer** to
+  **Another display** to open the full-screen viewer there.
 - **Window > Move to Next Display** moves the window in front to the next
   display.
 

@@ -170,7 +170,7 @@ struct DropShadowInspectorView: View {
             }
             Section {
                 state.slider(\.margin, "Margin", range: DropShadow.marginRange, displayScale: 100, decimals: 1, unit: "%")
-                state.slider(\.cornerRadius, "Corner Radius", range: DropShadow.cornerRadiusRange, displayScale: 100,
+                state.slider(\.cornerRadius, "Corner radius", range: DropShadow.cornerRadiusRange, displayScale: 100,
                              decimals: 1, unit: "%")
                 ColorPicker("Background", selection: state.colorBinding(\.background), supportsOpacity: true)
             } header: {
@@ -202,10 +202,10 @@ struct FrameInspectorView: View {
             }
             if state.payload.kind == .matte {
                 Section {
-                    ColorPicker("Outer Band", selection: state.colorBinding(\.accentColor), supportsOpacity: false)
+                    ColorPicker("Outer band", selection: state.colorBinding(\.accentColor), supportsOpacity: false)
                     state.slider(\.lineWidth, "Keyline", range: FrameStyle.lineWidthRange, displayScale: 100,
                                  decimals: 1, unit: "%")
-                    ColorPicker("Keyline Color", selection: state.colorBinding(\.lineColor), supportsOpacity: false)
+                    ColorPicker("Keyline color", selection: state.colorBinding(\.lineColor), supportsOpacity: false)
                 } header: {
                     Text("Matte")
                 } footer: {
@@ -231,10 +231,10 @@ struct BumpMapInspectorView: View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
                 state.slider(\.strength, "Strength", range: BumpMap.strengthRange, decimals: 2)
-                state.slider(\.step, "Relief Size", range: BumpMap.stepRange, decimals: 1, unit: " px")
+                state.slider(\.step, "Relief size", range: BumpMap.stepRange, decimals: 1, unit: " px")
                 state.slider(\.blend, "Color", range: 0...1, displayScale: 100, unit: "%")
             } footer: {
-                InspectorFootnote("At 0% color the relief shows alone, in grey.")
+                InspectorFootnote("At 0% color the relief shows alone, in gray.")
             }
             Section {
                 state.slider(\.angle, "Angle", range: 0...360, unit: "°")
@@ -257,7 +257,7 @@ struct SketchInspectorView: View {
                     ForEach(Sketch.Style.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
                 state.slider(\.strength, "Strength", range: Sketch.strengthRange, displayScale: 100, unit: "%")
-                state.slider(\.radius, "Line Width", range: Sketch.radiusRange, decimals: 1, unit: " px")
+                state.slider(\.radius, "Line width", range: Sketch.radiusRange, decimals: 1, unit: " px")
             } footer: {
                 InspectorFootnote("Wider lines pick up softer edges.")
             }
@@ -272,7 +272,7 @@ struct OilPaintInspectorView: View {
     var body: some View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
-                state.slider(\.radius, "Brush Size", range: OilPaint.radiusRange, decimals: 1, unit: " px")
+                state.slider(\.radius, "Brush size", range: OilPaint.radiusRange, decimals: 1, unit: " px")
                 state.slider(\.levelsValue, "Levels", range: Double(OilPaint.levelsRange.lowerBound)...Double(OilPaint.levelsRange.upperBound))
             } footer: {
                 InspectorFootnote("Brush size is in pixels of the full image; zoom to 100% to judge it. Fewer levels paint flatter patches.")
@@ -291,7 +291,7 @@ struct LensInspectorView: View {
                 state.slider(\.magnification, "Magnification", range: LensEffect.magnificationRange, decimals: 2,
                              unit: "×", logarithmic: true)
                 state.slider(\.radius, "Radius", range: LensEffect.radiusRange, displayScale: 100, unit: "%")
-                Toggle("Glass Rim", isOn: state.binding(\.ring))
+                Toggle("Glass rim", isOn: state.binding(\.ring))
             } footer: {
                 InspectorFootnote("Drag inside the circle to move the lens, or its edge to resize it. Below 1× the lens pinches.")
             }

@@ -2,7 +2,7 @@
 
 minivu is a fast image browser, viewer and editor for your Mac. It shows a
 folder of photos as thumbnails, opens any of them full screen with accurate
-colour and real HDR, and edits without changing the original until you save.
+color and real HDR, and edits without changing the original until you save.
 
 ## Open a folder
 

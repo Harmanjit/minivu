@@ -152,7 +152,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
 
     // MARK: - EditToolState
 
-    var title: String { "Text & Shapes" }
+    var title: String { "Text and Shapes" }
 
     /// A drawing being edited again counts even unchanged: its operation is
     /// off the document while the tool is open, so closing without Apply

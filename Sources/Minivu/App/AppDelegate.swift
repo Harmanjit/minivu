@@ -48,6 +48,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         themeSubscription = Preferences.shared.$theme
             .removeDuplicates()
             .sink { ThemeColors.apply($0) }
+        // Increase Contrast turned on or off: views that draw their own
+        // selection (the grid's cells) redraw with or without outlines.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { ThemeColors.apply(ThemeColors.current) }
+        }
 
         warmUpGPU()
         AppServices.start()

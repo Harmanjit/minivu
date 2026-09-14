@@ -162,6 +162,9 @@ final class FlyoutController: NSResponder {
 
     /// Every pointer movement over the container, for hiding the cursor.
     var onPointerMoved: (() -> Void)?
+    /// Reduce Motion: panels appear and go with a fade where they stand
+    /// instead of sliding. Read at each change; tests replace it.
+    var reducesMotion: () -> Bool = { Motion.isReduced }
     /// A panel became visible (true) or finished sliding away (false). The
     /// filmstrip and info panel only do work while they can be seen.
     var onVisibilityChange: ((FlyoutEdge, Bool) -> Void)?
@@ -266,15 +269,19 @@ final class FlyoutController: NSResponder {
         guard let panel = panels[edge], panel.isOpen != open || panel.view.isHidden == open else { return }
         panels[edge]!.isOpen = open
         let view = panel.view
+        let still = reducesMotion()
         if open {
             if view.isHidden {
-                // Start from just past the edge, so it slides rather than pops.
-                view.frame = frame(for: edge, open: false)
+                // Start from just past the edge, so it slides rather than
+                // pops; with Reduce Motion, where it will stay, to fade in.
+                view.frame = frame(for: edge, open: still)
                 view.isHidden = false
                 onVisibilityChange?(edge, true)
             }
         }
         let target = frame(for: edge, open: open)
+        // Closing with Reduce Motion fades where the panel is.
+        if still, !open { view.frame = frame(for: edge, open: true) }
         guard animated else {
             view.frame = target
             view.alphaValue = open ? 1 : 0
@@ -284,13 +291,14 @@ final class FlyoutController: NSResponder {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = Self.animationDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            view.animator().frame = target
+            if !still { view.animator().frame = target }
             // Fading as well as sliding: in a window the panel would
             // otherwise slide under the transparent title bar.
             view.animator().alphaValue = open ? 1 : 0
         } completionHandler: { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.panels[edge]?.isOpen == false else { return }
+                if still { view.frame = target }
                 self.finishClosing(edge)
             }
         }
@@ -307,7 +315,7 @@ final class FlyoutController: NSResponder {
         for edge in [FlyoutEdge.left, .right] {
             guard let panel = panels[edge], !panel.view.isHidden else { continue }
             let target = frame(for: edge, open: panel.isOpen)
-            if animated {
+            if animated, !reducesMotion() {
                 NSAnimationContext.runAnimationGroup { context in
                     context.duration = Self.animationDuration
                     panel.view.animator().frame = target

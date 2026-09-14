@@ -371,8 +371,14 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         let collapse = !previewItem.isCollapsed
         if collapse { preview.isVisible = false }
         isAnimatingPreview = true
-        NSAnimationContext.runAnimationGroup { _ in
-            previewItem.animator().isCollapsed = collapse
+        NSAnimationContext.runAnimationGroup { context in
+            // Reduce Motion: the pane goes or comes at once, without sliding.
+            if Motion.isReduced {
+                context.duration = 0
+                previewItem.isCollapsed = collapse
+            } else {
+                previewItem.animator().isCollapsed = collapse
+            }
         } completionHandler: { [weak self] in
             // Only once the pane has its width: a preview loaded mid-animation
             // would be decoded for a sliver and then again at full size.
@@ -426,12 +432,19 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
     }
 
     private func canPerform(_ action: Selector) -> Bool {
-        switch action {
-        case .openInViewer: model.leadEntry != nil
+        // A sheet is key while the browser stays main, so menu commands
+        // still reach the browser: ⌘⌫ typed in a Batch Rename pattern or
+        // the comment editor would trash the selection under the sheet, and
+        // ⌘↑ or ⌘[ would change the folder behind it.
+        let sheetUp = window.map(BatchTools.hasSheet(on:)) ?? false
+        let sheetBlocked: [Selector] = [.openInViewer, .moveToTrash, .goToEnclosingFolder, .goBack, .goForward]
+        if sheetUp, sheetBlocked.contains(action) { return false }
+        return switch action {
+        case .openInViewer: model.leadEntry != nil && !isTypingText
         case .revealInFinder: model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText
         case .compareSelected: canCompareSelection
-        case .goToEnclosingFolder: model.canGoToEnclosingFolder
+        case .goToEnclosingFolder: model.canGoToEnclosingFolder && !isTypingText
         case .goBack: model.canGoBack
         case .goForward: model.canGoForward
         case .zoomIn: Preferences.shared.thumbnailSize < ThumbnailLayout.sizeRange.upperBound
@@ -441,12 +454,11 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         }
     }
 
-    /// ⌘⌫ in a text field (the search field) deletes to the start of the
-    /// line. AppKit offers the key to the menu bar first, so Move to Trash
-    /// would take it and trash the selected photos. A disabled item lets
-    /// the key through; the context menu and toolbar still work.
+    /// ⌘⌫, ⌘↑ and ⌘↓ typed in the search field or a rename field belong to
+    /// the text, not to Move to Trash, Enclosing Folder and Open in Viewer
+    /// (see `TextKeys`).
     private var isTypingText: Bool {
-        window?.firstResponder is NSText && NSApp.currentEvent?.type == .keyDown
+        TextKeys.belongToText(in: window)
     }
 
     // MARK: - NSWindowDelegate

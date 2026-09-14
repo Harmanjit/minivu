@@ -22,9 +22,32 @@ struct InfoPanelView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(sections) { section in
-                            SectionView(section: section)
+                    // One grid for every section, so the labels of File, Image
+                    // and Camera share one column instead of each section
+                    // lining up on its own longest label.
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 3) {
+                        ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                            GridRow {
+                                Text(section.title)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
+                                    .accessibilityAddTraits(.isHeader)
+                                    .padding(.top, index == 0 ? 0 : 11)
+                                    .padding(.bottom, 1)
+                                    .gridCellColumns(2)
+                            }
+                            ForEach(section.items, id: \.self) { item in
+                                GridRow {
+                                    Text(item.label)
+                                        .foregroundStyle(.secondary)
+                                        .gridColumnAlignment(.trailing)
+                                    Text(item.value)
+                                        .textSelection(.enabled)
+                                        .lineLimit(3)
+                                }
+                                .font(.callout)
+                            }
                         }
                     }
                     .padding(12)
@@ -40,32 +63,6 @@ struct InfoPanelView: View {
             guard !Task.isCancelled else { return }
             sections = read
             loadedURL = url
-        }
-    }
-
-    private struct SectionView: View {
-        let section: MetadataSection
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(section.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 3) {
-                    ForEach(section.items, id: \.self) { item in
-                        GridRow {
-                            Text(item.label)
-                                .foregroundStyle(.secondary)
-                                .gridColumnAlignment(.trailing)
-                            Text(item.value)
-                                .textSelection(.enabled)
-                                .lineLimit(3)
-                        }
-                        .font(.callout)
-                    }
-                }
-            }
         }
     }
 }

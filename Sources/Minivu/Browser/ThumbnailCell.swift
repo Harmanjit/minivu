@@ -164,6 +164,42 @@ final class ThumbnailCellView: NSView {
         tagBadge.isHidden = true
         dots.isHidden = true
         for view in [stars, dots, tagBadge] as [NSView] { addSubview(view) }
+
+        // VoiceOver reads the cell as one item (name, stars, tag, Finder
+        // tags, size) rather than five scraps of it.
+        setAccessibilityElement(true)
+        setAccessibilityRole(.image)
+        for view in [nameField, detailField, stars, dots, tagBadge] as [NSView] { view.setAccessibilityElement(false) }
+    }
+
+    override func accessibilityLabel() -> String? {
+        Self.accessibilityText(name: nameField.stringValue, isFolder: !isRatable, rating: stars.rating,
+                               isTagged: !tagBadge.isHidden, finderTags: dots.tags.map(\.name),
+                               dimensions: detailField.stringValue)
+    }
+
+    override func isAccessibilitySelected() -> Bool { isSelected }
+
+    /// "IMG_2.jpg, 3 stars, tagged, Finder tags: Red, 6032 × 4032". Unrated
+    /// and untagged say nothing, as the cell shows nothing.
+    nonisolated static func accessibilityText(name: String, isFolder: Bool, rating: Int, isTagged: Bool,
+                                              finderTags: [String], dimensions: String) -> String {
+        var parts = [name]
+        if isFolder {
+            parts.append("folder")
+        } else {
+            if rating > 0 { parts.append(rating == 1 ? "1 star" : "\(min(rating, 5)) stars") }
+            if isTagged { parts.append("tagged") }
+        }
+        if !finderTags.isEmpty { parts.append("Finder tags: " + finderTags.joined(separator: ", ")) }
+        if !dimensions.isEmpty { parts.append(dimensions) }
+        return parts.joined(separator: ", ")
+    }
+
+    /// The outline a selected cell gets with Increase Contrast, where a tinted
+    /// fill alone is too faint; a folder under a drag always has one.
+    nonisolated static func borderWidth(isSelected: Bool, isDropTarget: Bool, increasesContrast: Bool) -> CGFloat {
+        isDropTarget || (isSelected && increasesContrast) ? 2 : 0
     }
 
     @available(*, unavailable)
@@ -273,7 +309,8 @@ final class ThumbnailCellView: NSView {
             : isSelected ? ThemeColors.selectionFill
             : isHovered ? ThemeColors.hoverFill : nil
         layer?.backgroundColor = fill?.cgColor ?? .clear
-        layer?.borderWidth = isDropTarget ? 2 : 0
+        layer?.borderWidth = Self.borderWidth(isSelected: isSelected, isDropTarget: isDropTarget,
+                                              increasesContrast: Contrast.isIncreased)
         layer?.borderColor = NSColor.controlAccentColor.cgColor
         let framed = hasImage && !isIcon
         imageLayer.borderWidth = framed ? 1 / max(1, window?.backingScaleFactor ?? 2) : 0

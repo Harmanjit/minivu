@@ -182,6 +182,8 @@ struct MontageSheetView: View {
                 LabeledContent("Spacing") {
                     HStack {
                         Slider(value: Binding(get: { model.spacing }, set: { model.spacing = $0.rounded() }), in: 0...40)
+                            .accessibilityLabel("Spacing")
+                            .accessibilityValue("\(Int(model.spacing)) points")
                         Text("\(Int(model.spacing)) pt")
                             .monospacedDigit()
                             .foregroundStyle(.secondary)

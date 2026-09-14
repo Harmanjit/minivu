@@ -13,15 +13,14 @@ away; there is nothing to confirm.
 - **Ask before saving over the original:** turn this back on if you chose
   not to be asked when saving.
 
-If you use more than one display, Settings can also open the full-screen
-viewer on another display.
-
 ## Viewer
 
 - **Background:** black, dark gray, gray or white behind the image.
 - **Enlarge small images to fit** the window or screen.
 - **Pixelated zoom above 200%** shows each pixel as a sharp square.
 - **Mouse wheel:** previous and next image, or zoom.
+- **Full-screen viewer opens on** the display with the browser, or another
+  display, so you can browse on one screen and view on the other.
 - **Display HDR photos in HDR** on screens that can show it.
 - **RAW files:** the embedded preview the camera saved, which is fastest,
   or render the RAW data. minivu renders the RAW data anyway when the
@@ -43,7 +42,7 @@ image, with a preview.
 ## Slideshow
 
 The time each slide shows, the order, whether to start again after the last
-slide, captions (file name, name and date, or camera and exposure), the
+slide, captions (file name, file name and date, or camera and exposure), the
 transition and its duration with a preview, and the music: songs or folders,
 shuffle and volume. Changing the volume, or turning music on or off, applies
 to a show that is already playing.

@@ -4,7 +4,7 @@ These tools work like the others in the viewer: open them from the
 **Image** menu or the left panel, and nothing on disk changes until you
 save. See [Editing](help:Editing).
 
-## Colour effects
+## Color effects
 
 **Image > Effects > Grayscale**, **Sepia** and **Negative** apply at once.
 In the left panel they are together under **Color Effects**.
@@ -21,7 +21,7 @@ In the left panel they are together under **Color Effects**.
 ## Text and Shapes
 
 **Image > Text and Shapes…** adds text, lines, arrows, highlights,
-rectangles, ovals and callouts. The panel sets colours, line style,
+rectangles, ovals and callouts. The panel sets colors, line style,
 arrowheads, font, alignment and shadow for the selected object.
 
 - Click an object to select it, drag to move it, and use its handles to

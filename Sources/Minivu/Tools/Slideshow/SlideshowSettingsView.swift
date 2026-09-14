@@ -15,6 +15,8 @@ struct SlideshowSettingsView: View {
                 LabeledContent("Show each slide for") {
                     HStack {
                         Slider(value: wholeSeconds($store.settings.interval), in: SlideshowSettings.intervalRange)
+                            .accessibilityLabel("Show each slide for")
+                            .accessibilityValue("\(Int(store.settings.interval)) seconds")
                         SlideshowValueLabel(text: "\(Int(store.settings.interval)) s")
                     }
                 }
@@ -32,7 +34,7 @@ struct SlideshowSettingsView: View {
                     .paragraphFooter()
             }
 
-            Section("Transition") {
+            Section {
                 Picker("Transition", selection: $store.settings.transition) {
                     Text("Random").tag(SlideshowSettings.TransitionChoice.random)
                     Divider()
@@ -44,6 +46,8 @@ struct SlideshowSettingsView: View {
                     HStack {
                         Slider(value: tenths($store.settings.transitionDuration),
                                in: SlideshowSettings.transitionDurationRange)
+                            .accessibilityLabel("Duration")
+                            .accessibilityValue(String(format: "%.1f seconds", store.settings.transitionDuration))
                         SlideshowValueLabel(text: String(format: "%.1f s", store.settings.transitionDuration))
                     }
                 }
@@ -55,6 +59,11 @@ struct SlideshowSettingsView: View {
                     Text("Click the preview to play it").font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
+            } header: {
+                Text("Transition")
+            } footer: {
+                Text("With Reduce Motion on in Accessibility settings, transitions that move the picture play as a cross-fade.")
+                    .paragraphFooter()
             }
 
             Section {
@@ -81,9 +90,10 @@ struct SlideshowSettingsView: View {
                     Toggle("Shuffle", isOn: $store.settings.shuffleMusic)
                     LabeledContent("Volume") {
                         HStack {
-                            Image(systemName: "speaker.fill").foregroundStyle(.secondary)
+                            Image(systemName: "speaker.fill").foregroundStyle(.secondary).accessibilityHidden(true)
                             Slider(value: $store.settings.volume, in: 0...1)
-                            Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
+                                .accessibilityLabel("Volume")
+                            Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary).accessibilityHidden(true)
                         }
                     }
                 }

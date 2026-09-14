@@ -123,7 +123,8 @@ final class SlideshowControlBar: NSVisualEffectView {
     }
 
     private static func symbol(_ name: String, _ description: String) -> NSImage {
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: description) ?? NSImage()
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: ViewerControlBar.spokenName(description))
+            ?? NSImage()
         return image.withSymbolConfiguration(.init(pointSize: 15, weight: .regular)) ?? image
     }
 

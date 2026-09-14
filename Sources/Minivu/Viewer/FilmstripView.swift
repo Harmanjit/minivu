@@ -120,7 +120,7 @@ final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewD
     private func scrollToCurrent(animated: Bool) {
         guard images.indices.contains(currentIndex) else { return }
         let indexPath = IndexPath(item: currentIndex, section: 0)
-        if animated {
+        if animated, !Motion.isReduced {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.2
                 context.allowsImplicitAnimation = true
@@ -194,11 +194,17 @@ private final class FilmstripItem: NSCollectionViewItem {
     private var request: ThumbnailRequest?
 
     var isCurrent = false {
-        didSet { ringLayer.isHidden = !isCurrent }
+        didSet {
+            ringLayer.isHidden = !isCurrent
+            view.setAccessibilitySelected(isCurrent)
+        }
     }
 
     override func loadView() {
         let view = CellView()
+        // A picture made of layers: VoiceOver reads the file's name.
+        view.setAccessibilityElement(true)
+        view.setAccessibilityRole(.image)
         view.wantsLayer = true
         view.layerContentsRedrawPolicy = .never
         view.onLayout = { [weak self] in self?.layoutLayers() }
@@ -231,6 +237,7 @@ private final class FilmstripItem: NSCollectionViewItem {
             cancelThumbnail()
             self.entry = entry
             view.toolTip = entry.name
+            view.setAccessibilityLabel(entry.name)
             setImage(nil)
         }
         if loadsThumbnail { reloadThumbnailIfNeeded() }

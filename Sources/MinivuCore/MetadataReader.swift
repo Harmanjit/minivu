@@ -134,7 +134,7 @@ public enum MetadataReader {
             items.add("Megapixels", String(format: "%.1f MP", Double(w * h) / 1_000_000))
         }
         items.add("Bit depth", "\(info.bitDepth) bits per channel")
-        items.add("Colour model", info.colorModel)
+        items.add("Color model", info.colorModel)
         items.add("Profile", info.profileName)
         if info.kind == .raster || info.kind == .raw {
             items.add("Orientation", orientationName(info.orientation))
@@ -355,7 +355,7 @@ public enum MetadataReader {
     static func meteringName(_ value: Int) -> String? {
         switch value {
         case 1: "Average"
-        case 2: "Centre-weighted"
+        case 2: "Center-weighted"
         case 3: "Spot"
         case 4: "Multi-spot"
         case 5: "Matrix"

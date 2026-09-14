@@ -18,7 +18,7 @@ nonisolated enum ContactSheetRenderer {
         var errorDescription: String? {
             switch self {
             case .cannotCreatePage: "The page couldn’t be created. It may be too large for the memory available."
-            case .cancelled: "The contact sheet was cancelled."
+            case .cancelled: "The contact sheet was canceled."
             }
         }
     }

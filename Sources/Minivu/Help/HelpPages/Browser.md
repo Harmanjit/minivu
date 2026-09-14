@@ -6,7 +6,7 @@ selected photo, its stars and its file and camera details.
 
 ## Folders
 
-- The sidebar lists your favourite folders first, then the folder tree.
+- The sidebar lists your favorite folders first, then the folder tree.
   Choose **View > Show Sidebar** or **Show Preview Pane** to hide or show
   either side.
 - Double-click a folder in the grid to open it. The toolbar’s back, forward
@@ -41,14 +41,14 @@ sorting through a shoot.
   the same from any window.
 - Toggling the tag on a mixed selection tags all of it; it untags only when
   every image was already tagged.
-- A tagged image shows a checkmark on its corner. The coloured dots after a
+- A tagged image shows a checkmark on its corner. The colored dots after a
   name are its Finder tags, which minivu shows and filters by but doesn’t
   change.
 
 Stars and tags are kept in minivu’s own catalog on your Mac, not written
 into the files.
 
-## Organise files
+## Organize files
 
 - Drag files onto the grid, a folder or a sidebar folder to put them there.
   As in Finder, a drag on the same disk moves and a drag to another disk

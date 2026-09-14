@@ -254,8 +254,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         container.canvasLeadingInset = flyouts.isPinned(.left) ? flyouts.thickness(.left) : 0
         container.needsLayout = true
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = FlyoutController.animationDuration
-            context.allowsImplicitAnimation = true
+            // Reduce Motion: the canvas and HUD move over at once.
+            let still = flyouts.reducesMotion()
+            context.duration = still ? 0 : FlyoutController.animationDuration
+            context.allowsImplicitAnimation = !still
             container.layoutSubtreeIfNeeded()
         }
         updateChrome()
@@ -1186,7 +1188,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .togglePlayback: return player != nil
         case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
         case .revealInFinder: return model.current != nil
-        case .moveToTrash: return model.current.map { !trashing.contains($0.url) } ?? false
+        case .moveToTrash:
+            // ⌘⌫ typed in a drawn text box, an inspector's field or a sheet
+            // (Resize, the comment editor, Save As) deletes text; it must not
+            // trash the photo being edited.
+            return model.current.map { !trashing.contains($0.url) } ?? false
+                && !TextKeys.belongToText(in: window) && window?.attachedSheet == nil
         case .setRating, .toggleTag:
             let marks = model.current.map(marks(for:))
             menuItem.state = marks.map { menuItem.action == .toggleTag ? $0.isTagged : $0.rating == menuItem.tag } == true

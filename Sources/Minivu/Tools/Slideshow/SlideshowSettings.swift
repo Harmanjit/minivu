@@ -161,3 +161,16 @@ final class SlideshowSettingsStore: ObservableObject {
         }
     }
 }
+
+extension SlideshowTransition {
+    /// What plays with Reduce Motion on: transitions that move the picture
+    /// (slide, push, wipe, zoom, iris) become a cross-fade; the fades and the
+    /// dissolve, which change in place, stay as chosen.
+    nonisolated func reducingMotion(_ reduced: Bool) -> SlideshowTransition {
+        guard reduced else { return self }
+        switch self {
+        case .crossFade, .fadeThroughBlack, .dissolve: return self
+        case .slide, .push, .wipe, .zoom, .iris: return .crossFade
+        }
+    }
+}

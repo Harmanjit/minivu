@@ -51,6 +51,21 @@ final class StarRatingView: NSView {
 
     override func accessibilityValue() -> Any? { rating }
     override func accessibilityLabel() -> String? { "Rating" }
+    override func accessibilityMinValue() -> Any? { 0 }
+    override func accessibilityMaxValue() -> Any? { 5 }
+
+    /// VoiceOver's increment and decrement (VO-↑ and VO-↓) rate as a click would.
+    override func accessibilityPerformIncrement() -> Bool {
+        guard isInteractive, rating < 5 else { return false }
+        onRate?(rating + 1)
+        return true
+    }
+
+    override func accessibilityPerformDecrement() -> Bool {
+        guard isInteractive, rating > 0 else { return false }
+        onRate?(rating - 1)
+        return true
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         let shown = hoverRating ?? rating
