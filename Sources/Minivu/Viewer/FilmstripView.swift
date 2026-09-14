@@ -120,7 +120,7 @@ final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewD
     private func scrollToCurrent(animated: Bool) {
         guard images.indices.contains(currentIndex) else { return }
         let indexPath = IndexPath(item: currentIndex, section: 0)
-        if animated {
+        if animated, !Motion.isReduced {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.2
                 context.allowsImplicitAnimation = true

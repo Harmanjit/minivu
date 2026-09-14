@@ -47,7 +47,6 @@ final class ViewerControlBar: NSView {
     private let rotateRightButton = ViewerControlBar.button("rotate.right", "Rotate Right", .rotateRight)
     private let toolsButton = ViewerControlBar.button("slider.horizontal.3", "Show Edit Tools",
                                                       ViewerControlBar.toggleToolsAction)
-    /// A later phase; never enabled here.
     private let slideshowButton = ViewerControlBar.button("play.fill", "Start Slideshow (⇧⌘F)", .startSlideshow)
     /// Groups that give way when the bar is too narrow (see `fitPlaceholders`).
     private lazy var placeholderGroups = [Self.group([rotateLeftButton, rotateRightButton]),
@@ -194,8 +193,15 @@ final class ViewerControlBar: NSView {
     }
 
     private static func symbol(_ name: String, _ description: String) -> NSImage {
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: description) ?? NSImage()
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: spokenName(description)) ?? NSImage()
         return image.withSymbolConfiguration(.init(pointSize: 15, weight: .regular)) ?? image
+    }
+
+    /// What VoiceOver says for a button: its tooltip without the key in
+    /// brackets ("Next Image (→)" is "Next Image"), which is spoken as help.
+    nonisolated static func spokenName(_ toolTip: String) -> String {
+        guard toolTip.hasSuffix(")"), let open = toolTip.range(of: " (", options: .backwards) else { return toolTip }
+        return String(toolTip[..<open.lowerBound])
     }
 
     /// A divider and `views`, which show and hide together.

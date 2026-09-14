@@ -211,7 +211,7 @@ struct ContactSheetView: View {
                 Picker("Format", selection: $model.settings.format) {
                     ForEach(ContactSheetFormat.allCases) { Text($0.title).tag($0) }
                 }
-                Picker("Colour profile", selection: $model.settings.colorSpace) {
+                Picker("Color profile", selection: $model.settings.colorSpace) {
                     ForEach(ContactSheetColorSpace.allCases) { Text($0.title).tag($0) }
                 }
                 .disabled(model.settings.format == .pdf)

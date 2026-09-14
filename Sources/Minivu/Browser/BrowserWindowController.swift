@@ -427,11 +427,11 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
 
     private func canPerform(_ action: Selector) -> Bool {
         switch action {
-        case .openInViewer: model.leadEntry != nil
+        case .openInViewer: model.leadEntry != nil && !isTypingText
         case .revealInFinder: model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText
         case .compareSelected: canCompareSelection
-        case .goToEnclosingFolder: model.canGoToEnclosingFolder
+        case .goToEnclosingFolder: model.canGoToEnclosingFolder && !isTypingText
         case .goBack: model.canGoBack
         case .goForward: model.canGoForward
         case .zoomIn: Preferences.shared.thumbnailSize < ThumbnailLayout.sizeRange.upperBound
@@ -441,12 +441,11 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         }
     }
 
-    /// ⌘⌫ in a text field (the search field) deletes to the start of the
-    /// line. AppKit offers the key to the menu bar first, so Move to Trash
-    /// would take it and trash the selected photos. A disabled item lets
-    /// the key through; the context menu and toolbar still work.
+    /// ⌘⌫, ⌘↑ and ⌘↓ typed in the search field or a rename field belong to
+    /// the text, not to Move to Trash, Enclosing Folder and Open in Viewer
+    /// (see `TextKeys`).
     private var isTypingText: Bool {
-        window?.firstResponder is NSText && NSApp.currentEvent?.type == .keyDown
+        TextKeys.belongToText(in: window)
     }
 
     // MARK: - NSWindowDelegate

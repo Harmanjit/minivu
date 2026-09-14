@@ -103,7 +103,7 @@ struct AnnotationInspectorView: View {
             }
             .pickerStyle(.segmented)
             if style.arrowheads != .none {
-                AnnotationSliderRow(title: "Head Size", value: style.arrowheadSize, range: 2...12, unit: "×", decimals: 1) {
+                AnnotationSliderRow(title: "Head size", value: style.arrowheadSize, range: 2...12, unit: "×", decimals: 1) {
                     value in state.updateStyle("Head Size") { $0.arrowheadSize = value }
                 }
             }
@@ -164,7 +164,7 @@ struct AnnotationInspectorView: View {
                     .disabled(style.textOutlineColor.alpha <= 0)
             }
         }
-        Toggle("Fit Height to Text", isOn: Binding(get: { style.autoresizesHeight }, set: { on in
+        Toggle("Fit height to text", isOn: Binding(get: { style.autoresizesHeight }, set: { on in
             state.updateStyle("Fit Height") { $0.autoresizesHeight = on }
         }))
     }

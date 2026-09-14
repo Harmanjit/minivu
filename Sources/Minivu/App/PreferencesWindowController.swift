@@ -186,18 +186,22 @@ private struct MagnifierSettings: View {
                 LabeledContent("Zoom") {
                     HStack {
                         Slider(value: $prefs.magnifierZoom, in: 1.5...8)
+                            .accessibilityLabel("Zoom")
+                            .accessibilityValue(String(format: "%.1f times", prefs.magnifierZoom))
                         ValueLabel(text: String(format: "%.1f×", prefs.magnifierZoom))
                     }
                 }
                 LabeledContent("Size") {
                     HStack {
                         Slider(value: wholePoints($prefs.magnifierRadius), in: MagnifierPreview.radii)
+                            .accessibilityLabel("Size")
+                            .accessibilityValue("\(Int(prefs.magnifierRadius)) points")
                         ValueLabel(text: "\(Int(prefs.magnifierRadius)) pt")
                     }
                 }
             } footer: {
                 Text("Press and hold on an image in the viewer to show the magnifier.")
-                    .foregroundStyle(.secondary)
+                    .paragraphFooter()
             }
             Section("Preview") {
                 MagnifierPreview(zoom: prefs.magnifierZoom, radius: prefs.magnifierRadius)
@@ -269,6 +273,8 @@ private struct ThumbnailSettings: View {
                 HStack {
                     // No `step`: on macOS it draws a tick mark per step.
                     Slider(value: wholePoints($prefs.thumbnailSize), in: 80...320)
+                        .accessibilityLabel("Size")
+                        .accessibilityValue("\(Int(prefs.thumbnailSize)) points")
                     ValueLabel(text: "\(Int(prefs.thumbnailSize)) pt")
                 }
             }
@@ -280,7 +286,7 @@ private struct ThumbnailSettings: View {
                 }
             } footer: {
                 Text("Thumbnails are rebuilt from the original files the next time a folder is shown.")
-                    .foregroundStyle(.secondary)
+                    .paragraphFooter()
             }
         }
         .settingsForm()

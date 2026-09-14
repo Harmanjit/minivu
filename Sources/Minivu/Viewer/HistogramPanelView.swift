@@ -422,22 +422,22 @@ struct HistogramPanelView: View {
         HStack(spacing: 8) {
             switch model.colorCount {
             case .idle:
-                Text("Unique colours").foregroundStyle(.secondary)
+                Text("Unique colors").foregroundStyle(.secondary)
                 Spacer()
                 Button("Count") { model.onCountColors?() }
                     .controlSize(.small)
                     .disabled(!model.canCountColors)
             case .counting:
                 ProgressView().controlSize(.small)
-                Text("Counting colours…").foregroundStyle(.secondary)
+                Text("Counting colors…").foregroundStyle(.secondary)
                 Spacer()
             case .counted(let count):
-                Text(count == 1 ? "1 colour" : "\(Self.number(count)) colours")
+                Text(count == 1 ? "1 color" : "\(Self.number(count)) colors")
                     .monospacedDigit()
                     .textSelection(.enabled)
                 Spacer()
             case .failed:
-                Text("Couldn’t count colours").foregroundStyle(.secondary)
+                Text("Couldn’t count colors").foregroundStyle(.secondary)
                 Spacer()
                 Button("Retry") { model.onCountColors?() }
                     .controlSize(.small)

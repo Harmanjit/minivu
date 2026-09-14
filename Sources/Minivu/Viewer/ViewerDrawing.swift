@@ -12,7 +12,7 @@ import MinivuRender
 /// reopening the tool on an image whose last step is a drawing edits that
 /// drawing again (see `AnnotationToolState`).
 extension ViewerWindowController {
-    /// The tools panel's Text & Shapes (and any menu item sending it). The sender's tag picks
+    /// The tools panel's Text and Shapes (and any menu item sending it). The sender's tag picks
     /// the starting tool (`AnnotationToolKind`; 0, as a plain button sends, is
     /// the selection arrow). With the tool already open it only switches tools.
     @objc func drawAnnotations(_ sender: Any?) {

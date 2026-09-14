@@ -421,13 +421,14 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
     private func show(_ texture: ImageTexture, index: Int, step: Step) {
         advanceWork?.cancel()
         advanceWork = nil
-        let kind: SlideshowTransition
+        var kind: SlideshowTransition
         switch (step, settings.transition) {
         case (.first, _): kind = .crossFade
         case (_, .fixed(let fixed)): kind = fixed
         case (_, .random): kind = .random(after: lastTransition)
         }
         if step != .first { lastTransition = kind }
+        kind = kind.reducingMotion(Motion.isReduced)
         let quick = step == .next || step == .previous
         let duration = quick ? min(Self.quickTransitionDuration, settings.transitionDuration)
                              : settings.transitionDuration

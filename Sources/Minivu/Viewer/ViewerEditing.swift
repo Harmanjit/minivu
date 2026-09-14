@@ -436,7 +436,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         let actions = [
             ImmediateAction(title: "Grayscale", symbol: "circle.lefthalf.filled", action: .applyGrayscale),
             ImmediateAction(title: "Sepia", symbol: "camera.filters", action: .applySepia),
-            ImmediateAction(title: "Negative", symbol: "circle.righthalf.filled.inverse", action: .applyNegative),
+            ImmediateAction(title: "Negative", symbol: "plusminus.circle", action: .applyNegative),
         ]
         presentImmediate(title: "Color Effects", actions: actions, footer: "Effects apply to the whole image at once.")
     }

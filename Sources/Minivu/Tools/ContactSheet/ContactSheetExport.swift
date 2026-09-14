@@ -248,7 +248,7 @@ final class ContactSheetProgress {
 
     @objc private func cancelPressed() {
         cancel.cancel()
-        detail.stringValue = "Cancelling…"
+        detail.stringValue = "Canceling…"
     }
 
     func finish() {

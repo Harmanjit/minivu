@@ -182,10 +182,11 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
             starButtons.append(button)
         }
         tagButton.target = self
-        configure(tagButton, symbol: "tag", action: #selector(tagClicked(_:)))
+        configure(tagButton, symbol: "checkmark.circle", action: #selector(tagClicked(_:)))
         tagButton.toolTip = "Tag (T)"
         configure(trashButton, symbol: "trash", action: #selector(trashClicked(_:)))
         trashButton.toolTip = "Move to Trash (⌫)"
+        trashButton.setAccessibilityLabel("Move to Trash")
         zoomLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         zoomLabel.textColor = .secondaryLabelColor
 
@@ -338,8 +339,9 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         }
     }
 
+    /// "131 kB", as the browser's status bar and info panel write sizes.
     static func fileSizeText(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        bytes.formatted(.byteCount(style: .file))
     }
 
     // MARK: - Rating and tag
@@ -347,13 +349,15 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     /// Reads the rating and tag from the catalog (one in-memory lookup).
     func refreshMarks() {
         let marks = entry.map { CompareWindowController.catalog.marks(for: $0.url) } ?? .none
+        // The browser's and viewer's stars and tag mark, in the same colours.
         for button in starButtons {
             let filled = button.tag <= marks.rating
-            button.image = NSImage(systemSymbolName: filled ? "star.fill" : "star", accessibilityDescription: nil)
-            button.contentTintColor = filled ? .systemYellow : .tertiaryLabelColor
+            let label = button.tag == 1 ? "Rate 1 star" : "Rate \(button.tag) stars"
+            button.image = NSImage(systemSymbolName: filled ? "star.fill" : "star", accessibilityDescription: label)
+            button.contentTintColor = filled ? StarRatingView.filledColor : .tertiaryLabelColor
         }
-        tagButton.image = NSImage(systemSymbolName: marks.isTagged ? "tag.fill" : "tag",
-                                  accessibilityDescription: marks.isTagged ? "Tagged" : "Not tagged")
+        tagButton.image = NSImage(systemSymbolName: marks.isTagged ? "checkmark.circle.fill" : "checkmark.circle",
+                                  accessibilityDescription: marks.isTagged ? "Tagged" : "Not Tagged")
         tagButton.contentTintColor = marks.isTagged ? .controlAccentColor : .secondaryLabelColor
     }
 
