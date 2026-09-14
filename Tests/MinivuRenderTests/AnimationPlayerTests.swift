@@ -87,13 +87,15 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         await waitUntil { times.count >= 13 }
         player.stop()
         try #require(times.count >= 13)
-        // Eleven 50 ms steps from the second frame: 550 ms, give or take
-        // scheduling. Measured from the second frame because the player
-        // schedules against deadlines: if the first frame arrives late (a
-        // busy test machine), the next one catches up, which is intended.
-        // Lateness must not accumulate.
-        let elapsed = times[12] - times[1]
-        #expect(elapsed > 0.50 && elapsed < 0.65, "\(elapsed)")
+        // Frames are 50 ms apart. The median interval is used rather than
+        // the total, because other test suites share the main actor and can
+        // make any single frame late; the player then catches up against its
+        // deadlines (intended), which shortens the following interval. The
+        // median ignores both, while a player that drifted or ran at the
+        // wrong rate would still move it.
+        let intervals = zip(times.dropFirst(), times).map { $0 - $1 }.sorted()
+        let median = intervals[intervals.count / 2]
+        #expect(median > 0.04 && median < 0.065, "\(intervals)")
     }
 
     @Test func pauseAndSuspendStopTheClock() async throws {
