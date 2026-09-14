@@ -270,6 +270,14 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         if let next, model.entry(for: next) != nil { model.select(next) }
     }
 
+    /// Compares the 2 to 4 selected images; ← and → in the window step
+    /// through the rest of the folder in the browser's order.
+    @objc func compareSelected(_ sender: Any?) {
+        let selected = model.selectedEntries.filter { !$0.isDirectory }
+        guard CompareModel.paneRange.contains(selected.count) else { return }
+        CompareWindowController.show(entries: selected, allImages: model.entries.filter { !$0.isDirectory })
+    }
+
     @objc func goToEnclosingFolder(_ sender: Any?) {
         pendingViewerFile = nil
         model.goToEnclosingFolder()
@@ -365,6 +373,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .openInViewer: model.leadEntry != nil
         case .revealInFinder: model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText
+        case .compareSelected: CompareModel.paneRange.contains(model.selectedEntries.filter { !$0.isDirectory }.count)
         case .goToEnclosingFolder: model.canGoToEnclosingFolder
         case .goBack: model.canGoBack
         case .goForward: model.canGoForward
