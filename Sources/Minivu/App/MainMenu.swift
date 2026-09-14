@@ -140,20 +140,19 @@ enum MainMenu {
         addEditingItems(to: menu)
         menu.addItem(.separator())
         // A bare P as a real equivalent would be taken from text fields.
-        viewKeys.add(menu.add("Play/Pause Animation", .togglePlayback), key: "p")
+        viewKeys.add(menu.add(MenuStateTitles.playback(isPlaying: false), .togglePlayback), key: "p")
         menu.addItem(.separator())
 
         // The grid and viewer also take bare 0-5 and ` (FastStone's keys).
         // Those can't be menu equivalents: the menu would take them from
         // text fields.
         let rating = NSMenu(title: "Rating")
-        rating.add("Clear Rating", .setRating, "0", [.control]).tag = 0
-        for stars in 1...5 {
-            rating.add(stars == 1 ? "Rate 1 Star" : "Rate \(stars) Stars", .setRating, "\(stars)", [.control]).tag = stars
+        for stars in 0...5 {
+            rating.add(MenuStateTitles.rating(stars), .setRating, "\(stars)", [.control]).tag = stars
         }
         menu.add("Rating", nil).submenu = rating
         // ⌘T: no tabs in minivu, and no Fonts panel to show.
-        menu.add("Toggle Tag", .toggleTag, "t")
+        menu.add(MenuStateTitles.tag(isTagged: false), .toggleTag, "t")
         menu.addItem(.separator())
         // ⌥⌘K: ⌘K is Crop. ⇧⌘H: ⌘H and ⌥⌘H hide apps.
         menu.add("Compare Selected", .compareSelected, "k", [.command, .option])
@@ -338,8 +337,10 @@ final class DisplayOnlyShortcuts: NSObject, NSMenuDelegate {
 
     /// Called before the menu is drawn; the place AppKit documents for
     /// changing items. Only drawing needs images, so this skips any other
-    /// pass that might ask.
+    /// pass that might ask. It comes before validation, which gives the
+    /// stateful titles back to the items a controller answers.
     func menuNeedsUpdate(_ menu: NSMenu) {
+        MenuStateTitles.reset(menu)
         if menu.propertiesToUpdate.contains(.propertyItemImage) {
             showShortcuts(true)
         }

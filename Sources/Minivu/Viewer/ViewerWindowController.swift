@@ -1185,7 +1185,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .lastImage: return model.index < model.count - 1
         case .nextPage: return model.canGoNextPage
         case .previousPage: return model.canGoPreviousPage
-        case .togglePlayback: return player != nil
+        case .togglePlayback:
+            menuItem.showPlayback(isPlaying: player?.isPlaying == true)
+            return player != nil
         case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
         case .revealInFinder: return model.current != nil
         case .moveToTrash:
@@ -1196,8 +1198,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 && !TextKeys.belongToText(in: window) && window?.attachedSheet == nil
         case .setRating, .toggleTag:
             let marks = model.current.map(marks(for:))
-            menuItem.state = marks.map { menuItem.action == .toggleTag ? $0.isTagged : $0.rating == menuItem.tag } == true
-                ? .on : .off
+            menuItem.state = marks?.rating == menuItem.tag ? .on : .off
+            if menuItem.action == .toggleTag { menuItem.showTag(isTagged: marks?.isTagged == true) }
             return marks != nil
         case .toggleFullScreenViewer:
             menuItem.state = isFullScreen ? .on : .off

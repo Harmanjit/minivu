@@ -81,7 +81,7 @@ final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizin
     }
 }
 
-/// Lengths as people measure paper: millimetres, or inches where the
+/// Lengths as people measure paper: millimeters, or inches where the
 /// locale uses them.
 nonisolated enum PrintLength {
     static func text(points: Double, locale: Locale = .current) -> String {
@@ -97,24 +97,24 @@ struct PrintAccessoryView: View {
 
     var body: some View {
         Form {
-            Picker("Images per page:", selection: $model.settings.imagesPerPage) {
+            Picker("Images per page", selection: $model.settings.imagesPerPage) {
                 ForEach(PageLayout.imagesPerPageChoices, id: \.self) { Text("\($0)").tag($0) }
             }
             .fixedSize()
-            Picker("Scaling:", selection: $model.settings.scaling) {
+            Picker("Scaling", selection: $model.settings.scaling) {
                 Text("Fit").tag(LayoutScaling.fit)
                 Text("Fill").tag(LayoutScaling.fill)
             }
             .pickerStyle(.segmented)
             .fixedSize()
             Toggle("Rotate pictures to fill the cells", isOn: $model.settings.autoRotate)
-            LabeledContent("Margins:") {
+            LabeledContent("Margins") {
                 slider($model.settings.margin, range: PrintLayoutSettings.marginRange)
             }
-            LabeledContent("Spacing:") {
+            LabeledContent("Spacing") {
                 slider($model.settings.spacing, range: PrintLayoutSettings.spacingRange)
             }
-            Picker("Captions:", selection: $model.settings.caption) {
+            Picker("Captions", selection: $model.settings.caption) {
                 ForEach(PrintLayoutSettings.captionChoices) { Text($0.title).tag($0) }
             }
             .fixedSize()

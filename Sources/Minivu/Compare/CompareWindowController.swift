@@ -356,7 +356,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
             menuItem.state = entry.map { Self.catalog.marks(for: $0.url).rating == menuItem.tag } == true ? .on : .off
             return entry != nil
         case .toggleTag:
-            menuItem.state = entry.map { Self.catalog.marks(for: $0.url).isTagged } == true ? .on : .off
+            menuItem.showTag(isTagged: entry.map { Self.catalog.marks(for: $0.url).isTagged } == true)
             return entry != nil
         case .moveToTrash: return entry.map { !trashing.contains($0.url) } ?? false
         case .revealInFinder: return entry != nil

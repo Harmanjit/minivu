@@ -576,7 +576,7 @@ flag for culling. A grid cell shows its stars under the name (hollow stars
 appear on hover, and a click rates; clicking the current rating clears it),
 a checkmark badge on the picture's corner when tagged, and its Finder tag
 dots after the name. The preview pane shows the lead photo's stars and a tag
-button under it; the viewer's HUD shows both. Toggle Tag on a mixed
+button under it; the viewer's HUD shows both. Tag on a mixed
 selection tags all of it, and untags only when all were tagged.
 
 **Filter and sort.** The toolbar's Filter menu shows everything, images
@@ -711,9 +711,9 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Retouch > Clone Stamp… / Healing Brush… / Red-Eye Removal… | none |
 | | Text and Shapes… | none |
 | | Edit Comment… | none |
-| | Play/Pause Animation | P (display) |
+| | Play Animation / Pause Animation | P (display) |
 | | Rating > Clear, 1–5 Stars | ⌃0–⌃5 (the grid and viewer also take bare 0–5) |
-| | Toggle Tag | ⌘T (no tabs or Fonts panel to clash with; bare `` ` `` in the grid and viewer, T in the viewer) |
+| | Tag / Remove Tag | ⌘T (no tabs or Fonts panel to clash with; bare `` ` `` in the grid and viewer, T in the viewer) |
 | | Compare Selected | ⌥⌘K (⌘K is Crop) |
 | | Histogram | ⇧⌘H (⌘H and ⌥⌘H hide apps) |
 | | Count Colors | none |

@@ -160,7 +160,7 @@ import SwiftUI
         #expect(page.first?.title == "minivu")
         #expect(listed.contains(ShortcutRow(title: "Next Image", keys: "→")))
         #expect(listed.contains(ShortcutRow(title: "Next Page", keys: "⌥→")))
-        #expect(listed.contains(ShortcutRow(title: "Play/Pause Animation", keys: "P")))
+        #expect(listed.contains(ShortcutRow(title: "Play Animation", keys: "P")))
         #expect(listed.contains(ShortcutRow(title: "Adjust › Levels…", keys: "⇧⌘L")))
         #expect(listed.contains(ShortcutRow(title: "Keyboard Shortcuts", keys: "⌘/")))
     }

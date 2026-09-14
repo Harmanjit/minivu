@@ -46,7 +46,7 @@ import MinivuCore
     }
 
     /// Shows the panel as a sheet; `completion` gets the chosen file and the
-    /// options, or nil when cancelled.
+    /// options, or nil when canceled.
     func begin(on window: NSWindow, completion: @escaping (URL?, ExportOptions) -> Void) {
         retainedSelf = self
         fitAccessory()
@@ -111,7 +111,7 @@ struct SaveAsAccessoryView: View {
     var body: some View {
         let format = model.options.format
         Form {
-            Picker("Format:", selection: $model.format) {
+            Picker("Format", selection: $model.format) {
                 ForEach(ExportFormat.allCases, id: \.self) { format in
                     Text(format.title).tag(format)
                 }
@@ -119,7 +119,7 @@ struct SaveAsAccessoryView: View {
             .naturalWidth()
 
             if format.supportsQuality {
-                LabeledContent("Quality:") {
+                LabeledContent("Quality") {
                     HStack(spacing: 8) {
                         Slider(value: $model.qualityPercent, in: 1...100) {
                             Text("Quality")
@@ -139,7 +139,7 @@ struct SaveAsAccessoryView: View {
             }
 
             if format.supportsColorProfile {
-                Picker("Color profile:", selection: $model.options.colorProfile) {
+                Picker("Color profile", selection: $model.options.colorProfile) {
                     ForEach(ExportColorProfile.allCases, id: \.self) { profile in
                         Text(profile.title).tag(profile)
                     }
@@ -148,7 +148,7 @@ struct SaveAsAccessoryView: View {
             }
 
             if format == .tiff {
-                Picker("Compression:", selection: $model.options.tiffCompression) {
+                Picker("Compression", selection: $model.options.tiffCompression) {
                     ForEach(TIFFCompression.allCases, id: \.self) { compression in
                         Text(compression.title).tag(compression)
                     }
@@ -159,11 +159,11 @@ struct SaveAsAccessoryView: View {
             // Only when there is transparency to flatten: an opaque photo
             // saved as JPEG has no use for it.
             if !format.supportsAlpha, model.sourceHasAlpha {
-                ColorPicker("Background:", selection: backgroundColor, supportsOpacity: false)
+                ColorPicker("Background", selection: backgroundColor, supportsOpacity: false)
             }
 
             if hasOptions(format) {
-                LabeledContent("Options:") {
+                LabeledContent("Options") {
                     VStack(alignment: .leading, spacing: 6) {
                         if format == .jpeg {
                             Toggle("Progressive", isOn: $model.options.progressive)
@@ -178,7 +178,7 @@ struct SaveAsAccessoryView: View {
                 }
             }
 
-            LabeledContent("Estimated size:") {
+            LabeledContent("Estimated size") {
                 HStack(spacing: 8) {
                     Text(model.sizeText)
                         .monospacedDigit()

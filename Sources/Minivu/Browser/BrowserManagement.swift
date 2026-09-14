@@ -395,8 +395,9 @@ extension BrowserWindowController {
         }
     }
 
-    /// Checkmarks: the filter in force, and the rating and tag the whole
-    /// selection shares.
+    /// Checkmarks: the filter in force, and the rating the whole selection
+    /// shares. The tag item reads Remove Tag when every selected image is
+    /// tagged.
     func updateManagementState(_ menuItem: NSMenuItem) {
         switch menuItem.action {
         case .filterByRating:
@@ -407,7 +408,7 @@ extension BrowserWindowController {
         case .setRating:
             menuItem.state = model.selectedMarks.sharedRating == menuItem.tag ? .on : .off
         case .toggleTag:
-            menuItem.state = model.selectedMarks.allTagged ? .on : .off
+            menuItem.showTag(isTagged: model.selectedMarks.allTagged)
         default:
             break
         }

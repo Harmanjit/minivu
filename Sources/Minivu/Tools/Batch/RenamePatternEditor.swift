@@ -32,19 +32,19 @@ struct RenamePatternEditor: View {
         case .grid:
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
-                    label("Pattern:")
+                    label("Pattern")
                     patternControls
                 }
                 GridRow {
-                    label("Counter:")
+                    label("Counter")
                     counterControls
                 }
                 GridRow {
-                    label("Replace:")
+                    label("Replace")
                     replaceControls
                 }
                 GridRow {
-                    label("Letter case:")
+                    label("Letter case")
                     caseControls
                 }
             }
