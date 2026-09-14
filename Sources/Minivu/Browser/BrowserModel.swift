@@ -49,6 +49,7 @@ final class BrowserModel {
         static let entries = Changes(rawValue: 1 << 1)
         static let selection = Changes(rawValue: 1 << 2)
         static let state = Changes(rawValue: 1 << 3)
+        /// Back, Forward or Enclosing Folder became possible or impossible.
         static let history = Changes(rawValue: 1 << 4)
         static let all: Changes = [.folder, .entries, .selection, .state, .history]
     }
@@ -70,6 +71,7 @@ final class BrowserModel {
     }
 
     typealias Lister = @Sendable (_ folder: URL, _ includeHidden: Bool) throws -> FolderContents
+    typealias FolderCheck = @Sendable (_ folder: URL) -> Bool
 
     private(set) var folder: URL?
     private(set) var state: State = .empty
@@ -104,8 +106,12 @@ final class BrowserModel {
     }
 
     var onChange: ((Changes) -> Void)?
+    /// The folder's watcher saw something added, removed or renamed in it,
+    /// before the reload that follows: the sidebar lists its subfolders again.
+    var onFolderChangedOnDisk: ((URL) -> Void)?
 
     private let lister: Lister
+    private let isReadableFolder: FolderCheck
     private let invalidate: @MainActor (URL) -> Void
     private let watchesFolder: Bool
     private var snapshot: FolderSnapshot?
@@ -121,6 +127,9 @@ final class BrowserModel {
     private var isListing = false
     /// Selected once the listing in progress arrives.
     private var pendingSelection: URL?
+    /// The parent whose readability the next listing checks: set by each
+    /// navigation, cleared when a listing that checked it lands.
+    private var parentToCheck: URL?
     private var watcher: FolderWatcher?
     /// The load or re-sort in flight, for tests to await.
     private(set) var work: Task<Void, Never>?
@@ -130,13 +139,16 @@ final class BrowserModel {
     ///   - invalidate: forgets cached thumbnails and textures of a file that
     ///     changed or disappeared.
     ///   - watchesFolder: reload when the folder changes on disk.
+    ///   - isReadableFolder: whether a folder can be opened; tests count calls.
     init(sortOrder: FileSortOrder = FileSortOrder(), showHiddenFiles: Bool = false,
          lister: @escaping Lister = { try FolderListing.contents(of: $0, includeHidden: $1) },
          invalidate: @escaping @MainActor (URL) -> Void = BrowserModel.invalidateCaches,
-         watchesFolder: Bool = true) {
+         watchesFolder: Bool = true,
+         isReadableFolder: @escaping FolderCheck = BrowserModel.canOpenFolder) {
         self.sortOrder = sortOrder
         self.showHiddenFiles = showHiddenFiles
         self.lister = lister
+        self.isReadableFolder = isReadableFolder
         self.invalidate = invalidate
         self.watchesFolder = watchesFolder
     }
@@ -155,6 +167,27 @@ final class BrowserModel {
     var enclosingFolder: URL? {
         guard let folder, folder.path != "/" else { return nil }
         return folder.deletingLastPathComponent()
+    }
+
+    /// Whether Go > Enclosing Folder can show the parent. Under the sandbox
+    /// the parent of a folder the user opened is often off limits, and going
+    /// there would only show an error.
+    ///
+    /// Menus and the toolbar validate many times a second, so this is an
+    /// answer kept from a check made once per navigation, off the main
+    /// thread with the listing. Until that check is back the previous
+    /// answer stands: in the usual case (both readable) the button doesn't
+    /// blink off and on at every step.
+    private(set) var canGoToEnclosingFolder = false
+
+    /// Whether a folder can be opened for reading right now. Opening the
+    /// directory is the honest test under the sandbox: a folder can exist,
+    /// and `fileExists` say so, while reading it is refused.
+    nonisolated static func canOpenFolder(_ url: URL) -> Bool {
+        let fd = open(url.path, O_RDONLY | O_DIRECTORY)
+        guard fd >= 0 else { return false }
+        close(fd)
+        return true
     }
 
     /// Shows `target`, selecting `item` once it's listed. Going to the folder
@@ -200,6 +233,8 @@ final class BrowserModel {
         selection = []
         lead = nil
         pendingSelection = item
+        parentToCheck = enclosingFolder
+        if parentToCheck == nil { canGoToEnclosingFolder = false }
         state = .loading
         startWatching()
         load()
@@ -221,7 +256,11 @@ final class BrowserModel {
         // asynchronously: `stop()` waits for a running callback, so waiting
         // for the main thread here could deadlock.
         watcher = FolderWatcher(folder: folder) { [weak self] in
-            Task { @MainActor in self?.reload() }
+            Task { @MainActor in
+                guard let self, let current = self.folder, Self.samePath(current, folder) else { return }
+                self.onFolderChangedOnDisk?(current)
+                self.reload()
+            }
         }
     }
 
@@ -234,14 +273,21 @@ final class BrowserModel {
         let generation = self.generation
         let lister = self.lister, hidden = showHiddenFiles, order = sortOrder
         let previous = snapshot.flatMap { Self.samePath($0.folder, folder) ? $0.entries : nil } ?? []
+        let parent = parentToCheck, isReadableFolder = self.isReadableFolder
         work = Task { [weak self] in
-            let result = await Task.detached(priority: .userInitiated) {
-                Result { () throws -> (FolderSnapshot, [URL]) in
+            let (result, parentIsReadable) = await Task.detached(priority: .userInitiated) {
+                let result = Result { () throws -> (FolderSnapshot, [URL]) in
                     let snapshot = FolderSnapshot(contents: try Self.list(folder, hidden, with: lister), order: order)
                     return (snapshot, Self.changedFiles(old: previous, new: snapshot.entries))
                 }
+                return (result, parent.map(isReadableFolder))
             }.value
-            self?.finish(result, generation: generation)
+            guard let self else { return }
+            if let parent, let parentIsReadable, parent == self.parentToCheck, generation == self.generation {
+                self.parentToCheck = nil
+                self.canGoToEnclosingFolder = parentIsReadable
+            }
+            self.finish(result, generation: generation)
         }
     }
 
@@ -289,7 +335,7 @@ final class BrowserModel {
             pendingSelection = nil
             select(item, notify: false)
         }
-        onChange?([.entries, .selection, .state])
+        onChange?([.entries, .selection, .state, .history])
     }
 
     /// The images that changed size or date, or vanished, between two
@@ -460,6 +506,25 @@ final class BrowserModel {
         guard let target = entry(for: url), let index = images.firstIndex(where: { $0.name == target.name })
         else { return nil }
         return (images, index)
+    }
+
+    /// The image `offset` images after `url` (before it, when negative),
+    /// skipping folders: where the preview pane's wheel steps to. Past either
+    /// end it wraps round when `wrap`, as the viewer does, and otherwise
+    /// stops; nil when that leaves it where it was. From a folder, or from
+    /// nothing, it starts at the first image.
+    func image(_ offset: Int, from url: URL?, wrap: Bool) -> URL? {
+        // Folders come first, so the images are one run at the end.
+        let images = folderCount..<entries.count
+        guard offset != 0, !images.isEmpty else { return nil }
+        guard let current = url.flatMap(index(of:)), images.contains(current) else {
+            return entries[images.lowerBound].url
+        }
+        var target = current - images.lowerBound + offset
+        target = wrap ? ((target % images.count) + images.count) % images.count
+                      : min(max(target, 0), images.count - 1)
+        let index = images.lowerBound + target
+        return index == current ? nil : entries[index].url
     }
 
     /// The images either side of `url`, nearest first, next before previous:

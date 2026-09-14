@@ -23,8 +23,9 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     private let scrollView = NSScrollView()
     private let flowLayout = NSCollectionViewFlowLayout()
     private let messageField = NSTextField(wrappingLabelWithString: "")
-    /// Thumbnails requested just ahead of the visible rows, by file.
-    private var prefetches: [URL: ThumbnailRequest] = [:]
+    /// Thumbnails requested just ahead of the visible rows, by file, with
+    /// the item each was asked for.
+    private var prefetches: [URL: (request: ThumbnailRequest, item: Int)] = [:]
     /// Set while the model's selection is pushed into the view, so the view
     /// doesn't report it straight back.
     private var isApplyingSelection = false
@@ -245,7 +246,13 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
 
     func collectionView(_ collectionView: NSCollectionView, willDisplay item: NSCollectionViewItem,
                         forRepresentedObjectAt indexPath: IndexPath) {
-        (item as? ThumbnailCell)?.loadIfNeeded()
+        guard let cell = item as? ThumbnailCell else { return }
+        cell.loadIfNeeded()
+        // The cell's own request has joined the prefetch's job, so the
+        // prefetch lets go. Otherwise it would keep the decode alive after
+        // the cell scrolled away and cancelled: every photo flown past
+        // would still be decoded, long after the scrolling stopped.
+        if let url = cell.entry?.url { prefetches.removeValue(forKey: url)?.request.cancel() }
     }
 
     func collectionView(_ collectionView: NSCollectionView, didEndDisplaying item: NSCollectionViewItem,
@@ -258,26 +265,47 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     /// Starts thumbnails for rows about to scroll into view, so they arrive
     /// with the cells rather than after them.
     func collectionView(_ collectionView: NSCollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+        dropDistantPrefetches()
         let pixelSize = Int((thumbnailLayout.side * backingScale).rounded())
         for indexPath in indexPaths where model.entries.indices.contains(indexPath.item) {
             let entry = model.entries[indexPath.item]
             guard !entry.isDirectory, prefetches[entry.url] == nil,
                   AppServices.thumbnails.cachedImage(for: entry, pixelSize: pixelSize) == nil else { continue }
             let url = entry.url
-            prefetches[url] = AppServices.thumbnails.request(entry, pixelSize: pixelSize) { [weak self] _ in
+            let request = AppServices.thumbnails.request(entry, pixelSize: pixelSize) { [weak self] _ in
                 self?.prefetches[url] = nil
             }
+            prefetches[url] = (request, indexPath.item)
         }
     }
 
     func collectionView(_ collectionView: NSCollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
         for indexPath in indexPaths where model.entries.indices.contains(indexPath.item) {
-            prefetches.removeValue(forKey: model.entries[indexPath.item].url)?.cancel()
+            prefetches.removeValue(forKey: model.entries[indexPath.item].url)?.request.cancel()
         }
     }
 
+    /// Cancels prefetches for rows the grid has scrolled well past without
+    /// showing (a fling), which the collection view never cancels itself.
+    private func dropDistantPrefetches() {
+        guard !prefetches.isEmpty else { return }
+        let visible = collectionView.indexPathsForVisibleItems().map(\.item)
+        guard let first = visible.min(), let last = visible.max() else { return }
+        for (url, prefetch) in prefetches where !Self.isNear(prefetch.item, visible: first...last) {
+            prefetch.request.cancel()
+            prefetches[url] = nil
+        }
+    }
+
+    /// Within a screenful of the visible items, either way: where the
+    /// collection view prefetches, and where the user may scroll back to.
+    nonisolated static func isNear(_ item: Int, visible: ClosedRange<Int>) -> Bool {
+        let span = visible.count
+        return item >= visible.lowerBound - span && item <= visible.upperBound + span
+    }
+
     private func cancelPrefetches() {
-        prefetches.values.forEach { $0.cancel() }
+        prefetches.values.forEach { $0.request.cancel() }
         prefetches.removeAll()
     }
 

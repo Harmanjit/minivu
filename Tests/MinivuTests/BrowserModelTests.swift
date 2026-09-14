@@ -46,6 +46,24 @@ final class InvalidationLog {
     var urls: [URL] = []
 }
 
+/// Counts folder readability checks, answering from a list of refusals.
+final class FolderCheckLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var checked: [String] = []
+    private var refusals: Set<String> = []
+
+    var paths: [String] { lock.withLock { checked } }
+    func refuse(_ url: URL) { lock.withLock { _ = refusals.insert(url.standardizedFileURL.path) } }
+
+    func check(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        return lock.withLock {
+            checked.append(path)
+            return !refusals.contains(path)
+        }
+    }
+}
+
 @MainActor @Suite struct BrowserModelTests {
     func makeModel(order: FileSortOrder = FileSortOrder(), lister: BrowserModel.Lister? = nil,
                    log: InvalidationLog = InvalidationLog()) -> BrowserModel {
@@ -316,6 +334,99 @@ final class InvalidationLog {
         #expect(BrowserModel.countText(images: 1234, folders: 1) == "\(1234.formatted()) images, 1 folder")
         #expect(BrowserModel.selectionText(selected: 0, total: 5, bytes: 0, images: 5, folders: 0) == "5 images")
         #expect(BrowserModel.selectionText(selected: 2, total: 5, bytes: 0, images: 3, folders: 2) == "2 of 5 selected")
+    }
+
+    /// Enclosing Folder is decided once per navigation, off the main thread
+    /// with the listing; validating the menu reads the stored answer.
+    @Test func enclosingFolderIsCheckedOncePerNavigation() async throws {
+        let t = try ScratchFolder()
+        let a = try t.folder("A")
+        let b = try t.folder("B", in: a)
+        let log = FolderCheckLog()
+        log.refuse(a)
+        let model = BrowserModel(invalidate: { _ in }, watchesFolder: false, isReadableFolder: log.check)
+        #expect(!model.canGoToEnclosingFolder)
+
+        await open(model, a)
+        #expect(model.canGoToEnclosingFolder)
+        #expect(log.paths == [t.url.standardizedFileURL.path])
+        for _ in 0..<100 { _ = model.canGoToEnclosingFolder }
+        model.reload()
+        await model.work?.value
+        model.sortOrder = FileSortOrder(key: .size, ascending: false)
+        await model.work?.value
+        #expect(log.paths.count == 1, "reloads, re-sorts and validation don't check again")
+
+        // B's parent is A, which this pretend sandbox refuses.
+        await open(model, b)
+        #expect(!model.canGoToEnclosingFolder)
+        #expect(log.paths.count == 2)
+
+        model.goBack()
+        await model.work?.value
+        #expect(model.canGoToEnclosingFolder)
+
+        await open(model, URL(fileURLWithPath: "/"))
+        #expect(!model.canGoToEnclosingFolder)
+        #expect(log.paths.count == 3, "the root has no parent to check")
+    }
+
+    /// The real check: a parent that can be passed through but not read.
+    @Test func unreadableParentWithTheRealCheck() async throws {
+        let t = try ScratchFolder()
+        let locked = try t.folder("Locked")
+        let inside = try t.folder("Inside", in: locked)
+        try FileManager.default.setAttributes([.posixPermissions: 0o311], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        let model = makeModel()
+
+        await open(model, locked)
+        #expect(model.canGoToEnclosingFolder)
+        await open(model, inside)
+        #expect(model.state == .loaded)
+        #expect(!model.canGoToEnclosingFolder)
+        #expect(!BrowserModel.canOpenFolder(locked))
+        #expect(BrowserModel.canOpenFolder(inside))
+    }
+
+    /// The preview pane's wheel: next and previous image, folders skipped.
+    @Test func steppingThroughImages() async throws {
+        let t = try ScratchFolder()
+        let sub = try t.folder("Sub")
+        let a = try t.file("a.jpg"); let b = try t.file("b.jpg"); let c = try t.file("c.jpg")
+        let model = makeModel()
+        await open(model, t.url)
+        func name(_ url: URL?) -> String? { url?.lastPathComponent }
+
+        #expect(name(model.image(1, from: a, wrap: false)) == "b.jpg")
+        #expect(name(model.image(-1, from: c, wrap: false)) == "b.jpg")
+        #expect(model.image(-1, from: a, wrap: false) == nil)
+        #expect(model.image(1, from: c, wrap: false) == nil)
+        #expect(name(model.image(-1, from: a, wrap: true)) == "c.jpg")
+        #expect(name(model.image(1, from: c, wrap: true)) == "a.jpg")
+        #expect(name(model.image(1, from: sub, wrap: false)) == "a.jpg")
+        #expect(name(model.image(-1, from: nil, wrap: false)) == "a.jpg")
+        #expect(model.image(0, from: b, wrap: true) == nil)
+
+        model.filter = "c"
+        #expect(model.image(1, from: c, wrap: true) == nil, "one image: nowhere to go")
+    }
+
+    /// The watcher tells the sidebar before it reloads.
+    @Test func watcherReportsChangesForTheSidebar() async throws {
+        let t = try ScratchFolder()
+        let model = BrowserModel(invalidate: { _ in }, watchesFolder: true)
+        var reported: [URL] = []
+        model.onFolderChangedOnDisk = { reported.append($0) }
+        await open(model, t.url)
+        try await Task.sleep(for: .milliseconds(300))
+        try t.folder("New")
+        let deadline = ContinuousClock.now + .seconds(5)
+        while reported.isEmpty, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(!reported.isEmpty)
+        #expect(reported.allSatisfy { BrowserModel.samePath($0, t.url) })
     }
 
     /// The real watcher: a file added in Finder appears without a manual reload.

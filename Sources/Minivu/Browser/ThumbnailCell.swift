@@ -118,9 +118,19 @@ final class ThumbnailCellView: NSView {
     override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
 
+    /// Core Animation copies a `CGImage`'s pixels for the render server and
+    /// keeps that copy for as long as the `CGImage` object lives. The
+    /// thumbnail cache keeps its images, so after a scroll through a big
+    /// folder every cached thumbnail had a second copy (measured: 194 MB
+    /// beside the cache's own 191 MB). A new `CGImage` sharing the cached
+    /// pixels (`copy()` copies no bytes) ties Core Animation's copy to this
+    /// cell instead, and it goes when the cell moves on (measured: 43 MB).
+    /// Scrolling back to a photo makes the copy again, a fraction of a
+    /// millisecond. The folder icon is one image for every cell, so it keeps
+    /// its single copy.
     func setImage(_ image: CGImage?, isIcon: Bool) {
         self.isIcon = isIcon
-        imageLayer.contents = image
+        imageLayer.contents = isIcon ? image : image?.copy()
         imagePixels = image.map { CGSize(width: $0.width, height: $0.height) }
         needsLayout = true
         needsDisplay = true

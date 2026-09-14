@@ -89,13 +89,16 @@ public enum FolderListing {
     /// Subfolders only, for the sidebar tree, in Finder's order. Returns an
     /// empty array if the folder can't be read: the tree shows nothing to
     /// expand rather than an error for every unreadable system folder.
+    ///
+    /// Reads with `readdir`, as `hasSubfolders` does: the sidebar lists the
+    /// photo folder the browser is in again whenever it changes on disk, and
+    /// fetching attributes for every photo to find the few folders among
+    /// them took 20 ms on 5,000 files, against about 1 ms this way.
     public static func subfolders(of folder: URL, includeHidden: Bool = false) -> [URL] {
-        guard let urls = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: folderKeys,
-                                                                      options: []) else { return [] }
-        let named: [(url: URL, name: String)] = urls.compactMap { url in
-            guard let values = try? url.resourceValues(forKeys: folderKeySet),
-                  isVisibleFolder(values, includeHidden: includeHidden) else { return nil }
-            return (url, values.name ?? url.lastPathComponent)
+        var named: [(url: URL, name: String)] = []
+        forEachVisibleSubfolder(of: folder, includeHidden: includeHidden) { url, name in
+            named.append((url, name))
+            return true
         }
         return named.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }.map(\.url)
     }
@@ -112,7 +115,19 @@ public enum FolderListing {
     /// the first subfolder. Measured on 10,000 files (M4, release): 43 ms
     /// with a FileManager enumerator, 2.5 ms this way.
     public static func hasSubfolders(_ folder: URL, includeHidden: Bool = false) -> Bool {
-        guard let directory = opendir(folder.path) else { return false }
+        var found = false
+        forEachVisibleSubfolder(of: folder, includeHidden: includeHidden) { _, _ in
+            found = true
+            return false
+        }
+        return found
+    }
+
+    /// Calls `body` with each visible, non-package subfolder and its name,
+    /// in directory order, until it returns false. Nothing if unreadable.
+    private static func forEachVisibleSubfolder(of folder: URL, includeHidden: Bool,
+                                                _ body: (URL, String) -> Bool) {
+        guard let directory = opendir(folder.path) else { return }
         defer { closedir(directory) }
         while let entry = readdir(directory) {
             // DT_UNKNOWN: some file systems don't fill in the type; check those.
@@ -123,11 +138,11 @@ public enum FolderListing {
             if name == "." || name == ".." || (!includeHidden && name.hasPrefix(".")) { continue }
             let url = folder.appendingPathComponent(name, isDirectory: true)
             if let values = try? url.resourceValues(forKeys: folderKeySet),
-               isVisibleFolder(values, includeHidden: includeHidden) {
-                return true
+               isVisibleFolder(values, includeHidden: includeHidden),
+               !body(url, values.name ?? name) {
+                return
             }
         }
-        return false
     }
 
     static func isVisibleFolder(_ values: URLResourceValues, includeHidden: Bool) -> Bool {
