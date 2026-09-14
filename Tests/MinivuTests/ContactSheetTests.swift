@@ -97,6 +97,48 @@ import MinivuCore
                                                        date: nil) == ["a.jpg", "6000 × 4000"])
     }
 
+    /// A custom page is the width and height typed, whatever orientation a
+    /// preset last had; and a PDF page never passes 200 inches.
+    @Test func customPagesAreAsTyped() {
+        var settings = ContactSheetSettings()
+        settings.pageSize = .custom
+        settings.customWidth = 3000
+        settings.customHeight = 2000
+        settings.orientation = .portrait
+        #expect(settings.pagePixelSize == CGSize(width: 3000, height: 2000))
+        settings.customWidth = 99_999                         // typed past the limit
+        #expect(settings.pagePixelSize == CGSize(width: 16384, height: 2000))
+        #expect(abs(settings.pdfPointsPerPixel * 16384 - 14_400) < 0.001)
+        settings.customWidth = 3000
+        #expect(settings.pdfPointsPerPixel == 1)
+        settings.pageSize = .a4
+        #expect(settings.pdfPointsPerPixel == 72.0 / 300)
+    }
+
+    /// Numbers typed out of range come back as the values used.
+    @Test func theDialogShowsTheValuesUsed() {
+        let model = ContactSheetModel(items: [], header: "Trip", store: nil)
+        model.settings.margin = 5000
+        model.settings.columns = 0
+        model.settings.captionSize = 1
+        #expect(model.settings.margin == 800 && model.settings.columns == 1 && model.settings.captionSize == 8)
+        model.stopPreview()
+    }
+
+    /// Pages placed before one that can't be are taken away again.
+    @Test func aFailedPlacementLeavesNoPages() throws {
+        let scratch = try ScratchFolder()
+        let output = try scratch.folder("Out")
+        let first = try scratch.file("page 1.png", bytes: 10)
+        let missing = scratch.url.appendingPathComponent("page 2.png")
+        let finals = [output.appendingPathComponent("Sheet 1.png"), output.appendingPathComponent("Sheet 2.png")]
+        #expect(throws: (any Error).self) {
+            _ = try ContactSheetExport.placeAll([(first, finals[0]), (missing, finals[1])], replacing: false,
+                                                trash: { _ in Issue.record("nothing may be trashed") })
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
+    }
+
     @Test func storeRoundTripsAndRepairs() throws {
         let suite = "minivu-contact-sheet-tests-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -126,6 +168,12 @@ import MinivuCore
         #expect(ContactSheetNaming.pageNames(base: "Trip", count: 0, fileExtension: "png") { _ in false }.isEmpty)
         #expect(ContactSheetNaming.baseName(folderName: "Trip") == "Trip Contact Sheet")
         #expect(ContactSheetNaming.baseName(folderName: nil) == "Contact Sheet")
+        // A header is free text; the pages' names stay in the folder chosen.
+        #expect(ContactSheetNaming.baseName(folderName: "2024/09: Trip") == "2024-09- Trip Contact Sheet")
+        #expect(ContactSheetNaming.baseName(folderName: "../Trip") == "-Trip Contact Sheet")
+        #expect(ContactSheetNaming.baseName(folderName: " .. ") == "Contact Sheet")
+        #expect(ContactSheetNaming.baseName(folderName: String(repeating: "é", count: 300)).utf8.count <= 214)
+        #expect(!ContactSheetNaming.baseName(folderName: "a\u{0}b\nc").contains("\n"))
         #expect(ContactSheetNaming.singleName(base: "Trip Contact Sheet", format: .pdf) == "Trip Contact Sheet.pdf")
     }
 

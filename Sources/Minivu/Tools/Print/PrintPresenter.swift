@@ -83,20 +83,24 @@ final class PrintSession: NSObject {
 
     private func finish(success: Bool) {
         if success {
-            // The paper and printer chosen in the panel become Page Setup's,
-            // as in other Mac apps, with the shared margins left as they were.
-            let shared = NSPrintInfo.shared
-            if let chosen = operation.printInfo.copy() as? NSPrintInfo {
-                chosen.topMargin = shared.topMargin
-                chosen.bottomMargin = shared.bottomMargin
-                chosen.leftMargin = shared.leftMargin
-                chosen.rightMargin = shared.rightMargin
-                chosen.isHorizontallyCentered = shared.isHorizontallyCentered
-                chosen.isVerticallyCentered = shared.isVerticallyCentered
-                NSPrintInfo.shared = chosen
-            }
+            NSPrintInfo.shared = Self.pageSetup(from: operation.printInfo, keeping: NSPrintInfo.shared)
         }
         completion?(self)
         completion = nil
+    }
+
+    /// Page Setup after a print: the printer, paper, orientation and scale
+    /// chosen in the panel, as in other Mac apps, and nothing else. The
+    /// operation's print info also holds this job's copies, page range and
+    /// destination (a PDF's file, Preview), which must not become the next
+    /// print's starting point for other pictures; nor may its cleared margins.
+    static func pageSetup(from chosen: NSPrintInfo, keeping shared: NSPrintInfo) -> NSPrintInfo {
+        let result = (shared.copy() as? NSPrintInfo) ?? NSPrintInfo()
+        result.printer = chosen.printer
+        if let name = chosen.paperName { result.paperName = name }
+        result.paperSize = chosen.paperSize
+        result.orientation = chosen.orientation
+        result.scalingFactor = chosen.scalingFactor
+        return result
     }
 }

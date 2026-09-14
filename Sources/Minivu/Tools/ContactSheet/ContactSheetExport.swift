@@ -80,12 +80,31 @@ enum ContactSheetExport {
         if case .file = destination { replacesChosenFile = true } else { replacesChosenFile = false }
         let pairs = Array(zip(made, finals))
         let job = FileWriteQueue.shared.enqueue(replacing: finals) {
-            try pairs.map { temp, final in try place(temp, at: final, replacing: replacesChosenFile, trash: trash) }
+            // Moves and trashing are blocking file-system calls: on a GCD
+            // thread, not the Swift pool the queue's task runs on.
+            try await BlockingWork.run { try placeAll(pairs, replacing: replacesChosenFile, trash: trash) }
         }
         let placed = try await job.value.value
         // A sheet written over a picture the browser shows must not keep
         // its old thumbnail.
         placed.forEach(didWrite)
+        return placed
+    }
+
+    /// Puts every finished page in place, in order. If one can't be placed,
+    /// the pages already placed by this call are removed again (they are
+    /// new files, never the user's), so a failed sheet leaves nothing half
+    /// done in the folder.
+    nonisolated static func placeAll(_ pairs: [(URL, URL)], replacing: Bool, trash: Trasher) throws -> [URL] {
+        var placed: [URL] = []
+        do {
+            for (temp, final) in pairs { placed.append(try place(temp, at: final, replacing: replacing, trash: trash)) }
+        } catch {
+            // A page that replaced a file (only a single chosen file can)
+            // stays: the old one is already in the Trash.
+            if !replacing { for url in placed { try? FileManager.default.removeItem(at: url) } }
+            throw error
+        }
         return placed
     }
 

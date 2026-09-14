@@ -29,6 +29,15 @@ extension BrowserWindowController {
     }
 
     /// Debug only, for the snapshot harness
+    /// (`MINIVU_ACTIONS=debugPageSetupHalfScale:;printImages:`): sets Page
+    /// Setup's scale to 50% for this run (the shared print info lives in
+    /// memory; nothing is saved), so the panel's preview can be pictured
+    /// with a scaled page. No menu item or key sends it.
+    @objc func debugPageSetupHalfScale(_ sender: Any?) {
+        NSPrintInfo.shared.scalingFactor = 0.5
+    }
+
+    /// Debug only, for the snapshot harness
     /// (`MINIVU_ACTIONS=debugRenderPrintPage:`): draws page 1 of what Print
     /// would print for the current images, with the remembered layout, on
     /// Page Setup's paper at 150 dpi, into the PNG named by
@@ -56,7 +65,9 @@ extension BrowserWindowController {
             }
             guard let page else { return }
             FileWriteQueue.shared.enqueue(replacing: [url]) {
-                try ImageEncoder.write(page.image, to: url, options: .defaults(for: .png), metadataSource: nil)
+                try await BlockingWork.run {
+                    try ImageEncoder.write(page.image, to: url, options: .defaults(for: .png), metadataSource: nil)
+                }
             }
         }
     }

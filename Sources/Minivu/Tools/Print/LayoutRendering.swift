@@ -125,6 +125,11 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
     private struct Entry {
         var image: CGImage
         var isFullResolution: Bool
+        /// The long edge the decode was asked for. A request no larger is
+        /// served by this entry even when the decode came out smaller (a
+        /// RAW file's small embedded preview): decoding again would give the
+        /// same, and the print preview would ask forever.
+        var requested: Int
         var bytes: Int
         var lastUse: UInt64
     }
@@ -179,15 +184,22 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
         let key = item.cacheKey
         if let cached = cached(key: key, wanted: wanted) { return cached }
 
-        let made: (image: CGImage, isFullResolution: Bool)?
+        var made: (image: CGImage, isFullResolution: Bool)?
         switch item.source {
         case .file(let url, let page):
             made = decode(url, page, wanted)
         case .image(let image):
             made = Self.downscale(image, maxPixelSize: wanted).map { ($0, max(image.width, image.height) <= wanted) }
         }
+        // A decoder may snap to a cheap size well above the one asked (a
+        // JPEG's 1/8 scale of a large photo); kept that large, the cache
+        // would never serve the request that made it.
+        if let decoded = made, max(decoded.image.width, decoded.image.height) > wanted * 2,
+           let smaller = Self.downscale(decoded.image, maxPixelSize: wanted) {
+            made = (smaller, false)
+        }
         guard let made else { return nil }
-        store(made.image, isFullResolution: made.isFullResolution, key: key)
+        store(made.image, isFullResolution: made.isFullResolution, requested: wanted, key: key)
         return made.image
     }
 
@@ -197,8 +209,8 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
             let longEdge = max(entry.image.width, entry.image.height)
             // Up to twice the size wanted is fine (Core Graphics filters it
             // down when drawing); larger wastes the preview's time.
-            guard entry.isFullResolution || Double(longEdge) >= Double(wanted) * 0.97, longEdge <= wanted * 2
-            else { return nil }
+            let goodEnough = entry.isFullResolution || entry.requested >= wanted || Double(longEdge) >= Double(wanted) * 0.97
+            guard goodEnough, longEdge <= wanted * 2 else { return nil }
             clock += 1
             entry.lastUse = clock
             entries[key] = entry
@@ -206,14 +218,15 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
         }
     }
 
-    private func store(_ image: CGImage, isFullResolution: Bool, key: String) {
+    private func store(_ image: CGImage, isFullResolution: Bool, requested: Int, key: String) {
         let cost = image.bytesPerRow * image.height
         lock.withLock {
             if let old = entries.removeValue(forKey: key) { bytes -= old.bytes }
             // An image larger than the whole budget is used once, not kept.
             guard cost <= byteBudget else { return }
             clock += 1
-            entries[key] = Entry(image: image, isFullResolution: isFullResolution, bytes: cost, lastUse: clock)
+            entries[key] = Entry(image: image, isFullResolution: isFullResolution, requested: requested, bytes: cost,
+                                 lastUse: clock)
             bytes += cost
             while bytes > byteBudget, let oldest = entries.min(by: { $0.value.lastUse < $1.value.lastUse }) {
                 entries.removeValue(forKey: oldest.key)
@@ -233,12 +246,16 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
     /// and 8-bit files have no headroom.
     static let decodeFile: Decode = { url, page, maxPixelSize in
         if maxPixelSize <= 512, page == 0, let thumbnail = ImageDecoder.thumbnail(for: url, maxPixelSize: maxPixelSize) {
-            return (thumbnail, max(thumbnail.width, thumbnail.height) < maxPixelSize)
+            // Smaller than asked is the whole picture only if the file is
+            // that small: a RAW file's embedded preview can be smaller too,
+            // and the printer must not get it.
+            let longEdge = max(thumbnail.width, thumbnail.height)
+            guard longEdge < maxPixelSize, let info = ImageDecoder.info(for: url) else { return (thumbnail, false) }
+            return (thumbnail, Double(longEdge) >= Double(max(info.pixelSize.width, info.pixelSize.height)) - 1)
         }
         guard let decoded = try? ImageDecoder.decode(url, maxPixelSize: maxPixelSize, page: page, allowHDR: false)
         else { return nil }
-        let image = decoded.image
-        return (image, decoded.isFullResolution || max(image.width, image.height) < maxPixelSize)
+        return (decoded.image, decoded.isFullResolution)
     }
 
     static let describeFile: Describe = { url, needsDate in

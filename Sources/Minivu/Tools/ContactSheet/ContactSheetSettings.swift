@@ -174,11 +174,24 @@ nonisolated struct ContactSheetSettings: Codable, Equatable, Sendable {
         return s
     }
 
-    /// The page in pixels, turned to the orientation chosen.
+    /// The page in pixels: a preset turned to the orientation chosen, a
+    /// custom size exactly as typed (its width and height already say which
+    /// way up it is, so the dialog hides Orientation for it).
     var pagePixelSize: CGSize {
-        let natural = pageSize.pixelSize ?? CGSize(width: customWidth, height: customHeight)
+        guard let natural = pageSize.pixelSize else {
+            let s = validated
+            return CGSize(width: s.customWidth, height: s.customHeight)
+        }
         let long = max(natural.width, natural.height), short = min(natural.width, natural.height)
         return orientation == .portrait ? CGSize(width: short, height: long) : CGSize(width: long, height: short)
+    }
+
+    /// Points per page pixel in a PDF: from the preset's resolution, and
+    /// never so many that a side passes 14,400 points (200 inches), the
+    /// largest page PDF readers such as Acrobat open.
+    var pdfPointsPerPixel: Double {
+        let longSide = Double(max(pagePixelSize.width, pagePixelSize.height))
+        return min(72 / pageSize.dotsPerInch, 14_400 / max(longSide, 1))
     }
 
     var headerFontSize: Double { Double(captionSize) * 1.6 }
@@ -230,10 +243,20 @@ struct ContactSheetStore {
 
 /// File names for the pages written.
 nonisolated enum ContactSheetNaming {
-    /// "Trip Contact Sheet" from the folder "Trip".
+    /// "Trip Contact Sheet" from the folder "Trip" (or the header typed).
+    /// The header is free text, so it is made a safe file name first: a
+    /// "/" or ":" ("2024/09 Trip") would otherwise name a folder that isn't
+    /// there, or one outside the folder chosen ("../Trip"), and a leading
+    /// dot would hide the pages.
     static func baseName(folderName: String?) -> String {
-        guard let folderName, !folderName.isEmpty else { return "Contact Sheet" }
-        return "\(folderName) Contact Sheet"
+        var name = (folderName ?? "").replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        name.unicodeScalars.removeAll { $0.value < 0x20 || $0.value == 0x7F }
+        name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        while name.hasPrefix(".") { name.removeFirst() }
+        name = name.trimmingCharacters(in: .whitespaces)
+        // Room for " Contact Sheet 999.tif" within APFS's 255 bytes.
+        while name.utf8.count > 200 { name.removeLast() }
+        return name.isEmpty ? "Contact Sheet" : "\(name) Contact Sheet"
     }
 
     /// One name per page, "Trip 1.jpg", "Trip 2.jpg"…; when any of them is

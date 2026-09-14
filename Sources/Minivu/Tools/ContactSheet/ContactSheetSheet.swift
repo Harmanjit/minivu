@@ -8,6 +8,9 @@ import MinivuCore
     let items: [LayoutItem]
     var settings: ContactSheetSettings {
         didSet {
+            // A number typed out of range shows what will be used (a margin
+            // of 5000 becomes 800), rather than the sheet quietly differing.
+            if settings != settings.validated { settings = settings.validated }
             guard settings != oldValue else { return }
             if remembers { store?.settings = settings }
             schedulePreview()
@@ -167,24 +170,23 @@ struct ContactSheetView: View {
                     LabeledContent("Width") { pixelField($model.settings.customWidth) }
                     LabeledContent("Height") { pixelField($model.settings.customHeight) }
                 }
-                Picker("Orientation", selection: $model.settings.orientation) {
-                    ForEach(ContactSheetOrientation.allCases) { Text($0.title).tag($0) }
+                if model.settings.pageSize != .custom {
+                    Picker("Orientation", selection: $model.settings.orientation) {
+                        ForEach(ContactSheetOrientation.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
                 ColorPicker("Background", selection: Binding(
                     get: { model.settings.background.cgColor },
                     set: { model.settings.background = ExportColor($0) ?? .white }), supportsOpacity: false)
             }
             Section("Grid") {
                 LabeledContent("Columns") {
-                    Stepper(value: $model.settings.columns, in: ContactSheetSettings.columnRange) {
-                        Text("\(model.settings.columns)").monospacedDigit()
-                    }
+                    counter("\(model.settings.columns)", $model.settings.columns, in: ContactSheetSettings.columnRange)
                 }
                 LabeledContent("Rows") {
-                    Stepper(value: $model.settings.rows, in: ContactSheetSettings.rowRange) {
-                        Text(model.settings.rows == 0 ? "Auto (one page)" : "\(model.settings.rows)").monospacedDigit()
-                    }
+                    counter(model.settings.rows == 0 ? "Auto (one page)" : "\(model.settings.rows)",
+                            $model.settings.rows, in: ContactSheetSettings.rowRange)
                 }
                 LabeledContent("Spacing") { pixelField($model.settings.spacing) }
                 LabeledContent("Margin") { pixelField($model.settings.margin) }
@@ -223,6 +225,15 @@ struct ContactSheetView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// The value, then the stepper's arrows beside it, as System Settings
+    /// sets them out.
+    private func counter(_ text: String, _ value: Binding<Int>, in range: ClosedRange<Int>) -> some View {
+        HStack(spacing: 6) {
+            Text(text).monospacedDigit()
+            Stepper(text, value: value, in: range).labelsHidden()
+        }
     }
 
     private func pixelField(_ value: Binding<Int>) -> some View {
@@ -319,9 +330,15 @@ final class ContactSheetController {
         // panel's completion keeps it until the save has started.
         ContactSheetExport.chooseDestination(base: base, settings: settings, pageCount: pageCount,
                                              startFolder: startFolder, on: window) { [weak window] destination in
-            guard let window, let destination else { return }
+            guard let window else { return }
             // The panel's sheet is still closing; begin the next one after it.
             DispatchQueue.main.async {
+                guard let destination else {
+                    // Cancelled: back to the dialog as it was, header included,
+                    // rather than losing the settings just made.
+                    self.begin(on: window)
+                    return
+                }
                 self.run(items: items, settings: settings, header: header, destination: destination, base: base,
                          on: window, showing: true)
             }

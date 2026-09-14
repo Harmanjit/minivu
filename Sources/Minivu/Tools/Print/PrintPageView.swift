@@ -22,6 +22,11 @@ nonisolated final class PrintJob: @unchecked Sendable {
     /// worth of thumbnails many times over.
     static let cacheBudget = 192 << 20
 
+    /// Preview decodes run here one batch at a time, four pictures at once,
+    /// however fast the user steps through the panel's pages: a queue per
+    /// redraw would pile up blocked threads.
+    private let previewQueue = DispatchQueue(label: "minivu.print.preview", qos: .userInitiated)
+
     init(items: [LayoutItem], settings: PrintLayoutSettings, paper: PrintPaper,
          provider: LayoutImageProvider = LayoutImageProvider(byteBudget: PrintJob.cacheBudget)) {
         self.items = items
@@ -113,6 +118,11 @@ nonisolated final class PrintJob: @unchecked Sendable {
         schedulePreviewDecodes(missing, layout: layout, style: style, pixelsPerUnit: pixelsPerUnit, maxPixels: maxPixels)
     }
 
+    /// For tests: returns once the preview decodes asked for so far are done.
+    func previewDecodesFinished() async {
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in previewQueue.async { done.resume() } }
+    }
+
     private func previewKey(_ item: LayoutItem, style: LayoutPageStyle) -> String {
         item.cacheKey + (style.caption == .nameAndDate ? "+date" : "")
     }
@@ -128,7 +138,7 @@ nonisolated final class PrintJob: @unchecked Sendable {
             return fresh
         }
         guard !wanted.isEmpty else { return }
-        DispatchQueue.global(qos: .userInitiated).async { [self] in
+        previewQueue.async { [self] in
             var start = 0
             while start < wanted.count {
                 let batch = Array(wanted[start..<min(start + 4, wanted.count)])
@@ -139,9 +149,13 @@ nonisolated final class PrintJob: @unchecked Sendable {
                                                           pixelsPerUnit: pixelsPerUnit, maxPixelSize: maxPixels,
                                                           provider: provider)
                     let key = previewKey(item, style: style)
+                    // A picture without readable facts is drawn as a
+                    // placeholder too, and not asked for again.
+                    let unreadable = prepared.image == nil
+                        || provider.cachedInfo(for: item, needsDate: style.caption == .nameAndDate) == nil
                     lock.withLock {
                         pendingPreview.remove(key)
-                        if prepared.image == nil { failedPreview.insert(key) }
+                        if unreadable { failedPreview.insert(key) }
                     }
                 }
                 start += batch.count
@@ -172,7 +186,7 @@ final class PrintPageView: NSView {
     /// `PrintPageView.isPreviewDrawing`.
     nonisolated let previewTest: @Sendable () -> Bool
 
-    /// Taller than any sheet at any scale `PrintPaper` allows (A0 at 10%).
+    /// Taller than any sheet of paper a printer takes.
     nonisolated static let pagePitch: CGFloat = 100_000
 
     init(job: PrintJob, paperSource: @escaping @Sendable () -> PrintPaper? = PrintPageView.currentOperationPaper,
@@ -195,26 +209,35 @@ final class PrintPageView: NSView {
         return true
     }
 
-    /// `page` counts from 1, as AppKit does.
+    /// `page` counts from 1, as AppKit does. The rectangle is the part of
+    /// the sheet the printer can mark, in points, offset from the sheet's
+    /// corner by the unprintable edge. With a view's own pagination AppKit
+    /// puts each page rectangle's corner at the printable area's corner, at
+    /// 100% whatever Page Setup's scale (measured by printing to PDF: a
+    /// full-sheet rectangle came out shifted by the edge and cropped, and a
+    /// 50% print at 100%). So the rectangle is exactly the printable area,
+    /// which lands where it is on paper, and `draw` applies the scale.
     nonisolated override func rectForPage(_ page: Int) -> NSRect {
-        let size = job.currentLayout.pageSize
-        return NSRect(x: 0, y: CGFloat(max(page, 1) - 1) * Self.pagePitch, width: size.width, height: size.height)
+        let printable = job.currentPaper.printableSheetRect
+        return printable.offsetBy(dx: 0, dy: CGFloat(max(page, 1) - 1) * Self.pagePitch)
     }
 
     nonisolated override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
-        let size = job.currentLayout.pageSize
+        let paper = job.currentPaper
         let preview = previewTest()
         let first = max(0, Int((dirtyRect.minY / Self.pagePitch).rounded(.down)))
         let last = min(job.pageCount - 1, Int((max(dirtyRect.maxY - 1, dirtyRect.minY) / Self.pagePitch).rounded(.down)))
         guard first <= last else { return }
         for page in first...last {
             context.saveGState()
-            // The view is flipped: turn this page's rectangle into a y-up
-            // space with its origin at the page's bottom-left corner.
-            context.translateBy(x: 0, y: CGFloat(page) * Self.pagePitch + size.height)
+            // The view is flipped: turn this sheet's rectangle into a y-up
+            // space with its origin at the sheet's bottom-left corner, in
+            // layout units (points at Page Setup's scale).
+            context.translateBy(x: 0, y: CGFloat(page) * Self.pagePitch + paper.size.height)
             context.scaleBy(x: 1, y: -1)
-            context.clip(to: CGRect(origin: .zero, size: size))
+            context.clip(to: CGRect(origin: .zero, size: paper.size))
+            context.scaleBy(x: paper.scale, y: paper.scale)
             if preview {
                 job.drawPreviewPage(page, in: context)
             } else {

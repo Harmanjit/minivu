@@ -88,8 +88,9 @@ import MinivuCore
         #expect(view.knowsPageRange(&range))
         #expect(range == NSRange(location: 1, length: 3))
         #expect(view.isFlipped)
-        #expect(view.rectForPage(1) == NSRect(x: 0, y: 0, width: 612, height: 792))
-        #expect(view.rectForPage(3) == NSRect(x: 0, y: 2 * PrintPageView.pagePitch, width: 612, height: 792))
+        // The printable part of each sheet, in sheet points from its corner.
+        #expect(view.rectForPage(1) == NSRect(x: 18, y: 18, width: 576, height: 756))
+        #expect(view.rectForPage(3) == NSRect(x: 18, y: 2 * PrintPageView.pagePitch + 18, width: 576, height: 756))
         // Every page lies inside the view and apart from the others.
         #expect(view.bounds.contains(view.rectForPage(3)))
         #expect(!view.rectForPage(1).intersects(view.rectForPage(2)))
@@ -98,7 +99,11 @@ import MinivuCore
         let a5 = PrintPaper(size: CGSize(width: 420, height: 595))
         let smaller = PrintPageView(job: job, paperSource: { a5 }, previewTest: { false })
         #expect(smaller.knowsPageRange(&range))
-        #expect(smaller.rectForPage(2).size == CGSize(width: 420, height: 595))
+        #expect(smaller.rectForPage(2) == NSRect(x: 0, y: PrintPageView.pagePitch, width: 420, height: 595))
+        // An unprintable edge that isn't the same all round.
+        let offset = PrintPaper(size: CGSize(width: 612, height: 792), imageableBounds: CGRect(x: 12, y: 30, width: 590, height: 740))
+        #expect(offset.printableSheetRect == CGRect(x: 12, y: 22, width: 590, height: 740))
+        #expect(offset.unprintableInsets == LayoutInsets(top: 22, left: 12, bottom: 30, right: 10))
 
         settings.imagesPerPage = 1
         job.update(settings: settings)
@@ -134,6 +139,120 @@ import MinivuCore
         #expect(ContactSheetTests.pixel(image, at: CGPoint(x: 5, y: 5)) == [255, 255, 255])
     }
 
+    /// Prints `items` to a PDF the way File > Print does after the panel,
+    /// without a printer: the operation asks the view for its pages and
+    /// draws each into the printing system's context. Returns the document
+    /// and the job.
+    func printToPDF(_ items: [LayoutItem], settings: PrintLayoutSettings, in folder: URL,
+                    configure: (NSPrintInfo) -> Void = { _ in }) throws -> (CGPDFDocument, PrintJob) {
+        let url = folder.appendingPathComponent("Printed \(UUID().uuidString).pdf")
+        let suite = "minivu-print-tests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = PrintLayoutStore(defaults: defaults)
+        store.settings = settings
+        let info = NSPrintInfo()
+        info.paperSize = NSSize(width: 612, height: 792)
+        info.orientation = .portrait
+        configure(info)
+        info.jobDisposition = .save
+        info.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
+        let session = PrintPresenter.makeSession(items: items, title: "Pictures", store: store, printInfo: info)
+        session.operation.showsPrintPanel = false
+        session.operation.showsProgressPanel = false
+        #expect(session.operation.run())
+        return (try #require(CGPDFDocument(url as CFURL)), session.job)
+    }
+
+    /// Page `number` (from 1) of `document` as sRGB pixels at 1 px per point.
+    func rasterize(_ document: CGPDFDocument, page number: Int) throws -> CGImage {
+        let page = try #require(document.page(at: number))
+        let box = page.getBoxRect(.mediaBox)
+        let context = try #require(CGContext(data: nil, width: Int(box.width), height: Int(box.height), bitsPerComponent: 8,
+                                             bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.setFillColor(.white)
+        context.fill(CGRect(x: 0, y: 0, width: box.width, height: box.height))
+        context.drawPDFPage(page)
+        return try #require(context.makeImage())
+    }
+
+    @Test func printsEachSheetThroughThePrintingSystem() throws {
+        _ = NSApplication.shared
+        let scratch = try ScratchFolder()
+        let colours = [Self.solid(1, 0, 0), Self.solid(0, 0, 1), Self.solid(0, 1, 0)]
+        let items = colours.enumerated().map { LayoutItem(image: $1, name: "\($0).jpg", modified: Date()) }
+        var settings = PrintLayoutSettings()
+        settings.imagesPerPage = 2
+        settings.autoRotate = false
+        settings.scaling = .fill
+
+        let (document, job) = try printToPDF(items, settings: settings, in: scratch.url)
+        #expect(document.numberOfPages == 2)
+        let box = try #require(document.page(at: 1)?.getBoxRect(.mediaBox))
+        #expect(abs(box.width - 612) < 0.5 && abs(box.height - 792) < 0.5)
+        let first = try rasterize(document, page: 1)
+        let cells = job.currentLayout.cells(onPage: 0, imageCount: 3)
+        #expect(ContactSheetTests.pixel(first, at: CGPoint(x: cells[0].imageArea.midX, y: cells[0].imageArea.midY)) == [255, 0, 0])
+        #expect(ContactSheetTests.pixel(first, at: CGPoint(x: cells[1].imageArea.midX, y: cells[1].imageArea.midY)) == [0, 0, 255])
+        #expect(ContactSheetTests.pixel(first, at: CGPoint(x: 306, y: 4)) == [255, 255, 255])
+        // No offset: the edges of the first picture are where the layout says.
+        #expect(ContactSheetTests.pixel(first, at: CGPoint(x: cells[0].imageArea.minX + 2, y: cells[0].imageArea.minY + 2)) == [255, 0, 0])
+        #expect(ContactSheetTests.pixel(first, at: CGPoint(x: cells[0].imageArea.minX - 3, y: cells[0].imageArea.minY + 20)) == [255, 255, 255])
+        #expect(ContactSheetTests.pixel(first, at: CGPoint(x: cells[0].imageArea.minX + 20, y: cells[0].imageArea.minY - 3)) == [255, 255, 255])
+        // The last sheet holds one picture, centred.
+        let second = try rasterize(document, page: 2)
+        #expect(ContactSheetTests.pixel(second, at: CGPoint(x: 306, y: 396)) == [0, 255, 0])
+        #expect(ContactSheetTests.pixel(second, at: CGPoint(x: 306, y: 60)) == [255, 255, 255])
+
+        // Page Setup at 50%: the layout is twice the size and prints at half,
+        // so the sheet still shows its pictures where the layout puts them.
+        let (halved, halvedJob) = try printToPDF(items, settings: settings, in: scratch.url) { $0.scalingFactor = 0.5 }
+        #expect(halvedJob.currentLayout.pageSize == CGSize(width: 1224, height: 1584))
+        let small = try rasterize(halved, page: 1)
+        #expect(small.width == 612 && small.height == 792)
+        let halfCells = halvedJob.currentLayout.cells(onPage: 0, imageCount: 3)
+        #expect(ContactSheetTests.pixel(small, at: CGPoint(x: halfCells[0].imageArea.midX / 2, y: halfCells[0].imageArea.midY / 2))
+            == [255, 0, 0])
+        #expect(ContactSheetTests.pixel(small, at: CGPoint(x: halfCells[1].imageArea.midX / 2, y: halfCells[1].imageArea.midY / 2))
+            == [0, 0, 255])
+        #expect(ContactSheetTests.pixel(small, at: CGPoint(x: halfCells[0].imageArea.minX / 2 + 2, y: halfCells[0].imageArea.minY / 2 + 2))
+            == [255, 0, 0])
+        #expect(ContactSheetTests.pixel(small, at: CGPoint(x: 306, y: halfCells[1].imageArea.maxY / 2 + 3)) == [255, 255, 255])
+
+        // Landscape paper: two side by side.
+        let (turned, turnedJob) = try printToPDF(items, settings: settings, in: scratch.url) { $0.orientation = .landscape }
+        let wide = try rasterize(turned, page: 1)
+        #expect(wide.width == 792 && wide.height == 612)
+        let wideCells = turnedJob.currentLayout.cells(onPage: 0, imageCount: 3)
+        #expect(wideCells[0].frame.maxX <= wideCells[1].frame.minX)
+        #expect(ContactSheetTests.pixel(wide, at: CGPoint(x: wideCells[1].imageArea.midX, y: wideCells[1].imageArea.midY)) == [0, 0, 255])
+    }
+
+    /// A landscape picture turned to fill a tall sheet is turned clockwise:
+    /// its top edge faces the right of the sheet.
+    @Test func autoRotatedPicturesTurnClockwise() throws {
+        let context = try #require(CGContext(data: nil, width: 300, height: 200, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 300, height: 100))            // bottom half blue
+        context.setFillColor(CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 100, width: 300, height: 100))          // top half red
+        let picture = LayoutItem(image: try #require(context.makeImage()), name: "Wide.jpg", modified: Date())
+        var settings = PrintLayoutSettings()
+        settings.margin = 0
+        settings.autoRotate = true
+        let job = PrintJob(items: [picture], settings: settings, paper: PrintPaper(size: CGSize(width: 200, height: 300)))
+        let page = try #require(CGContext(data: nil, width: 200, height: 300, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        job.drawPage(0, in: page)
+        let image = try #require(page.makeImage())
+        #expect(ContactSheetTests.pixel(image, at: CGPoint(x: 150, y: 150)) == [255, 0, 0])
+        #expect(ContactSheetTests.pixel(image, at: CGPoint(x: 50, y: 150)) == [0, 0, 255])
+    }
+
     @Test func previewDecodesSmallAndInTheBackground() async throws {
         let decoder = RecordingDecoder()
         let job = PrintJob(items: fileItems(2), settings: PrintLayoutSettings(), paper: letter, provider: decoder.provider())
@@ -166,6 +285,73 @@ import MinivuCore
         let printed = try #require(decoder.requested.last)
         #expect(decoder.requested.count == 3)
         #expect(printed > 2000 && printed <= PrintDecodePolicy.maxPixelSize)
+    }
+
+    /// However large or small a decode comes out (a JPEG's cheap 1/8 scale
+    /// of a huge photo, a RAW file's small embedded preview), the preview
+    /// draws it from then on rather than asking for it again and again.
+    @Test(arguments: [4.0, 0.25]) func previewAsksOnceWhateverSizeADecodeGives(factor: Double) async throws {
+        let log = SizeLog()
+        let provider = LayoutImageProvider(decode: { _, _, size in
+            log.append(size)
+            let long = max(2, Int(Double(size) * factor))
+            return (PrintTests.solid(0.5, 0.5, 0.5, width: long, height: long * 2 / 3), false)
+        }, describe: { _, _ in LayoutImageInfo(pixelSize: CGSize(width: 12000, height: 8000), dateTaken: nil) })
+        let job = PrintJob(items: fileItems(1), settings: PrintLayoutSettings(), paper: letter, provider: provider)
+        let context = try #require(CGContext(data: nil, width: 612, height: 792, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        job.drawPreviewPage(0, in: context)
+        await job.previewDecodesFinished()
+        #expect(log.values.count == 1)
+        for _ in 0..<3 {
+            job.drawPreviewPage(0, in: context)
+            await job.previewDecodesFinished()
+        }
+        #expect(log.values.count == 1)
+        // What the preview drew is no larger than twice what it needs.
+        let size = try #require(log.values.first)
+        let cached = try #require(provider.cachedImage(for: fileItems(1)[0], maxPixelSize: size))
+        #expect(max(cached.width, cached.height) <= size * 2)
+    }
+
+    /// A small decode is the whole picture only when the file is that small.
+    @Test func smallDecodesKnowWhetherTheyAreWhole() throws {
+        let scratch = try ScratchFolder()
+        let tiny = try scratch.jpeg("tiny.jpg", width: 300, height: 200)
+        let large = try scratch.jpeg("large.jpg", width: 2400, height: 1600)
+        let whole = try #require(LayoutImageProvider.decodeFile(tiny, 0, 512))
+        #expect(whole.isFullResolution && whole.image.width == 300)
+        let part = try #require(LayoutImageProvider.decodeFile(large, 0, 256))
+        #expect(!part.isFullResolution && max(part.image.width, part.image.height) == 256)
+        let print = try #require(LayoutImageProvider.decodeFile(large, 0, 1000))
+        #expect(!print.isFullResolution && max(print.image.width, print.image.height) >= 970)
+    }
+
+    /// Page Setup keeps the paper and scale of the last print, never its
+    /// copies, pages or destination.
+    @Test func aPrintHandsOnOnlyItsPaperToPageSetup() {
+        let shared = NSPrintInfo()
+        shared.topMargin = 40
+        let chosen = NSPrintInfo()
+        chosen.paperSize = NSSize(width: 842, height: 595)
+        chosen.orientation = .landscape
+        chosen.scalingFactor = 0.8
+        chosen.topMargin = 0
+        chosen.jobDisposition = .save
+        chosen.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = URL(fileURLWithPath: "/tmp/elsewhere.pdf")
+        chosen.dictionary()[NSPrintInfo.AttributeKey.copies] = 3
+        chosen.dictionary()[NSPrintInfo.AttributeKey.firstPage] = 2
+        chosen.dictionary()[NSPrintInfo.AttributeKey.lastPage] = 2
+        let setup = PrintSession.pageSetup(from: chosen, keeping: shared)
+        #expect(setup.paperSize == NSSize(width: 842, height: 595))
+        #expect(setup.orientation == .landscape)
+        #expect(setup.scalingFactor == 0.8)
+        #expect(setup.topMargin == 40)
+        #expect(setup.jobDisposition == shared.jobDisposition)
+        #expect(setup.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] == nil)
+        #expect((setup.dictionary()[NSPrintInfo.AttributeKey.copies] as? Int ?? 1) == 1)
+        #expect((setup.dictionary()[NSPrintInfo.AttributeKey.firstPage] as? Int ?? 1) == 1)
     }
 
     @Test func storeRoundTripsAndRepairs() throws {

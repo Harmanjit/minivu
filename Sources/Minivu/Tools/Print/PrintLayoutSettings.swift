@@ -89,7 +89,7 @@ nonisolated struct PrintPaper: Sendable, Equatable {
         self.size = size
         self.imageableBounds = imageableBounds ?? CGRect(origin: .zero, size: size)
         // Page Setup goes down to 1%; below 10% nothing on the page is
-        // legible, and each page must stay within the print view's pitch.
+        // legible, and a layout ten times the sheet is plenty to decode for.
         self.scale = scale > 0 ? max(scale, 0.1) : 1
         self.dotsPerInch = dotsPerInch > 0 ? dotsPerInch : 300
     }
@@ -105,6 +105,16 @@ nonisolated struct PrintPaper: Sendable, Equatable {
     /// The page in the print view's units: the paper at Page Setup's scale,
     /// so a 50% scale lays out a page twice as large that prints half size.
     var pageSize: CGSize { CGSize(width: size.width / scale, height: size.height / scale) }
+
+    /// The part of the sheet the printer can mark, in points from the
+    /// sheet's top-left corner with y growing downwards; the whole sheet
+    /// when the printer reports nothing sensible.
+    var printableSheetRect: CGRect {
+        let sheet = CGRect(origin: .zero, size: size)
+        let bounds = imageableBounds.intersection(sheet)
+        guard !bounds.isNull, bounds.width > 0, bounds.height > 0 else { return sheet }
+        return CGRect(x: bounds.minX, y: size.height - bounds.maxY, width: bounds.width, height: bounds.height)
+    }
 
     /// The printer's unprintable edge on each side, in the view's units.
     var unprintableInsets: LayoutInsets {

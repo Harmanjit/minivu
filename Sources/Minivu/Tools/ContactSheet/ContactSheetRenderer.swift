@@ -91,7 +91,7 @@ nonisolated enum ContactSheetRenderer {
     static func writePDF(items: [LayoutItem], settings: ContactSheetSettings, header: String?, to url: URL,
                          provider: LayoutImageProvider, cancel: CancellationFlag, progress: (Int) -> Void) throws {
         let layout = settings.layout(imageCount: items.count, header: header)
-        let pointsPerPixel = 72 / settings.pageSize.dotsPerInch
+        let pointsPerPixel = settings.pdfPointsPerPixel
         var mediaBox = CGRect(x: 0, y: 0, width: layout.pageSize.width * pointsPerPixel,
                               height: layout.pageSize.height * pointsPerPixel)
         let info: [CFString: Any] = [kCGPDFContextCreator: "minivu", kCGPDFContextTitle: header ?? "Contact Sheet"]
