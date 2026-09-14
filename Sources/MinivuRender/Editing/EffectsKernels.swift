@@ -168,8 +168,10 @@ enum EffectsKernels {
             float3 lit = relief < 1.0 ? e * relief : e + max(1.0 - e, 0.0) * lift;
             float grey = relief < 1.0 ? 0.5 * relief : 0.5 + 0.5 * lift;
             float3 o = mix(float3(grey), lit, params.w);
-            float a = mix(1.0, s.a, params.w);
-            return float4(effectsDecode3(o) * a, a);
+            // The photo's own coverage at any blend: the grey relief is of the
+            // photo, so a rotation's transparent corners stay transparent
+            // rather than filling with grey as the colour is turned down.
+            return float4(effectsDecode3(o) * s.a, s.a);
         }
         """,
         "effectsSketchGrey": """

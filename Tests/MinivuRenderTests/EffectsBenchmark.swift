@@ -12,8 +12,11 @@ import CoreGraphics
 /// release build currently stops in the compiler on `BrowserModel`), preview
 /// at 3024 px, request to delivery with the mip chain, warm medians:
 ///     drop shadow 8.6 ms, frame (matte) 5.0, bump map 7.7, sketch 9.9,
-///     oil paint 20.1 (radius 4 at full size, 2 on the proxy), lens 4.3
-///     full resolution 6032 x 4032, oil paint radius 4 (four tiles): 149 ms
+///     oil paint 20.7 (radius 4 at full size, 2 on the proxy), lens 3.9
+///     full resolution 6032 x 4032, oil paint radius 4 (four tiles): 166 ms
+///     (149 ms before alpha was filtered with the colours); at radius 16,
+///     about 1.5 s, and 122 ms for its preview
+///
 /// The oil paint kernel first measured 135 ms and 1650 ms, gathering its
 /// eight sectors one at a time; gathering them as two four-wide vectors,
 /// with one summed square per sample, made it seven to eleven times faster.

@@ -93,15 +93,24 @@ kernel void effectsOilPaint(texture2d<float, access::read> src [[texture(0)]],
     int maxY = int(ceil(sqrt(a * a * s * s + b * b * c * c)));
 
     // Per-sector sums, sectors 0-3 in the A vectors and 4-7 in the B ones:
-    // weighted red, green and blue, and weighted squared length of the
-    // colour (all a sector's variance needs is the sum over channels). A
+    // weighted red, green, blue and alpha, and weighted squared length of
+    // the colour (all a sector's variance needs is the sum over channels). A
     // sample adds to sector k with its weight for k, and its mirror adds
     // with the same weight to sector k + 4, so both groups share one weight
     // total. The centre belongs to every sector a little, so none is empty.
-    float4 centre = src.read(uint2(clamp(sx, 0, srcW - 1), clamp(sy, 0, srcH - 1)));
-    float3 cc = centre.rgb;
+    //
+    // Alpha is filtered like the colours rather than taken from the centre:
+    // the colours are premultiplied, so a sector's mean colour is only valid
+    // with that sector's mean alpha. With the centre's alpha, a half-covered
+    // pixel on a transparent edge (a rotation's corners, a PNG's cut-out)
+    // took opaque sectors' colour and came out up to two and a half times
+    // too bright once unpremultiplied. Alpha counts in the variance too, so a
+    // sector across such an edge counts for little, like one across a
+    // colour edge.
+    float4 cc = src.read(uint2(clamp(sx, 0, srcW - 1), clamp(sy, 0, srcH - 1)));
     float4 rA = float4(cc.r * 0.125), gA = float4(cc.g * 0.125), bA = float4(cc.b * 0.125);
-    float4 rB = rA, gB = gA, bB = bA;
+    float4 aA = float4(cc.a * 0.125);
+    float4 rB = rA, gB = gA, bB = bA, aB = aA;
     float4 qA = float4(dot(cc, cc) * 0.125), qB = qA;
     float4 weight = float4(0.125);
 
@@ -120,12 +129,13 @@ kernel void effectsOilPaint(texture2d<float, access::read> src [[texture(0)]],
             wa *= g;
             wb *= g;
             // Texture rows count down while j counts up.
-            float3 up = src.read(uint2(clamp(sx + i, 0, srcW - 1), clamp(sy - j, 0, srcH - 1))).rgb;
-            float3 lo = src.read(uint2(clamp(sx - i, 0, srcW - 1), clamp(sy + j, 0, srcH - 1))).rgb;
+            float4 up = src.read(uint2(clamp(sx + i, 0, srcW - 1), clamp(sy - j, 0, srcH - 1)));
+            float4 lo = src.read(uint2(clamp(sx - i, 0, srcW - 1), clamp(sy + j, 0, srcH - 1)));
             float upq = dot(up, up), loq = dot(lo, lo);
             rA += up.r * wa + lo.r * wb;  rB += up.r * wb + lo.r * wa;
             gA += up.g * wa + lo.g * wb;  gB += up.g * wb + lo.g * wa;
             bA += up.b * wa + lo.b * wb;  bB += up.b * wb + lo.b * wa;
+            aA += up.a * wa + lo.a * wb;  aB += up.a * wb + lo.a * wa;
             qA += upq * wa + loq * wb;    qB += upq * wb + loq * wa;
             weight += wa + wb;
         }
@@ -134,20 +144,22 @@ kernel void effectsOilPaint(texture2d<float, access::read> src [[texture(0)]],
     // Blend the sector means, each by how uniform its sector is.
     float q = u.params.w;
     float4 inverse = 1.0 / weight;
-    float3 result = float3(0.0);
+    float4 result = float4(0.0);
     float weights = 0.0;
     for (int group = 0; group < 2; group++) {
         float4 mr = (group == 0 ? rA : rB) * inverse;
         float4 mg = (group == 0 ? gA : gB) * inverse;
         float4 mb = (group == 0 ? bA : bB) * inverse;
+        float4 ma = (group == 0 ? aA : aB) * inverse;
         float4 mq = (group == 0 ? qA : qB) * inverse;
-        float4 sigma2 = abs(mq - (mr * mr + mg * mg + mb * mb));
+        float4 sigma2 = abs(mq - (mr * mr + mg * mg + mb * mb + ma * ma));
         float4 wk = 1.0 / (1.0 + pow(255.0 * sigma2, float4(0.5 * q)));
-        result += float3(dot(mr, wk), dot(mg, wk), dot(mb, wk));
+        result += float4(dot(mr, wk), dot(mg, wk), dot(mb, wk), dot(ma, wk));
         weights += wk.x + wk.y + wk.z + wk.w;
     }
-    // Premultiplied colours stay premultiplied: alpha is the centre's.
-    float4 painted = float4(result / max(weights, 1e-8), centre.a);
+    // A blend of premultiplied means with weights summing to one is itself
+    // premultiplied.
+    float4 painted = result / max(weights, 1e-8);
 
     // Soft brightness steps: a shift of the encoded colour to the nearest of
     // `levels` luminance steps, eased across the middle third of each step.

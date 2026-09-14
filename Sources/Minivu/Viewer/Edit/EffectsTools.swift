@@ -40,6 +40,11 @@ protocol EffectTool: EditToolState {
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private let document: EditDocument
     @ObservationIgnored private let makeOperation: (Payload) -> EditOperation
+    /// Applied or cancelled. The shared colour panel can outlive the
+    /// inspector whose well opened it, and a colour picked there afterwards
+    /// would otherwise put this tool's preview back on the document, over
+    /// the committed edit, with no tool open to apply or cancel it.
+    @ObservationIgnored private var isClosed = false
 
     init(kind: EffectKind, document: EditDocument, initial: Payload,
          operation: @escaping (Payload) -> EditOperation) {
@@ -58,6 +63,7 @@ protocol EffectTool: EditToolState {
     /// Changes the payload; the preview follows (renders coalesce, so a
     /// dragged slider skips states the GPU can't keep up with).
     func update(_ body: (inout Payload) -> Void) {
+        guard !isClosed else { return }
         var next = payload
         body(&next)
         guard next != payload else { return }
@@ -67,10 +73,14 @@ protocol EffectTool: EditToolState {
     }
 
     func apply() {
+        guard !isClosed else { return }
+        isClosed = true
         document.apply(operation)   // an identity commits nothing and clears the preview
     }
 
     func cancel() {
+        guard !isClosed else { return }
+        isClosed = true
         document.preview = nil
     }
 

@@ -48,6 +48,26 @@ import MinivuRender
         #expect(document.preview == nil && document.operations.isEmpty)
     }
 
+    /// The shared colour panel outlives the inspector: a colour picked after
+    /// Apply or Cancel must not put a preview back on the document.
+    @Test func aClosedToolIgnoresLateChanges() {
+        let document = effectDocument()
+        let shadow = EffectToolState(kind: .dropShadow, document: document, initial: DropShadow()) { .dropShadow($0) }
+        let well = shadow.colorBinding(\.color)
+        shadow.apply()
+        well.wrappedValue = CGColor(red: 1, green: 0, blue: 0, alpha: 1)
+        shadow.reset()
+        #expect(document.preview == nil && document.operations.count == 1)
+        #expect(shadow.payload == DropShadow())
+        shadow.apply()
+        #expect(document.operations.count == 1)
+
+        let frame = EffectToolState(kind: .frame, document: document, initial: FrameStyle()) { .frame($0) }
+        frame.cancel()
+        frame.binding(\.kind).wrappedValue = .bevel
+        #expect(document.preview == nil && frame.payload.kind == .solid)
+    }
+
     @Test func anIdentitySettingShowsNothingAndCommitsNothing() {
         let document = effectDocument()
         let state = EffectToolState(kind: .lens, document: document, initial: LensEffect()) { .lens($0) }

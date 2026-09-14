@@ -200,6 +200,17 @@ final class LensOverlayView: NSView {
         updateCursor(at: convert(event.locationInWindow, from: nil))
     }
 
+    /// Return or Esc can close the tool mid-drag, removing the overlay before
+    /// its mouse-up: the closed hand pushed for the move comes off the
+    /// cursor stack here instead of staying on it.
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        if newWindow == nil, case .move = drag {
+            NSCursor.pop()
+            drag = nil
+        }
+    }
+
     // MARK: - Cursor
 
     override func updateTrackingAreas() {
