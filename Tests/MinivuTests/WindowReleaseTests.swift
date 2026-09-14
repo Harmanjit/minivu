@@ -196,14 +196,11 @@ extension AppWindowTests {
         /// The browser's tool sheets (contact sheet, montage, batch convert and
         /// rename), each opened and cancelled on one window: none of their
         /// controllers, sheets or models survive.
-        @Test func toolSheetsAreFreed() async throws {
+        @Test(.batchToolsReset) func toolSheetsAreFreed() async throws {
             let scratchDefaults = ScratchDefaults("minivu-window-release-tests")
             defer { scratchDefaults.remove() }
             let defaults = scratchDefaults.defaults
-            // Real sheets: other suites leave a recorder of their own here.
-            let savedSheets = BatchTools.sheets
-            BatchTools.sheets = .system
-            defer { BatchTools.sheets = savedSheets }
+            // Real sheets: the reset trait puts the system presenter back.
             let folder = try ScratchFolder()
             let list = try jpegs(["a.jpg", "b.jpg"], in: folder)
             let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 800), styleMask: [.titled],

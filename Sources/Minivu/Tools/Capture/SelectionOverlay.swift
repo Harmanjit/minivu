@@ -96,6 +96,16 @@ final class SelectionOverlayWindow: NSWindow {
     // needs it for Esc and Return.
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    /// Every key press is the overlay's while it is up. AppKit offers key
+    /// presses to the key window, then to the menu bar, and a menu item with
+    /// a nil target would reach the browser or viewer behind, which stays
+    /// main: ⌘Delete would trash its photos. Esc and Return still work.
+    /// (Not by way of `keyDown`: NSWindow's sends unhandled keys back here.)
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        _ = overlayView.handleKey(event)
+        return true
+    }
 }
 
 final class SelectionOverlayView: NSView {
@@ -161,14 +171,20 @@ final class SelectionOverlayView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
+        if !handleKey(event) { super.keyDown(with: event) }
+    }
+
+    /// Esc cancels; Return captures the rectangle. False for other keys.
+    func handleKey(_ event: NSEvent) -> Bool {
         switch event.keyCode {
         case 53:   // Esc
             onFinish?(nil)
         case 36, 76:   // Return, Enter
             if let selection, CaptureGeometry.isUsable(selection) { onFinish?(selection) }
         default:
-            super.keyDown(with: event)
+            return false
         }
+        return true
     }
 
     override func cancelOperation(_ sender: Any?) {

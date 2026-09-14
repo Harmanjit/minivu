@@ -288,6 +288,52 @@ final class FakeCapturer: ScreenCapturing {
         #expect(capturer.displayRequests.count == 1)
     }
 
+    /// The overlay is key but never main, so a menu shortcut would go on to
+    /// the browser or viewer behind it: ⌘Delete would trash photos. The
+    /// overlay takes every key equivalent before the menu bar can, and Esc
+    /// and Return still cancel and capture. Nothing is put on screen.
+    @Test func selectionOverlayKeepsMenuShortcutsFromOtherWindows() async throws {
+        _ = NSApplication.shared
+        let scratch = try ScratchFolder()
+        let capturer = FakeCapturer()
+        let (controller, recorder) = controller(capturer, pictures: scratch.url)
+        func key(_ code: UInt16, _ characters: String, _ flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
+            try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
+                                          windowNumber: 0, context: nil, characters: characters,
+                                          charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code))
+        }
+        final class Target: NSObject {
+            var trashed = 0
+            @objc func moveToTrash(_ sender: Any?) { trashed += 1 }
+        }
+        let target = Target()
+        let menu = NSMenu()
+        let item = menu.addItem(withTitle: "Move to Trash", action: #selector(Target.moveToTrash(_:)),
+                                keyEquivalent: MainMenu.Key.backspace)
+        item.target = target
+        let commandDelete = try key(51, MainMenu.Key.backspace, .command)
+        #expect(menu.performKeyEquivalent(with: commandDelete) && target.trashed == 1, "the shortcut matches")
+
+        controller.captureSelection(preset: (CGRect(x: 100, y: 732, width: 300, height: 200), main))
+        let window = try #require(controller.overlay?.windows.first { $0.frame == main.frame })
+        #expect(window.canBecomeKey && !window.canBecomeMain)
+        // AppKit's order: the key window first, the menu bar only if it declines.
+        #expect(window.performKeyEquivalent(with: commandDelete) || menu.performKeyEquivalent(with: commandDelete))
+        #expect(target.trashed == 1 && controller.overlay != nil && capturer.displayRequests.isEmpty)
+
+        #expect(window.performKeyEquivalent(with: try key(36, "\r")))
+        #expect(controller.overlay == nil)
+        await controller.work?.value
+        #expect(capturer.displayRequests.first?.sourceRect == CGRect(x: 100, y: 50, width: 300, height: 200))
+        #expect(recorder.opened.count == 1)
+
+        controller.captureSelection()
+        let second = try #require(controller.overlay?.windows.first)
+        #expect(second.performKeyEquivalent(with: try key(53, "\u{1b}")))
+        #expect(controller.overlay == nil && controller.work == nil && capturer.displayRequests.count == 1)
+        #expect(target.trashed == 1)
+    }
+
     /// Only the real app records the screen: a snapshot run or a test
     /// process can never bring up the permission prompt.
     @Test func harnessAndTestsNeverUseScreenCaptureKit() async {

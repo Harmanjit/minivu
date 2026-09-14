@@ -11,7 +11,7 @@ extension AppWindowTests {
     /// Batch Convert: the job's policies, cancelling and failures on real
     /// files, the sheet's model, and the whole run from the browser window.
     /// Replaced files go to a Trash folder of the test's own.
-    @MainActor @Suite(.serialized) struct BatchConvertWindowTests {
+    @MainActor @Suite(.serialized, .batchToolsReset) struct BatchConvertWindowTests {
         let catalog = Catalog.inMemory()
         /// Removed when the test's suite instance goes.
         let scratchDefaults = ScratchDefaults("minivu-batch-convert-tests")
@@ -19,10 +19,8 @@ extension AppWindowTests {
 
         init() {
             BatchTools.store = BatchStore(defaults: defaults)
-            BatchTools.confirmReplacing = nil
             // Never the user's Trash: a test that replaces sets its own folder.
             BatchTools.trash = { url in throw CocoaError(.fileWriteNoPermission, userInfo: [NSFilePathErrorKey: url.path]) }
-            BatchTools.concurrency = nil
             BatchTools.sheets = sheets.presenter
         }
 

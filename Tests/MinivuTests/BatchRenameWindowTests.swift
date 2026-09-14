@@ -7,7 +7,7 @@ import MinivuCore
 extension AppWindowTests {
     /// Batch Rename through the browser window (never shown), with a catalog
     /// and a settings store of its own.
-    @MainActor @Suite(.serialized) struct BatchRenameWindowTests {
+    @MainActor @Suite(.serialized, .batchToolsReset) struct BatchRenameWindowTests {
         let catalog = Catalog.inMemory()
         /// Removed when the test's suite instance goes.
         let scratchDefaults = ScratchDefaults("minivu-batch-rename-tests")
@@ -249,6 +249,40 @@ extension AppWindowTests {
             #expect(model.canRename)
         }
     }
+}
+
+/// Puts `BatchTools` back as the app starts it before and after each test,
+/// even one that throws, so a store, Trash or sheet recorder injected by one
+/// suite never reaches another. A batch still running gets a few seconds to
+/// finish first, or it would carry on with the next test's injections.
+/// Suites using it share these statics, so they also run `.serialized` (as
+/// children of `AppWindowTests`).
+struct BatchToolsReset: SuiteTrait, TestTrait, TestScoping {
+    var isRecursive: Bool { true }
+
+    func provideScope(for test: Test, testCase: Test.Case?,
+                      performing function: @Sendable () async throws -> Void) async throws {
+        await Self.reset()
+        do {
+            try await function()
+        } catch {
+            await Self.reset()
+            throw error
+        }
+        await Self.reset()
+    }
+
+    @MainActor static func reset() async {
+        let end = Date().addingTimeInterval(10)
+        while !BatchTools.work.isEmpty || BatchTools.renamesRunning > 0, Date() < end {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        BatchTools.reset()
+    }
+}
+
+extension Trait where Self == BatchToolsReset {
+    static var batchToolsReset: Self { Self() }
 }
 
 /// Records the batch sheets instead of animating them onto a window.

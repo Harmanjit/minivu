@@ -66,6 +66,21 @@ enum BatchReplaceChoice {
         while renamesRunning > 0 { try? await Task.sleep(for: .milliseconds(20)) }
     }
 
+    /// Everything as the app starts, for tests to put back what they
+    /// injected and what a batch left behind.
+    static func reset() {
+        store = BatchStore()
+        trash = BatchFileWriter.systemTrash
+        confirmReplacing = nil
+        converter = { BatchConvertJob.makeConverter() }
+        concurrency = nil
+        sheets = .system
+        running = [:]
+        work = [:]
+        sheetsUp = [:]
+        renamesRunning = 0
+    }
+
     fileprivate static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
         work[id] = task
     }
