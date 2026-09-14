@@ -94,7 +94,7 @@ final class SlideshowContentView: NSView {
 /// - **Nothing runs between slides** but one scheduled work item for the
 ///   next. The display link runs only while a transition animates.
 /// - **The next and previous slides decode ahead** through
-///   `ImageLoader.shared` at the screen's size, so a transition starts the
+///   `ImageLoader.shared` fitted to the screen, so a transition starts the
 ///   moment the interval is up. If an image isn't ready, the show waits for
 ///   it; if it can't load, it is skipped.
 /// - **A key press never waits for a transition**: → or ← finishes the one
@@ -168,8 +168,10 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
     private let store: SlideshowSettingsStore
     private var settings: SlideshowSettings { store.settings }
     private let onEnd: (FolderEntry?) -> Void
-    /// Long edge of the display in pixels: the size slides decode at.
-    private var pixelSize: Int
+    /// The picture area in pixels, which slides decode fitted into, both
+    /// slides of a transition alike. Only zoom draws a slide past fit: the
+    /// old one, 30% at most, as it fades out.
+    private var fitSize: CGSize
     /// The display the show covers, by id (see `ViewerWindowController.fullScreenDisplayID`).
     private(set) var displayID: UInt32?
     private let music: SlideshowMusic?
@@ -226,7 +228,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
                              refreshBookmarks: { [store] refreshed in store.refreshPlaylistBookmarks(refreshed) })
             : nil
         let frame = display?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        pixelSize = display?.pixelLongEdge ?? 2880
+        fitSize = Self.pictureFitSize(on: display ?? DisplayInfo(id: 0, frame: frame))
         displayID = display?.id
         let window = SlideshowWindow(frame: frame)
         super.init(window: window)
@@ -394,7 +396,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
     private func request(_ index: Int) {
         guard ready[index] == nil, handles[index] == nil, !sequence.failed.contains(index) else { return }
         var delivered = false
-        let handle = AppServices.images.load(images[index], pixelSize: pixelSize) { [weak self] result in
+        let handle = AppServices.images.load(images[index], fitting: fitSize) { [weak self] result in
             delivered = true
             self?.loaded(index, result)
         }
@@ -703,13 +705,23 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
     private func displayChanged(to display: DisplayInfo) {
         updateDynamicRange()
         slideView.screenChanged()
-        // Slides decoded for a smaller display would be soft on this one;
-        // decoded for a larger one they are only sampled down, and stay.
-        let size = display.pixelLongEdge
-        guard size != pixelSize else { return }
-        let sharper = size > pixelSize
-        pixelSize = size
+        // Slides decoded for a smaller picture would be soft on this one;
+        // decoded for one at least as large both ways they are only sampled
+        // down, and stay. (A portrait photo fitted to a landscape display is
+        // too small for a portrait one, though that display is no larger.)
+        let size = Self.pictureFitSize(on: display)
+        guard size != fitSize else { return }
+        let sharper = size.width > fitSize.width || size.height > fitSize.height
+        fitSize = size
         if sharper { reloadNeighbours() }
+    }
+
+    /// The picture area on `display` in pixels: below any camera housing.
+    private static func pictureFitSize(on display: DisplayInfo) -> CGSize {
+        let area = DisplayPlacement.pictureArea(in: CGRect(origin: .zero, size: display.frame.size),
+                                                safeAreaTop: display.safeAreaTop, flipped: true)
+        return CGSize(width: (area.width * display.backingScale).rounded(),
+                      height: (area.height * display.backingScale).rounded())
     }
 
     /// Window > Move to Next Display (⌃⌥⌘→): the show goes on on the next
@@ -759,8 +771,8 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
     var keepsDisplayAwake: Bool { activity != nil }
     var areControlsShown: Bool { controlBar.isShown }
     var captionText: String? { caption.text }
-    /// Long edge in pixels that slides decode at, for tests.
-    var decodePixelSize: Int { pixelSize }
+    /// The view size in pixels that slides are fitted into for decoding, for tests.
+    var decodeFitSize: CGSize { fitSize }
     /// The picture's frame in the window, for tests.
     var pictureFrame: CGRect { slideView.frame }
     var musicPlayer: SlideshowMusic? { music }

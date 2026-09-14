@@ -355,7 +355,7 @@ extension AppWindowTests {
                 defer { slideshow.end() }
                 let window = try #require(slideshow.window)
                 #expect(window.frame == two.frame && slideshow.displayID == 2)
-                #expect(slideshow.decodePixelSize == two.pixelLongEdge)
+                #expect(slideshow.decodeFitSize == CGSize(width: 1512 * 2, height: 944 * 2))
                 window.contentView?.layoutSubtreeIfNeeded()
                 #expect(slideshow.pictureFrame == CGRect(x: 0, y: 38, width: 1512, height: 944))
                 #expect(window.backgroundColor == .black)

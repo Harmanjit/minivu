@@ -1346,7 +1346,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         backgroundSubscription = nil
         hud.cancelFade()
         filmstrip.setActive(false)
-        AppServices.images.prefetch([], pixelSize: 0)
+        AppServices.images.prefetch(pages: [], fitting: .zero)
         FullScreenPresentation.shared.release(self)
         NotificationCenter.default.removeObserver(self)
 

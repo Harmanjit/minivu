@@ -118,22 +118,17 @@ public final class TextureCache: @unchecked Sendable {
     }
 
     /// Full resolution if cached, else the smallest screen texture whose long
-    /// edge >= 0.97 * min(minimumLongEdge, image long edge).
+    /// edge >= 0.97 * min(fitted, image long edge), where fitted is the long
+    /// edge the image has fitted into `viewSize` (drawable pixels; a square
+    /// asks for its side whatever the aspect). Worked out from each texture's
+    /// own image size, so a texture decoded for a larger view (or for the
+    /// view's long edge) still serves a smaller fit.
     ///
     /// The 3% tolerance is the same one `ImageDecoder.scaledDecodeSize` uses
     /// when it snaps a request to a cheap codec scale, so a texture decoded
     /// for a request is found again by the same request. Capping at the
     /// image's own long edge lets a small image's only texture satisfy a
     /// large window.
-    public func bestTexture(url: URL, modified: Date, page: Int, minimumLongEdge: Int) -> ImageTexture? {
-        bestTexture(url: url, modified: modified, page: page,
-                    fitting: CGSize(width: minimumLongEdge, height: minimumLongEdge))
-    }
-
-    /// The same for the image fitted into `viewSize` (drawable pixels): the
-    /// long edge needed is the one the image has there, worked out from each
-    /// texture's own image size, so a texture decoded for a larger view (or
-    /// for the view's long edge) still serves a smaller fit.
     public func bestTexture(url: URL, modified: Date, page: Int, fitting viewSize: CGSize) -> ImageTexture? {
         lock.lock(); defer { lock.unlock() }
         var best: (key: TextureKey, entry: Entry)?

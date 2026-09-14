@@ -260,14 +260,6 @@ public struct DisplaySettings: Sendable, Equatable {
 
     // MARK: - Requests
 
-    /// Texture whose long edge covers pixelSize, for entry/page, whatever
-    /// the image's aspect: `load(_:page:fitting:update:)` with a square view.
-    @discardableResult
-    public func load(_ entry: FolderEntry, page: Int = 0, pixelSize: Int,
-                     update: @escaping (Result<ImageTexture, Error>) -> Void) -> LoadHandle {
-        load(entry, page: page, fitting: Self.square(pixelSize), update: update)
-    }
-
     /// Texture that covers the image fitted into `viewSize` (the canvas's
     /// drawable pixels), for entry/page: a 3:2 photo in a 16:10 window needs
     /// less than the window's long edge. The image's size needn't be known:
@@ -300,18 +292,13 @@ public struct DisplaySettings: Sendable, Equatable {
         return enqueue(entry, page: page, target: nil, update: update)
     }
 
-    /// Background decode at utility priority of these entries at pixelSize;
-    /// replaces the previous prefetch set, cancelling entries no longer
-    /// wanted.
+    /// Background decode at utility priority of these pages (0 for a plain
+    /// image; a document's next page can go ahead of the neighbouring
+    /// files); replaces the previous prefetch set, cancelling pages no longer
+    /// wanted. An empty list stops prefetching.
     ///
     /// Pass the nearest neighbours first: waiting prefetches start in the
     /// order given.
-    public func prefetch(_ entries: [FolderEntry], pixelSize: Int) {
-        prefetch(pages: entries.map { ($0, 0) }, fitting: Self.square(pixelSize))
-    }
-
-    /// The same for particular pages, so a document's next page can be
-    /// prefetched ahead of the neighbouring files.
     ///
     /// RAW renders are prefetched for the nearest RAW file only (the first
     /// in `pages`), and not at all where `prefetchesRawRenders` is false;
@@ -728,7 +715,7 @@ public struct DisplaySettings: Sendable, Equatable {
         guard let size = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page) else { return nil }
         let longest = Int(max(size.width, size.height))
         let texture = cache.bestTexture(url: entry.url, modified: entry.modified, page: page,
-                                        minimumLongEdge: min(longest, TextureUploader.maximumDimension))
+                                        fitting: Self.square(min(longest, TextureUploader.maximumDimension)))
         guard let texture else { return nil }
         if texture.isFullResolution { return texture }
         let edge = max(texture.texture.width, texture.texture.height)

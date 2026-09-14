@@ -112,7 +112,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         // Four panes in a row in a small window leave no room for the zoom
         // readout beside the stars, tag and trash; it goes first.
         zoomLabel.isHidden = b.width < Self.minimumWidthForZoomLabel
-        if needsLoad, canvasLongEdge > 0 { load() }
+        if needsLoad, canvasFitSize.width >= 1, canvasFitSize.height >= 1 { load() }
     }
 
     private func updateBorder() {
@@ -246,21 +246,21 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         load()
     }
 
-    private var canvasLongEdge: Int {
-        let size = canvas.drawablePixelSize
-        return Int(max(size.width, size.height))
-    }
+    /// The canvas in pixels: screen-sized decodes are for the image fitted
+    /// into it, which in a pane beside others is often much less than its
+    /// long edge.
+    private var canvasFitSize: CGSize { canvas.drawablePixelSize }
 
     private func load() {
         guard let entry else { return }
-        let edge = canvasLongEdge
-        guard edge > 0, window != nil else {
+        let fitSize = canvasFitSize
+        guard fitSize.width >= 1, fitSize.height >= 1, window != nil else {
             needsLoad = true
             return
         }
         needsLoad = false
         let cache = AppServices.images.cache
-        if let hit = cache.bestTexture(url: entry.url, modified: entry.modified, page: 0, minimumLongEdge: edge) {
+        if let hit = cache.bestTexture(url: entry.url, modified: entry.modified, page: 0, fitting: fitSize) {
             display(hit, of: entry)
             return
         }
@@ -274,7 +274,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
                 updateZoom()
             }
         }
-        loadHandle = AppServices.images.load(entry, pixelSize: edge) { [weak self] result in
+        loadHandle = AppServices.images.load(entry, fitting: fitSize) { [weak self] result in
             self?.loadFinished(result, entry: entry)
         }
     }
@@ -417,13 +417,16 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
             guard let self, case .success(let texture) = result, self.entry == entry else { return }
             self.display(texture, of: entry)
         }
-        let edge = canvasLongEdge
+        let fitSize = canvasFitSize
         let handle: LoadHandle
+        // Compared with the image's fitted size, not the pane's long edge: a
+        // fitted texture under the magnifier must go to full resolution.
         if ViewerWindowController.wantsScreenSizedSharpening(
             fitted: canvas.zoomMode == .fit, kind: entry.kind,
             imageLongEdge: max(image.imageSize.width, image.imageSize.height),
-            textureLongEdge: max(image.textureSize.width, image.textureSize.height), canvasLongEdge: edge) {
-            handle = AppServices.images.load(entry, pixelSize: edge, update: deliver)
+            textureLongEdge: max(image.textureSize.width, image.textureSize.height),
+            canvasLongEdge: ImageDecoder.fittedLongEdge(imageSize: image.imageSize, in: fitSize)) {
+            handle = AppServices.images.load(entry, fitting: fitSize, update: deliver)
         } else {
             handle = AppServices.images.loadFullResolution(entry, update: deliver)
         }

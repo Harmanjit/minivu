@@ -47,7 +47,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
                 cancelLoads()
                 targetEntry = nil
                 // Neighbours of a photo nobody can see aren't worth decoding.
-                AppServices.images.prefetch([], pixelSize: 0)
+                AppServices.images.prefetch(pages: [], fitting: .zero)
             }
         }
     }
@@ -347,15 +347,15 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     private func load(_ entry: FolderEntry, neighbours: [FolderEntry], reloading: Bool) {
         cancelLoads()
         targetEntry = entry
-        let pixelSize = previewPixelSize
+        let fitSize = previewFitSize
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified, page: 0,
-                                                              minimumLongEdge: pixelSize) {
+                                                              fitting: fitSize) {
             display(texture, for: entry, neighbours: neighbours, reloading: reloading)
             return
         }
         let start = { [weak self] in
             guard let self, self.targetEntry == entry else { return }
-            self.loadHandle = AppServices.images.load(entry, pixelSize: pixelSize) { [weak self] result in
+            self.loadHandle = AppServices.images.load(entry, fitting: fitSize) { [weak self] result in
                 guard let self, self.targetEntry == entry else { return }
                 self.loadHandle = nil
                 switch result {
@@ -398,7 +398,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
 
     private func prefetch(_ neighbours: [FolderEntry]) {
         guard !neighbours.isEmpty else { return }
-        AppServices.images.prefetch(neighbours, pixelSize: previewPixelSize)
+        AppServices.images.prefetch(pages: neighbours.map { ($0, 0) }, fitting: previewFitSize)
     }
 
     private func cancelLoads() {
@@ -410,10 +410,11 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         refineHandle = nil
     }
 
-    /// The canvas's long edge in pixels, which is all a fitted preview needs.
-    private var previewPixelSize: Int {
+    /// The canvas in pixels: a fitted preview needs the image fitted into
+    /// it, no more. At least 256 px square while the canvas has no size yet.
+    private var previewFitSize: CGSize {
         let size = canvas?.drawablePixelSize ?? .zero
-        return max(256, Int(max(size.width, size.height)))
+        return CGSize(width: max(256, size.width), height: max(256, size.height))
     }
 
     private func makeCanvasIfNeeded() -> ImageCanvasView {
@@ -464,7 +465,8 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     var canvasView: ImageCanvasView? { canvas }
 
     /// A screen-sized decode only helps a fitted canvas whose texture is
-    /// smaller than the canvas (3% slack, as the loader snaps sizes).
+    /// smaller than the image fitted into the canvas, `canvasEdge` (3% slack,
+    /// as the loader snaps sizes).
     nonisolated static func wantsScreenSizedRefine(fitted: Bool, textureEdge: Int, canvasEdge: Int) -> Bool {
         fitted && Double(textureEdge) < Double(canvasEdge) * 0.97
     }
@@ -499,10 +501,13 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             self.canvas?.setImage(texture, preserveView: true)
         }
         let textureEdge = canvas.image.map { Int(max($0.textureSize.width, $0.textureSize.height)) } ?? 0
+        let fitSize = previewFitSize
+        // The image's fitted long edge, not the canvas's: a texture that
+        // covers the fit is under the magnifier, and only full size helps.
+        let fittedEdge = ImageDecoder.fittedLongEdge(imageSize: canvas.image?.imageSize ?? .zero, in: fitSize)
         let handle: LoadHandle
-        if Self.wantsScreenSizedRefine(fitted: canvas.zoomMode == .fit, textureEdge: textureEdge,
-                                       canvasEdge: previewPixelSize) {
-            handle = AppServices.images.load(entry, pixelSize: previewPixelSize, update: deliver)
+        if Self.wantsScreenSizedRefine(fitted: canvas.zoomMode == .fit, textureEdge: textureEdge, canvasEdge: fittedEdge) {
+            handle = AppServices.images.load(entry, fitting: fitSize, update: deliver)
         } else {
             handle = AppServices.images.loadFullResolution(entry, update: deliver)
         }
