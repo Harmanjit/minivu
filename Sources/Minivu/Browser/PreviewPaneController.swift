@@ -22,6 +22,8 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
 
     /// The canvas was double-clicked: open the viewer on the shown photo.
     var onOpenViewer: (() -> Void)?
+    /// The wheel asked for the next (+1) or previous (-1) image.
+    var onStep: ((Int) -> Void)?
 
     /// False while the pane is collapsed: nothing is decoded for a preview
     /// nobody can see.
@@ -369,6 +371,12 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
 
     func canvasDidDoubleClick(_ canvas: ImageCanvasView) {
         onOpenViewer?()
+    }
+
+    /// Only sent in the "navigate" wheel mode: in "zoom" mode the canvas
+    /// zooms the preview itself.
+    func canvasRequestsNavigation(_ canvas: ImageCanvasView, offset: Int) {
+        onStep?(offset)
     }
 
     /// The pane grew past the texture, or the magnifier (or a wheel zoom)

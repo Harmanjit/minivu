@@ -32,6 +32,39 @@ nonisolated enum SidebarPaths {
             .filter { chain(from: roots[$0], to: target) != nil }
             .max { components(roots[$0]).count < components(roots[$1]).count }
     }
+
+    /// What identifies a folder among its siblings' URLs: the path, without
+    /// the trailing slash a directory URL may or may not carry.
+    static func key(_ url: URL) -> String {
+        url.standardizedFileURL.path
+    }
+}
+
+/// How a folder's subfolders changed between two listings, matched by URL:
+/// the rows that went (indexes into the old list) and the rows that came
+/// (indexes into the new list). The outline view removes and inserts just
+/// those, so a refresh animates the change instead of reloading the level,
+/// which would flicker and forget which rows below were expanded.
+nonisolated struct SidebarDiff: Equatable {
+    var removed = IndexSet()
+    var inserted = IndexSet()
+
+    var isEmpty: Bool { removed.isEmpty && inserted.isEmpty }
+
+    /// nil when rows present in both lists changed order, which removals
+    /// and insertions alone can't express (the sort order changed); the
+    /// level must be reloaded then. Duplicate URLs are treated likewise.
+    static func between(_ old: [URL], _ new: [URL]) -> SidebarDiff? {
+        let oldKeys = old.map(SidebarPaths.key), newKeys = new.map(SidebarPaths.key)
+        let oldSet = Set(oldKeys), newSet = Set(newKeys)
+        guard oldSet.count == oldKeys.count, newSet.count == newKeys.count else { return nil }
+        var diff = SidebarDiff()
+        for (i, key) in oldKeys.enumerated() where !newSet.contains(key) { diff.removed.insert(i) }
+        for (i, key) in newKeys.enumerated() where !oldSet.contains(key) { diff.inserted.insert(i) }
+        // Applying removals, then insertions, must turn old into new.
+        let keptOld = oldKeys.filter(newSet.contains), keptNew = newKeys.filter(oldSet.contains)
+        return keptOld == keptNew ? diff : nil
+    }
 }
 
 /// One row of the sidebar. A class, because NSOutlineView identifies rows
@@ -49,6 +82,8 @@ final class SidebarNode {
     /// at the first subfolder. Unknown (false) until that check is back.
     var mayHaveChildren: Bool
     var isListing = false
+    /// A refresh was asked for while a listing was out: list again when it lands.
+    var needsRelist = false
     /// The user or a reveal asked to expand this row before its children
     /// were listed.
     var wantsExpansion = false
@@ -76,7 +111,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// A row was chosen by the user.
     var onNavigate: ((URL) -> Void)?
 
-    private let outlineView = NSOutlineView()
+    /// Internal so tests can expand and collapse rows as a click would.
+    let outlineView = NSOutlineView()
     private let scrollView = NSScrollView()
     private let addButton = NSButton()
     private let header = SidebarNode(kind: .header, title: "Favorites", url: nil, symbolName: "", children: [])
@@ -84,6 +120,10 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private var currentFolder: URL?
     /// Set while selecting a row in code, so it isn't taken for a click.
     private var isSelectingInCode = false
+    /// Folders listed again because the folder being revealed wasn't among
+    /// their children, so a folder that really is hidden isn't relisted
+    /// over and over. Cleared for each new folder.
+    private var relistedForReveal: Set<String> = []
     private var favoritesObserver: NSObjectProtocol?
     private let picturesFolder: URL
     private let favoriteFolders: () -> [URL]
@@ -190,34 +230,126 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     // MARK: - Children
 
-    private func listChildren(of node: SidebarNode) {
-        guard let url = node.url, node.children == nil, !node.isListing else { return }
+    /// A subfolder as the background listing found it. Only what's new costs
+    /// a lookup: names and disclosure checks are kept from the rows already
+    /// shown.
+    private struct Found: Sendable {
+        let url: URL
+        let title: String
+        let hasSubfolders: Bool
+    }
+
+    /// Lists a row's subfolders off the main thread: the first time, or
+    /// again with `refresh` (the row was expanded again, the browser went
+    /// into it, or it changed on disk) to pick up folders made or deleted in
+    /// Finder since. A refresh asked for while a listing is out runs once
+    /// that one lands, so a burst of changes costs at most two listings.
+    ///
+    /// `recheckChildren` looks again at whether each subfolder already
+    /// shown has subfolders of its own. The folder watcher only reports
+    /// changes one level deep, so its refreshes skip that: in a folder of
+    /// big subfolders it would be a directory scan each, per change.
+    private func listChildren(of node: SidebarNode, refresh: Bool = false, recheckChildren: Bool = true) {
+        guard let url = node.url, refresh || node.children == nil else { return }
+        guard !node.isListing else {
+            if refresh { node.needsRelist = true }
+            return
+        }
         node.isListing = true
-        Task { [weak self] in
-            // One listing plus, per subfolder, a check that stops at its
-            // first subfolder: cheap even beside folders of 10,000 photos.
-            // Display names are looked up here too: each is a file system
-            // call, too many to make on the main thread for a big tree.
+        // Rows already shown keep their title, and rows whose own children
+        // are listed know whether they have any: neither needs the disk again.
+        var known: [String: (title: String, hasSubfolders: Bool?)] = [:]
+        for child in node.children ?? [] {
+            guard let childURL = child.url else { continue }
+            let listed = child.children.map { !$0.isEmpty }
+            known[SidebarPaths.key(childURL)] = (child.title, recheckChildren ? listed : listed ?? child.mayHaveChildren)
+        }
+        Task { [weak self, known] in
+            // One listing plus, per new or unexpanded subfolder, a check that
+            // stops at its first subfolder: cheap even beside folders of
+            // 10,000 photos. Display names are looked up here too: each is a
+            // file system call, too many to make on the main thread.
             let found = await Task.detached(priority: .userInitiated) {
-                FolderListing.subfolders(of: url).map {
-                    (url: $0, title: FileManager.default.displayName(atPath: $0.path),
-                     hasSubfolders: FolderListing.hasSubfolders($0))
+                FolderListing.subfolders(of: url).map { folder in
+                    let old = known[SidebarPaths.key(folder)]
+                    return Found(url: folder,
+                                 title: old?.title ?? FileManager.default.displayName(atPath: folder.path),
+                                 hasSubfolders: old?.hasSubfolders ?? FolderListing.hasSubfolders(folder))
                 }
             }.value
             guard let self else { return }
             node.isListing = false
-            node.children = found.map { folder in
-                SidebarNode(kind: .folder, title: folder.title, url: folder.url, symbolName: "folder",
-                            mayHaveChildren: folder.hasSubfolders)
+            self.apply(found, to: node)
+            if node.needsRelist {
+                node.needsRelist = false
+                self.listChildren(of: node, refresh: true)
             }
+        }
+    }
+
+    /// Shows a listing. The first one fills the row in; later ones keep the
+    /// row objects of folders still there (with their expanded rows and the
+    /// selection) and animate only what came and went.
+    private func apply(_ found: [Found], to node: SidebarNode) {
+        guard let old = node.children else {
+            node.children = found.map(makeNode)
             node.mayHaveChildren = !found.isEmpty
-            self.reloadRow(node, children: true)
+            reloadRow(node, children: true)
             if node.wantsExpansion {
                 node.wantsExpansion = false
-                self.outlineView.expandItem(node)
+                outlineView.expandItem(node)
             }
-            self.reveal(self.currentFolder)
+            reveal(currentFolder)
+            return
         }
+
+        var existing: [String: SidebarNode] = [:]
+        for child in old { if let url = child.url { existing[SidebarPaths.key(url)] = child } }
+        var triangleChanged: [SidebarNode] = []
+        let children = found.map { folder -> SidebarNode in
+            guard let child = existing[SidebarPaths.key(folder.url)] else { return makeNode(folder) }
+            if child.children == nil, child.mayHaveChildren != folder.hasSubfolders {
+                child.mayHaveChildren = folder.hasSubfolders
+                triangleChanged.append(child)
+            }
+            return child
+        }
+        let diff = SidebarDiff.between(old.compactMap(\.url), children.compactMap(\.url))
+        guard diff?.isEmpty != true || !triangleChanged.isEmpty else { return }
+
+        let wasEmpty = old.isEmpty
+        node.children = children
+        node.mayHaveChildren = !children.isEmpty
+        // A selected row that goes away deselects; that isn't a click.
+        isSelectingInCode = true
+        if let diff {
+            // Removals first, against the old rows, then insertions at their
+            // places in the new list. For a collapsed row these only update
+            // the outline view's bookkeeping.
+            outlineView.beginUpdates()
+            if !diff.removed.isEmpty {
+                outlineView.removeItems(at: diff.removed, inParent: node, withAnimation: .effectFade)
+            }
+            if !diff.inserted.isEmpty {
+                outlineView.insertItems(at: diff.inserted, inParent: node, withAnimation: .effectFade)
+            }
+            outlineView.endUpdates()
+        } else {
+            outlineView.reloadItem(node, reloadChildren: true)
+        }
+        // The disclosure triangle comes and goes with the first and last child.
+        if wasEmpty != children.isEmpty { outlineView.reloadItem(node, reloadChildren: false) }
+        for child in triangleChanged { outlineView.reloadItem(child, reloadChildren: false) }
+        isSelectingInCode = false
+        // Rows kept their selection through the update. Only a reveal that
+        // was waiting for this listing looks again: revealing after every
+        // refresh would reopen rows the user had collapsed.
+        if let url = node.url, relistedForReveal.contains(SidebarPaths.key(url)) { reveal(currentFolder) }
+    }
+
+    private func makeNode(_ folder: Found) -> SidebarNode {
+        SidebarNode(kind: .folder, title: folder.title, url: folder.url, symbolName: "folder",
+                    mayHaveChildren: folder.hasSubfolders)
     }
 
     private func reloadRow(_ node: SidebarNode, children: Bool) {
@@ -226,16 +358,64 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         isSelectingInCode = false
     }
 
+    /// The browser's folder changed on disk. If its row has been listed, its
+    /// subfolders are listed again; if not, only whether it has any is
+    /// checked again, for the disclosure triangle.
+    func folderChangedOnDisk(_ folder: URL) {
+        guard isViewLoaded, let node = listedNode(for: folder) else { return }
+        if node.children != nil {
+            listChildren(of: node, refresh: true, recheckChildren: false)
+            return
+        }
+        guard let url = node.url else { return }
+        Task { [weak self] in
+            let answer = await Task.detached(priority: .utility) { FolderListing.hasSubfolders(url) }.value
+            guard let self, node.children == nil, node.mayHaveChildren != answer else { return }
+            node.mayHaveChildren = answer
+            self.reloadRow(node, children: false)
+        }
+    }
+
+    /// The row for `folder` if the tree already has one, listing nothing.
+    private func listedNode(for folder: URL) -> SidebarNode? {
+        let favorites = header.children ?? []
+        guard let rootIndex = SidebarPaths.bestRoot(for: folder, among: favorites.compactMap(\.url)),
+              let root = favorites[rootIndex].url,
+              let chain = SidebarPaths.chain(from: root, to: folder) else { return nil }
+        var node = favorites[rootIndex]
+        for url in chain.dropFirst() {
+            let name = url.lastPathComponent
+            guard let child = node.children?.first(where: { $0.url?.lastPathComponent == name }) else { return nil }
+            node = child
+        }
+        return node
+    }
+
     // MARK: - Reveal
 
     /// The folder of the selected row, for tests.
     var selectedFolder: URL? { (outlineView.item(atRow: outlineView.selectedRow) as? SidebarNode)?.url }
 
+    /// Every row's title top to bottom, indented two spaces a level, for tests.
+    var rowOutline: [String] {
+        (0..<outlineView.numberOfRows).compactMap { row in
+            guard let node = outlineView.item(atRow: row) as? SidebarNode, node.kind != .header else { return nil }
+            return String(repeating: "  ", count: outlineView.level(forRow: row) - 1) + node.title
+        }
+    }
+
     /// Selects the row for `folder` when it lies under a favourite, expanding
     /// (and listing) the rows above it; clears the selection otherwise.
     /// Listing is asynchronous, so this runs again as each level arrives.
+    ///
+    /// Going to a new folder also lists its row's subfolders again, if they
+    /// were listed before, since they may have changed while the browser was
+    /// elsewhere; and a folder missing from its parent's listing (made in
+    /// Finder since) has the parent listed again, once.
     func reveal(_ folder: URL?) {
+        let isNewFolder = folder.map { new in currentFolder.map { !BrowserModel.samePath($0, new) } ?? true } ?? false
         currentFolder = folder
+        if isNewFolder { relistedForReveal = [] }
         guard isViewLoaded else { return }
         let favorites = header.children ?? []
         guard let folder,
@@ -254,7 +434,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             }
             let name = url.lastPathComponent
             guard let child = children.first(where: { $0.url?.lastPathComponent == name }) else {
-                // Hidden, or created since the parent was listed.
+                // Hidden, or created since the parent was listed: list the
+                // parent again, and look again when that lands.
+                if let parent = node.url, relistedForReveal.insert(SidebarPaths.key(parent)).inserted {
+                    listChildren(of: node, refresh: true)
+                }
                 select(nil)
                 return
             }
@@ -264,6 +448,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             node = child
         }
         select(node)
+        if isNewFolder, node.children != nil { listChildren(of: node, refresh: true) }
     }
 
     private func select(_ node: SidebarNode?) {
@@ -308,11 +493,16 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         (item as? SidebarNode)?.kind != .header
     }
 
+    /// Expanding a row lists its subfolders: the first time before it opens,
+    /// and every later time again, while it shows the last listing, so
+    /// folders made or deleted in Finder meanwhile appear and go.
     func outlineView(_ outlineView: NSOutlineView, shouldExpandItem item: Any) -> Bool {
         guard let node = item as? SidebarNode else { return false }
         if node.children == nil {
             node.wantsExpansion = true
             listChildren(of: node)
+        } else if node.kind != .header, !outlineView.isItemExpanded(node) {
+            listChildren(of: node, refresh: true)
         }
         return true
     }

@@ -15,7 +15,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private let splitController = NSSplitViewController()
     private let sidebar = SidebarViewController()
     let grid: GridViewController
-    private let preview = PreviewPaneController()
+    let preview = PreviewPaneController()
     private let toolbarController = BrowserToolbar()
     private let sidebarItem: NSSplitViewItem
     private let gridItem: NSSplitViewItem
@@ -99,10 +99,12 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             }
             .store(in: &subscriptions)
         model.onChange = { [weak self] changes in self?.modelChanged(changes) }
+        model.onFolderChangedOnDisk = { [weak self] folder in self?.sidebar.folderChangedOnDisk(folder) }
         sidebar.onNavigate = { [weak self] url in self?.navigate(to: url) }
         grid.onOpen = { [weak self] entry in self?.open(entry) }
         grid.onNavigate = { [weak self] url in self?.navigate(to: url) }
         preview.onOpenViewer = { [weak self] in self?.openInViewer(nil) }
+        preview.onStep = { [weak self] offset in self?.stepSelection(by: offset) }
         toolbarController.onSearch = { [weak self] text in self?.model.filter = text }
 
         // The model follows the preferences, whichever window or menu set them.
@@ -153,6 +155,14 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         } else {
             showViewer(on: entry.url)
         }
+    }
+
+    /// The wheel over the preview moves the grid's selection to the next or
+    /// previous image, as it moves the viewer; the grid follows the new lead
+    /// into view.
+    private func stepSelection(by offset: Int) {
+        guard let url = model.image(offset, from: model.lead, wrap: Preferences.shared.wrapAround) else { return }
+        model.select(url)
     }
 
     private func showViewer(on url: URL) {
@@ -355,7 +365,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .openInViewer: model.leadEntry != nil
         case .revealInFinder: model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText
-        case .goToEnclosingFolder: model.enclosingFolder != nil
+        case .goToEnclosingFolder: model.canGoToEnclosingFolder
         case .goBack: model.canGoBack
         case .goForward: model.canGoForward
         case .zoomIn: Preferences.shared.thumbnailSize < ThumbnailLayout.sizeRange.upperBound
