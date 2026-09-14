@@ -71,6 +71,22 @@ import AppKit
     @objc optional func applySepia(_ sender: Any?)
     @objc optional func applyNegative(_ sender: Any?)
     @objc optional func editComment(_ sender: Any?)
+
+    // MARK: Management (Phase 5)
+    /// Toggles the "tagged" flag (FastStone's culling mark) on the selection
+    /// or the image in the viewer.
+    @objc optional func toggleTag(_ sender: Any?)
+    /// Sender tag = minimum rating to show (0 shows everything).
+    @objc optional func filterByRating(_ sender: Any?)
+    @objc optional func toggleTaggedFilter(_ sender: Any?)
+    @objc optional func renameItem(_ sender: Any?)
+    @objc optional func newFolder(_ sender: Any?)
+    @objc optional func copyToFolder(_ sender: Any?)
+    @objc optional func moveToFolder(_ sender: Any?)
+    /// Opens the compare window on 2 to 4 selected images.
+    @objc optional func compareSelected(_ sender: Any?)
+    @objc optional func toggleHistogram(_ sender: Any?)
+    @objc optional func countColors(_ sender: Any?)
 }
 
 /// Tags on the View > Sort By direction items. Zero is left out on purpose:
@@ -127,4 +143,14 @@ extension Selector {
     static let applySepia = #selector(MinivuActions.applySepia(_:))
     static let applyNegative = #selector(MinivuActions.applyNegative(_:))
     static let editComment = #selector(MinivuActions.editComment(_:))
+    static let toggleTag = #selector(MinivuActions.toggleTag(_:))
+    static let filterByRating = #selector(MinivuActions.filterByRating(_:))
+    static let toggleTaggedFilter = #selector(MinivuActions.toggleTaggedFilter(_:))
+    static let renameItem = #selector(MinivuActions.renameItem(_:))
+    static let newFolder = #selector(MinivuActions.newFolder(_:))
+    static let copyToFolder = #selector(MinivuActions.copyToFolder(_:))
+    static let moveToFolder = #selector(MinivuActions.moveToFolder(_:))
+    static let compareSelected = #selector(MinivuActions.compareSelected(_:))
+    static let toggleHistogram = #selector(MinivuActions.toggleHistogram(_:))
+    static let countColors = #selector(MinivuActions.countColors(_:))
 }

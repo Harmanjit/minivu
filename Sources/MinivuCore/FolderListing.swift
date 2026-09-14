@@ -188,6 +188,8 @@ public enum FolderListing {
         case .size: primary = ordering(a.fileSize, b.fileSize)
         case .modified: primary = ordering(a.modified, b.modified)
         case .created: primary = ordering(a.created, b.created)
+        // Need the catalog, which the browser model applies on top.
+        case .rating, .custom: primary = .orderedSame
         }
         if primary != .orderedSame { return primary }
         // Name without the extension first, so "IMG_1.heic" sits with

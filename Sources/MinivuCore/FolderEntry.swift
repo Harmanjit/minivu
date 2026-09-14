@@ -39,6 +39,13 @@ public struct FolderEntry: Sendable, Hashable, Identifiable {
 
 public enum SortKey: String, CaseIterable, Sendable, Codable {
     case name, modified, created, size, type
+    /// Star rating from the catalog, highest first when descending. Applied
+    /// by the browser model (FolderListing has no catalog); FolderListing
+    /// falls back to name order for it.
+    case rating
+    /// The user's own arrangement (drag to reorder), stored per folder in the
+    /// catalog; files not yet placed follow in name order.
+    case custom
 }
 
 public struct FileSortOrder: Sendable, Equatable, Codable {

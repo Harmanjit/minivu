@@ -284,6 +284,8 @@ extension SortKey {
         case .name: "Name"
         case .modified: "Date Modified"
         case .created: "Date Created"
+        case .rating: "Rating"
+        case .custom: "Custom Order"
         case .size: "Size"
         case .type: "Type"
         }
