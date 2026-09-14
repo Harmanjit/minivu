@@ -29,9 +29,10 @@ import MinivuCore
 @MainActor public final class AnimationPlayer {
     /// Frames of an animation whose decoded frames fit in this are all kept.
     nonisolated public static let preloadBudgetBytes = 64 << 20
-    /// Slots kept for larger animations: the frame on screen and at least two
-    /// decoded ahead, so one late decode doesn't stall playback.
-    nonisolated static let minimumSlots = 3
+    /// Slots kept for larger animations: the frame shown before (the GPU may
+    /// still be drawing it), the frame on screen and at least two decoded
+    /// ahead, so one late decode doesn't stall playback.
+    nonisolated static let minimumSlots = 4
     nonisolated static let maximumSlots = 8
     /// Decodes queued at once. More would keep the CPU busy after a pause.
     static let maximumPendingDecodes = 2
@@ -257,7 +258,9 @@ import MinivuCore
         // Every frame kept and decoded: the usual case once a small animation
         // has played through, and the one that must cost nothing per frame.
         if store.slotCount == count, filledSlots + unreadableFrames.count >= count { return }
-        let window = isPlaying && !isSuspended ? store.slotCount : 0
+        // Frames to have decoded, from the one on screen. A large animation
+        // keeps one slot back for the frame shown before (see `reusableSlot`).
+        let window = !isPlaying || isSuspended ? 0 : store.slotCount == count ? count : store.slotCount - 1
         var step = -1
         while pending.count < Self.maximumPendingDecodes {
             // The frame waited for first (step -1), then the ones ahead.
@@ -300,14 +303,17 @@ import MinivuCore
 
     /// An empty slot, else the one shown longest ago whose frame isn't
     /// wanted soon (the `window` frames from the current one, or the frame
-    /// being waited for). Never one being decoded into.
+    /// being waited for). Never one being decoded into, and never the frame
+    /// on screen or the one just before it: the canvas draws asynchronously,
+    /// so the GPU may still be reading the frame replaced a moment ago, and
+    /// writing into that memory then would tear the picture.
     private func reusableSlot(window: Int, count: Int) -> Int? {
         let busy = Set(pending.values)
         var best: Int?
         for slot in slotFrame.indices where !busy.contains(slot) {
             guard let frame = slotFrame[slot] else { return slot }
             let ahead = (frame - currentFrame + count) % count
-            let wanted = ahead < max(window, 1) || frame == waiting?.frame
+            let wanted = ahead < max(window, 1) || ahead == count - 1 || frame == waiting?.frame
             if !wanted, best.map({ slotLastShown[slot] < slotLastShown[$0] }) ?? true { best = slot }
         }
         return best
@@ -425,8 +431,9 @@ private final class Generation: Sendable {
 /// each slot. The decode queue draws into a slot's memory; the canvas
 /// samples the same pages, with no copy and no upload.
 ///
-/// `@unchecked Sendable`: the player never lets the queue draw into a slot
-/// that is on screen, and slots are only read by the GPU.
+/// `@unchecked Sendable`: the player never lets the queue draw into the slot
+/// on screen or the one shown just before it, and slots are only read by
+/// the GPU.
 final class FrameStore: @unchecked Sendable {
     static let pixelFormat = MTLPixelFormat.bgra8Unorm_srgb
 

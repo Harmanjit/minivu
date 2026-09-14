@@ -100,6 +100,9 @@ import CoreGraphics
         let px = F.Pixels(decoded.image)
         #expect(px.isNear(200, 200, F.red))
         #expect(px.isNear(600, 200, F.clear))
+        // Upright: the blue bar is along the top, not the bottom.
+        #expect(px.isNear(600, 30, F.blue))
+        #expect(px.isNear(600, 370, F.clear))
         // Crisp: the edge between red and clear is at most a pixel wide.
         #expect(px.isNear(398, 200, F.red))
         #expect(px.isNear(402, 200, F.clear))

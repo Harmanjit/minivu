@@ -104,12 +104,14 @@ enum DocumentFixtures {
 
     // MARK: - SVG
 
-    /// 100 x 50 pt: red on the left half, nothing on the right.
+    /// 100 x 50 pt: red on the left half; on the right, a blue bar along the
+    /// top 10 pt (so an upside-down render shows) and nothing below it.
     static func halfRedSVG() -> URL {
         let url = url("half.svg")
         let svg = """
         <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
           <rect x="0" y="0" width="50" height="50" fill="#ff0000"/>
+          <rect x="50" y="0" width="50" height="10" fill="#0000ff"/>
         </svg>
         """
         try! Data(svg.utf8).write(to: url)

@@ -57,7 +57,7 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         // Every frame when they fit, else a handful to decode ahead into.
         #expect(AnimationPlayer.slotCount(frameCount: 30, bytesPerFrame: 1 << 20) == 30)
         #expect(AnimationPlayer.slotCount(frameCount: 100, bytesPerFrame: 1 << 20) == 8)
-        #expect(AnimationPlayer.slotCount(frameCount: 100, bytesPerFrame: 40 << 20) == 3)
+        #expect(AnimationPlayer.slotCount(frameCount: 100, bytesPerFrame: 40 << 20) == AnimationPlayer.minimumSlots)
         #expect(AnimationPlayer.slotCount(frameCount: 2, bytesPerFrame: 40 << 20) == 2)
     }
 
@@ -152,14 +152,59 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         let colours: [(CGFloat, CGFloat, CGFloat)] = Array(repeating: Self.rgb, count: 4).flatMap { $0 }
         let url = writeAnimatedGIF(colors: colours, delay: 0.02, width: 64, height: 64)
         let player = AnimationPlayer(url: url, pixelSize: 64, playing: true, budgetBytes: 1, gpu: .shared)
+        let names = ["red", "green", "blue"]
         var shown: [ImageTexture] = []
-        player.onFrame = { shown.append($0) }
+        var seen: [String] = []   // read as each frame goes up: slots are reused
+        var torn: [String] = []
+        player.onFrame = { texture in
+            // The frame going off screen and the one before it may still be
+            // drawing on the GPU: nothing may have been decoded into them.
+            let n = shown.count
+            for back in 1...2 where n >= back && self.colour(shown[n - back]) != names[(n - back) % 3] {
+                torn.append("frame \(n - back) overwritten when frame \(n) went up")
+            }
+            shown.append(texture)
+            seen.append(self.colour(texture))
+        }
         await waitUntil { shown.count >= 15 }
         player.stop()
         try #require(shown.count >= 15)
-        let expected = (0..<15).map { ["red", "green", "blue"][$0 % 3] }
-        #expect(shown.prefix(15).map(colour) == expected)
+        let expected = (0..<15).map { names[$0 % 3] }
+        #expect(Array(seen.prefix(15)) == expected)
         #expect(Set(shown.map { ObjectIdentifier($0) }).count == AnimationPlayer.minimumSlots)
+        #expect(torn.isEmpty, "\(torn)")
+    }
+
+    /// Frames land in their textures upright and unmirrored, at full size
+    /// (drawn straight from the source) and scaled (the thumbnail route).
+    @Test func framesAreUpright() async throws {
+        let url = Fixtures.directory.appendingPathComponent("quadrants-\(UUID()).gif")
+        let dest = try #require(CGImageDestinationCreateWithURL(url as CFURL, UTType.gif.identifier as CFString, 2, nil))
+        for _ in 0..<2 {
+            let props = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.05]]
+            CGImageDestinationAddImage(dest, Fixtures.quadrants(width: 64, height: 32), props as CFDictionary)
+        }
+        #expect(CGImageDestinationFinalize(dest))
+
+        for pixelSize in [64, 32] {
+            let player = AnimationPlayer(url: url, pixelSize: pixelSize, playing: false)
+            var first: ImageTexture?
+            player.onFrame = { first = first ?? $0 }
+            await waitUntil { first != nil }
+            player.stop()
+            let t = try #require(first).texture
+            #expect(t.width == pixelSize)
+            func rgb(_ x: Int, _ y: Int) -> [Int] {
+                var p = [UInt8](repeating: 0, count: 4)
+                t.getBytes(&p, bytesPerRow: t.width * 4, from: MTLRegionMake2D(x, y, 1, 1), mipmapLevel: 0)
+                return [Int(p[2]), Int(p[1]), Int(p[0])]   // stored BGRA
+            }
+            let (w, h) = (t.width, t.height)
+            let red = rgb(w / 4, h / 4), green = rgb(w * 3 / 4, h / 4), blue = rgb(w / 4, h * 3 / 4)
+            #expect(red[0] > 200 && red[1] < 120 && red[2] < 120, "top left \(red) at \(pixelSize)")
+            #expect(green[1] > 200 && green[0] < 160 && green[2] < 160, "top right \(green) at \(pixelSize)")
+            #expect(blue[2] > 200 && blue[0] < 120 && blue[1] < 120, "bottom left \(blue) at \(pixelSize)")
+        }
     }
 
     @Test func resizingKeepsThePlaceAndChangesTheFrameSize() async throws {

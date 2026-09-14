@@ -670,7 +670,24 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         updateChrome()
         // Resizing the window changes a fitted zoom continuously; the HUD
         // would only flicker.
-        if !canvas.inLiveResize { hud.flash() }
+        if !canvas.inLiveResize {
+            hud.flash()
+            shrinkAnimationFramesIfFitted()
+        }
+    }
+
+    /// Back at fit after zooming in, an animation returns to fitted-size
+    /// frames. Full-size frames would cost a larger decode on every frame for
+    /// as long as it plays, and frame textures have no mipmaps, so shrinking
+    /// them on the GPU would shimmer. Only when they are well over the fitted
+    /// size, so a window resized a little doesn't make every frame decode again.
+    private func shrinkAnimationFramesIfFitted() {
+        guard canvas.zoomMode == .fit, let player, let imageSize = player.imageSize,
+              let texture = canvas.image else { return }
+        let fitted = animationPixelSize(for: imageSize)
+        if Double(max(texture.textureSize.width, texture.textureSize.height)) > Double(fitted) * 1.25 {
+            player.setPixelSize(fitted)
+        }
     }
 
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {
@@ -693,8 +710,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             self.canvas.setImage(texture, preserveView: true)
             self.updateChrome()
         }
+        let image = canvas.image
         if Self.wantsScreenSizedSharpening(fitted: canvas.zoomMode == .fit, kind: shown.entry.kind,
-                                           imageLongEdge: canvas.image.map { max($0.imageSize.width, $0.imageSize.height) } ?? 0,
+                                           imageLongEdge: image.map { max($0.imageSize.width, $0.imageSize.height) } ?? 0,
+                                           textureLongEdge: image.map { max($0.textureSize.width, $0.textureSize.height) } ?? 0,
                                            canvasLongEdge: canvasPixelSize) {
             // The window outgrew the texture, or a stand-in is up: a
             // screen-sized decode is enough, and joins one already running.
@@ -708,15 +727,20 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Whether a screen-sized load can sharpen the canvas, or it takes full
     /// resolution.
     ///
-    /// Zoomed in, only full resolution helps. Fitted, a photo only needs the
-    /// canvas's size. A vector smaller than the canvas is the exception: the
+    /// Zoomed in, only full resolution helps. Fitted, a screen-sized load
+    /// helps only while the texture is smaller than the canvas (the window
+    /// grew, or a stand-in is up). A texture that already covers the canvas
+    /// is being magnified by the magnifier: asking for the screen size again
+    /// would hand back that same texture, and the loupe would stay blurry.
+    ///
+    /// A vector smaller than the canvas always takes full resolution: the
     /// loader and cache treat a texture as big as the image's actual size as
     /// covering any screen request, so a screen-sized load would hand back
     /// the blurry texture already showing (a small SVG enlarged to fit). Its
     /// full-resolution render is small anyway, at most 4096 px.
     nonisolated static func wantsScreenSizedSharpening(fitted: Bool, kind: ImageKind?, imageLongEdge: CGFloat,
-                                                       canvasLongEdge: Int) -> Bool {
-        guard fitted else { return false }
+                                                       textureLongEdge: CGFloat, canvasLongEdge: Int) -> Bool {
+        guard fitted, textureLongEdge < CGFloat(canvasLongEdge) * 0.97 else { return false }
         guard kind == .pdf || kind == .svg else { return true }
         return imageLongEdge >= CGFloat(canvasLongEdge)
     }
@@ -932,6 +956,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var pageState: (page: Int, count: Int) { (model.page, model.pageCount) }
     /// The current image's player, for tests.
     var animationPlayer: AnimationPlayer? { player }
+    /// The texture on the canvas, for tests.
+    var canvasTexture: ImageTexture? { canvas.image }
 
     /// Esc, ⌘W, the close button or a double-click: stop all work, put the
     /// menu bar back, and tell the browser which image to select.

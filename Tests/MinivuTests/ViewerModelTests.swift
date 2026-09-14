@@ -238,13 +238,28 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(!ViewerWindowController.mayHavePagesOrFrames(entry("a.svg", .svg)))
     }
 
-    @Test func sharpeningAVectorSmallerThanTheCanvasTakesFullResolution() {
+    @Test func sharpeningRules() {
         typealias C = ViewerWindowController
-        #expect(!C.wantsScreenSizedSharpening(fitted: false, kind: .raster, imageLongEdge: 6000, canvasLongEdge: 2880))
-        #expect(C.wantsScreenSizedSharpening(fitted: true, kind: .raster, imageLongEdge: 200, canvasLongEdge: 2880))
-        #expect(C.wantsScreenSizedSharpening(fitted: true, kind: .pdf, imageLongEdge: 6740, canvasLongEdge: 2880))
-        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .svg, imageLongEdge: 200, canvasLongEdge: 2880))
-        #expect(!C.wantsScreenSizedSharpening(fitted: false, kind: .pdf, imageLongEdge: 6740, canvasLongEdge: 2880))
+        // Zoomed in: full resolution.
+        #expect(!C.wantsScreenSizedSharpening(fitted: false, kind: .raster, imageLongEdge: 6000, textureLongEdge: 2880,
+                                              canvasLongEdge: 2880))
+        #expect(!C.wantsScreenSizedSharpening(fitted: false, kind: .pdf, imageLongEdge: 6740, textureLongEdge: 1000,
+                                              canvasLongEdge: 2880))
+        // Fitted, the window outgrew the texture (or a stand-in is up): screen size.
+        #expect(C.wantsScreenSizedSharpening(fitted: true, kind: .raster, imageLongEdge: 6000, textureLongEdge: 1600,
+                                             canvasLongEdge: 2880))
+        #expect(C.wantsScreenSizedSharpening(fitted: true, kind: .pdf, imageLongEdge: 6740, textureLongEdge: 1600,
+                                             canvasLongEdge: 2880))
+        // Fitted with a texture that covers the canvas: the magnifier wants
+        // detail, which only full resolution has (a screen-sized load would
+        // hand back the texture already showing).
+        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .raster, imageLongEdge: 6000, textureLongEdge: 2880,
+                                              canvasLongEdge: 2880))
+        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .pdf, imageLongEdge: 6740, textureLongEdge: 2880,
+                                              canvasLongEdge: 2880))
+        // A vector smaller than the canvas always takes full resolution.
+        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .svg, imageLongEdge: 200, textureLongEdge: 800,
+                                              canvasLongEdge: 2880))
     }
 }
 
@@ -517,13 +532,17 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(viewer.pageState == (0, 1))            // not read again yet
     }
 
-    /// An animated GIF plays by itself, P pauses it, and closing stops it.
+    /// An animated GIF plays by itself onto the canvas, P pauses it, and
+    /// moving to another image or closing stops it.
     @Test func animationsPlayAndPause() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-gif-\(UUID())")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         let url = folder.appendingPathComponent("a.gif")
         let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, 3, nil))
+        // Loops forever, so it is still playing whenever the test looks.
+        CGImageDestinationSetProperties(destination, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]]
+            as CFDictionary)
         for level in [0.0, 0.5, 1.0] {
             let ctx = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
                                              space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -534,21 +553,46 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
             CGImageDestinationAddImage(destination, try #require(ctx.makeImage()), props as CFDictionary)
         }
         #expect(CGImageDestinationFinalize(destination))
-        let entry = try #require(FolderEntry(url: url))
+        let still = folder.appendingPathComponent("b.png")
+        let stillDestination = try #require(CGImageDestinationCreateWithURL(still as CFURL, "public.png" as CFString, 1, nil))
+        let stillContext = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
+                                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        CGImageDestinationAddImage(stillDestination, try #require(stillContext.makeImage()), nil)
+        #expect(CGImageDestinationFinalize(stillDestination))
+        let entries = try [url, still].map { try #require(FolderEntry(url: $0)) }
 
-        ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+        ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
         let viewer = try #require(ViewerWindowController.current)
+        defer { viewer.exitViewer(nil) }
         await waitUntil { (viewer.animationPlayer?.frameCount ?? 0) > 0 }
         let player = try #require(viewer.animationPlayer)
         #expect(player.frameCount == 3 && player.isPlaying)
         #expect(viewer.pageState.count == 1)   // frames aren't pages
 
+        // Frames reach the canvas: one texture per frame, where the still
+        // decode is just one. A test run's window is usually not on screen,
+        // which suspends the clock; let it play as if it were.
+        player.isSuspended = false
+        var textures: Set<ObjectIdentifier> = []
+        await waitUntil {
+            if let texture = viewer.canvasTexture { textures.insert(ObjectIdentifier(texture)) }
+            return textures.count >= 3
+        }
+        #expect(textures.count >= 3)
+
         viewer.togglePlayback(nil)
         #expect(!player.isPlaying)
         viewer.togglePlayback(nil)
         #expect(player.isPlaying)
-        viewer.exitViewer(nil)
-        #expect(!player.isPlaying)
+
+        // On to the still: the animation stops for good.
+        viewer.nextImage(nil)
+        #expect(!player.isPlaying && viewer.animationPlayer == nil)
+        let frame = player.currentFrame
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(player.currentFrame == frame)
+        #expect(viewer.animationPlayer == nil)   // a still, so nothing started
     }
 
     /// Nothing (a display link, a work item, a panel callback) keeps a closed

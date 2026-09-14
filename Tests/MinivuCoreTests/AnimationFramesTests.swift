@@ -74,9 +74,13 @@ import ImageIO
         // Out of order too (going back to the start of a loop, or seeking).
         let again = F.Pixels(try #require(frames.frame(at: 1, maxPixelSize: 16)))
         #expect(again.isNear(1, 1, F.red) && again.isNear(14, 14, F.white))
-        // And downscaled.
+        // And downscaled, through the thumbnail route: still the whole
+        // composited picture, not just frame 2's own patch.
         let small = try #require(frames.frame(at: 2, maxPixelSize: 8))
-        #expect(small.width == 8)
-        #expect(F.Pixels(small).isNear(7, 7, F.blue, tolerance: 40))
+        #expect(small.width == 8 && small.height == 8)
+        let smallPixels = F.Pixels(small)
+        #expect(smallPixels.isNear(7, 7, F.blue, tolerance: 40))
+        #expect(smallPixels.isNear(0, 0, F.red, tolerance: 40))
+        #expect(smallPixels.isNear(4, 4, F.white, tolerance: 40))
     }
 }
