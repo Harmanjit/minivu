@@ -46,6 +46,23 @@ public struct Magnifier: Equatable, Sendable {
     }
 }
 
+/// The canvas shader's HDR roll-off (`toneMapToHeadroom` in Canvas.metal),
+/// copied line for line so its properties can be tested without a GPU.
+/// Change both together.
+enum HeadroomToneMap {
+    /// The value a pixel whose largest channel is `peak` is scaled to.
+    static func map(peak: Float, displayHeadroom: Float, contentHeadroom: Float) -> Float {
+        if contentHeadroom <= displayHeadroom || peak <= 0 { return peak }
+        let knee = displayHeadroom * 0.75
+        if peak <= knee { return peak }
+        let range = displayHeadroom - knee
+        let x = (peak - knee) / range
+        let xMax = (contentHeadroom - knee) / range
+        let y = x * (1 + x / (xMax * xMax)) / (1 + x)
+        return knee + range * min(y, 1)
+    }
+}
+
 /// Mirror of `CanvasUniforms` in Canvas.metal. All float4, so the Swift and
 /// Metal layouts cannot drift apart through padding.
 struct CanvasUniforms {
@@ -80,15 +97,34 @@ public final class CanvasRenderer {
         }
     }
 
-    /// Configures a layer for the canvas: EDR, extended linear Display P3.
+    /// Configures a layer for the canvas: extended linear Display P3, EDR off.
+    ///
+    /// EDR makes the display raise its backlight and dim everything else to
+    /// match, which costs power, so the owner turns it on with
+    /// `setExtendedDynamicRange` only while an HDR image is shown.
     public static func configure(_ layer: CAMetalLayer, gpu: GPU = .shared) {
         layer.device = gpu.device
         layer.pixelFormat = pixelFormat
         layer.colorspace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)
-        layer.wantsExtendedDynamicRangeContent = true
+        layer.wantsExtendedDynamicRangeContent = false
         layer.framebufferOnly = true
         layer.isOpaque = true
         layer.maximumDrawableCount = 3
+    }
+
+    /// Whether a canvas showing `image` on a screen that can reach
+    /// `potentialHeadroom` should ask for EDR: only for HDR content, and only
+    /// where the screen can show some of it.
+    public static func wantsExtendedDynamicRange(for image: ImageTexture?, potentialHeadroom: CGFloat) -> Bool {
+        guard let image, image.isHDR, image.contentHeadroom > 1 else { return false }
+        return potentialHeadroom > 1
+    }
+
+    /// Turns EDR on or off for a canvas layer (see `configure`). While it's
+    /// off, frames must be drawn for a headroom of 1: the compositor clips
+    /// anything brighter.
+    public static func setExtendedDynamicRange(_ enabled: Bool, on layer: CAMetalLayer) {
+        if layer.wantsExtendedDynamicRangeContent != enabled { layer.wantsExtendedDynamicRangeContent = enabled }
     }
 
     static func uniforms(for frame: CanvasFrame, viewSize: CGSize) -> CanvasUniforms {

@@ -78,6 +78,8 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     private let renderer: CanvasRenderer?
     private var displayLink: CADisplayLink?
     private var needsRedraw = true
+    /// The display headroom the frame on screen was drawn for.
+    private var lastFrameHeadroom: Float?
     private var preferencesObserver: AnyCancellable?
 
     private var press: CanvasInteraction.PressClassifier?
@@ -153,6 +155,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         } else {
             applyFit()
         }
+        updateDynamicRange()
         viewDidChange(zoomChanged: !preserveView)
     }
 
@@ -271,7 +274,9 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         if layer.drawableSize != size { layer.drawableSize = size }
         guard let drawable = layer.nextDrawable() else { return }
         needsRedraw = false
-        renderer.draw(currentFrame(headroom: displayHeadroom), to: drawable,
+        let headroom = displayHeadroom
+        lastFrameHeadroom = headroom
+        renderer.draw(currentFrame(headroom: headroom), to: drawable,
                       presentsWithTransaction: layer.presentsWithTransaction)
     }
 
@@ -288,9 +293,25 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     }
 
     /// How far above SDR white the screen can show right now. Read on every
-    /// frame because it changes with display brightness.
+    /// frame because it changes with display brightness, and as the system
+    /// ramps EDR up after an HDR image appears; each change posts
+    /// `didChangeScreenParametersNotification`, which asks for a frame, so
+    /// nothing polls. Without EDR on the layer it is 1 whatever the screen
+    /// says: the compositor would clip anything brighter.
     private var displayHeadroom: Float {
-        Float(window?.screen?.maximumExtendedDynamicRangeColorComponentValue ?? 1)
+        guard metalLayer?.wantsExtendedDynamicRangeContent == true, let screen = window?.screen else { return 1 }
+        return max(1, Float(screen.maximumExtendedDynamicRangeColorComponentValue))
+    }
+
+    /// EDR on while an HDR image is shown on a screen that can show some of
+    /// it (the potential headroom, which unlike the current one doesn't wait
+    /// for someone to ask for EDR first). Off otherwise, because EDR raises
+    /// the backlight and costs power for content that never needs it.
+    private func updateDynamicRange() {
+        guard let layer = metalLayer else { return }
+        let potential = window?.screen?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1
+        CanvasRenderer.setExtendedDynamicRange(
+            CanvasRenderer.wantsExtendedDynamicRange(for: image, potentialHeadroom: potential), on: layer)
     }
 
     /// Renders the current frame offscreen as an 8-bit sRGB image, at the
@@ -323,6 +344,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         let link = displayLink(target: self, selector: #selector(displayLinkFired(_:)))
         link.add(to: .main, forMode: .common)
         displayLink = link
+        updateDynamicRange()
         backingChanged()
     }
 
@@ -336,6 +358,14 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         // appears the system raises the headroom over a second or two and
         // posts this for each step, so the image brightens smoothly; then it
         // stops and the canvas is idle again.
+        updateDynamicRange()
+        // Another app's EDR (a video, say) posts this too. When scale, size
+        // and the headroom the last frame used are all unchanged, the frame
+        // on screen is still right: skip it.
+        if !needsRedraw, let layer = metalLayer, layer.contentsScale == backingScale,
+           layer.drawableSize == drawablePixelSize, lastFrameHeadroom == displayHeadroom {
+            return
+        }
         backingChanged()
     }
 

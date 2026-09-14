@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import MinivuRender
 
 extension Notification.Name {
     /// Settings > Thumbnails > Clear Thumbnail Cache. The thumbnail cache
@@ -123,13 +124,31 @@ private struct ViewerSettings: View {
 
     var body: some View {
         Form {
-            Picker("Background", selection: $prefs.viewerBackground) {
-                ForEach(Preferences.ViewerBackground.allCases) { Text($0.title).tag($0) }
+            Section {
+                Picker("Background", selection: $prefs.viewerBackground) {
+                    ForEach(Preferences.ViewerBackground.allCases) { Text($0.title).tag($0) }
+                }
+                Toggle("Enlarge small images to fit", isOn: $prefs.enlargeSmallImages)
+                Toggle("Pixelated zoom above 200%", isOn: $prefs.pixelatedZoom)
+                Picker("Mouse wheel", selection: $prefs.wheelAction) {
+                    ForEach(Preferences.WheelAction.allCases) { Text($0.title).tag($0) }
+                }
             }
-            Toggle("Enlarge small images to fit", isOn: $prefs.enlargeSmallImages)
-            Toggle("Pixelated zoom above 200%", isOn: $prefs.pixelatedZoom)
-            Picker("Mouse wheel", selection: $prefs.wheelAction) {
-                ForEach(Preferences.WheelAction.allCases) { Text($0.title).tag($0) }
+            Section {
+                Toggle("Display HDR photos in HDR", isOn: $prefs.showHDR)
+            } footer: {
+                Text("Highlights brighter than white show on HDR screens: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Other screens show HDR photos tone mapped.")
+                    .paragraphFooter()
+            }
+            Section {
+                Picker("RAW files", selection: $prefs.rawDecoding) {
+                    ForEach(RawDecoding.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Toggle("Render RAW files with extended dynamic range", isOn: $prefs.hdrRaw)
+                    .disabled(!prefs.showHDR)
+            } footer: {
+                Text("The embedded preview is the JPEG the camera saved with the photo. It shows at once; where it is too small for the screen or the zoom, the RAW data is rendered instead. Extended dynamic range always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen.")
+                    .paragraphFooter()
             }
         }
         .settingsForm()
@@ -246,6 +265,15 @@ private struct ThumbnailSettings: View {
     }
 }
 
+private extension RawDecoding {
+    var title: String {
+        switch self {
+        case .embeddedPreview: "Embedded preview (faster)"
+        case .fullRaw: "Render RAW data"
+        }
+    }
+}
+
 /// Rounds a slider's value as it is written, so sizes are whole points: a
 /// fractional thumbnail size would give the grid blurry, uneven cells.
 private func wholePoints(_ value: Binding<Double>) -> Binding<Double> {
@@ -272,5 +300,15 @@ private extension View {
         formStyle(.grouped)
             .scrollDisabled(true)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// A footer of several lines. A grouped form lines footers up on the
+    /// trailing edge, which for a paragraph leaves a ragged left margin; this
+    /// starts it where the rows' labels start instead.
+    func paragraphFooter() -> some View {
+        foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
     }
 }

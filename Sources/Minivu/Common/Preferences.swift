@@ -1,6 +1,16 @@
 import AppKit
 import Combine
 import MinivuCore
+import MinivuRender
+
+extension Notification.Name {
+    /// A setting that changes how images decode (HDR, RAW rendering) was
+    /// changed. By the time this is posted `ImageLoader.shared` has the new
+    /// settings and has emptied its texture cache, so whoever shows an image
+    /// (the viewer, the browser's preview pane) should observe it and load
+    /// that image again; the canvas can't, since it doesn't know the file.
+    nonisolated static let minivuDisplaySettingsChanged = Notification.Name("MinivuDisplaySettingsChanged")
+}
 
 /// Every user setting, stored in UserDefaults and observable by SwiftUI.
 ///
@@ -79,6 +89,30 @@ final class Preferences: ObservableObject {
     @Published var openViewerFullScreen: Bool { didSet { defaults.set(openViewerFullScreen, forKey: Keys.openFullScreen) } }
     /// Loop from the last image back to the first when navigating.
     @Published var wrapAround: Bool { didSet { defaults.set(wrapAround, forKey: Keys.wrapAround) } }
+    /// Show HDR photos (gain maps, PQ, HLG) with highlights brighter than
+    /// white, on screens that can. Off: they are tone mapped to SDR.
+    @Published var showHDR: Bool {
+        didSet { defaults.set(showHDR, forKey: Keys.showHDR); displaySettingsChanged() }
+    }
+    /// Render RAW files with extended dynamic range (from the sensor data).
+    @Published var hdrRaw: Bool {
+        didSet { defaults.set(hdrRaw, forKey: Keys.hdrRaw); displaySettingsChanged() }
+    }
+    /// How much of the RAW engine's extended range HDR RAW uses, 0...1. Not
+    /// in Settings; `defaults write` it to tame RAW highlights.
+    @Published var hdrRawAmount: Double {
+        didSet { defaults.set(hdrRawAmount, forKey: Keys.hdrRawAmount); displaySettingsChanged() }
+    }
+    /// Embedded preview (fast) or a render of the sensor data for RAW files.
+    @Published var rawDecoding: RawDecoding {
+        didSet { defaults.set(rawDecoding.rawValue, forKey: Keys.rawDecoding); displaySettingsChanged() }
+    }
+
+    /// The decoding settings the image loader follows.
+    var displaySettings: DisplaySettings {
+        DisplaySettings(rawDecoding: rawDecoding, showHDR: showHDR, hdrRaw: hdrRaw,
+                        hdrRawAmount: Float(min(max(hdrRawAmount, 0), 1)))
+    }
 
     private init() {
         let d = UserDefaults.standard
@@ -94,6 +128,22 @@ final class Preferences: ObservableObject {
         showHiddenFiles = d.bool(forKey: Keys.showHidden)
         openViewerFullScreen = d.object(forKey: Keys.openFullScreen) as? Bool ?? true
         wrapAround = d.bool(forKey: Keys.wrapAround)
+        showHDR = d.object(forKey: Keys.showHDR) as? Bool ?? true
+        hdrRaw = d.bool(forKey: Keys.hdrRaw)
+        hdrRawAmount = d.object(forKey: Keys.hdrRawAmount) as? Double ?? 1
+        rawDecoding = RawDecoding(rawValue: d.string(forKey: Keys.rawDecoding) ?? "") ?? .embeddedPreview
+        // Before anything loads: the app delegate reads the theme at launch,
+        // well ahead of the first image.
+        ImageLoader.shared.settings = displaySettings
+    }
+
+    /// Hands the new settings to the loader, which empties its texture
+    /// cache, then tells the image views to reload.
+    private func displaySettingsChanged() {
+        let settings = displaySettings
+        guard ImageLoader.shared.settings != settings else { return }
+        ImageLoader.shared.settings = settings
+        NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: self)
     }
 
     enum Keys {
@@ -109,5 +159,9 @@ final class Preferences: ObservableObject {
         static let showHidden = "showHiddenFiles"
         static let openFullScreen = "openViewerFullScreen"
         static let wrapAround = "wrapAround"
+        static let showHDR = "showHDR"
+        static let hdrRaw = "hdrRaw"
+        static let hdrRawAmount = "hdrRawAmount"
+        static let rawDecoding = "rawDecoding"
     }
 }

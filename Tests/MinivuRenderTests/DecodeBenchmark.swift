@@ -32,6 +32,34 @@ import Foundation
     }
 }
 
+/// RAW renders (RawRenderer) against the embedded preview. The first render
+/// in the process pays for Core Image's setup; "first" is each file's first
+/// render, "again" a second render of the same file.
+///     MINIVU_BENCH_DIR=~/latent/TestAssets swift test --filter RawBenchmark
+@Suite(.serialized) struct RawBenchmark {
+    @Test(.enabled(if: DecodeBenchmark.folder != nil))
+    func rawRender() throws {
+        let files = try FileManager.default.contentsOfDirectory(at: DecodeBenchmark.folder!, includingPropertiesForKeys: nil)
+            .filter { ImageFormats.kind(of: $0) == .raw }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        _ = GPU.shared
+        let clock = ContinuousClock()
+        for url in files {
+            var texture: ImageTexture?
+            let first = try clock.measure { texture = try RawRenderer.render(url: url, maxPixelSize: nil, hdr: false, headroom: 1) }
+            let again = try clock.measure { _ = try RawRenderer.render(url: url, maxPixelSize: nil, hdr: false, headroom: 1) }
+            var hdr: ImageTexture?
+            let hdrTime = try clock.measure { hdr = try RawRenderer.render(url: url, maxPixelSize: nil, hdr: true, headroom: 2) }
+            let half = try clock.measure { _ = try RawRenderer.render(url: url, maxPixelSize: 3008, hdr: false, headroom: 1) }
+            let preview = try clock.measure {
+                if let decoded = try ImageDecoder.decodeRawPreview(url) { _ = try TextureUploader.upload(decoded) }
+            }
+            print(String(format: "%-24@ %dx%d  RAW first %6.0f ms  again %6.0f ms  HDR %6.0f ms (peak %.2f)  3008 px %5.0f ms | preview+upload %5.0f ms",
+                         url.lastPathComponent as NSString, texture!.texture.width, texture!.texture.height,
+                         first.ms, again.ms, hdrTime.ms, hdr!.contentHeadroom, half.ms, preview.ms))
+        }
+    }
+}
+
 extension Duration {
     var ms: Double { Double(components.seconds) * 1000 + Double(components.attoseconds) / 1e15 }
 }
