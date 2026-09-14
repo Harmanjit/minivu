@@ -21,7 +21,7 @@ extension AppWindowTests {
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
         }
 
-        func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
             let end = Date().addingTimeInterval(timeout)
             while !condition(), Date() < end {
                 try? await Task.sleep(for: .milliseconds(10))

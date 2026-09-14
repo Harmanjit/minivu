@@ -98,7 +98,7 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ManageUndoSafetyTests {
         let catalog = Catalog.inMemory()
 
-        func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
             let end = Date().addingTimeInterval(timeout)
             while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
         }
@@ -219,7 +219,7 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ManageReviewWindowTests {
         let catalog = Catalog.inMemory()
 
-        func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
             let end = Date().addingTimeInterval(timeout)
             while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
         }

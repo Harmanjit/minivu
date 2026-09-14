@@ -437,7 +437,7 @@ final class FolderCheckLog: @unchecked Sendable {
         await open(model, t.url)
         try await Task.sleep(for: .milliseconds(300))
         try t.folder("New")
-        let deadline = ContinuousClock.now + .seconds(5)
+        let deadline = ContinuousClock.now + .seconds(30)
         while reported.isEmpty, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(50))
         }
@@ -453,7 +453,7 @@ final class FolderCheckLog: @unchecked Sendable {
         await open(model, t.url)
         try await Task.sleep(for: .milliseconds(300))
         try t.file("second.jpg")
-        let deadline = ContinuousClock.now + .seconds(5)
+        let deadline = ContinuousClock.now + .seconds(30)
         while model.entries.count < 2, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(50))
         }

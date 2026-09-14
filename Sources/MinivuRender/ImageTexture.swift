@@ -97,6 +97,11 @@ public enum TextureUploader {
             context.setEDRTargetHeadroom(max(decoded.contentHeadroom, 1))
         }
         context.interpolationQuality = .high
+        // The page-aligned memory isn't zeroed, and drawing normally blends
+        // the image over what is already there: a transparent pixel would
+        // keep old bytes. Copy mode writes every pixel, alpha included, and
+        // costs less than clearing first. The image covers the whole bitmap.
+        context.setBlendMode(.copy)
         // CGContext's origin is bottom-left; our textures are top-left.
         context.translateBy(x: 0, y: CGFloat(height))
         context.scaleBy(x: 1, y: -1)

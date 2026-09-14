@@ -379,13 +379,15 @@ final class BrowserModel {
         let previous = snapshot.flatMap { Self.samePath($0.folder, folder) ? $0.entries : nil } ?? []
         let parent = parentToCheck, isReadableFolder = self.isReadableFolder, catalog = self.catalog
         work = Task { [weak self] in
-            let (result, parentIsReadable) = await Task.detached(priority: .userInitiated) {
+            let (result, parentIsReadable) = await BlockingWork.run(qos: .userInitiated) {
                 let result = Result { () throws -> Listing in
                     let contents = try Self.list(folder, hidden, with: lister)
                     DebugMarks.seedIfRequested(folder: folder, names: Set(contents.images.map(\.name)), catalog: catalog)
+                    // Files moved or renamed in Finder get their marks back
+                    // (matched by file identifier) before the marks are read.
+                    catalog.heal(folder: folder)
                     // One catalog read for the folder, with the listing, so a
-                    // grid sorted by rating arrives in its order. (The catalog's
-                    // path healing, when it has one, belongs here too.)
+                    // grid sorted by rating arrives in its order.
                     let marks = Self.marksByName(contents.images, in: catalog)
                     let custom = order.key == .custom ? catalog.customOrder(in: folder) : []
                     let snapshot = FolderSnapshot(contents: contents, order: order, marks: marks, customOrder: custom)
@@ -393,7 +395,7 @@ final class BrowserModel {
                                    marks: marks)
                 }
                 return (result, parent.map(isReadableFolder))
-            }.value
+            }
             guard let self else { return }
             if let parent, let parentIsReadable, parent == self.parentToCheck, generation == self.generation {
                 self.parentToCheck = nil

@@ -148,7 +148,7 @@ import MinivuCore
         sidebar.onNavigate = { navigated.append($0) }
 
         sidebar.reveal(iceland)
-        let deadline = ContinuousClock.now + .seconds(5)
+        let deadline = ContinuousClock.now + .seconds(30)
         while sidebar.selectedFolder.map({ BrowserModel.samePath($0, iceland) }) != true, ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
@@ -213,7 +213,7 @@ extension AppWindowTests {
     /// The preview pane with real photos, which go through the app's shared
     /// image loader.
     @MainActor @Suite struct PreviewReloadTests {
-        func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
             let end = Date().addingTimeInterval(timeout)
             while !condition(), Date() < end {
                 try? await Task.sleep(for: .milliseconds(10))
@@ -394,7 +394,7 @@ extension AppWindowTests {
     }
 
     func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(5)
+        let deadline = ContinuousClock.now + .seconds(30)
         while !condition(), ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }

@@ -229,9 +229,9 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private func checkForSubfolders(_ nodes: [SidebarNode]) {
         let urls = nodes.compactMap(\.url)
         Task { [weak self] in
-            let answers = await Task.detached(priority: .utility) {
+            let answers = await BlockingWork.run(qos: .utility) {
                 urls.map { FolderListing.hasSubfolders($0) }
-            }.value
+            }
             guard let self else { return }
             for (node, answer) in zip(nodes, answers) where node.children == nil && node.mayHaveChildren != answer {
                 node.mayHaveChildren = answer
@@ -282,14 +282,14 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             // stops at its first subfolder: cheap even beside folders of
             // 10,000 photos. Display names are looked up here too: each is a
             // file system call, too many to make on the main thread.
-            let found = await Task.detached(priority: .userInitiated) {
+            let found = await BlockingWork.run(qos: .userInitiated) {
                 FolderListing.subfolders(of: url).map { folder in
                     let old = known[SidebarPaths.key(folder)]
                     return Found(url: folder,
                                  title: old?.title ?? FileManager.default.displayName(atPath: folder.path),
                                  hasSubfolders: old?.hasSubfolders ?? FolderListing.hasSubfolders(folder))
                 }
-            }.value
+            }
             guard let self else { return }
             node.isListing = false
             self.apply(found, to: node)
@@ -388,7 +388,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         }
         guard let url = node.url else { return }
         Task { [weak self] in
-            let answer = await Task.detached(priority: .utility) { FolderListing.hasSubfolders(url) }.value
+            let answer = await BlockingWork.run(qos: .utility) { FolderListing.hasSubfolders(url) }
             guard let self, node.children == nil, node.mayHaveChildren != answer else { return }
             node.mayHaveChildren = answer
             self.reloadRow(node, children: false)

@@ -81,3 +81,33 @@ import Metal
         #expect(near(Fixtures.pixel(out, 55, 30), Self.white, tolerance: 0.05))
     }
 }
+
+/// Transparent pixels must upload as transparent, whatever the freshly
+/// allocated memory held before (the uploader doesn't zero it).
+@Suite(.serialized) struct TransparentUploadTests {
+    @Test func transparentPixelsAreClearEvenOnDirtyMemory() throws {
+        // Dirty the allocator: fill and free a few page-sized blocks of the
+        // size the upload will ask for.
+        let byteCount = 64 * 64 * 4 + 16384
+        for _ in 0..<8 {
+            let p = UnsafeMutableRawPointer.allocate(byteCount: byteCount, alignment: Int(getpagesize()))
+            p.initializeMemory(as: UInt8.self, repeating: 0xC8, count: byteCount)
+            p.deallocate()
+        }
+        let ctx = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
+                            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.clear(CGRect(x: 0, y: 0, width: 64, height: 64))
+        ctx.setFillColor(CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: 32, height: 64))   // left half red, right half clear
+        let decoded = DecodedImage(image: ctx.makeImage()!, orientation: .up, imageSize: CGSize(width: 64, height: 64),
+                                   isFullResolution: true, isHDR: false, contentHeadroom: 1, needsDeepStorage: false)
+        let texture = try TextureUploader.upload(decoded)
+        let frame = CanvasFrame(image: texture, transform: ViewportTransform(zoom: 1, center: CGPoint(x: 32, y: 32)),
+                                background: SIMD3(0, 0, 1), checkerboard: false)
+        let out = try Fixtures.render(frame, width: 64, height: 64)
+        // The clear half shows the blue background exactly.
+        #expect(near(Fixtures.pixel(out, 48, 32), SIMD3(0, 0, 1), tolerance: 0.002))
+        #expect(near(Fixtures.pixel(out, 16, 32), CanvasPipelineTests.red, tolerance: 0.02))
+    }
+}

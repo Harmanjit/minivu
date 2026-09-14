@@ -95,7 +95,9 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         // wrong rate would still move it.
         let intervals = zip(times.dropFirst(), times).map { $0 - $1 }.sorted()
         let median = intervals[intervals.count / 2]
-        #expect(median > 0.04 && median < 0.065, "\(intervals)")
+        // Upper bound generous: the whole test suite shares the main actor.
+        // It still catches a player running at the wrong rate (e.g. double).
+        #expect(median > 0.04 && median < 0.095, "\(intervals)")
     }
 
     @Test func pauseAndSuspendStopTheClock() async throws {
