@@ -294,6 +294,7 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
             cell.configure(entry, layout: thumbnailLayout, backingScale: backingScale, marks: model.marks(for: entry.url),
                            finderTags: model.finderTags(for: entry.url))
             cell.onRate = { [weak self] url, stars in self?.model.setRating(stars, for: [url]) }
+            cell.thumbnailView.isRenaming = renameEditor?.url == entry.url
         }
         return item
     }

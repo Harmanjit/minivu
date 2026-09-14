@@ -81,6 +81,13 @@ extension BrowserWindowController {
             switch result {
             case .success(let newURL):
                 BrowserModel.invalidateCaches(url)
+                // A renamed file keeps its place in the folder's Custom Order.
+                let catalog = model.catalog, folder = url.deletingLastPathComponent(), newName = newURL.lastPathComponent
+                BrowserModel.catalogWrites.async {
+                    guard let order = MarksOrdering.renamed(catalog.customOrder(in: folder), from: oldName, to: newName)
+                    else { return }
+                    catalog.setCustomOrder(order, in: folder)
+                }
                 done(true)
                 if let folder = model.folder, BrowserModel.samePath(folder, newURL.deletingLastPathComponent()) {
                     model.reload(thenSelect: [newURL])
@@ -167,26 +174,37 @@ extension BrowserWindowController {
         isTransferring = true
         let request = FileTransfer.Request(files: files, destination: destination, isMove: move)
         let next = move ? model.selectionAfterRemoving(Set(files)) : nil
-        let resolver = transferConflictResolver
+        let resolver = transferConflictResolver, trash = transferTrash
         transferWork = Task {
-            let outcome = await FileTransfer.run(request, window: window, resolver: resolver)
+            let outcome = await FileTransfer.run(request, window: window, resolver: resolver, trash: trash)
             isTransferring = false
-            if move { outcome.transfers.forEach { BrowserModel.invalidateCaches($0.from) } }
-            outcome.replaced.forEach(BrowserModel.invalidateCaches)
+            Self.invalidateCaches(outcome.transfers, outcome.trashed)
             if !outcome.transfers.isEmpty {
-                let pairs = outcome.transfers
-                let name = Self.transferActionName(count: pairs.count, isMove: move)
-                undoRegistrar(name)(true, { controller in
-                    if move {
-                        controller.moveExactly(Self.reversed(pairs), actionName: name)
-                    } else {
-                        controller.trashItems(pairs.map(\.to), actionName: name, redo: pairs)
-                    }
-                })
+                let record = TransferRecord(pairs: outcome.transfers, trashed: outcome.trashed, isMove: move)
+                undoRegistrar(record.actionName)(true, { $0.undoTransfer(record) })
             }
-            showTransferred(outcome.transfers, isMove: move, thenSelect: next)
+            showTransferred(arrived: outcome.transfers.map(\.to), left: move ? outcome.transfers.map(\.from) : [],
+                            thenSelect: next)
             FileTransfer.reportFailures(outcome, on: window)
         }
+    }
+
+    /// A finished copy or move, as Undo and Redo replay it. A class: a Redo
+    /// registers its Undo at once, but learns where the Trash put the items
+    /// it replaces only once its work is done.
+    final class TransferRecord {
+        var pairs: [FileOperations.Transfer]
+        /// What Replace put in the Trash: where each item was, and where it is.
+        var trashed: [FileOperations.Transfer]
+        let isMove: Bool
+
+        init(pairs: [FileOperations.Transfer], trashed: [FileOperations.Transfer], isMove: Bool) {
+            self.pairs = pairs
+            self.trashed = trashed
+            self.isMove = isMove
+        }
+
+        var actionName: String { BrowserWindowController.transferActionName(count: pairs.count, isMove: isMove) }
     }
 
     /// "Move 3 Items", "Copy 1 Item": the Undo and Redo titles.
@@ -194,64 +212,87 @@ extension BrowserWindowController {
         "\(isMove ? "Move" : "Copy") \(count == 1 ? "1 Item" : "\(count.formatted()) Items")"
     }
 
-    nonisolated static func reversed(_ pairs: [FileOperations.Transfer]) -> [FileOperations.Transfer] {
-        pairs.map { FileOperations.Transfer(from: $0.to, to: $0.from) }
+    /// Thumbnails and textures of every path a transfer touched: a replaced
+    /// or restored file has new contents under an old name.
+    private static func invalidateCaches(_ pairs: [FileOperations.Transfer], _ trashed: [FileOperations.Transfer]) {
+        for pair in pairs + trashed {
+            BrowserModel.invalidateCaches(pair.from)
+            BrowserModel.invalidateCaches(pair.to)
+        }
     }
 
-    private func showTransferred(_ pairs: [FileOperations.Transfer], isMove: Bool, thenSelect next: URL?) {
-        guard let folder = model.folder, !pairs.isEmpty else { return }
+    private func showTransferred(arrived: [URL], left: [URL], thenSelect next: URL?) {
+        guard let folder = model.folder, !arrived.isEmpty || !left.isEmpty else { return }
         let inFolder = { (url: URL) in BrowserModel.samePath(url.deletingLastPathComponent(), folder) }
-        let arrived = pairs.map(\.to).filter(inFolder)
-        let left = isMove ? pairs.map(\.from).filter(inFolder) : []
-        if !arrived.isEmpty {
-            model.reload(thenSelect: arrived)
-        } else if !left.isEmpty {
-            model.removeEntries(Set(left))
+        let arrivedHere = arrived.filter(inFolder)
+        let leftHere = left.filter(inFolder)
+        if !arrivedHere.isEmpty {
+            model.reload(thenSelect: arrivedHere)
+        } else if !leftHere.isEmpty {
+            model.removeEntries(Set(leftHere))
             if let next, model.entry(for: next) != nil { model.select(next) }
             model.reload()
         }
         // A folder moved or copied changes the sidebar's tree; rows not
         // listed yet cost nothing.
-        sidebarFolderChanged(Array(Set(pairs.map { $0.to.deletingLastPathComponent() }
-                                       + pairs.map { $0.from.deletingLastPathComponent() })))
+        sidebarFolderChanged(Array(Set((arrived + left).map { $0.deletingLastPathComponent() })))
     }
 
-    /// Undo and Redo of a move: each file back to exactly where it was.
-    func moveExactly(_ pairs: [FileOperations.Transfer], actionName: String) {
-        let done = undoRegistration(actionName) { $0.moveExactly(Self.reversed(pairs), actionName: actionName) }
+    /// Undo of a copy or move: moved files go back to exactly where they
+    /// were and copies to the Trash (where they can still be recovered),
+    /// then whatever Replace put in the Trash comes back to its place.
+    func undoTransfer(_ record: TransferRecord) {
+        let done = undoRegistration(record.actionName) { $0.redoTransfer(record) }
+        let pairs = record.pairs, trashed = record.trashed, isMove = record.isMove, trash = transferTrash
         Task {
-            let moved = await Task.detached(priority: .userInitiated) {
-                pairs.filter { Self.moveFile($0.from, exactlyTo: $0.to) }
+            let (undone, restored) = await Task.detached(priority: .userInitiated) {
+                let undone = pairs.reversed().filter { pair in
+                    if isMove { return Self.moveFile(pair.to, exactlyTo: pair.from) }
+                    guard case .success(.some) = trash(pair.to) else { return false }
+                    return true
+                }
+                let restored = trashed.filter { Self.moveFile($0.to, exactlyTo: $0.from) }
+                return (Array(undone), restored)
             }.value
-            moved.forEach { BrowserModel.invalidateCaches($0.from) }
-            done(!moved.isEmpty)
-            showTransferred(moved, isMove: true, thenSelect: nil)
-            if moved.count < pairs.count { present(message: "Some items couldn’t be put back.") }
-        }
-    }
-
-    /// Redo of a copy: the same files copied again to the same names.
-    func copyExactly(_ pairs: [FileOperations.Transfer], actionName: String) {
-        let done = undoRegistration(actionName) { $0.trashItems(pairs.map(\.to), actionName: actionName, redo: pairs) }
-        Task {
-            let copied = await Task.detached(priority: .userInitiated) {
-                pairs.filter { Self.copyFile($0.from, exactlyTo: $0.to) }
-            }.value
-            done(!copied.isEmpty)
-            showTransferred(copied, isMove: false, thenSelect: nil)
-        }
-    }
-
-    /// Undo of a copy or a new folder: what was made goes to the Trash,
-    /// where it can still be recovered. `redo` makes the copies again.
-    func trashItems(_ urls: [URL], actionName: String, redo: [FileOperations.Transfer]? = nil) {
-        let done = undoRegistration(actionName) { controller in
-            if let redo {
-                controller.copyExactly(redo, actionName: actionName)
-            } else {
-                controller.recreateFolders(urls, actionName: actionName)
+            Self.invalidateCaches(pairs, trashed)
+            done(!undone.isEmpty || !restored.isEmpty)
+            showTransferred(arrived: (isMove ? undone.map(\.from) : []) + restored.map(\.from),
+                            left: undone.map(\.to), thenSelect: nil)
+            if undone.count < pairs.count || restored.count < trashed.count {
+                present(message: "Some items couldn’t be put back.")
             }
         }
+    }
+
+    /// Redo of a copy or move: what it replaced goes to the Trash again,
+    /// then the files are moved or copied to exactly the names they had.
+    func redoTransfer(_ record: TransferRecord) {
+        let done = undoRegistration(record.actionName) { $0.undoTransfer(record) }
+        let pairs = record.pairs, trashed = record.trashed, isMove = record.isMove, trash = transferTrash
+        Task {
+            let (redone, retrashed) = await Task.detached(priority: .userInitiated) {
+                let retrashed = trashed.compactMap { item -> FileOperations.Transfer? in
+                    guard case .success(let place?) = trash(item.from) else { return nil }
+                    return FileOperations.Transfer(from: item.from, to: place)
+                }
+                let redone = pairs.filter {
+                    isMove ? Self.moveFile($0.from, exactlyTo: $0.to) : Self.copyFile($0.from, exactlyTo: $0.to)
+                }
+                return (redone, retrashed)
+            }.value
+            record.pairs = redone
+            record.trashed = retrashed
+            Self.invalidateCaches(pairs, trashed)
+            done(!redone.isEmpty)
+            showTransferred(arrived: redone.map(\.to), left: isMove ? redone.map(\.from) : [], thenSelect: nil)
+            if redone.count < pairs.count { present(message: "Some items couldn’t be moved or copied again.") }
+        }
+    }
+
+    /// Undo of New Folder: the folder goes to the Trash, where it can still
+    /// be recovered with anything put in it since.
+    func trashItems(_ urls: [URL], actionName: String) {
+        let done = undoRegistration(actionName) { $0.recreateFolders(urls, actionName: actionName) }
         Task {
             let trashed = (try? await NSWorkspace.shared.recycle(urls)).map { Array($0.keys) } ?? []
             trashed.forEach(BrowserModel.invalidateCaches)

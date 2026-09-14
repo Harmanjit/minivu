@@ -162,7 +162,10 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         let item = NSMenuToolbarItem(itemIdentifier: .browserFilter)
         item.label = "Filter"
         item.toolTip = "Show only rated or tagged images"
-        item.showsIndicator = true
+        // No chevron (as Mail's filter button): with one, the default
+        // 1400-point window had no room left and the search field collapsed
+        // to a button.
+        item.showsIndicator = false
         filterItem = item
         let state = filterState ?? FilterState(isActive: false, finderTags: [], selectedTag: nil)
         filterState = nil

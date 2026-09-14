@@ -191,6 +191,11 @@ final class BrowserModel {
     /// Selected, all of them, once the next listing arrives (files just
     /// copied, moved or renamed in).
     private var pendingSelections: [URL] = []
+    /// Catalog changes that came in while a listing was being read. The
+    /// listing may have read the catalog before them, so they are applied
+    /// again when it lands; otherwise a star set during a reload would
+    /// flick back until the next change.
+    private var catalogChangesDuringListing: [URL] = []
     /// Reads Finder tags after a listing; replaced by the next listing.
     private var finderTagReader: Task<[String: [FinderTag]]?, Never>?
     /// The Finder tag read in flight, for tests to await.
@@ -322,6 +327,7 @@ final class BrowserModel {
         changedMarkNames = nil
         finderTagReader?.cancel()
         pendingSelections = []
+        catalogChangesDuringListing = []
         pendingSelection = item
         parentToCheck = enclosingFolder
         if parentToCheck == nil { canGoToEnclosingFolder = false }
@@ -474,6 +480,11 @@ final class BrowserModel {
         }
         #endif
         onChange?([.entries, .selection, .state, .history, .marks])
+        if !catalogChangesDuringListing.isEmpty {
+            let urls = catalogChangesDuringListing
+            catalogChangesDuringListing = []
+            catalogChanged(urls)
+        }
     }
 
     #if DEBUG
@@ -581,6 +592,7 @@ final class BrowserModel {
     /// folder's files are read again (one small read), then only what they
     /// affect is redone: the cells, the filter, or the order.
     func catalogChanged(_ urls: [URL]) {
+        if isListing { catalogChangesDuringListing += urls }
         guard let folder, state == .loaded else { return }
         var files: [URL] = []
         var orderChanged = false

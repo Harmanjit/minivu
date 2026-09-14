@@ -180,7 +180,19 @@ final class ThumbnailCellView: NSView {
         if tagBadge.isHidden == marks.isTagged { tagBadge.isHidden = !marks.isTagged }
         if dots.tags != finderTags {
             dots.tags = finderTags
-            dots.isHidden = finderTags.isEmpty
+            dots.isHidden = finderTags.isEmpty || isRenaming
+            needsLayout = true
+        }
+    }
+
+    /// The name is being edited in a field over it. The label and tag dots
+    /// step aside: a bezeled field is translucent in Dark Mode, and they
+    /// would show through it.
+    var isRenaming = false {
+        didSet {
+            guard isRenaming != oldValue else { return }
+            nameField.isHidden = isRenaming
+            dots.isHidden = isRenaming || dots.tags.isEmpty
             needsLayout = true
         }
     }
@@ -418,6 +430,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         cellView.setImage(nil, isIcon: false)
         cellView.detailField.stringValue = ""
         cellView.resetHover()
+        cellView.isRenaming = false
     }
 
     nonisolated static func dimensions(_ size: CGSize) -> String {

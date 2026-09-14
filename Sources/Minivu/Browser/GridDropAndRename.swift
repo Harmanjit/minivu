@@ -140,6 +140,14 @@ extension GridViewController {
 
     // MARK: - Rename
 
+    /// Hides the name under the editor, and shows every other cell's.
+    func markRenamingCells() {
+        let url = renameEditor?.url
+        for case let cell as ThumbnailCell in collectionView.visibleItems() {
+            cell.thumbnailView.isRenaming = url != nil && cell.entry?.url == url
+        }
+    }
+
     /// Edits `url`'s name in place, the name without its extension selected
     /// (Finder's convention). `proposedName` puts back a name the user typed
     /// that couldn't be used, to correct it.
@@ -162,9 +170,11 @@ extension GridViewController {
         editor.onEnd = { [weak self, weak editor] in
             guard let self, self.renameEditor === editor else { return }
             self.renameEditor = nil
+            self.markRenamingCells()
             self.view.window?.makeFirstResponder(self.collectionView)
         }
         renameEditor = editor
+        markRenamingCells()
         editor.begin(in: collectionView, frame: frame, window: window, text: proposedName ?? entry.name,
                      selectingBaseName: !entry.isDirectory)
     }

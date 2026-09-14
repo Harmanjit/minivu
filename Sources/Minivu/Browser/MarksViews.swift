@@ -144,6 +144,11 @@ final class TagDotsView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current else { return }
+        // The rings are cleared inside a layer of their own: drawn straight
+        // into a shared bitmap (a cached snapshot, a parent's layer) a clear
+        // would punch through whatever the cell drew beneath.
+        context.cgContext.beginTransparencyLayer(auxiliaryInfo: nil)
+        defer { context.cgContext.endTransparencyLayer() }
         let y = (bounds.height - Self.diameter) / 2
         // Right to left, so each dot sits over the next, as in Finder.
         for (index, tag) in shownTags.enumerated().reversed() {

@@ -32,6 +32,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     var transferWork: Task<Void, Never>?
     /// Answers name clashes instead of an alert; for tests.
     var transferConflictResolver: FileTransfer.ConflictResolver?
+    /// Where Replace and the Undo of a copy put items; tests use a folder.
+    var transferTrash: FileTransfer.Trasher = TransferChecks.trash
 
     /// - Parameter catalog: where ratings and tags live; tests pass their own.
     init(catalog: Catalog = .shared) {

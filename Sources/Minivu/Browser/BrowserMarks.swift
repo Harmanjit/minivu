@@ -68,6 +68,13 @@ nonisolated enum MarksOrdering {
         rest.insert(contentsOf: moved, at: insertAt)
         return rest
     }
+
+    /// The arrangement after a file is renamed: the new name takes the old
+    /// one's place (nil when the old name wasn't placed, so nothing changes).
+    static func renamed(_ order: [String], from oldName: String, to newName: String) -> [String]? {
+        guard oldName != newName, order.contains(oldName) else { return nil }
+        return order.filter { $0 != newName }.map { $0 == oldName ? newName : $0 }
+    }
 }
 
 /// Finder's rules for what a file drop does.

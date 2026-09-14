@@ -21,9 +21,12 @@ final class RecentDestinations {
         self.key = key
         for data in defaults.array(forKey: key) as? [Data] ?? [] {
             var stale = false
-            guard let url = (try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil,
-                                      bookmarkDataIsStale: &stale))
-                    ?? (try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &stale))
+            // Read when the menu bar is built at launch: never mount a volume
+            // or ask the user anything to find a folder that has gone.
+            let quiet: URL.BookmarkResolutionOptions = [.withoutUI, .withoutMounting]
+            guard let url = (try? URL(resolvingBookmarkData: data, options: quiet.union(.withSecurityScope),
+                                      relativeTo: nil, bookmarkDataIsStale: &stale))
+                    ?? (try? URL(resolvingBookmarkData: data, options: quiet, relativeTo: nil, bookmarkDataIsStale: &stale))
             else { continue }
             _ = url.startAccessingSecurityScopedResource()
             folders.append(url)

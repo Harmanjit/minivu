@@ -285,17 +285,24 @@ Finder's columns do.
 on a folder cell or sidebar row into that folder, by Finder's rules: same
 volume moves, another copies, ⌥ copies and ⌘ moves. Files already in the
 folder do nothing, except in Custom Order, where the drop reorders them at
-the gap shown. Name clashes ask Replace, Keep Both or Skip (Apply to All),
-all before anything moves; the work runs off the main thread one file at a
-time, with a progress sheet and Cancel for more than 20 files or anything
-still running after half a second; the arrivals are selected afterwards.
+the gap shown. Whether files are already there, or a folder would go into
+itself, is decided by file identity, not by path, so another spelling of
+the same folder (a symbolic link, `/tmp` for `/private/tmp`) can never make
+a file replace itself. Name clashes ask Replace, Keep Both or Skip (Apply
+to All), all before anything moves, and Replace puts the old item in the
+Trash rather than deleting it (an item that holds the file being moved is
+never replaced). The work runs off the main thread one file at a time,
+with a progress sheet and Cancel for more than 20 files or anything still
+running after half a second; the arrivals are selected afterwards.
 Copy To and Move To choose a folder with an open panel and remember the
 last five (as security-scoped bookmarks). Rename (F2 or the context menu)
 edits the name in place with the base name selected: Return or a click
 elsewhere commits, Esc cancels, and a name that can't be used is explained
 and offered back to correct. New Folder makes "untitled folder" and starts
 renaming it. Moves, copies, renames and new folders are undoable ("Undo
-Move 3 Items"); undoing a copy or a new folder moves it to the Trash.
+Move 3 Items"); undoing a copy or a new folder moves it to the Trash, and
+undoing a transfer that replaced something brings that back from the Trash.
+A file renamed in Custom Order keeps its place.
 
 **Viewer:** opens on double-click or Return. Windowed or true full screen
 (borderless, instant, on the current display). In full screen the edges

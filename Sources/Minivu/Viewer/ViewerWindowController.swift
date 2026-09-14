@@ -131,6 +131,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// The current image's rating and tag, read once per image rather than
     /// on every zoom step that updates the HUD.
     private var shownMarks: (url: URL, marks: Catalog.Marks)?
+    /// Rating and tag writes sent from here that haven't landed yet.
+    private var pendingMarkWrites = 0
 
     private init(images: [FolderEntry], index: Int, onClose: @escaping (FolderEntry?) -> Void) {
         model = ViewerModel(images: images, index: index, wrapAround: Preferences.shared.wrapAround)
@@ -1031,7 +1033,6 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         alert.beginSheetModal(for: window)
     }
 
-    /// The control bar's info button: pins the info panel open, or unpins it.
     // MARK: - Rating and tag
 
     /// Image > Rating (⌃0–⌃5); the bare digits come through `handleKey`.
@@ -1047,7 +1048,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         marks.isTagged.toggle()
         let tagged = marks.isTagged
         showMarks(marks, for: entry)
-        BrowserModel.catalogWrites.async { Catalog.shared.setTagged(tagged, for: [entry.url]) }
+        writeMarks { Catalog.shared.setTagged(tagged, for: [entry.url]) }
     }
 
     private func rate(_ stars: Int) {
@@ -1055,7 +1056,19 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         var marks = marks(for: entry)
         marks.rating = min(max(stars, 0), 5)
         showMarks(marks, for: entry)
-        BrowserModel.catalogWrites.async { Catalog.shared.setRating(stars, for: [entry.url]) }
+        writeMarks { Catalog.shared.setRating(stars, for: [entry.url]) }
+    }
+
+    /// Writes on the catalog's queue, counting writes not yet landed: until
+    /// the last has, the HUD keeps what the keys set rather than reading back
+    /// a catalog that has only some of them (a quick T T would flash tagged).
+    private func writeMarks(_ write: @escaping @Sendable () -> Void) {
+        pendingMarkWrites += 1
+        BrowserModel.catalogWrites.async { [weak self] in
+            write()
+            // Queued after the catalog's own change notice, so it runs after it.
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.pendingMarkWrites -= 1 } }
+        }
     }
 
     /// Shown before the write lands, so a second quick press toggles from
@@ -1076,13 +1089,14 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// The HUD shows the new stars at once, flashing up so a key press in
     /// full screen is answered even with the HUD faded.
     @objc private func catalogDidChange(_ notification: Notification) {
-        guard !isClosing, let entry = model.current, let urls = notification.object as? [URL],
+        guard !isClosing, pendingMarkWrites == 0, let entry = model.current, let urls = notification.object as? [URL],
               urls.contains(where: { $0.standardizedFileURL.path == entry.url.standardizedFileURL.path }) else { return }
         shownMarks = nil
         updateChrome()
         hud.flash()
     }
 
+    /// The control bar's info button: pins the info panel open, or unpins it.
     @objc func toggleInfoPanel(_ sender: Any?) {
         flyouts.togglePinned(.right)
         pinsChanged()
