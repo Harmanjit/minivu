@@ -13,6 +13,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     static let headerHeight: CGFloat = 42
     static let footerHeight: CGFloat = 30
     static let focusBorderWidth: CGFloat = 2
+    static let minimumWidthForZoomLabel: CGFloat = 210
 
     let canvas = ImageCanvasView(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
     private(set) var entry: FolderEntry?
@@ -108,6 +109,9 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         errorLabel.frame.origin = CGPoint(x: ((b.width - errorLabel.frame.width) / 2).rounded(),
                                           y: (canvasFrame.midY - errorLabel.frame.height / 2).rounded())
         border.frame = b
+        // Four panes in a row in a small window leave no room for the zoom
+        // readout beside the stars, tag and trash; it goes first.
+        zoomLabel.isHidden = b.width < Self.minimumWidthForZoomLabel
         if needsLoad, canvasLongEdge > 0 { load() }
     }
 
@@ -132,13 +136,16 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         numberLabel.layer?.cornerRadius = 4
         numberLabel.layer?.borderWidth = 1
         numberLabel.layer?.borderColor = NSColor.tertiaryLabelColor.cgColor
+        // In a narrow pane (four in a row) the name, which says which photo
+        // this is, keeps its room and the size details give way.
         nameLabel.font = .systemFont(ofSize: 12, weight: .semibold)
         nameLabel.lineBreakMode = .byTruncatingMiddle
-        nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        nameLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         detailLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         detailLabel.textColor = .secondaryLabelColor
         detailLabel.alignment = .right
-        detailLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        detailLabel.lineBreakMode = .byTruncatingTail
+        detailLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         exposureLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         exposureLabel.textColor = .secondaryLabelColor
         exposureLabel.lineBreakMode = .byTruncatingTail

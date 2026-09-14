@@ -3,8 +3,17 @@ import Metal
 import MinivuCore
 
 /// The histogram of an image on the GPU: 256 bins each of red, green, blue
-/// and luminance, display-referred (what an SDR screen or an 8-bit export
-/// would hold), plus how many pixels are brighter than SDR white.
+/// and luminance, display-referred, plus how many pixels are brighter than
+/// SDR white.
+///
+/// The values are those of the canvas's working space (DESIGN.md 4.3):
+/// Display P3 with the sRGB curve, clipped to SDR, which is what an 8-bit
+/// Display P3 export would hold. An sRGB photo is measured after conversion
+/// to P3, so its saturated colours sit a little inside the ends (sRGB's
+/// pure red is about 234, 51, 35 in P3) and its channel clipping reads
+/// slightly lower than in the file's own values; the texture no longer
+/// knows the file's colour space. Fully transparent pixels are left out,
+/// and translucent ones counted as their own colour.
 public struct HistogramData: Sendable, Equatable {
     public static let binCount = 256
 
@@ -23,7 +32,8 @@ public struct HistogramData: Sendable, Equatable {
     /// texture: highlights an SDR screen or file would clip. Always 0 for
     /// 8-bit textures.
     public var aboveSDRWhite: Int
-    /// Pixels counted: those of the sampled mip level, not of the image.
+    /// Pixels counted: those of the sampled mip level (not of the image)
+    /// that aren't fully transparent.
     public var pixelCount: Int
     /// The mip level measured (see `Histogram.level`), and its size.
     public var level: Int
@@ -117,8 +127,14 @@ public enum Histogram {
     }
 
     /// Slots in the result buffer: four channels of bins, then the count of
-    /// pixels above SDR white.
-    static let slotCount = 4 * HistogramData.binCount + 1
+    /// pixels above SDR white, then the count of pixels measured.
+    static let slotCount = 4 * HistogramData.binCount + 2
+
+    /// Mirrors `HistogramParams` in Histogram.metal.
+    struct Params {
+        var lod: UInt32
+        var encodedPremultiplied: UInt32
+    }
 
     final class Calculator: @unchecked Sendable {
         static let shared = Calculator(gpu: .shared)
@@ -146,11 +162,14 @@ public enum Histogram {
                                         levelCount: texture.mipmapLevelCount)
             let width = max(texture.width >> level, 1)
             let height = max(texture.height >> level, 1)
-            var lod = UInt32(level)
+            // 8-bit textures were premultiplied by Core Graphics on the
+            // encoded values; half-float ones hold linear light.
+            var params = Params(lod: UInt32(level),
+                                encodedPremultiplied: texture.pixelFormat == .rgba16Float ? 0 : 1)
             encoder.setComputePipelineState(pipeline)
             encoder.setTexture(texture, index: 0)
             encoder.setBuffer(buffer, offset: 0, index: 0)
-            encoder.setBytes(&lod, length: MemoryLayout<UInt32>.size, index: 1)
+            encoder.setBytes(&params, length: MemoryLayout<Params>.stride, index: 1)
             // Whole threadgroups only: the kernel's barriers need every
             // thread of a group to run, including those past the edge.
             let w = pipeline.threadExecutionWidth
@@ -167,7 +186,7 @@ public enum Histogram {
                                              count: Histogram.slotCount)
             return HistogramData(red: Array(counts[0..<bins]), green: Array(counts[bins..<2 * bins]),
                                  blue: Array(counts[2 * bins..<3 * bins]), luminance: Array(counts[3 * bins..<4 * bins]),
-                                 aboveSDRWhite: Int(counts[4 * bins]), pixelCount: width * height,
+                                 aboveSDRWhite: Int(counts[4 * bins]), pixelCount: Int(counts[4 * bins + 1]),
                                  level: level, sampledWidth: width, sampledHeight: height)
         }
     }

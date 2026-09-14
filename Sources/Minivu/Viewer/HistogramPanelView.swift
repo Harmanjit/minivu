@@ -85,11 +85,14 @@ nonisolated enum HistogramPlot {
 /// result redraws the panel. So a new texture starts a computation at once
 /// if none ran in the last 100 ms, and otherwise waits out the rest of that
 /// interval, taking whichever texture is newest by then: at most ten a
-/// second while dragging, and the final state always arrives. Nothing is
-/// computed while the panel is hidden; showing it catches up.
+/// second while dragging, and the final state always arrives. A playing
+/// animation, which would otherwise keep that going for as long as it
+/// loops, waits `animationInterval` instead. Nothing is computed while the
+/// panel is hidden; showing it catches up.
 final class HistogramPanelController {
     static let height: CGFloat = 232
     static let minimumInterval: TimeInterval = 0.1
+    static let animationInterval: TimeInterval = 1
 
     let model = HistogramPanelModel()
     private(set) lazy var view: NSHostingView<HistogramPanelView> = {
@@ -108,6 +111,7 @@ final class HistogramPanelController {
     private var computeTask: Task<Void, Never>?
     private var waitWork: DispatchWorkItem?
     private var lastStart: TimeInterval = -.infinity
+    private var interval = HistogramPanelController.minimumInterval
     /// Computations started, for tests.
     private(set) var computeCount = 0
 
@@ -140,9 +144,16 @@ final class HistogramPanelController {
     // MARK: - Histogram
 
     /// The canvas shows another texture (another image, a sharper copy, an
-    /// edit preview), or none.
-    func show(_ texture: ImageTexture?) {
+    /// edit preview, an animation frame), or none. `interval` is the least
+    /// time between computations from now on.
+    func show(_ texture: ImageTexture?, interval: TimeInterval = HistogramPanelController.minimumInterval) {
         self.texture = texture
+        if interval < self.interval {
+            // Paused: a wait timed for playback would hold the frame back.
+            waitWork?.cancel()
+            waitWork = nil
+        }
+        self.interval = interval
         guard isActive else { return }
         update()
     }
@@ -169,7 +180,7 @@ final class HistogramPanelController {
         }
         // One at a time; the one running looks again when it's done.
         guard texture !== measured, computeTask == nil, waitWork == nil else { return }
-        let wait = lastStart + Self.minimumInterval - ProcessInfo.processInfo.systemUptime
+        let wait = lastStart + interval - ProcessInfo.processInfo.systemUptime
         if wait > 0 {
             let work = DispatchWorkItem { [weak self] in
                 self?.waitWork = nil
@@ -209,9 +220,17 @@ final class HistogramPanelController {
     /// Decodes the file at full resolution off the main thread and counts
     /// its colours. The file as saved is counted, not an unsaved edit, and
     /// HDR photos as their SDR rendition (the counter works in 8 bits).
+    ///
+    /// The file's modification date is read afresh (one stat): the viewer's
+    /// entry keeps the date the folder was listed with, so after a save in
+    /// place or a change on disk its date would find the old file's count.
     func countColors() {
         guard let entry, countTask == nil else { return }
-        let key = CountKey(url: entry.url, modified: entry.modified)
+        var file = entry.url
+        file.removeAllCachedResourceValues()
+        let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
+            .contentModificationDate ?? entry.modified
+        let key = CountKey(url: entry.url, modified: modified)
         if let known = Self.counts[key] {
             model.colorCount = .counted(known)
             return
@@ -447,7 +466,7 @@ struct HistogramPanelView: View {
     }
 
     /// "0%", "0.4%", "12%".
-    static func percent(_ fraction: Double) -> String {
+    nonisolated static func percent(_ fraction: Double) -> String {
         let value = fraction * 100
         if value == 0 { return "0%" }
         if value < 10 { return String(format: "%.1f%%", value) }

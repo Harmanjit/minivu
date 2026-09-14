@@ -278,6 +278,17 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         CompareWindowController.show(entries: selected, allImages: model.entries.filter { !$0.isDirectory })
     }
 
+    /// 2 to 4 images selected. Stops counting at 5: validation runs often,
+    /// and a ⌘A selection of a huge folder shouldn't be sorted for it.
+    private var canCompareSelection: Bool {
+        var images = 0
+        for url in model.selection where model.entry(for: url)?.isDirectory == false {
+            images += 1
+            if images > CompareModel.paneRange.upperBound { return false }
+        }
+        return CompareModel.paneRange.contains(images)
+    }
+
     @objc func goToEnclosingFolder(_ sender: Any?) {
         pendingViewerFile = nil
         model.goToEnclosingFolder()
@@ -373,7 +384,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .openInViewer: model.leadEntry != nil
         case .revealInFinder: model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText
-        case .compareSelected: CompareModel.paneRange.contains(model.selectedEntries.filter { !$0.isDirectory }.count)
+        case .compareSelected: canCompareSelection
         case .goToEnclosingFolder: model.canGoToEnclosingFolder
         case .goBack: model.canGoBack
         case .goForward: model.canGoForward

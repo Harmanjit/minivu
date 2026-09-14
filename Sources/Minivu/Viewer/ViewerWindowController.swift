@@ -881,7 +881,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func canvasDidChangeImage(_ canvas: ImageCanvasView) {
-        histogramPanel.show(canvas.image)
+        histogramPanel.show(canvas.image, interval: player?.isPlaying == true
+            ? HistogramPanelController.animationInterval : HistogramPanelController.minimumInterval)
     }
 
     // MARK: - Keyboard

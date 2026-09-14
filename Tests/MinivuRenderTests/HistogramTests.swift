@@ -33,13 +33,15 @@ import Metal
 
     /// A half-float texture of extended linear values, as HDR photos and
     /// edit renders are stored.
-    func floatTexture(width: Int, height: Int, _ value: (Int, Int) -> SIMD3<Float>) throws -> ImageTexture {
+    func floatTexture(width: Int, height: Int, alpha: (Int, Int) -> Float = { _, _ in 1 },
+                      _ value: (Int, Int) -> SIMD3<Float>) throws -> ImageTexture {
         var pixels = [Float16](repeating: 1, count: width * height * 4)
         for y in 0..<height {
             for x in 0..<width {
                 let v = value(x, y)
                 let i = (y * width + x) * 4
                 pixels[i] = Float16(v.x); pixels[i + 1] = Float16(v.y); pixels[i + 2] = Float16(v.z)
+                pixels[i + 3] = Float16(alpha(x, y))
             }
         }
         let gpu = GPU.shared
@@ -125,6 +127,63 @@ import Metal
         }
         #expect(data.aboveSDRWhite == 190)
         #expect(abs(data.aboveSDRWhiteFraction - 0.475) < 1e-9)
+    }
+
+    /// An 8-bit premultiplied texture with alpha, as a PNG with transparency
+    /// is stored (mipmapped bgra8Unorm_srgb). Written straight into the
+    /// texture: the uploader draws over memory it doesn't clear, so a small
+    /// transparent image can pick up stale bytes there.
+    func translucentTexture(width: Int, height: Int,
+                            _ color: (Int, Int) -> (UInt8, UInt8, UInt8, UInt8)) throws -> ImageTexture {
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let (r, g, b, a) = color(x, y)
+                let i = (y * width + x) * 4
+                bytes[i] = b; bytes[i + 1] = g; bytes[i + 2] = r; bytes[i + 3] = a
+            }
+        }
+        let gpu = GPU.shared
+        let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm_srgb, width: width, height: height,
+                                                         mipmapped: true)
+        d.storageMode = .shared
+        let texture = try #require(gpu.device.makeTexture(descriptor: d))
+        texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: bytes,
+                        bytesPerRow: width * 4)
+        return ImageTexture(texture: texture, imageSize: CGSize(width: width, height: height), isFullResolution: true,
+                            isHDR: false, contentHeadroom: 1)
+    }
+
+    /// A logo on a clear background: the clear pixels are not black, and a
+    /// translucent pixel counts as its own colour, for both texture kinds.
+    @Test func transparentPixelsAreLeftOutAndTranslucentOnesUnpremultiplied() throws {
+        // 40 x 10: columns 0-19 fully transparent, 20-29 white at half
+        // alpha (premultiplied 128), 30-39 opaque grey 128.
+        let eight = try Histogram.compute(texture: translucentTexture(width: 40, height: 10) { x, _ in
+            x < 20 ? (0, 0, 0, 0) : x < 30 ? (128, 128, 128, 128) : (128, 128, 128, 255)
+        })
+        #expect(eight.pixelCount == 200)
+        #expect(eight.sampledWidth * eight.sampledHeight == 400)
+        for channel in HistogramData.Channel.allCases {
+            #expect(only(eight.bins(channel), [255: 100, 128: 100]), "\(channel)")
+            #expect(eight.shadowClipping(channel) == 0)
+        }
+
+        // Half-float, premultiplied in linear light: 0.25 at alpha 0.5 is
+        // linear 0.5.
+        let float = try Histogram.compute(texture: floatTexture(width: 40, height: 10, alpha: { x, _ in
+            x < 20 ? 0 : x < 30 ? 0.5 : 1
+        }) { x, _ in x < 20 ? SIMD3(repeating: 0) : x < 30 ? SIMD3(repeating: 0.25) : SIMD3(repeating: 1) })
+        #expect(float.pixelCount == 200)
+        for channel in HistogramData.Channel.allCases {
+            #expect(only(float.bins(channel), [bin(linear: 0.5): 100, 255: 100]), "\(channel)")
+        }
+        #expect(float.aboveSDRWhite == 0)
+
+        // Nothing but transparency: no pixels, no clipping, no division by zero.
+        let clear = try Histogram.compute(texture: translucentTexture(width: 8, height: 8) { _, _ in (0, 0, 0, 0) })
+        #expect(clear.pixelCount == 0)
+        #expect(clear.shadowClipping(.red) == 0)
     }
 
     @Test func measuresTheMipLevelClosestTo1024() throws {

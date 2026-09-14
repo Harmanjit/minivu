@@ -1,6 +1,7 @@
 import Testing
 import AppKit
 import CoreGraphics
+import ImageIO
 import MinivuCore
 import MinivuRender
 @testable import Minivu
@@ -117,6 +118,28 @@ import MinivuRender
         panel.stop()
     }
 
+    /// A playing animation replaces the texture with every frame: one
+    /// computation a second, until it pauses.
+    @Test func playingAnimationComputesOnceASecond() async throws {
+        let panel = HistogramPanelController()
+        let frames = try (1...3).map { try texture(width: 10 * $0, height: 10) }
+        panel.setActive(true)
+        panel.show(frames[0], interval: HistogramPanelController.animationInterval)
+        await waitUntil { panel.model.data != nil }
+        #expect(panel.computeCount == 1)
+        panel.show(frames[1], interval: HistogramPanelController.animationInterval)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(panel.computeCount == 1)
+        #expect(panel.model.data?.pixelCount == 100)
+        // Paused on a frame: it arrives at the usual pace, not a second later.
+        let paused = ContinuousClock.now
+        panel.show(frames[2])
+        await waitUntil { panel.model.data?.pixelCount == 300 }
+        #expect(panel.model.data?.pixelCount == 300)
+        #expect(ContinuousClock.now - paused < .milliseconds(600))
+        panel.stop()
+    }
+
     @Test func countsColoursOncePerFile() async throws {
         let scratch = try ScratchFolder()
         let first = try #require(FolderEntry(url: scratch.jpeg("a.jpg", width: 64, height: 48)))
@@ -139,6 +162,26 @@ import MinivuRender
         // Back to the first file: remembered, no decode.
         panel.setEntry(first)
         #expect(panel.model.colorCount == .counted(count))
+
+        // The file is rewritten in place (a save) while the viewer's entry
+        // keeps its old date: counting again must not answer from memory.
+        let gradient = try #require(CGContext(data: nil, width: 64, height: 48, bitsPerComponent: 8, bytesPerRow: 0,
+                                              space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                              bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        for x in 0..<64 {
+            gradient.setFillColor(red: CGFloat(x) / 63, green: 0.3, blue: 1 - CGFloat(x) / 63, alpha: 1)
+            gradient.fill(CGRect(x: x, y: 0, width: 1, height: 48))
+        }
+        let destination = try #require(CGImageDestinationCreateWithURL(first.url as CFURL, "public.png" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try #require(gradient.makeImage()), nil)
+        #expect(CGImageDestinationFinalize(destination))
+        try FileManager.default.setAttributes([.modificationDate: first.modified.addingTimeInterval(10)],
+                                              ofItemAtPath: first.url.path)
+        panel.countColors()
+        #expect(panel.model.colorCount == .counting)
+        await waitUntil { panel.model.colorCount != .counting }
+        #expect(panel.model.colorCount == .counted(64))
+
         panel.setEntry(nil)
         #expect(!panel.model.canCountColors)
         panel.stop()
