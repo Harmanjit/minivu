@@ -159,14 +159,37 @@ public enum RawRenderer {
     }
 
     private static func makeContext(gpu: GPU) -> CIContext {
-        CIContext(mtlCommandQueue: gpu.queue, options: [
+        var options: [CIContextOption: Any] = [
             .workingColorSpace: CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!,
             .workingFormat: CIFormat.RGBAh,
             // A viewer renders each file once; caching intermediates would
             // only hold memory.
             .cacheIntermediates: false,
             .name: "minivu RAW",
-        ])
+        ]
+        if let target = memoryTarget(physicalMemory: ProcessInfo.processInfo.physicalMemory) {
+            options[.memoryTarget] = target
+        }
+        return CIContext(mtlCommandQueue: gpu.queue, options: options)
+    }
+
+    /// The memory limit in megabytes for the RAW context's render tasks
+    /// (`kCIContextMemoryLimit`), or nil for Core Image's own choice.
+    ///
+    /// 512 MB on Macs with 8 GB or less. Measured on M4 (16 GB) with three
+    /// 24 MP NEFs rendered at full and half size in turn (`RawMemoryBenchmark`):
+    /// the first full render's footprint +1.22 GB without a limit, +0.90 GB
+    /// at 512 MB, +0.70 GB at 256 MB; the peak over all six renders 2.23 GB,
+    /// 1.80 GB and 1.73 GB. Full renders took 185-190 ms, 205-210 ms (+10%)
+    /// and 265-430 ms; half-size ones 115-120 ms, 113-117 ms and 145-220 ms.
+    /// 1024 MB saved nothing (peak 2.74 GB). So 512 MB takes a fifth to a
+    /// quarter off the footprint for a tenth more time on a full render,
+    /// worth it where memory is tight and not where it isn't; below that
+    /// the time grows much faster than the saving. Most of what remains is
+    /// the RAW engine's own buffers, which no context option limits (see
+    /// the type's documentation).
+    static func memoryTarget(physicalMemory: UInt64) -> Int? {
+        physicalMemory <= 8 << 30 ? 512 : nil
     }
 
     /// The largest channel value anywhere in `texture`.
