@@ -144,6 +144,107 @@ extension AppWindowTests {
             #expect(!viewer.canvasView.scrollingKeepsImage)
         }
 
+        /// After a save writes the edits into the file, the session must not
+        /// keep rendering from the pixels decoded before it: a decode of the
+        /// saved file (new display settings) would apply the edits twice.
+        @Test func savingOverTheOriginalStartsAgainFromTheSavedFile() async throws {
+            let folder = try ScratchFolder()
+            let url = try folder.jpeg("a.jpg", width: 600, height: 400)
+            let entry = try #require(FolderEntry(url: url))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { closeViewer() }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            let session = try #require(viewer.editSession)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+
+            // A save to another file leaves the document dirty: nothing changes.
+            viewer.editsWereSaved(session)
+            #expect(viewer.editSession === session)
+
+            // What Save does: the rotated pixels over the original, caches
+            // emptied, the document marked saved, then its completion.
+            _ = try folder.jpeg("a.jpg", width: 400, height: 600)
+            AppServices.images.invalidate(url)
+            session.document.markSaved()
+            viewer.editsWereSaved(session)
+            #expect(viewer.editSession == nil && session.isEnded)
+            #expect(viewer.window?.isDocumentEdited == false)
+            #expect(!enabled(viewer, .saveImage) && !enabled(viewer, .revertToSaved))
+
+            // New display settings decode the saved file once, not rotated again.
+            NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
+            try? await Task.sleep(for: .milliseconds(600))
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600))
+
+            // The next edit starts from the saved file.
+            await waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            let next = try #require(viewer.editSession)
+            #expect(next !== session && next.document.operations.count == 1)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400) }
+            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400))
+        }
+
+        /// The app delegate asks the viewer before quitting.
+        @Test func quittingAsksAboutUnsavedEdits() async throws {
+            let folder = try ScratchFolder()
+            let entry = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 600, height: 400)))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { closeViewer() }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            var replies: [Bool] = []
+            viewer.reviewUnsavedEditsBeforeQuitting { replies.append($0) }
+            #expect(replies == [true])
+
+            let savedQuestion = ViewerWindowController.askAboutUnsavedEdits
+            defer { ViewerWindowController.askAboutUnsavedEdits = savedQuestion }
+            var answer = UnsavedEditsChoice.cancel
+            ViewerWindowController.askAboutUnsavedEdits = { _, _, reply in reply(answer) }
+            viewer.adjustLighting(nil)
+            guard case .adjustment(let lighting)? = viewer.activeTool else {
+                Issue.record("Lighting didn't open")
+                return
+            }
+            lighting.setValue(0.3, section: 0, slider: 0)
+            #expect(viewer.hasUnsavedEdits)
+            viewer.reviewUnsavedEditsBeforeQuitting { replies.append($0) }
+            #expect(replies == [true, false])
+            #expect(viewer.activeTool != nil)
+            answer = .discard
+            viewer.reviewUnsavedEditsBeforeQuitting { replies.append($0) }
+            #expect(replies == [true, false, true])
+            #expect(viewer.editSession == nil && !viewer.hasUnsavedEdits)
+        }
+
+        /// The crop overlay draws through the canvas's mapping: image pixels
+        /// to view points and back, whatever the zoom and backing scale.
+        @Test func imageAndViewPointsRoundTrip() async throws {
+            let folder = try ScratchFolder()
+            let entry = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 600, height: 400)))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { closeViewer() }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            let canvas = viewer.canvasView
+            let rect = canvas.viewRect(forImageRect: CGRect(x: 0, y: 0, width: 600, height: 400))
+            // Fitted and centred in the view (flipped, top-left origin).
+            #expect(abs(rect.midX - canvas.bounds.midX) < 1 && abs(rect.midY - canvas.bounds.midY) < 1)
+            #expect(rect.width <= canvas.bounds.width + 0.5 && rect.height <= canvas.bounds.height + 0.5)
+            canvas.zoomIn()
+            for point in [CGPoint(x: 0, y: 0), CGPoint(x: 150, y: 320), CGPoint(x: 600, y: 400)] {
+                let back = canvas.imagePoint(forViewPoint: canvas.viewPoint(forImagePoint: point))
+                #expect(abs(back.x - point.x) < 0.01 && abs(back.y - point.y) < 0.01)
+            }
+            // A point lower in the view is lower in the image.
+            let top = canvas.imagePoint(forViewPoint: CGPoint(x: canvas.bounds.midX, y: 10))
+            let bottom = canvas.imagePoint(forViewPoint: CGPoint(x: canvas.bounds.midX, y: canvas.bounds.height - 10))
+            #expect(top.y < bottom.y)
+        }
+
         /// Only one frame of an animation would survive an edit, so none is offered.
         @Test func animationsCantBeEdited() async throws {
             let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-edit-gif-\(UUID())")

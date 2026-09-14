@@ -295,8 +295,13 @@ struct ImmediateActionsInspectorView: View {
                     Button {
                         perform(item.action)
                     } label: {
-                        Label(item.title, systemImage: item.symbol)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // Symbols differ in width; a fixed box lines the titles up.
+                        Label {
+                            Text(item.title)
+                        } icon: {
+                            Image(systemName: item.symbol).frame(width: 22)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)

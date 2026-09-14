@@ -76,11 +76,14 @@ struct LevelsEditorView: View {
         VStack(spacing: 4) {
             Canvas { context, size in drawHistogram(in: &context, size: size) }
                 .frame(width: Self.width, height: Self.histogramHeight)
-            Canvas { context, size in
+            // Levels map across the histogram's width, as the drag does, not
+            // this canvas's, which is a handle wider so the end handles draw
+            // whole.
+            Canvas { context, _ in
                 let c = state.current
-                drawHandle(in: &context, x: c.inputBlack * size.width, fill: .black)
-                drawHandle(in: &context, x: LevelsMath.gammaPosition(c) * size.width, fill: .gray)
-                drawHandle(in: &context, x: c.inputWhite * size.width, fill: .white)
+                drawHandle(in: &context, x: c.inputBlack * Self.width, fill: .black)
+                drawHandle(in: &context, x: LevelsMath.gammaPosition(c) * Self.width, fill: .gray)
+                drawHandle(in: &context, x: c.inputWhite * Self.width, fill: .white)
             }
             .frame(width: Self.width + Self.handleSize, height: Self.handleSize + 2)
             .contentShape(Rectangle())

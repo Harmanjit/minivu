@@ -35,6 +35,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             // caller would think it had gone while it stays on screen.
             if let viewer = current {
                 viewer.onClose = onClose
+                viewer.endSheetForClosingFromOutside()
                 viewer.closeViewer(reportsCurrent: false)
             } else {
                 onClose(nil)
@@ -423,7 +424,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// drags and the magnifier all want a clear view.
     private func windowMouseDown(_ event: NSEvent) {
         guard let contentView = window?.contentView, let superview = contentView.superview else { return }
-        if contentView.hitTest(superview.convert(event.locationInWindow, from: nil)) === canvas {
+        let hit = contentView.hitTest(superview.convert(event.locationInWindow, from: nil))
+        // The crop overlay takes the image's presses while cropping.
+        if hit === canvas || (hit != nil && hit === container.canvasOverlay) {
             flyouts.hideTransientPanels()
         }
     }
@@ -1005,6 +1008,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // Its edits went to the Trash with it.
         if wasCurrent || editSession?.document.entry == entry { endEditSession() }
         guard model.remove(entry) else {
+            endSheetForClosingFromOutside()
             closeViewer()
             return
         }
@@ -1110,6 +1114,18 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// menu bar back, and tell the browser which image to select.
     /// `reportsCurrent` is false when the browser has nothing left to show,
     /// so there is no image for it to select.
+    /// The viewer is about to close for a reason outside the window (its last
+    /// image went to the Trash, the browser has nothing left to show). A
+    /// sheet still up (Resize, an alert, a save panel) would be left hanging
+    /// off a closed window, so it ends first; an alert's handler then finds
+    /// its session gone and does nothing. Not part of `closeViewer`, which
+    /// also runs inside an alert's own handler (Don't Save), while AppKit
+    /// still has that alert attached.
+    private func endSheetForClosingFromOutside() {
+        guard !isClosing, let window, let sheet = window.attachedSheet else { return }
+        window.endSheet(sheet)
+    }
+
     private func closeViewer(reportsCurrent: Bool = true) {
         guard !isClosing else { return }
         isClosing = true

@@ -81,6 +81,26 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         updateChrome()
     }
 
+    /// A save wrote the session's edits into the image's own file (Save, or
+    /// Save As over the same file). That file is now the original, but the
+    /// session still renders from the pixels decoded before the save, and
+    /// anything that decodes the file again (new display settings, an
+    /// original too large for one texture being exported) would apply every
+    /// edit a second time, on screen and in the next save. So the session
+    /// ends and the page reloads from the saved file, keeping zoom and pan:
+    /// undo starts over from the saved image.
+    ///
+    /// Only when the document is clean with edits, the one state in which
+    /// the file is known to hold exactly its operations. A save to another
+    /// file leaves the document dirty, and a session with no operations wrote
+    /// nothing.
+    func editsWereSaved(_ session: EditSession) {
+        guard editSession === session, !isClosing, !session.document.isDirty,
+              !session.document.operations.isEmpty else { return }
+        endEditSession()
+        loadCurrentPage(reloading: true)
+    }
+
     /// Committed edits changed (or only a preview): update the chrome, and
     /// flash the HUD when what it says about the edit changed.
     private func editDocumentChanged() {
@@ -182,35 +202,60 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     /// at once when nothing would be lost, after Save or Don't Save when
     /// something would, and never after Cancel (or a save that didn't
     /// happen). Unapplied tool changes count, since they are on screen.
-    func resolveUnsavedEdits(then proceed: @escaping () -> Void) {
+    /// `cancelled` runs instead of `proceed` when the user stays.
+    func resolveUnsavedEdits(then proceed: @escaping () -> Void, cancelled: (() -> Void)? = nil) {
         guard let session = editSession else {
             proceed()
             return
         }
-        guard session.document.isDirty || activeTool?.hasPendingChanges == true, let window, !isClosing else {
+        guard hasUnsavedEdits, let window, !isClosing else {
             endEditSession()
             proceed()
             return
         }
         // An alert or the resize sheet is already up; the user answers that first.
-        guard window.attachedSheet == nil else { return }
+        guard window.attachedSheet == nil else {
+            cancelled?()
+            return
+        }
         Self.askAboutUnsavedEdits(session.document.entry.name, window) { [weak self] choice in
-            guard let self, self.editSession === session else { return }
+            guard let self, self.editSession === session else {
+                cancelled?()
+                return
+            }
             switch choice {
             case .cancel:
-                break
+                cancelled?()
             case .discard:
                 self.endEditSession()
                 proceed()
             case .save:
                 self.closeTool(applying: true)
                 SavePresenter.save(entry: session.document.entry, document: session.document, on: window) { [weak self] saved in
-                    guard saved, let self, self.editSession === session else { return }
+                    guard saved, let self, self.editSession === session else {
+                        cancelled?()
+                        return
+                    }
                     self.endEditSession()
                     proceed()
                 }
             }
         }
+    }
+
+    /// Edits on screen that no file has: committed ones not saved, or a
+    /// tool's unapplied changes.
+    var hasUnsavedEdits: Bool {
+        guard let session = editSession else { return false }
+        return session.document.isDirty || activeTool?.hasPendingChanges == true
+    }
+
+    /// For the app delegate's `applicationShouldTerminate`: asks about unsaved
+    /// edits as navigation does, then replies whether quitting may go on
+    /// (pass the answer to `NSApp.reply(toApplicationShouldTerminate:)`).
+    /// Replies at once when nothing would be lost.
+    func reviewUnsavedEditsBeforeQuitting(_ reply: @escaping (Bool) -> Void) {
+        resolveUnsavedEdits(then: { reply(true) }, cancelled: { reply(false) })
     }
 
     // MARK: - Validation
@@ -220,7 +265,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     func validateEditAction(_ action: Selector?) -> Bool? {
         switch action {
         case .saveImage:
-            return editSession.map { $0.document.isDirty || activeTool?.hasPendingChanges == true } ?? false
+            return hasUnsavedEdits
         case .revertToSaved:
             return editSession?.document.isDirty == true
         case .saveImageAs, .rotateLeft, .rotateRight, .flipHorizontal, .flipVertical, .resizeImage, .cropImage,
@@ -243,7 +288,8 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
               window.attachedSheet == nil else { return }
         closeTool(applying: true)
         guard session.document.isDirty else { return }
-        SavePresenter.save(entry: session.document.entry, document: session.document, on: window) { [weak self] _ in
+        SavePresenter.save(entry: session.document.entry, document: session.document, on: window) { [weak self] saved in
+            if saved { self?.editsWereSaved(session) }
             self?.updateChrome()
         }
     }
@@ -251,7 +297,9 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     @objc func saveImageAs(_ sender: Any?) {
         guard canEditCurrent, let entry = current?.entry, let window, window.attachedSheet == nil else { return }
         closeTool(applying: true)
-        SavePresenter.presentSaveAs(entry: entry, document: editSession?.document, on: window) { [weak self] _ in
+        let session = editSession
+        SavePresenter.presentSaveAs(entry: entry, document: session?.document, on: window) { [weak self] url in
+            if url != nil, let session { self?.editsWereSaved(session) }
             self?.updateChrome()
         }
     }
