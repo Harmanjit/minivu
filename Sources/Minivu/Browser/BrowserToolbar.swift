@@ -10,6 +10,8 @@ extension NSToolbarItem.Identifier {
     static let browserThumbnailSize = NSToolbarItem.Identifier("minivu.browser.size")
     static let browserPreviewPane = NSToolbarItem.Identifier("minivu.browser.preview")
     static let browserSearch = NSToolbarItem.Identifier("minivu.browser.search")
+    static let browserCompare = NSToolbarItem.Identifier("minivu.browser.compare")
+    static let browserSlideshow = NSToolbarItem.Identifier("minivu.browser.slideshow")
 }
 
 /// The browser window's unified toolbar.
@@ -64,7 +66,8 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         // sidebar toggle above the sidebar; without the tracking separator
         // the pane's divider ran through the search field.
         [.toggleSidebar, .sidebarTrackingSeparator, .browserNavigation, .browserEnclosingFolder, .flexibleSpace,
-         .browserThumbnailSize, .browserSort, .browserFilter, .browserSearch, .inspectorTrackingSeparator,
+         .browserThumbnailSize, .browserSort, .browserFilter, .browserCompare, .browserSlideshow, .browserSearch,
+         .inspectorTrackingSeparator,
          .flexibleSpace, .browserPreviewPane]
     }
 
@@ -86,6 +89,12 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
             button(identifier, "Preview", symbol: "sidebar.right", action: .togglePreviewPane,
                    tip: "Show or hide the preview pane")
         case .browserSearch: searchItemMade()
+        case .browserCompare:
+            button(identifier, "Compare", symbol: "rectangle.split.2x2", action: .compareSelected,
+                   tip: "Compare 2 to 4 selected images (⌥⌘K)")
+        case .browserSlideshow:
+            button(identifier, "Slideshow", symbol: "play.rectangle", action: .startSlideshow,
+                   tip: "Start a slideshow of the selected images, or of the folder (⇧⌘F)")
         default: nil
         }
     }

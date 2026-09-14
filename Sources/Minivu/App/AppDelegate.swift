@@ -288,6 +288,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         controller.showWindow(sender)
     }
 
+    /// Opens Settings on one pane.
+    func showSettings(pane: SettingsPane) {
+        showSettings(nil)
+        settings?.select(pane)
+    }
+
     /// The Settings window, once it has been opened.
     var settingsWindow: NSWindow? { settings?.window }
 

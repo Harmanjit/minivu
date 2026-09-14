@@ -1142,6 +1142,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         model.wrapAround = Preferences.shared.wrapAround
         if let enabled = validateEditAction(menuItem.action) { return enabled }
+        if let enabled = validateToolAction(menuItem.action) { return enabled }
         switch menuItem.action {
         case .nextImage: return model.canGoNext
         case .previousImage: return model.canGoPrevious

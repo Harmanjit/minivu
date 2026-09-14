@@ -383,6 +383,7 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Rename | F2 (Explorer, FastStone; Return opens and ⌘R rotates) |
 | | Copy To > / Move To > (recent folders, Choose Folder…) | none |
 | | Reveal in Finder / Move to Trash | ⌥⌘R / ⌘⌫ |
+| | Page Setup… / Print… | ⇧⌘P / ⌘P |
 | Edit | Undo / Redo | ⌘Z / ⇧⌘Z |
 | | Cut / Copy / Paste / Select All | ⌘X / ⌘C / ⌘V / ⌘A |
 | View | Show Hidden Files | ⇧⌘. |
@@ -400,6 +401,9 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Adjust > Levels… | ⇧⌘L (Photoshop's ⌘L is Rotate Left here) |
 | | Adjust > Sharpen… / Blur… | none |
 | | Effects > Grayscale / Sepia / Negative | none |
+| | Effects > Drop Shadow… / Frame… / Bump Map… / Sketch… / Oil Painting… / Lens… | none |
+| | Retouch > Clone Stamp… / Healing Brush… / Red-Eye Removal… | none |
+| | Text and Shapes… | none |
 | | Edit Comment… | none |
 | | Play/Pause Animation | P (display) |
 | | Rating > Clear, 1–5 Stars | ⌃0–⌃5 (the grid and viewer also take bare 0–5) |
@@ -410,7 +414,54 @@ key reaches the grid, the viewer or a text field otherwise.
 | Go | Next / Previous / First / Last Image | → ← Home End (display) |
 | | Next Page / Previous Page | ⌥→ / ⌥← (display) |
 | | Enclosing Folder / Back / Forward | ⌘↑ / ⌘[ / ⌘] |
+| Tools | Start Slideshow | ⇧⌘F (Preview) |
+| | Batch Convert… / Batch Rename… | ⌥⌘B / ⇧F2 (beside Rename's F2) |
+| | Contact Sheet… / Montage Wallpaper… / Set as Desktop Picture | none |
+| | Capture > Entire Screen / Window… / Selection… | none (the system keeps ⇧⌘3–⇧⌘5) |
+| | Open in External Editor > editors…, Edit Editor List… | ⌘E for the first editor |
 | Window | Minimize | ⌘M |
+
+**Tools (Phase 7).** In the browser each tool works on the selected
+images, or on every image shown when none is selected; a slideshow of a
+single selected image plays the whole folder from it. In the viewer they
+work on the image shown, and the slideshow plays the viewer's list from it.
+
+- *Slideshow:* full screen on the display the window is on, black
+  background, HDR as in the viewer. Eight transitions rendered by one Metal
+  shader (cross-fade, fade through black, slide, push, wipe, zoom, iris,
+  dissolve) or a random one per slide; interval, order (in order or
+  shuffled), loop, captions (name, date, EXIF line), and a music playlist
+  (MP3, AAC/M4A, WAV, AIFF chosen by the user) through AVFoundation that
+  fades out at the end. Space pauses, arrows step, Esc ends; the pointer
+  hides and a small control bar appears when it moves. Next images decode
+  ahead through the image loader.
+- *Batch Convert:* output format and its options (the Save As options),
+  destination folder (chosen, or beside the originals), file names from a
+  rename pattern, and optional resize (long side, width, height or percent,
+  with any of the 11 filters), rotate/flip and keep-metadata. Runs off the
+  main thread, a few files at a time, with progress, Cancel and a summary of
+  files that failed; never replaces an original unless asked.
+- *Batch Rename:* a pattern of text and tokens (name, counter with start
+  and digits, date taken, date modified, extension), find and replace, and
+  letter case, with a live before/after list that flags clashes before
+  anything changes; one undo step.
+- *Print:* the system print panel with a layout accessory (images per page,
+  fit or fill, margins, caption) and its live preview; Page Setup is the
+  standard sheet. Images are drawn colour-managed at the printer's
+  resolution, decoded only for the pages being drawn.
+- *Contact Sheet:* columns, rows, cell spacing, captions, header text,
+  page size in pixels and background, saved as JPEG, PNG, TIFF or a
+  multi-page PDF, with a preview of the first page.
+- *Montage Wallpaper:* a collage of the images at the size of the display
+  (grid or scattered, spacing, background), saved to Pictures/minivu
+  Wallpapers and set as that display's desktop picture. Set as Desktop
+  Picture uses a single image as it is.
+- *Capture:* the entire screen, a window picked with the system's content
+  picker, or a dragged selection, through ScreenCaptureKit, saved as PNG to
+  Pictures/minivu Captures and opened in the viewer.
+- *External editors:* a list in Settings > Editors of applications chosen
+  by the user; each opens the selected images or the image shown, and the
+  viewer reloads a file an editor saved.
 
 **Themes:** Light, Gray, Dark, or follow the system.
 

@@ -437,7 +437,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .zoomIn: Preferences.shared.thumbnailSize < ThumbnailLayout.sizeRange.upperBound
         case .zoomOut: Preferences.shared.thumbnailSize > ThumbnailLayout.sizeRange.lowerBound
         case #selector(selectAll(_:)): !model.entries.isEmpty
-        default: canPerformManagement(action) ?? canPerformEditing(action) ?? true
+        default: canPerformManagement(action) ?? canPerformEditing(action) ?? canPerformTools(action) ?? true
         }
     }
 

@@ -6,9 +6,6 @@ import AppKit
 /// (MinivuActions.swift), so each command has one implementation, in the
 /// viewer controller. AppKit only validates menu items and toolbar items
 /// automatically, so the controller calls `update` when state changes.
-///
-/// Slideshow is a placeholder for a later phase (DESIGN.md 7): present so
-/// the layout is settled, and visibly disabled.
 final class ViewerControlBar: NSView {
     static let height: CGFloat = 48
 
@@ -51,7 +48,7 @@ final class ViewerControlBar: NSView {
     private let toolsButton = ViewerControlBar.button("slider.horizontal.3", "Show Edit Tools",
                                                       ViewerControlBar.toggleToolsAction)
     /// A later phase; never enabled here.
-    private let slideshowButton = ViewerControlBar.button("play.fill", "Slideshow (coming soon)", nil)
+    private let slideshowButton = ViewerControlBar.button("play.fill", "Start Slideshow (⇧⌘F)", .startSlideshow)
     /// Groups that give way when the bar is too narrow (see `fitPlaceholders`).
     private lazy var placeholderGroups = [Self.group([rotateLeftButton, rotateRightButton]),
                                           Self.group([slideshowButton, toolsButton])]
@@ -64,7 +61,6 @@ final class ViewerControlBar: NSView {
         zoomLabel.alignment = .center
         zoomLabel.translatesAutoresizingMaskIntoConstraints = false
         zoomLabel.widthAnchor.constraint(equalToConstant: 52).isActive = true
-        slideshowButton.isEnabled = false
         pageLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
         pageLabel.textColor = .secondaryLabelColor
         pageLabel.alignment = .center
@@ -163,6 +159,8 @@ final class ViewerControlBar: NSView {
         }
         let hasImage = zoomPercent != nil
         for button in [fitButton, actualSizeButton, zoomOutButton, zoomInButton] { button.isEnabled = hasImage }
+        // Enabled once something down the responder chain starts slideshows.
+        slideshowButton.isEnabled = NSApp.target(forAction: .startSlideshow, to: nil, from: slideshowButton) != nil
 
         // A display and a window rather than arrows, which would look just
         // like the fit button's.

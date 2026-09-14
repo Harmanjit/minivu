@@ -24,7 +24,7 @@ enum MainMenu {
         // One per menu: each shows only its own shortcuts while it is open.
         let imageKeys = DisplayOnlyShortcuts(), goKeys = DisplayOnlyShortcuts()
         let menus = [appMenu(), fileMenu(), editMenu(), viewMenu(), imageMenu(imageKeys), goMenu(goKeys),
-                     windowMenu(), helpMenu()]
+                     toolsMenu(), windowMenu(), helpMenu()]
         for menu in menus {
             let item = NSMenuItem(title: menu.title, action: nil, keyEquivalent: "")
             item.submenu = menu
@@ -78,6 +78,9 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Reveal in Finder", .revealInFinder, "r", [.command, .option])
         menu.add("Move to Trash", .moveToTrash, Key.backspace)
+        menu.addItem(.separator())
+        menu.add("Page Setup…", #selector(NSApplication.runPageLayout(_:)), "p", [.command, .shift])
+        menu.add("Print…", .printImages, "p")
         return menu
     }
 
@@ -206,7 +209,21 @@ enum MainMenu {
         effects.add("Grayscale", .applyGrayscale)
         effects.add("Sepia", .applySepia)
         effects.add("Negative", .applyNegative)
+        effects.addItem(.separator())
+        effects.add("Drop Shadow…", .addDropShadow)
+        effects.add("Frame…", .addFrame)
+        effects.add("Bump Map…", .applyBumpMap)
+        effects.add("Sketch…", .applySketch)
+        effects.add("Oil Painting…", .applyOilPaint)
+        effects.add("Lens…", .applyLens)
         menu.add("Effects", nil).submenu = effects
+
+        let retouch = NSMenu(title: "Retouch")
+        retouch.add("Clone Stamp…", .cloneStamp)
+        retouch.add("Healing Brush…", .healingBrush)
+        retouch.add("Red-Eye Removal…", .removeRedEye)
+        menu.add("Retouch", nil).submenu = retouch
+        menu.add("Text and Shapes…", .drawAnnotations)
         menu.addItem(.separator())
         menu.add("Edit Comment…", .editComment)
     }
@@ -226,6 +243,32 @@ enum MainMenu {
         menu.add("Enclosing Folder", .goToEnclosingFolder, Key.up)
         menu.add("Back", .goBack, "[")
         menu.add("Forward", .goForward, "]")
+        return menu
+    }
+
+    /// Slideshow, batch work, sheets and wallpaper, capture and external
+    /// editors (Phase 7). ⇧⌘F starts a slideshow as in Preview; Batch
+    /// Rename is ⇧F2 beside Rename's F2. The system keeps ⇧⌘3 to ⇧⌘5 for
+    /// its own screenshots, so Capture has no shortcuts.
+    private static func toolsMenu() -> NSMenu {
+        let menu = NSMenu(title: "Tools")
+        menu.add("Start Slideshow", .startSlideshow, "f", [.command, .shift])
+        menu.addItem(.separator())
+        menu.add("Batch Convert…", .batchConvert, "b", [.command, .option])
+        menu.add("Batch Rename…", .batchRename, Key.f2, [.shift])
+        menu.addItem(.separator())
+        menu.add("Contact Sheet…", .makeContactSheet)
+        menu.add("Montage Wallpaper…", .makeMontage)
+        menu.add("Set as Desktop Picture", .setAsDesktopPicture)
+        menu.addItem(.separator())
+        let capture = NSMenu(title: "Capture")
+        capture.add("Entire Screen", .captureScreen)
+        capture.add("Window…", .captureWindow)
+        capture.add("Selection…", .captureSelection)
+        menu.add("Capture", nil).submenu = capture
+        menu.addItem(.separator())
+        let editors = ExternalEditorsMenu.make()
+        menu.add(editors.title, nil).submenu = editors
         return menu
     }
 

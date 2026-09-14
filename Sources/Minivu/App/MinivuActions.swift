@@ -101,6 +101,29 @@ import AppKit
     @objc optional func cloneStamp(_ sender: Any?)
     @objc optional func healingBrush(_ sender: Any?)
     @objc optional func removeRedEye(_ sender: Any?)
+
+    // MARK: Tools (Phase 7)
+    // The browser works on its selected images, or every image shown when
+    // none is selected (`BrowserWindowController.toolImages`); the viewer on
+    // the image it shows (the slideshow on its whole list, from that image).
+    @objc optional func startSlideshow(_ sender: Any?)
+    @objc optional func batchConvert(_ sender: Any?)
+    @objc optional func batchRename(_ sender: Any?)
+    /// Prints with a page layout. Page Setup is AppKit's own
+    /// `NSApplication.runPageLayout(_:)`.
+    @objc optional func printImages(_ sender: Any?)
+    @objc optional func makeContactSheet(_ sender: Any?)
+    @objc optional func makeMontage(_ sender: Any?)
+    @objc optional func setAsDesktopPicture(_ sender: Any?)
+    /// Screen captures, handled by the app delegate: the capture is saved to
+    /// Pictures/minivu Captures and opens in the viewer.
+    @objc optional func captureScreen(_ sender: Any?)
+    @objc optional func captureWindow(_ sender: Any?)
+    @objc optional func captureSelection(_ sender: Any?)
+    /// Sender tag = index of the editor in the external editors list.
+    @objc optional func openInExternalEditor(_ sender: Any?)
+    /// Settings > Editors, from the Open in External Editor submenu.
+    @objc optional func manageExternalEditors(_ sender: Any?)
 }
 
 /// Tags on the View > Sort By direction items. Zero is left out on purpose:
@@ -177,4 +200,16 @@ extension Selector {
     static let cloneStamp = #selector(MinivuActions.cloneStamp(_:))
     static let healingBrush = #selector(MinivuActions.healingBrush(_:))
     static let removeRedEye = #selector(MinivuActions.removeRedEye(_:))
+    static let startSlideshow = #selector(MinivuActions.startSlideshow(_:))
+    static let batchConvert = #selector(MinivuActions.batchConvert(_:))
+    static let batchRename = #selector(MinivuActions.batchRename(_:))
+    static let printImages = #selector(MinivuActions.printImages(_:))
+    static let makeContactSheet = #selector(MinivuActions.makeContactSheet(_:))
+    static let makeMontage = #selector(MinivuActions.makeMontage(_:))
+    static let setAsDesktopPicture = #selector(MinivuActions.setAsDesktopPicture(_:))
+    static let captureScreen = #selector(MinivuActions.captureScreen(_:))
+    static let captureWindow = #selector(MinivuActions.captureWindow(_:))
+    static let captureSelection = #selector(MinivuActions.captureSelection(_:))
+    static let openInExternalEditor = #selector(MinivuActions.openInExternalEditor(_:))
+    static let manageExternalEditors = #selector(MinivuActions.manageExternalEditors(_:))
 }

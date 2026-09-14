@@ -45,6 +45,11 @@ final class PreferencesWindowController: NSWindowController {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// Switches to `pane` (Slideshow's gear, Edit Editor List…).
+    func select(_ pane: SettingsPane) {
+        (contentViewController as? NSTabViewController)?.selectedTabViewItemIndex = pane.rawValue
+    }
 }
 
 /// Reopens Settings on the pane the user last looked at, as Mac settings
@@ -63,8 +68,8 @@ final class SettingsTabsController: NSTabViewController {
     }
 }
 
-enum SettingsPane: CaseIterable {
-    case general, viewer, magnifier, thumbnails
+enum SettingsPane: Int, CaseIterable {
+    case general, viewer, magnifier, thumbnails, slideshow, editors
 
     var title: String {
         switch self {
@@ -72,6 +77,8 @@ enum SettingsPane: CaseIterable {
         case .viewer: "Viewer"
         case .magnifier: "Magnifier"
         case .thumbnails: "Thumbnails"
+        case .slideshow: "Slideshow"
+        case .editors: "Editors"
         }
     }
 
@@ -82,6 +89,8 @@ enum SettingsPane: CaseIterable {
         case .viewer: "photo"
         case .magnifier: "plus.magnifyingglass"
         case .thumbnails: "square.grid.3x3"
+        case .slideshow: "play.rectangle"
+        case .editors: "paintbrush"
         }
     }
 }
@@ -97,6 +106,8 @@ struct PreferencesView: View {
             case .viewer: ViewerSettings()
             case .magnifier: MagnifierSettings()
             case .thumbnails: ThumbnailSettings()
+            case .slideshow: SlideshowSettingsView()
+            case .editors: ExternalEditorsSettingsView()
             }
         }
         .frame(width: 520)
@@ -296,7 +307,7 @@ private struct ValueLabel: View {
     }
 }
 
-private extension View {
+extension View {
     /// The grouped form style of current macOS settings panes. Scrolling is
     /// off so the form reports its real height and the window fits it.
     func settingsForm() -> some View {

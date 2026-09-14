@@ -24,7 +24,7 @@ import MinivuCore
     }
 
     @Test func topLevelOrder() {
-        #expect(bar.items.map(\.title) == ["minivu", "File", "Edit", "View", "Image", "Go", "Window", "Help"])
+        #expect(bar.items.map(\.title) == ["minivu", "File", "Edit", "View", "Image", "Go", "Tools", "Window", "Help"])
     }
 
     /// Two items with the same shortcut would make one of them unreachable.
@@ -67,14 +67,18 @@ import MinivuCore
         let titles = image.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
-                           "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "-", "Edit Comment…", "-",
+                           "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "Retouch",
+                           "Text and Shapes…", "-", "Edit Comment…", "-",
                            "Play/Pause Animation", "-", "Rating", "Toggle Tag", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
                                                       .sharpenImage, .blurImage])
         let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
-        #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative])
+        #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative, .addDropShadow,
+                                                       .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens])
+        let retouch = try #require(image.items.first { $0.title == "Retouch" }?.submenu)
+        #expect(retouch.items.compactMap(\.action) == [.cloneStamp, .healingBrush, .removeRedEye])
         let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
         #expect(file.items.compactMap(\.action).filter { [.saveImage, .saveImageAs, .revertToSaved].contains($0) }
             == [.saveImage, .saveImageAs, .revertToSaved])
@@ -143,6 +147,11 @@ import MinivuCore
             .sharpenImage, .blurImage, .applyGrayscale, .applySepia, .applyNegative, .editComment,
             .toggleTag, .filterByRating, .toggleTaggedFilter, .renameItem, .newFolder, .copyToFolder, .moveToFolder,
             .compareSelected, .toggleHistogram, .countColors,
+            .addDropShadow, .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens, .drawAnnotations,
+            .cloneStamp, .healingBrush, .removeRedEye,
+            .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
+            .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
+            #selector(NSApplication.runPageLayout(_:)),
         ]
         for selector in expected {
             #expect(inMenu.contains(selector), "\(selector) missing")
@@ -156,7 +165,7 @@ import MinivuCore
         let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
                            "Save", "Save As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
-                           "Reveal in Finder", "Move to Trash"])
+                           "Reveal in Finder", "Move to Trash", "-", "Page Setup…", "Print…"])
         let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
         let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)
         #expect(copyTo.items.last?.title == "Choose Folder…" && copyTo.items.last?.action == .copyToFolder)
@@ -198,6 +207,24 @@ import MinivuCore
         recorder.calls = []
         for code: CGKeyCode in [20, 17, 50] { #expect(!bar.performKeyEquivalent(with: keyPress(code))) }
         #expect(recorder.calls.isEmpty)
+    }
+
+    /// Tools (Phase 7): the commands, their shortcuts, and the submenus.
+    @Test func toolsItems() throws {
+        let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
+        let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
+        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "-", "Contact Sheet…",
+                           "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
+                           "Open in External Editor"])
+        let slideshow = try item("Start Slideshow")
+        #expect(slideshow.keyEquivalent == "f" && slideshow.keyEquivalentModifierMask == [.command, .shift])
+        let rename = try item("Batch Rename…")
+        #expect(rename.keyEquivalent == MainMenu.Key.f2 && rename.keyEquivalentModifierMask == [.shift])
+        let capture = try #require(tools.items.first { $0.title == "Capture" }?.submenu)
+        #expect(capture.items.compactMap(\.action) == [.captureScreen, .captureWindow, .captureSelection])
+        let editors = try #require(tools.items.last?.submenu)
+        #expect(editors.items.last?.action == .manageExternalEditors)
+        #expect(try item("Print…").keyEquivalent == "p")
     }
 
     @Test func menuItemsHaveNoTarget() {
