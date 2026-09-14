@@ -37,7 +37,7 @@ sorting through a shoot.
 - Hover over the space under a thumbnail’s name and click a star to rate.
   Click the current rating again to clear it.
 - With images selected, press **0** to **5** to rate them, or the backquote
-  key (**`**) to tag them. **Image > Rating** and **Image > Toggle Tag** do
+  key (**`**) to tag them. **Image > Rating** and **Image > Tag** do
   the same from any window.
 - Toggling the tag on a mixed selection tags all of it; it untags only when
   every image was already tagged.

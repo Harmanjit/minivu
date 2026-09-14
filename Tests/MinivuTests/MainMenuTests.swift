@@ -72,7 +72,7 @@ import MinivuCore
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
                            "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "Retouch",
                            "Text and Shapes…", "-", "Edit Comment…", "-",
-                           "Play/Pause Animation", "-", "Rating", "Toggle Tag", "-",
+                           "Play Animation", "-", "Rating", "Tag", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
@@ -230,6 +230,41 @@ import MinivuCore
         #expect(try item("Print…").keyEquivalent == "p")
     }
 
+    /// Tag and playback name what choosing them will do. The Image menu
+    /// puts the first titles back before validation, so an item no window
+    /// answers (Pause Animation, from the browser) isn't left stale.
+    @Test func stateTitles() throws {
+        let tag = try item("Tag"), play = try item("Play Animation")
+        #expect(tag.keyEquivalent == "t" && tag.action == .toggleTag)
+        tag.state = .on
+        tag.showTag(isTagged: true)
+        #expect(tag.title == "Remove Tag" && tag.state == .off)
+        play.showPlayback(isPlaying: true)
+        #expect(play.title == "Pause Animation")
+
+        // What the Image menu's delegate does in menuNeedsUpdate, which
+        // AppKit only lets run while the menu is opening.
+        MenuStateTitles.reset(try #require(tag.menu))
+        #expect(tag.title == "Tag" && play.title == "Play Animation")
+        tag.showTag(isTagged: false)
+        #expect(tag.title == "Tag")
+        #expect((0...5).map(MenuStateTitles.rating)
+            == ["Clear Rating", "Rate 1 Star", "Rate 2 Stars", "Rate 3 Stars", "Rate 4 Stars", "Rate 5 Stars"])
+    }
+
+    /// The grid's context menu names each command as the menu bar does.
+    @Test func contextMenuTitlesMatchTheMenuBar() {
+        func walk(_ menu: NSMenu) -> [NSMenuItem] {
+            menu.items.flatMap { [$0] + ($0.submenu.map(walk) ?? []) }
+        }
+        let context = walk(GridCollectionView.itemMenu()).filter { $0.action != nil && $0.submenu == nil }
+        #expect(context.count > 10)
+        for item in context {
+            let inBar = allItems.filter { $0.action == item.action && $0.tag == item.tag }.map(\.title)
+            #expect(inBar.contains(item.title), "\(item.title) is \(inBar) in the menu bar")
+        }
+    }
+
     @Test func menuItemsHaveNoTarget() {
         // A nil target is what sends them down the responder chain. (AppKit
         // makes an item's submenu its target, so those are skipped.)
@@ -262,7 +297,7 @@ import MinivuCore
     /// their modifiers only while the menu is open, each by its own menu.
     @Test func pageAndPlaybackShortcutsAreDisplayOnly() throws {
         let nextPage = try item("Next Page"), previousPage = try item("Previous Page")
-        let play = try item("Play/Pause Animation")
+        let play = try item("Play Animation")
         #expect(nextPage.action == .nextPage && previousPage.action == .previousPage)
         #expect(play.action == .togglePlayback)
         #expect(nextPage.menu?.title == "Go" && play.menu?.title == "Image")
@@ -291,7 +326,7 @@ import MinivuCore
     /// view (the viewer, or a text field) rather than the menu.
     @Test func pageAndPlaybackKeysReachViews() throws {
         let recorder = Recorder()
-        for title in ["Next Page", "Previous Page", "Play/Pause Animation"] {
+        for title in ["Next Page", "Previous Page", "Play Animation"] {
             try item(title).target = recorder
         }
         #expect(!bar.performKeyEquivalent(with: keyPress(124, .maskAlternate)))   // ⌥→

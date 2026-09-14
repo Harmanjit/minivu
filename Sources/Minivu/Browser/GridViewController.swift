@@ -555,11 +555,12 @@ final class GridCollectionView: NSCollectionView {
         return Self.itemMenu()
     }
 
-    /// The menu for items. Validated like the menu bar's items, so entries
-    /// grey out for folders, RAW files and anything else they can't apply to.
+    /// The menu for items, titled as in the menu bar. Validated like the
+    /// menu bar's items, so entries gray out for folders, RAW files and
+    /// anything else they can't apply to, and Tag reads Remove Tag.
     static func itemMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Open", action: .openInViewer, keyEquivalent: "")
+        menu.addItem(withTitle: "Open in Viewer", action: .openInViewer, keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Rename", action: .renameItem, keyEquivalent: "")
         let copyTo = menu.addItem(withTitle: "Copy To", action: nil, keyEquivalent: "")
@@ -567,7 +568,7 @@ final class GridCollectionView: NSCollectionView {
         let moveTo = menu.addItem(withTitle: "Move To", action: nil, keyEquivalent: "")
         moveTo.submenu = RecentDestinationsMenu.make(title: "Move To", action: .moveToFolder)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Toggle Tag", action: .toggleTag, keyEquivalent: "")
+        menu.addItem(withTitle: MenuStateTitles.tag(isTagged: false), action: .toggleTag, keyEquivalent: "")
         let rating = menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "")
         rating.submenu = ratingMenu()
         menu.addItem(.separator())
@@ -580,12 +581,11 @@ final class GridCollectionView: NSCollectionView {
         return menu
     }
 
-    /// "No Rating" and one to five stars, tagged with the rating.
+    /// Clear Rating and Rate 1 Star to Rate 5 Stars, tagged with the rating.
     static func ratingMenu() -> NSMenu {
         let menu = NSMenu(title: "Rating")
         for stars in 0...5 {
-            let title = stars == 0 ? "No Rating" : String(repeating: "★", count: stars)
-            menu.addItem(withTitle: title, action: .setRating, keyEquivalent: "").tag = stars
+            menu.addItem(withTitle: MenuStateTitles.rating(stars), action: .setRating, keyEquivalent: "").tag = stars
         }
         return menu
     }
