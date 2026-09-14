@@ -158,6 +158,37 @@ final class FileThumbnails: MontageThumbnailProviding {
         }
     }
 
+    /// Cancel pressed while the montage waits in the write queue: the write
+    /// can't be stopped, so the file it made is removed again and nothing
+    /// is left in minivu Wallpapers.
+    @Test func cancellingDuringTheWriteLeavesNoFile() async throws {
+        try await withSettings { settings in
+            let folder = try ScratchFolder()
+            let photos = try entries(3, in: folder, width: 90, height: 60)
+            let model = MontageModel(images: photos, fromSelection: true, displays: [display], preferredDisplay: 0,
+                                     settings: settings, thumbnails: FileThumbnails(), seed: 9)
+            model.start()
+            defer { model.stop() }
+            let output = folder.url.appendingPathComponent("minivu Wallpapers")
+
+            // Holds the write queue until the montage's write is waiting in it.
+            let gate = Gate()
+            let queue = FileWriteQueue.shared
+            queue.enqueue { await gate.wait() }
+            let task = Task { try await model.makeMontages(in: output, date: Date(timeIntervalSince1970: 1_789_381_805)) }
+            let deadline = Date().addingTimeInterval(10)
+            while model.writesQueued == 0, Date() < deadline { try await Task.sleep(for: .milliseconds(5)) }
+            #expect(model.writesQueued == 1, "the montage is queued behind the gate")
+            task.cancel()
+            await gate.open()
+            await #expect(throws: CancellationError.self) { _ = try await task.value }
+            await queue.waitUntilIdle()
+            let left = (try? FileManager.default.contentsOfDirectory(atPath: output.path)) ?? []
+            #expect(left.isEmpty, "\(left)")
+            #expect(model.phase == .editing)
+        }
+    }
+
     @Test func previewIsSmallAndFollowsTheDisplayShape() async throws {
         try await withSettings { settings in
             let folder = try ScratchFolder()
@@ -183,4 +214,21 @@ final class LockedRequests: @unchecked Sendable {
     private var values: [String] = []
     func append(_ name: String, _ size: Int) { lock.withLock { values.append("\(name)@\(size)") } }
     var sorted: [String] { lock.withLock { values.sorted() } }
+}
+
+/// A one-shot latch: `wait()` suspends until `open()`.
+actor Gate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        waiters.forEach { $0.resume() }
+        waiters = []
+    }
 }

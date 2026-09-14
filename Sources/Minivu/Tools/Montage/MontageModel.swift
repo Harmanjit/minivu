@@ -83,17 +83,20 @@ struct MontageSettingsStore {
 
     var displayChoice: Int { didSet { schedulePreview() } }
     var style: MontageStyle {
-        didSet { settings.style = style; schedulePreview() }
+        didSet { if remembersChoices { settings.style = style }; schedulePreview() }
     }
     var spacing: Double {
-        didSet { settings.spacing = spacing; schedulePreview() }
+        didSet { if remembersChoices { settings.spacing = spacing }; schedulePreview() }
     }
     var background: CGColor {
         didSet {
-            if let color = ExportColor(background) { settings.background = color }
+            if remembersChoices, let color = ExportColor(background) { settings.background = color }
             schedulePreview()
         }
     }
+    /// False for the snapshot harness's debug actions, so a layout picked to
+    /// take a picture isn't what the user finds next time.
+    @ObservationIgnored var remembersChoices = true
     private(set) var seed: UInt64
     private(set) var preview: CGImage?
     private(set) var phase: Phase = .editing
@@ -108,6 +111,8 @@ struct MontageSettingsStore {
     @ObservationIgnored private var cancels: [() -> Void] = []
     @ObservationIgnored private var previewTask: Task<Void, Never>?
     @ObservationIgnored private var loadWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Montages handed to the write queue so far, for tests.
+    @ObservationIgnored private(set) var writesQueued = 0
     /// The render in flight, for tests to await.
     @ObservationIgnored private(set) var previewWork: Task<Void, Never>?
 
@@ -262,14 +267,24 @@ struct MontageSettingsStore {
         let look = MontageRenderer.Look(style: style, background: ExportColor(background) ?? .black)
         let files = entries.map(\.url), aspects = aspectRatios
         var written: [(URL, Display)] = []
-        for (number, display) in targets.enumerated() {
-            phase = .working(targets.count > 1 ? "Drawing montage \(number + 1) of \(targets.count)…" : "Drawing montage…")
-            let tiles = await BlockingWork.run(layoutJob(for: display))
-            let image = try await MontageRenderer.render(tiles: tiles, canvas: display.pixelSize, look: look,
-                                                         files: files, aspectRatios: aspects)
-            try Task.checkCancellation()
-            let name = MontageOutput.montageFileName(date: date, display: targets.count > 1 ? number + 1 : nil)
-            written.append((try await MontageWriter.write(image, name: name, folder: folder), display))
+        do {
+            for (number, display) in targets.enumerated() {
+                phase = .working(targets.count > 1 ? "Drawing montage \(number + 1) of \(targets.count)…" : "Drawing montage…")
+                let tiles = await BlockingWork.run(layoutJob(for: display))
+                let image = try await MontageRenderer.render(tiles: tiles, canvas: display.pixelSize, look: look,
+                                                             files: files, aspectRatios: aspects)
+                try Task.checkCancellation()
+                let name = MontageOutput.montageFileName(date: date, display: targets.count > 1 ? number + 1 : nil)
+                writesQueued += 1
+                written.append((try await MontageWriter.write(image, name: name, folder: folder), display))
+                // A write already in the queue can't be stopped, so a Cancel
+                // pressed during it is honoured here. The sheet is gone and no
+                // wallpaper will be set, so what this run wrote is removed.
+                try Task.checkCancellation()
+            }
+        } catch {
+            await MontageWriter.remove(written.map(\.0))
+            throw error
         }
         return written
     }
@@ -290,6 +305,18 @@ enum MontageWriter {
             }
         }
         return try await job.value.value
+    }
+
+    /// Removes the montages a run wrote before it was cancelled or failed
+    /// (with several displays, the ones already finished). They are files
+    /// minivu made moments ago that no desktop shows, so they are deleted
+    /// rather than put in the Trash. Queued behind the writes.
+    static func remove(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        let job = FileWriteQueue.shared.enqueue {
+            await BlockingWork.run { for url in urls { try? FileManager.default.removeItem(at: url) } }
+        }
+        _ = try? await job.value
     }
 }
 

@@ -2,8 +2,9 @@ import AppKit
 
 /// The dimmed, crosshair overlay of Capture > Selection…: one borderless,
 /// transparent window over each screen (menu bar and Dock included). Drag a
-/// rectangle on any of them; letting go (or Return) captures it, Esc or a
-/// click without a drag in no rectangle cancels.
+/// rectangle on any of them; letting go (or Return) captures it. A click
+/// without a drag clears the rectangle; Esc, or switching to another app,
+/// cancels, so the dimmed screens never outlive the user's attention.
 final class SelectionOverlayController {
     struct Selection: Equatable {
         /// Global AppKit coordinates.
@@ -14,6 +15,7 @@ final class SelectionOverlayController {
     private(set) var windows: [SelectionOverlayWindow] = []
     private let screens: [CaptureScreen]
     private var completion: ((Selection?) -> Void)?
+    private var resignObserver: NSObjectProtocol?
 
     init(screens: [CaptureScreen], completion: @escaping (Selection?) -> Void) {
         self.screens = screens
@@ -42,6 +44,10 @@ final class SelectionOverlayController {
             windows.append(window)
         }
         guard ordersFront else { return }
+        resignObserver = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification,
+                                                                object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cancel() }
+        }
         NSApp.activate()
         for window in windows { window.orderFrontRegardless() }
         let pointer = NSEvent.mouseLocation
@@ -54,7 +60,12 @@ final class SelectionOverlayController {
     func finish(_ selection: Selection?) {
         guard let completion else { return }
         self.completion = nil
+        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
+        resignObserver = nil
         for window in windows { window.orderOut(nil) }
+        // The crosshair was set by hand, so nothing else puts the arrow back
+        // until the pointer crosses another window.
+        if !windows.isEmpty { NSCursor.arrow.set() }
         windows = []
         completion(selection)
     }
@@ -108,11 +119,25 @@ final class SelectionOverlayView: NSView {
     override var acceptsFirstResponder: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .crosshair)
+    /// A tracking area rather than a cursor rectangle: cursor rectangles
+    /// only work in the key window, and only one overlay window is key, so
+    /// the pointer would turn back into an arrow on the other screens.
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.cursorUpdate, .activeAlways, .inVisibleRect],
+                                       owner: self))
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        NSCursor.crosshair.set()
     }
 
     override func mouseDown(with event: NSEvent) {
+        // Esc and Return go to the key window, which must be the one whose
+        // screen holds the rectangle.
+        if window?.isKeyWindow == false { window?.makeKey() }
+        NSCursor.crosshair.set()
         let point = convert(event.locationInWindow, from: nil)
         dragStart = point
         onBegin?()

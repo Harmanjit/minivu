@@ -274,6 +274,30 @@ final class FakeLauncher: ApplicationLaunching {
         #expect(reports.count == 1)
     }
 
+    /// A watched file that disappears (renamed in the browser, moved, or
+    /// mid-save) isn't reported, so the viewer never shows "can't display"
+    /// for it; once back with new contents it is.
+    @Test func watcherIgnoresFilesThatAreGone() async throws {
+        let scratch = try ScratchFolder()
+        let photo = try scratch.jpeg("a.jpg", width: 40, height: 30)
+        let watcher = ExternalEditWatcher()
+        var reports: [[URL]] = []
+        watcher.onChange = { reports.append($0) }
+        watcher.watch([photo])
+        await watcher.work?.value
+        let folder = scratch.url.standardizedFileURL
+
+        try FileManager.default.moveItem(at: photo, to: scratch.url.appendingPathComponent("renamed.jpg"))
+        watcher.folderChanged(folder)
+        await watcher.work?.value
+        #expect(reports.isEmpty)
+
+        try scratch.jpeg("a.jpg", width: 70, height: 30)
+        watcher.folderChanged(folder)
+        await watcher.work?.value
+        #expect(reports == [[photo.standardizedFileURL]])
+    }
+
     @Test func watcherKeepsTheMostRecentFolders() async throws {
         let scratch = try ScratchFolder()
         let watcher = ExternalEditWatcher()

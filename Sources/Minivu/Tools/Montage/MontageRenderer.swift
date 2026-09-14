@@ -106,15 +106,22 @@ nonisolated enum MontageRenderer {
     /// at just the size their tile needs, `concurrency` at a time, and drawn
     /// in order as each group arrives; a photo is let go after the last tile
     /// that shows it, so memory holds a few photos, not all of them.
+    ///
+    /// Decoding and drawing both run on GCD through `BlockingWork`: drawing a
+    /// group of large tiles with the high-quality filter takes tens of
+    /// milliseconds, which must not hold a thread of Swift's cooperative pool.
     /// Throws `CancellationError` when the task is cancelled between groups.
     static func render(tiles: [MontageTile], canvas: CGSize, look: Look, files: [URL], aspectRatios: [Double],
                        concurrency: Int = 4,
                        decode: @escaping @Sendable (URL, Int) -> CGImage? = { ImageDecoder.thumbnail(for: $0, maxPixelSize: $1) })
         async throws -> ImageBox {
-        guard let context = makeContext(size: canvas, background: look.background) else {
+        guard let made = makeContext(size: canvas, background: look.background) else {
             throw ExportError.cannotConvertPixels
         }
-        applyCanvasTransform(context, canvas: canvas)
+        applyCanvasTransform(made, canvas: canvas)
+        // Only one group draws at a time, awaited before the next starts, so
+        // the context is never used from two threads at once.
+        let context = ContextBox(context: made)
         let needed = MontageLayout.neededLongEdges(tiles, aspectRatios: aspectRatios)
         var lastUse: [Int: Int] = [:]
         for (position, tile) in tiles.enumerated() { lastUse[tile.image] = position }
@@ -141,16 +148,26 @@ nonisolated enum MontageRenderer {
                 return results
             }
             decoded.merge(arrived) { $1 }
-            for position in start..<end {
-                let tile = tiles[position]
-                if let box = decoded[tile.image] {
-                    draw(tile, image: box.image, style: look.style, scale: 1, in: context)
+            let group = (start..<end).map { position in (tiles[position], decoded[tiles[position].image]) }
+            let style = look.style
+            await BlockingWork.run {
+                for case let (tile, box?) in group {
+                    draw(tile, image: box.image, style: style, scale: 1, in: context.context)
                 }
-                if lastUse[tile.image] == position { decoded[tile.image] = nil }
+            }
+            for position in start..<end where lastUse[tiles[position].image] == position {
+                decoded[tiles[position].image] = nil
             }
             start = end
         }
-        guard let image = context.makeImage() else { throw ExportError.cannotConvertPixels }
-        return ImageBox(image: image)
+        let image = await BlockingWork.run { context.context.makeImage().map(ImageBox.init) }
+        guard let image else { throw ExportError.cannotConvertPixels }
+        return image
     }
+}
+
+/// A bitmap context handed to GCD work. Core Graphics contexts aren't
+/// thread-safe, so the renderer uses one from a single job at a time.
+nonisolated struct ContextBox: @unchecked Sendable {
+    let context: CGContext
 }

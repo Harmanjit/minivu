@@ -87,6 +87,9 @@ final class MontageSheetController: NSObject, NSWindowDelegate {
 
     private func end() {
         model.stop()
+        // The Background well opens the shared colour panel, which would
+        // otherwise stay on screen, still bound to a sheet that has gone.
+        if NSColorPanel.sharedColorPanelExists, NSColorPanel.shared.isVisible { NSColorPanel.shared.orderOut(nil) }
         parent?.endSheet(sheet)
         sheet.orderOut(nil)
         retainedSelf = nil
@@ -96,11 +99,20 @@ final class MontageSheetController: NSObject, NSWindowDelegate {
 
     /// Debug only, for the snapshot harness: switches to the scattered layout.
     @objc func debugMontageScattered(_ sender: Any?) {
+        model.remembersChoices = false
         model.style = .scattered
+    }
+
+    /// Debug only, for the snapshot harness: switches to the grid layout
+    /// (whatever layout was last remembered).
+    @objc func debugMontageGrid(_ sender: Any?) {
+        model.remembersChoices = false
+        model.style = .grid
     }
 
     /// Debug only, for the snapshot harness: switches to the mosaic layout.
     @objc func debugMontageMosaic(_ sender: Any?) {
+        model.remembersChoices = false
         model.style = .mosaic
     }
 

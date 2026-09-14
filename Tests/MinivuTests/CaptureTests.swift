@@ -13,6 +13,7 @@ final class FakeCapturer: ScreenCapturing {
     var displayRequests: [DisplayCaptureRequest] = []
     var pickerRequests = 0
     var pickerCancels = false
+    var systemPromptedForPermission = false
 
     func requestPermission() -> Bool {
         permissionRequests += 1
@@ -153,6 +154,12 @@ final class FakeCapturer: ScreenCapturing {
         #expect(controller.work == nil && controller.overlay == nil)
         #expect(capturer.displayRequests.isEmpty && capturer.pickerRequests == 0)
         #expect(!FileManager.default.fileExists(atPath: controller.capturesFolder.path))
+
+        // The first refusal comes with the system's own prompt: no second alert.
+        capturer.systemPromptedForPermission = true
+        controller.captureEntireScreen()
+        #expect(recorder.denied == 3 && controller.work == nil)
+        capturer.systemPromptedForPermission = false
 
         // Refused during the capture itself (the user turned it off meanwhile).
         capturer.allowed = true

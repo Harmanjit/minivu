@@ -33,6 +33,10 @@ protocol ScreenCapturing: AnyObject {
     /// Whether minivu may record the screen. The system capturer asks the
     /// system, which shows its prompt the first time only.
     func requestPermission() -> Bool
+    /// After `requestPermission()` said no: whether the system has just put
+    /// up its own prompt, in which case minivu's explanation would only be
+    /// a second alert on top of it.
+    var systemPromptedForPermission: Bool { get }
     /// The display, without minivu's own windows.
     func captureDisplay(_ request: DisplayCaptureRequest) async throws -> ImageBox
     /// Shows the system's window picker and captures the window chosen; nil
@@ -43,11 +47,28 @@ protocol ScreenCapturing: AnyObject {
 /// ScreenCaptureKit.
 final class SystemScreenCapturer: NSObject, ScreenCapturing, SCContentSharingPickerObserver {
     private var pickerContinuation: CheckedContinuation<FilterBox?, Error>?
+    private(set) var systemPromptedForPermission = false
+    /// Remembers that minivu has asked once. The system's prompt shows only
+    /// for the first request (until the permission is reset), so every later
+    /// denial is explained by minivu's own alert.
+    private let defaults: UserDefaults
+    static let askedKey = "screenCapturePermissionAsked"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        super.init()
+    }
 
     func requestPermission() -> Bool {
+        systemPromptedForPermission = false
         // The preflight never prompts; the request prompts once in the app's
         // life, then answers at once.
-        CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess()
+        if CGPreflightScreenCaptureAccess() { return true }
+        let firstAsk = !defaults.bool(forKey: Self.askedKey)
+        defaults.set(true, forKey: Self.askedKey)
+        if CGRequestScreenCaptureAccess() { return true }
+        systemPromptedForPermission = firstAsk
+        return false
     }
 
     func captureDisplay(_ request: DisplayCaptureRequest) async throws -> ImageBox {
@@ -58,14 +79,25 @@ final class SystemScreenCapturer: NSObject, ScreenCapturing, SCContentSharingPic
     /// milliseconds.
     nonisolated private static func capture(_ request: DisplayCaptureRequest, processID: Int32) async throws -> ImageBox {
         do {
-            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            // Every window, not only those on screen: the selection overlay and
+            // the menu that chose the command are ordered out just before
+            // this, and one the window server still listed as on screen a
+            // moment ago must be left out all the same.
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
             guard let display = content.displays.first(where: { $0.displayID == request.displayID }) else {
                 throw CaptureError.displayNotFound
             }
-            // minivu's own windows (the browser, a sheet) are left out, so a
-            // capture shows what the user wanted to capture.
-            let own = content.windows.filter { $0.owningApplication?.processID == processID }
-            let filter = SCContentFilter(display: display, excludingWindows: own)
+            // minivu itself is left out (the browser, a sheet, the overlay), so
+            // a capture shows what the user wanted to capture. By application
+            // when it is listed, which also covers a window that appears
+            // between this listing and the capture.
+            let filter: SCContentFilter
+            if let app = content.applications.first(where: { $0.processID == processID }) {
+                filter = SCContentFilter(display: display, excludingApplications: [app], exceptingWindows: [])
+            } else {
+                let own = content.windows.filter { $0.owningApplication?.processID == processID }
+                filter = SCContentFilter(display: display, excludingWindows: own)
+            }
             let configuration = SCStreamConfiguration()
             if let rect = request.sourceRect { configuration.sourceRect = rect }
             configuration.width = Int(request.pixelSize.width)
@@ -158,6 +190,7 @@ nonisolated struct FilterBox: @unchecked Sendable {
 /// nothing is ever recorded and the system is never asked for permission.
 final class HarnessScreenCapturer: ScreenCapturing {
     func requestPermission() -> Bool { true }
+    var systemPromptedForPermission: Bool { false }
 
     func captureDisplay(_ request: DisplayCaptureRequest) async throws -> ImageBox {
         throw CaptureError.notInHarness

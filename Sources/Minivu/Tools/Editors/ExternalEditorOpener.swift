@@ -181,13 +181,20 @@ final class WorkspaceLauncher: ApplicationLaunching {
     /// thread, and reports the ones that changed.
     func folderChanged(_ folder: URL) {
         guard let watch = watches.first(where: { $0.folder == folder }) else { return }
-        let files = watch.files
         let previous = work
         work = Task {
             await previous?.value
+            // Read after the previous comparison has recorded its stamps, so
+            // two events close together report one save once.
+            let files = watch.files
             let now = await BlockingWork.run(qos: .utility) { files.keys.map { ($0, Self.stamp(of: $0)) } }
             var changed: [URL] = []
-            for (url, stamp) in now where files[url] != stamp {
+            // A file that is gone (moved, renamed, deleted, or between an
+            // editor's delete and its rename into place) isn't reported:
+            // the viewer would put up "can't display" for a file that an
+            // editor is still saving, or that the browser has renamed. Its
+            // stamp stays, so it is reported if it comes back changed.
+            for (url, stamp) in now where stamp.modified != nil && files[url] != stamp {
                 watch.files[url] = stamp
                 changed.append(url)
             }

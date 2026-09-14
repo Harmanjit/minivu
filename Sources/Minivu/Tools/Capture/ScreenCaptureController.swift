@@ -50,7 +50,7 @@ import MinivuCore
     /// The whole screen the pointer is on.
     func captureEntireScreen() {
         guard work == nil, overlay == nil else { return }
-        guard capturer.requestPermission() else { return explainDenied() }
+        guard hasPermission() else { return }
         guard let screen = CaptureGeometry.screen(containing: pointerLocation(), in: screens()) else { return }
         capture(DisplayCaptureRequest(displayID: screen.displayID, sourceRect: nil, pixelSize: screen.pixelSize))
     }
@@ -58,7 +58,7 @@ import MinivuCore
     /// A window chosen in the system's picker.
     func captureWindow() {
         guard work == nil, overlay == nil else { return }
-        guard capturer.requestPermission() else { return explainDenied() }
+        guard hasPermission() else { return }
         let capturer = self.capturer
         run { try await capturer.captureWindowFromPicker() }
     }
@@ -67,7 +67,7 @@ import MinivuCore
     /// captured when the mouse comes up (or on Return), Esc cancels.
     func captureSelection(preset: (rect: CGRect, screen: CaptureScreen)? = nil) {
         guard work == nil, overlay == nil else { return }
-        guard capturer.requestPermission() else { return explainDenied() }
+        guard hasPermission() else { return }
         let overlay = SelectionOverlayController(screens: screens()) { [weak self] selection in
             guard let self else { return }
             self.overlay = nil
@@ -75,6 +75,14 @@ import MinivuCore
         }
         self.overlay = overlay
         overlay.show(preset: preset, ordersFront: showsOverlay)
+    }
+
+    /// Asks for screen recording permission; when it is refused, explains
+    /// where to allow it, unless the system is showing its own prompt.
+    private func hasPermission() -> Bool {
+        if capturer.requestPermission() { return true }
+        if !capturer.systemPromptedForPermission { explainDenied() }
+        return false
     }
 
     /// Captures `rect` (global AppKit coordinates) of `screen`.
