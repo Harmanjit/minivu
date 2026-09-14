@@ -127,42 +127,92 @@ public final class CanvasRenderer {
     /// Draws `frame` and presents it. Returns immediately; the GPU finishes
     /// asynchronously.
     public func draw(_ frame: CanvasFrame, to drawable: CAMetalDrawable) {
-        let target = drawable.texture
-        let viewSize = CGSize(width: target.width, height: target.height)
-        var u = Self.uniforms(for: frame, viewSize: viewSize)
+        draw(frame, to: drawable, presentsWithTransaction: false)
+    }
 
-        let pass = MTLRenderPassDescriptor()
-        pass.colorAttachments[0].texture = target
-        pass.colorAttachments[0].loadAction = .dontCare
-        pass.colorAttachments[0].storeAction = .store
-
-        guard let commands = gpu.queue.makeCommandBuffer(),
-              let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else { return }
-        encoder.setRenderPipelineState(pipeline)
-        encoder.setFragmentBytes(&u, length: MemoryLayout<CanvasUniforms>.stride, index: 0)
-        if let image = frame.image { encoder.setFragmentTexture(image.texture, index: 0) }
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        encoder.endEncoding()
-        commands.present(drawable)
-        commands.commit()
+    /// Draws `frame` and presents it.
+    ///
+    /// With `presentsWithTransaction` (for a layer whose property of that
+    /// name is set, during live window resize) this waits until the GPU has
+    /// scheduled the frame and then presents inside the current Core
+    /// Animation transaction, so the new pixels appear together with the new
+    /// window size instead of a stretched old frame.
+    public func draw(_ frame: CanvasFrame, to drawable: CAMetalDrawable, presentsWithTransaction: Bool) {
+        guard let commands = encode(frame, into: drawable.texture) else { return }
+        if presentsWithTransaction {
+            commands.commit()
+            commands.waitUntilScheduled()
+            drawable.present()
+        } else {
+            commands.present(drawable)
+            commands.commit()
+        }
     }
 
     /// Draws into an offscreen texture, for tests and snapshots.
     public func draw(_ frame: CanvasFrame, into target: MTLTexture) {
+        guard let commands = encode(frame, into: target) else { return }
+        commands.commit()
+        commands.waitUntilCompleted()
+    }
+
+    /// Renders `frame` offscreen at `width` x `height` pixels and returns it
+    /// as an 8-bit sRGB image (for tests, thumbnails of the view, sharing).
+    ///
+    /// This reads pixels back from the GPU, a copy the live canvas never
+    /// makes; it is for occasional snapshots only. Values beyond sRGB (HDR
+    /// highlights, P3 colours) are clipped by the conversion.
+    public func snapshot(_ frame: CanvasFrame, width: Int, height: Int) -> CGImage? {
+        guard width > 0, height > 0 else { return nil }
+        let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: Self.pixelFormat, width: width,
+                                                         height: height, mipmapped: false)
+        d.usage = [.renderTarget, .shaderRead]
+        d.storageMode = .shared
+        guard let target = gpu.device.makeTexture(descriptor: d) else { return nil }
+        draw(frame, into: target)
+
+        // Half floats in extended linear Display P3, rows top first, the same
+        // layout CGImage uses; ColorSync converts to sRGB when drawn below.
+        let bytesPerRow = width * 8
+        var data = Data(count: bytesPerRow * height)
+        data.withUnsafeMutableBytes { raw in
+            target.getBytes(raw.baseAddress!, bytesPerRow: bytesPerRow,
+                            from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+        }
+        guard let provider = CGDataProvider(data: data as CFData),
+              let linear = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3),
+              let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+              let floatImage = CGImage(width: width, height: height, bitsPerComponent: 16, bitsPerPixel: 64,
+                                       bytesPerRow: bytesPerRow, space: linear,
+                                       bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue
+                                           | CGBitmapInfo.floatComponents.rawValue
+                                           | CGBitmapInfo.byteOrder16Little.rawValue),
+                                       provider: provider, decode: nil, shouldInterpolate: false,
+                                       intent: .defaultIntent),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: srgb, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)
+        else { return nil }
+        context.draw(floatImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
+    }
+
+    /// Encodes one canvas pass into `target`; the caller commits.
+    private func encode(_ frame: CanvasFrame, into target: MTLTexture) -> MTLCommandBuffer? {
         let viewSize = CGSize(width: target.width, height: target.height)
         var u = Self.uniforms(for: frame, viewSize: viewSize)
+
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = target
         pass.colorAttachments[0].loadAction = .dontCare
         pass.colorAttachments[0].storeAction = .store
+
         guard let commands = gpu.queue.makeCommandBuffer(),
-              let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else { return }
+              let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else { return nil }
         encoder.setRenderPipelineState(pipeline)
         encoder.setFragmentBytes(&u, length: MemoryLayout<CanvasUniforms>.stride, index: 0)
         if let image = frame.image { encoder.setFragmentTexture(image.texture, index: 0) }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
-        commands.commit()
-        commands.waitUntilCompleted()
+        return commands
     }
 }
