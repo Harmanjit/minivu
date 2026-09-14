@@ -451,6 +451,12 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
 
     // MARK: - NSWindowDelegate
 
+    /// Back from Finder (or another window): Finder tags set meanwhile
+    /// changed only extended attributes, which the folder watcher misses.
+    func windowDidBecomeKey(_ notification: Notification) {
+        model.refreshFinderTags(of: grid.visibleURLs)
+    }
+
     func windowWillClose(_ notification: Notification) {
         preview.isVisible = false
     }

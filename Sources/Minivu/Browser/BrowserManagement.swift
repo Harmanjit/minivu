@@ -75,9 +75,9 @@ extension BrowserWindowController {
         let oldName = url.lastPathComponent
         let done = undoRegistration("Rename") { $0.performRename(renamed, to: oldName) }
         Task {
-            let result = await Task.detached(priority: .userInitiated) {
+            let result = await BlockingWork.run {
                 Result { try FileOperations.rename(url, to: name) }
-            }.value
+            }
             switch result {
             case .success(let newURL):
                 BrowserModel.invalidateCaches(url)
@@ -105,9 +105,9 @@ extension BrowserWindowController {
     @objc func newFolder(_ sender: Any?) {
         guard let folder = model.folder, model.state == .loaded else { return NSSound.beep() }
         Task {
-            let result = await Task.detached(priority: .userInitiated) {
+            let result = await BlockingWork.run {
                 Result { try FileOperations.createFolder(in: folder) }
-            }.value
+            }
             switch result {
             case .success(let url):
                 undoRegistrar("New Folder")(true, { $0.trashItems([url], actionName: "New Folder") })
@@ -245,7 +245,7 @@ extension BrowserWindowController {
         let done = undoRegistration(record.actionName) { $0.redoTransfer(record) }
         let pairs = record.pairs, trashed = record.trashed, isMove = record.isMove, trash = transferTrash
         Task {
-            let (undone, restored) = await Task.detached(priority: .userInitiated) {
+            let (undone, restored) = await BlockingWork.run {
                 let undone = pairs.reversed().filter { pair in
                     if isMove { return Self.moveFile(pair.to, exactlyTo: pair.from) }
                     guard case .success(.some) = trash(pair.to) else { return false }
@@ -253,7 +253,7 @@ extension BrowserWindowController {
                 }
                 let restored = trashed.filter { Self.moveFile($0.to, exactlyTo: $0.from) }
                 return (Array(undone), restored)
-            }.value
+            }
             Self.invalidateCaches(pairs, trashed)
             done(!undone.isEmpty || !restored.isEmpty)
             showTransferred(arrived: (isMove ? undone.map(\.from) : []) + restored.map(\.from),
@@ -270,7 +270,7 @@ extension BrowserWindowController {
         let done = undoRegistration(record.actionName) { $0.undoTransfer(record) }
         let pairs = record.pairs, trashed = record.trashed, isMove = record.isMove, trash = transferTrash
         Task {
-            let (redone, retrashed) = await Task.detached(priority: .userInitiated) {
+            let (redone, retrashed) = await BlockingWork.run {
                 let retrashed = trashed.compactMap { item -> FileOperations.Transfer? in
                     guard case .success(let place?) = trash(item.from) else { return nil }
                     return FileOperations.Transfer(from: item.from, to: place)
@@ -279,7 +279,7 @@ extension BrowserWindowController {
                     isMove ? Self.moveFile($0.from, exactlyTo: $0.to) : Self.copyFile($0.from, exactlyTo: $0.to)
                 }
                 return (redone, retrashed)
-            }.value
+            }
             record.pairs = redone
             record.trashed = retrashed
             Self.invalidateCaches(pairs, trashed)
@@ -306,9 +306,9 @@ extension BrowserWindowController {
     func recreateFolders(_ urls: [URL], actionName: String) {
         let done = undoRegistration(actionName) { $0.trashItems(urls, actionName: actionName) }
         Task {
-            let made = await Task.detached(priority: .userInitiated) {
+            let made = await BlockingWork.run {
                 urls.filter { (try? FileManager.default.createDirectory(at: $0, withIntermediateDirectories: false)) != nil }
-            }.value
+            }
             done(!made.isEmpty)
             model.reload(thenSelect: made)
         }
@@ -405,11 +405,9 @@ extension BrowserWindowController {
         case .toggleTaggedFilter:
             menuItem.state = model.marksFilter.taggedOnly ? .on : .off
         case .setRating:
-            let urls = model.selectedImageURLs
-            menuItem.state = !urls.isEmpty && urls.allSatisfy({ model.marks(for: $0).rating == menuItem.tag }) ? .on : .off
+            menuItem.state = model.selectedMarks.sharedRating == menuItem.tag ? .on : .off
         case .toggleTag:
-            let urls = model.selectedImageURLs
-            menuItem.state = !urls.isEmpty && urls.allSatisfy({ model.marks(for: $0).isTagged }) ? .on : .off
+            menuItem.state = model.selectedMarks.allTagged ? .on : .off
         default:
             break
         }

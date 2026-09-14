@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import CoreImage
 import Vision
+import MinivuCore
 
 /// Finds red eyes for the red-eye tool's Auto button.
 ///
@@ -115,7 +116,8 @@ extension EditRenderer {
         let operations = document.operations
         let proxy = document.proxy
         let context = self.context
-        return try await Task.detached(priority: .userInitiated) {
+        // Core Image's readback waits for the GPU: on GCD (BlockingWork).
+        return try await BlockingWork.run {
             let output = EditGraph.outputSize(source: source.size, operations: operations)
             let long = max(output.width, output.height)
             let maximum = Self.maximumScale(outputSize: output, sourceScale: source.scale)
@@ -126,6 +128,6 @@ extension EditRenderer {
                   let result = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: sRGB)
             else { throw EditRenderError.renderFailed }
             return result
-        }.value
+        }
     }
 }

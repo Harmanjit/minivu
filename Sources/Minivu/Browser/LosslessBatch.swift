@@ -39,8 +39,9 @@ nonisolated enum LosslessBatch {
         !entry.isDirectory && entry.kind != .raw && LosslessTransform.canApply(to: entry.url)
     }
 
-    /// Transforms every file, a few at a time in child tasks (each transform
-    /// blocks its thread on file I/O, so never from the main actor). A file
+    /// Transforms every file, a few at a time. Each transform blocks its
+    /// thread on file I/O, so it runs through `BlockingWork` (GCD), never
+    /// on the main actor or a cooperative thread. A file
     /// found not to be transformable on closer look (a camera raw renamed
     /// .tif, a GIF named .jpg) counts as skipped. `apply` is for tests.
     static func run(_ kind: LosslessTransform.Kind, on urls: [URL], skipped: [URL] = [],
@@ -50,7 +51,7 @@ nonisolated enum LosslessBatch {
             var pending = urls[...]
             func startNext() {
                 guard let url = pending.popFirst() else { return }
-                group.addTask { (url, Result { try apply(kind, url) }) }
+                group.addTask { (url, await BlockingWork.run { Result { try apply(kind, url) } }) }
             }
             for _ in 0..<concurrency { startNext() }
             for await (url, result) in group {
@@ -139,9 +140,7 @@ nonisolated enum LosslessBatch {
         // The work never throws, and only the orientation changes, so no
         // save under way is superseded by it.
         let job = FileWriteQueue.shared.enqueue {
-            await Task.detached(priority: .userInitiated) {
-                await LosslessBatch.run(kind, on: urls, skipped: skipped)
-            }.value
+            await LosslessBatch.run(kind, on: urls, skipped: skipped)
         }
         Task {
             guard let outcome = try? await job.value else { return }

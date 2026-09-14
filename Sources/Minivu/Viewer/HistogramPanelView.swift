@@ -193,7 +193,7 @@ final class HistogramPanelController {
         lastStart = ProcessInfo.processInfo.systemUptime
         computeCount += 1
         computeTask = Task { [weak self] in
-            let data = await Task.detached(priority: .userInitiated) { try? Histogram.compute(texture: texture) }.value
+            let data = await BlockingWork.run { try? Histogram.compute(texture: texture) }
             guard let self else { return }
             self.computeTask = nil
             guard self.isActive else { return }
@@ -237,12 +237,18 @@ final class HistogramPanelController {
         }
         model.colorCount = .counting
         let url = entry.url
-        let work = Task.detached(priority: .userInitiated) { () -> Int? in
-            guard let decoded = try? ImageDecoder.decode(url, allowHDR: false), !Task.isCancelled else { return nil }
-            return try? ColorCounter.countUniqueColors(in: decoded.image)
-        }
+        // A full decode and a count of every pixel block their thread for
+        // seconds: on GCD (BlockingWork), with a flag in place of task
+        // cancellation so a closed viewer skips the count after the decode.
+        let cancel = CancellationFlag()
         countTask = Task { [weak self] in
-            let count = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
+            let count = await withTaskCancellationHandler {
+                await BlockingWork.run { () -> Int? in
+                    guard let decoded = try? ImageDecoder.decode(url, allowHDR: false), !cancel.isCancelled
+                    else { return nil }
+                    return try? ColorCounter.countUniqueColors(in: decoded.image)
+                }
+            } onCancel: { cancel.cancel() }
             guard !Task.isCancelled, let self, self.entry == entry else { return }
             self.countTask = nil
             if let count {

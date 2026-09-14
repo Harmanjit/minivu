@@ -84,7 +84,7 @@ extension ViewerWindowController {
         Task { [weak self, weak state] in
             do {
                 let image = try await EditRenderer.shared.renderForAnalysis(document, maxPixelSize: 1600)
-                let spots = await Task.detached(priority: .userInitiated) { RedEyeDetector.detect(in: image) }.value
+                let spots = await BlockingWork.run { RedEyeDetector.detect(in: image) }
                 guard let self, let state, self.editSession === session else { return }
                 state.addDetected(spots)
             } catch {

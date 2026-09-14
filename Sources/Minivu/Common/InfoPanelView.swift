@@ -34,9 +34,9 @@ struct InfoPanelView: View {
         }
         .task(id: url) {
             guard let url else { sections = []; return }
-            let read = await Task.detached(priority: .userInitiated) {
+            let read = await BlockingWork.run {
                 MetadataReader.sections(for: url)
-            }.value
+            }
             guard !Task.isCancelled else { return }
             sections = read
             loadedURL = url

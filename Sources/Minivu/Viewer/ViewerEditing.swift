@@ -621,7 +621,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         AppServices.thumbnails.request(session.document.entry, pixelSize: 256) { image in
             guard let image else { return }
             Task {
-                let histogram = await Task.detached(priority: .userInitiated) { ImageHistogram.compute(from: image) }.value
+                let histogram = await BlockingWork.run { ImageHistogram.compute(from: image) }
                 if let histogram { assign(histogram) }
             }
         }

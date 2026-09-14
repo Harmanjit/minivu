@@ -25,12 +25,11 @@ enum AppServices {
     static func start() {
         let store = thumbnailStore
         let limit = thumbnailCacheLimit
-        Task.detached(priority: .background) {
-            store?.prune(maxBytes: limit)
-        }
+        // SQLite and file deletions block: on GCD (BlockingWork).
+        Task { await BlockingWork.run(qos: .background) { store?.prune(maxBytes: limit) } }
         observers.append(NotificationCenter.default.addObserver(
             forName: .minivuClearThumbnailCache, object: nil, queue: .main) { _ in
-            Task.detached(priority: .utility) { store?.removeAll() }
+            Task { await BlockingWork.run(qos: .utility) { store?.removeAll() } }
         })
         updateThumbnailColorSpace()
         // Also posted for every step of an EDR headroom change; setting the

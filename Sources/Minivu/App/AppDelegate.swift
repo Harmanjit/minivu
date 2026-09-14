@@ -75,7 +75,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// without waiting for Metal. If the canvas asks for `GPU.shared` first,
     /// it just waits for this same one-time setup.
     private func warmUpGPU() {
-        Task.detached(priority: .userInitiated) {
+        // Compiling shaders blocks for tens of ms: on GCD (BlockingWork),
+        // where it can't hold up a cooperative thread a listing needs.
+        Task { await BlockingWork.run {
             let start = ContinuousClock.now
             _ = GPU.shared
             let elapsed = ContinuousClock.now - start
@@ -83,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             if ProcessInfo.processInfo.environment["MINIVU_TRACE"] != nil {
                 FileHandle.standardError.write(Data("Metal ready in \(elapsed)\n".utf8))
             }
-        }
+        } }
     }
 
     /// The last visited folder if it can still be read, else Pictures.

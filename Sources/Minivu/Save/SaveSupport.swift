@@ -209,7 +209,8 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
         if let inflight, inflight.key == key { return try await inflight.task.value }
         let origin = self.origin
         let renderer = EditRenderer.shared
-        let task = Task.detached(priority: .userInitiated) {
+        // `render` is nonisolated and does its blocking parts on GCD.
+        let task = Task {
             try await Self.render(origin, key: key, renderer: renderer)
         }
         inflight = (key, task)
@@ -222,12 +223,17 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
     nonisolated static func render(_ origin: Origin, key: SaveRenderKey, renderer: EditRenderer) async throws -> CGImage {
         switch origin {
         case .original(let url, let page):
-            return try ImageDecoder.decode(url, maxPixelSize: nil, page: page, allowHDR: false).image
+            // Decoding and reading headers block: on GCD (BlockingWork).
+            return try await BlockingWork.run {
+                try ImageDecoder.decode(url, maxPixelSize: nil, page: page, allowHDR: false).image
+            }
         case .edit(let snapshot):
-            let space = SavePolicy.namedColorSpace(key.profile) ?? SavePolicy.renderColorSpace(
-                source: snapshot.kind == .raw ? nil : SavePolicy.sourceColorSpace(of: snapshot.url),
-                isHDR: snapshot.kind == .raw ? false : (ImageDecoder.info(for: snapshot.url)?.isHDR ?? false),
-                preferWideGamut: true)
+            let space = await BlockingWork.run {
+                SavePolicy.namedColorSpace(key.profile) ?? SavePolicy.renderColorSpace(
+                    source: snapshot.kind == .raw ? nil : SavePolicy.sourceColorSpace(of: snapshot.url),
+                    isHDR: snapshot.kind == .raw ? false : (ImageDecoder.info(for: snapshot.url)?.isHDR ?? false),
+                    preferWideGamut: true)
+            }
             return try await renderer.renderForExport(snapshot, colorSpace: space, bitsPerComponent: key.bitsPerComponent)
         }
     }

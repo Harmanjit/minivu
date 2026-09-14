@@ -236,6 +236,11 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
         return collectionView.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame
     }
 
+    /// The files of the cells on screen.
+    var visibleURLs: [URL] {
+        collectionView.visibleItems().compactMap { ($0 as? ThumbnailCell)?.entry?.url }
+    }
+
     /// Stars, badges and tag dots on the visible cells whose files changed
     /// (all visible cells for nil). Cells scrolled away pick theirs up when
     /// they are configured again.

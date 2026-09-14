@@ -184,6 +184,58 @@ import MinivuCore
         #expect(model.finderTagsInFolder.map(\.name) == ["Blue"])
     }
 
+    @Test func selectedMarksAreSharedValuesKeptUntilAChange() async throws {
+        let t = try ScratchFolder()
+        let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+        let trip = try t.folder("Trip")
+        catalog.setRating(3, for: [a, b])
+        catalog.setTagged(true, for: [a])
+        let model = makeModel()
+        await open(model, t.url)
+        #expect(model.selectedMarks == .init(sharedRating: nil, allTagged: false), "nothing selected")
+
+        model.setSelection([a, b, trip], lead: a)
+        #expect(model.selectedMarks == .init(sharedRating: 3, allTagged: false), "folders don't count")
+        model.setSelection([a], lead: a)
+        #expect(model.selectedMarks == .init(sharedRating: 3, allTagged: true))
+
+        // A mark written while selected is seen, not the kept answer.
+        model.setRating(5, for: [a])
+        await settleCatalog(model)
+        #expect(model.selectedMarks == .init(sharedRating: 5, allTagged: true))
+        model.setSelection([a, b], lead: a)
+        #expect(model.selectedMarks == .init(sharedRating: nil, allTagged: false))
+    }
+
+    /// Tagging in Finder changes only an extended attribute, which the
+    /// watcher doesn't see: a refresh (window key, a mark written) reads the
+    /// named files again and leaves the others alone.
+    @Test func finderTagsRefreshForNamedFiles() async throws {
+        let t = try ScratchFolder()
+        let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+        try FinderTags.setTags(["Red"], for: b)
+        let model = makeModel()
+        await open(model, t.url)
+        #expect(model.finderTags(for: b).map(\.name) == ["Red"])
+
+        try FinderTags.setTags(["Blue"], for: a)
+        try FinderTags.setTags([], for: b)
+        var changes: [BrowserModel.Changes] = []
+        model.onChange = { changes.append($0) }
+        model.refreshFinderTags(of: [a, URL(fileURLWithPath: "/elsewhere/b.jpg")])
+        await model.finderTagWork?.value
+        #expect(model.finderTags(for: a).map(\.name) == ["Blue"])
+        #expect(model.finderTags(for: b).map(\.name) == ["Red"], "not named: not read")
+        #expect(changes == [.marks])
+
+        // Rating a file reads its Finder tags again too.
+        model.setRating(2, for: [b])
+        await settleCatalog(model)
+        await model.finderTagWork?.value
+        #expect(model.finderTags(for: b).isEmpty)
+        #expect(model.finderTagsInFolder.map(\.name) == ["Blue"])
+    }
+
     @Test func reloadSelectsArrivals() async throws {
         let t = try ScratchFolder()
         try t.file("a.jpg")

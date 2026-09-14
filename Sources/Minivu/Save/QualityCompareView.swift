@@ -186,12 +186,12 @@ struct CompareTile {
         original = CompareTile(image: cropped, rect: rect)
 
         isEncoding = true
-        let result = await Task.detached(priority: .userInitiated) { () -> CGImage? in
+        let result = await BlockingWork.run { () -> CGImage? in
             var cropOptions = options
             cropOptions.keepMetadata = false
             guard let data = try? ImageEncoder.encode(cropped, options: cropOptions, metadataSource: nil) else { return nil }
             return ImageEncoder.decodePreview(data)
-        }.value
+        }
         guard generation == self.generation else { return }
         isEncoding = false
         encoded = result.map { CompareTile(image: $0, rect: rect) }

@@ -166,6 +166,11 @@ public struct DisplaySettings: Sendable, Equatable {
         func set(_ stop: Bool) { value.store(stop, ordering: .relaxed) }
     }
 
+    /// A job's GCD work item, which is thread-safe but not marked Sendable.
+    private struct RunningWork: @unchecked Sendable {
+        let item: DispatchWorkItem
+    }
+
     /// The embedded preview wasn't enough, so the job needs the RAW slot.
     private struct NeedsRawRender: Error {}
 
@@ -192,7 +197,8 @@ public struct DisplaySettings: Sendable, Equatable {
         var sequence: Int
         var handles: [LoadHandle] = []
         var wantedByPrefetch = false
-        var task: Task<Void, Never>?
+        /// The decode running on GCD, kept to raise its priority.
+        var work: RunningWork?
         let stop = StopFlag()
         /// The file changed on disk, or the settings did; don't cache what
         /// was read, and don't let new requests join.
@@ -217,7 +223,7 @@ public struct DisplaySettings: Sendable, Equatable {
             self.stage = stage
         }
 
-        var isRunning: Bool { task != nil }
+        var isRunning: Bool { work != nil }
         var isWanted: Bool { wantedByPrefetch || !handles.isEmpty }
     }
 
@@ -422,11 +428,12 @@ public struct DisplaySettings: Sendable, Equatable {
         job.sequence = nextSequence()
         guard job.priority < .userInitiated else { return }
         job.priority = .userInitiated
-        if let task = job.task, !job.escalated {
-            // Swift raises a task's priority while a higher-priority task
-            // awaits it, which also raises the decoding thread's QoS.
+        if let work = job.work, !job.escalated {
+            // GCD raises a running work item's thread to the QoS of a thread
+            // waiting for it. The wait blocks a GCD thread, which grows
+            // threads for that, until the decode ends.
             job.escalated = true
-            Task(priority: .userInitiated) { await task.value }
+            DispatchQueue.global(qos: .userInitiated).async { work.item.wait() }
         }
     }
 
@@ -478,13 +485,20 @@ public struct DisplaySettings: Sendable, Equatable {
         }
         let id = job.id, url = job.entry.url, page = job.page, size = job.pixelSize, stop = job.stop
         let settings = job.settings, stage = job.stage
-        job.task = Task.detached(priority: job.priority) { [weak self] in
+        // A decode blocks its thread for up to seconds, so it runs on GCD,
+        // not the cooperative pool (see `BlockingWork`): three of them there
+        // would leave a folder listing waiting for a thread. Enforced QoS,
+        // so a prefetch asked for from the main thread stays at utility.
+        let qos: DispatchQoS = job.priority >= .userInitiated ? .userInitiated : .utility
+        let work = DispatchWorkItem(qos: qos, flags: .enforceQoS) { @Sendable [weak self] in
             let result = Result {
                 try Self.decodeAndUpload(url: url, pixelSize: size, page: page, settings: settings, stage: stage,
                                          stop: stop)
             }
-            await self?.finish(jobID: id, stage: stage, result: result)
+            Task { @MainActor in self?.finish(jobID: id, stage: stage, result: result) }
         }
+        job.work = RunningWork(item: work)
+        DispatchQueue.global(qos: qos.qosClass).async(execute: work)
     }
 
     /// The only part that leaves the main actor. The stop flag is checked
@@ -494,7 +508,7 @@ public struct DisplaySettings: Sendable, Equatable {
     nonisolated private static func decodeAndUpload(url: URL, pixelSize: Int?, page: Int, settings: DisplaySettings,
                                                     stage: Job.Stage, stop: StopFlag) throws -> ImageTexture {
         func checkStop() throws {
-            if stop.isSet || Task.isCancelled { throw CancellationError() }
+            if stop.isSet { throw CancellationError() }
         }
         try checkStop()
         if ImageFormats.kind(of: url) == .raw {
@@ -581,7 +595,7 @@ public struct DisplaySettings: Sendable, Equatable {
         case .rawRender: runningRawRenders -= 1
         }
         guard let job = jobs[jobID] else { startWaitingJobs(); return }
-        job.task = nil
+        job.work = nil
         if case .failure(let error) = result, error is NeedsRawRender {
             rememberShortfall(of: job)
             job.stage = .rawRender
@@ -676,8 +690,9 @@ public struct DisplaySettings: Sendable, Equatable {
     /// Waits until every job has finished, for tests.
     func waitUntilIdle() async {
         while !jobs.isEmpty {
-            if let task = jobs.values.first(where: { $0.isRunning })?.task {
-                await task.value
+            if let work = jobs.values.first(where: { $0.isRunning })?.work {
+                await withCheckedContinuation { done in work.item.notify(queue: .global()) { @Sendable in done.resume() } }
+                await Task.yield()
             } else {
                 await Task.yield()
             }

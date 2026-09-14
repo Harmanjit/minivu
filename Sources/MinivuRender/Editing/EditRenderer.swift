@@ -134,17 +134,19 @@ final class EditProxy: @unchecked Sendable {
         let token = document.preparationToken
         let gpu = self.gpu, context = self.context
         let expected = document.sourceSignature
-        let work = Task.detached(priority: .userInitiated) { () throws -> (EditSource, EditProxy?, FileSignature?) in
-            // Read before decoding, so a change racing the decode is caught.
-            let signature = FileSignature.read(url)
-            if let expected, signature != expected { throw EditRenderError.sourceChanged(url) }
-            let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu)
-            let scale = Self.proxyScale(sourceSize: source.size, sourceScale: source.scale, longEdge: edge)
-            let proxy = try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
-            return (source, proxy, signature)
-        }
         let preparation = Task { [weak document] in
-            let (source, proxy, signature) = try await work.value
+            // A full-resolution decode and a GPU wait block their thread for
+            // 100 ms or more: on GCD, not the cooperative pool (BlockingWork).
+            let (source, proxy, signature) = try await BlockingWork.run {
+                () throws -> (EditSource, EditProxy?, FileSignature?) in
+                // Read before decoding, so a change racing the decode is caught.
+                let signature = FileSignature.read(url)
+                if let expected, signature != expected { throw EditRenderError.sourceChanged(url) }
+                let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu)
+                let scale = Self.proxyScale(sourceSize: source.size, sourceScale: source.scale, longEdge: edge)
+                let proxy = try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
+                return (source, proxy, signature)
+            }
             guard let document, document.preparationToken == token else { return }
             document.source = source
             document.proxy = proxy
@@ -207,6 +209,17 @@ final class EditProxy: @unchecked Sendable {
         guard bitsPerComponent == 8 || bitsPerComponent == 16 else {
             throw EditRenderError.unsupportedBitDepth(bitsPerComponent)
         }
+        let gpu = self.gpu, context = self.context
+        // Decoding and Core Image's CPU readback block for tens of ms to
+        // seconds (a RAW, a batch of them): on GCD, not the cooperative pool.
+        return try await BlockingWork.run(qos: Task.currentPriority >= .userInitiated ? .userInitiated : .utility) {
+            try Self.exportImage(snapshot, colorSpace: colorSpace, bitsPerComponent: bitsPerComponent,
+                                 context: context, gpu: gpu)
+        }
+    }
+
+    nonisolated private static func exportImage(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
+                                                bitsPerComponent: Int, context: CIContext, gpu: GPU) throws -> CGImage {
         let source: EditSource
         if let prepared = snapshot.source, prepared.scale >= 1 {
             source = prepared
@@ -218,10 +231,10 @@ final class EditProxy: @unchecked Sendable {
             if let expected = snapshot.sourceSignature, FileSignature.read(snapshot.url) != expected {
                 throw EditRenderError.sourceChanged(snapshot.url)
             }
-            source = try Self.loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
-                                         settings: snapshot.settings, gpu: gpu, forExport: true)
+            source = try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
+                                    settings: snapshot.settings, gpu: gpu, forExport: true)
         }
-        var image = EditGraph.image(source: Self.workingImage(source: source, proxy: nil, scale: 1),
+        var image = EditGraph.image(source: workingImage(source: source, proxy: nil, scale: 1),
                                     sourceSize: source.size, operations: snapshot.operations, scale: 1)
         if source.isHDR && !CGColorSpaceUsesITUR_2100TF(colorSpace) {
             image = image.applyingFilter("CIToneMapHeadroom", parameters: [
@@ -272,7 +285,8 @@ final class EditProxy: @unchecked Sendable {
                                sourceScale: source.scale)
         let gpu = self.gpu, context = self.context
 
-        let result = await Task.detached(priority: full ? .utility : .userInitiated) { () -> (ImageTexture, EditProxy?)? in
+        // `renderTexture` waits for the GPU: on GCD, not the cooperative pool.
+        let result = await BlockingWork.run(qos: full ? .utility : .userInitiated) { () -> (ImageTexture, EditProxy?)? in
             do {
                 var workingProxy = proxy
                 if plan.rebuildProxy {
@@ -290,7 +304,7 @@ final class EditProxy: @unchecked Sendable {
             } catch {
                 return nil
             }
-        }.value
+        }
 
         // Released, or prepared again from scratch, while rendering.
         guard let (texture, newProxy) = result, document.source === source else { return }

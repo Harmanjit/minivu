@@ -53,9 +53,9 @@ final class FileTransfer {
         // What the paths alone can't show: files already in the destination
         // under another spelling of its path (a symbolic link, other case),
         // a folder going into itself, a clash that holds the file itself.
-        let preflight = await Task.detached(priority: .userInitiated) {
+        let preflight = await BlockingWork.run {
             TransferChecks.preflight(request.files, into: destination)
-        }.value
+        }
         let files = preflight.files
         let clashing = preflight.clashing
         outcome.failed = preflight.failed
@@ -103,7 +103,7 @@ final class FileTransfer {
         }
 
         let items = plan
-        let (result, trashed) = await Task.detached(priority: .userInitiated) {
+        let (result, trashed) = await BlockingWork.run {
             () -> (FileOperations.Result, [FileOperations.Transfer]) in
             var merged = FileOperations.Result()
             var trashed: [FileOperations.Transfer] = []
@@ -138,7 +138,7 @@ final class FileTransfer {
                 progress.advance()
             }
             return (merged, trashed)
-        }.value
+        }
         progress.finish()
         delayed.cancel()
         if let sheet, let window { window.endSheet(sheet) }

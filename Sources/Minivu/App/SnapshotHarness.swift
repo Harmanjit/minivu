@@ -146,9 +146,9 @@ enum SnapshotHarness {
     private static func openViewer(on file: URL) async {
         let folder = file.deletingLastPathComponent()
         let order = Preferences.shared.sortOrder
-        let images = await Task.detached {
+        let images = await BlockingWork.run {
             FolderListing.sorted((try? FolderListing.contents(of: folder).images) ?? [], by: order)
-        }.value
+        }
         guard let index = images.firstIndex(where: { $0.url.standardizedFileURL == file.standardizedFileURL }) else {
             report("\(file.path) is not an image in its folder")
             return
@@ -162,9 +162,9 @@ enum SnapshotHarness {
     private static func openCompare(on files: [URL]) async {
         guard let folder = files.first?.deletingLastPathComponent() else { return }
         let order = Preferences.shared.sortOrder
-        let images = await Task.detached {
+        let images = await BlockingWork.run {
             FolderListing.sorted((try? FolderListing.contents(of: folder).images) ?? [], by: order)
-        }.value
+        }
         let entries = files.compactMap { file in
             images.first { $0.url.standardizedFileURL == file.standardizedFileURL } ?? FolderEntry(url: file)
         }

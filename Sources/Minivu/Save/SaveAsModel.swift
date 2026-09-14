@@ -131,7 +131,7 @@ nonisolated enum SizeEstimator {
         options = store.options(for: store.initialFormat(for: entry.url))
         let url = entry.url
         Task { [weak self] in
-            let info = await Task.detached(priority: .utility) { ImageDecoder.info(for: url) }.value
+            let info = await BlockingWork.run(qos: .utility) { ImageDecoder.info(for: url) }
             self?.sourceInfoArrived(hasAlpha: info?.hasAlpha ?? false, bitDepth: info?.bitDepth ?? 8)
         }
     }
@@ -258,9 +258,9 @@ nonisolated enum SizeEstimator {
             try? await Task.sleep(for: Self.slowEncode)
             guard !Task.isCancelled, let self, generation == self.generation else { return }
             self.estimate = .estimating
-            let approximate = await Task.detached(priority: .userInitiated) {
+            let approximate = await BlockingWork.run {
                 try? SizeEstimator.approximateBytes(image, options: options)
-            }.value
+            }
             guard !Task.isCancelled, generation == self.generation, let approximate else { return }
             self.estimate = .approximate(approximate)
         }
@@ -273,8 +273,9 @@ nonisolated enum SizeEstimator {
         guard generation == self.generation, !Task.isCancelled else { return }
 
         let url = entry.url
-        let exact = Task.detached(priority: .userInitiated) {
-            try? SizeEstimator.exactBytes(image, options: options, metadataSource: url)
+        // A full encode blocks for up to seconds: on GCD (BlockingWork).
+        let exact = Task {
+            await BlockingWork.run { try? SizeEstimator.exactBytes(image, options: options, metadataSource: url) }
         }
         runningEncode = Task { _ = await exact.value }
         let bytes = await exact.value

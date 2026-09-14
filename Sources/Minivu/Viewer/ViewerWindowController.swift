@@ -614,7 +614,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard Self.mayHavePagesOrFrames(entry) else { return }
         let url = entry.url
         infoTask = Task { [weak self] in
-            let info = await Task.detached(priority: .userInitiated) { ImageDecoder.info(for: url) }.value
+            let info = await BlockingWork.run { ImageDecoder.info(for: url) }
             guard !Task.isCancelled, let self, !self.isClosing, self.model.current == entry else { return }
             self.structureRead = entry
             guard let info else {
@@ -742,7 +742,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard entry.kind == .raster || entry.kind == .raw else { return }
         let url = entry.url
         summaryTask = Task { [weak self] in
-            let summary = await Task.detached(priority: .userInitiated) { MetadataReader.summary(for: url) }.value
+            let summary = await BlockingWork.run { MetadataReader.summary(for: url) }
             guard !Task.isCancelled, let self, self.model.current?.url == url else { return }
             self.exposure = (url, summary.exposure)
             self.updateChrome()

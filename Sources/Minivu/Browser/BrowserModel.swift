@@ -114,10 +114,10 @@ nonisolated struct FolderSnapshot: Sendable {
     private(set) var state: State = .empty
     /// Visible entries: sorted, then filtered by `filter`.
     private(set) var entries: [FolderEntry] = [] {
-        didSet { cachedSelectedBytes = nil }
+        didSet { cachedSelectedBytes = nil; cachedSelectedMarks = nil }
     }
     private(set) var selection: Set<URL> = [] {
-        didSet { cachedSelectedBytes = nil }
+        didSet { cachedSelectedBytes = nil; cachedSelectedMarks = nil }
     }
     /// The item the preview pane shows and the viewer opens: the one most
     /// recently clicked or moved to.
@@ -154,7 +154,9 @@ nonisolated struct FolderSnapshot: Sendable {
 
     /// The catalog's stars and tag for each image of the folder, by name.
     /// Only marked files have an entry.
-    private(set) var marks: [String: Catalog.Marks] = [:]
+    private(set) var marks: [String: Catalog.Marks] = [:] {
+        didSet { cachedSelectedMarks = nil }
+    }
     /// Finder tags by name (folders too), read after each listing.
     private(set) var finderTags: [String: [FinderTag]] = [:]
     /// Every Finder tag used in the folder, one per name, sorted: the filter menu.
@@ -200,8 +202,9 @@ nonisolated struct FolderSnapshot: Sendable {
     /// again when it lands; otherwise a star set during a reload would
     /// flick back until the next change.
     private var catalogChangesDuringListing: [URL] = []
-    /// Reads Finder tags after a listing; replaced by the next listing.
-    private var finderTagReader: Task<[String: [FinderTag]]?, Never>?
+    /// The Finder tag read in flight: a whole listing's, or a refresh of a
+    /// few files'. The next listing cancels either.
+    private var finderTagRead: (cancel: CancellationFlag, isWholeFolder: Bool)?
     /// The Finder tag read in flight, for tests to await.
     private(set) var finderTagWork: Task<Void, Never>?
     private var catalogObserver: NSObjectProtocol?
@@ -243,7 +246,7 @@ nonisolated struct FolderSnapshot: Sendable {
 
     isolated deinit {
         if let catalogObserver { NotificationCenter.default.removeObserver(catalogObserver) }
-        finderTagReader?.cancel()
+        finderTagRead?.cancel.cancel()
     }
 
     static func invalidateCaches(_ url: URL) {
@@ -329,7 +332,8 @@ nonisolated struct FolderSnapshot: Sendable {
         finderTags = [:]
         finderTagsInFolder = []
         changedMarkNames = nil
-        finderTagReader?.cancel()
+        finderTagRead?.cancel.cancel()
+        finderTagRead = nil
         pendingSelections = []
         catalogChangesDuringListing = []
         pendingSelection = item
@@ -430,10 +434,10 @@ nonisolated struct FolderSnapshot: Sendable {
         generation += 1
         let generation = self.generation, order = sortOrder, marks = self.marks, catalog = self.catalog
         work = Task { [weak self] in
-            let sorted = await Task.detached(priority: .userInitiated) {
+            let sorted = await BlockingWork.run {
                 let custom = order.key == .custom ? catalog.customOrder(in: snapshot.folder) : []
                 return snapshot.resorted(by: order, marks: marks, customOrder: custom)
-            }.value
+            }
             self?.finish(.success(Listing(snapshot: sorted, changed: [], marks: nil)), generation: generation)
         }
     }
@@ -503,23 +507,54 @@ nonisolated struct FolderSnapshot: Sendable {
     /// attribute read each, too many for the main thread in a big folder, and
     /// never worth holding the listing back for. A newer listing cancels it.
     private func readFinderTags() {
-        finderTagReader?.cancel()
         guard let snapshot else { return }
-        let urls = snapshot.entries.map(\.url), folder = snapshot.folder
-        let reader = Task.detached(priority: .utility) { () -> [String: [FinderTag]]? in
-            var tags: [String: [FinderTag]] = [:]
-            for (index, url) in urls.enumerated() {
-                if index % 128 == 0, Task.isCancelled { return nil }
-                let found = FinderTag.read(from: url)
-                if !found.isEmpty { tags[url.lastPathComponent] = found }
-            }
-            return tags
-        }
-        finderTagReader = reader
+        readFinderTags(of: snapshot.entries.map(\.url), in: snapshot.folder, wholeFolder: true)
+    }
+
+    /// Reads the Finder tags of `urls` (files of the folder shown) again.
+    ///
+    /// Tagging a file in Finder changes only an extended attribute, which the
+    /// folder watcher doesn't report, so the dots would stay stale until the
+    /// next listing. The browser asks for its visible cells when its window
+    /// becomes key (the user coming back from Finder) and for files whose
+    /// marks minivu just wrote: a few dozen reads at a moment the user caused,
+    /// instead of polling. Skipped while a whole-folder read is under way,
+    /// which covers them.
+    func refreshFinderTags(of urls: [URL]) {
+        guard let snapshot, state == .loaded, !isListing, finderTagRead?.isWholeFolder != true else { return }
+        let folder = snapshot.folder
+        let inFolder = urls.filter { Self.samePath($0.deletingLastPathComponent(), folder) }
+        guard !inFolder.isEmpty else { return }
+        readFinderTags(of: inFolder, in: folder, wholeFolder: false)
+    }
+
+    private func readFinderTags(of urls: [URL], in folder: URL, wholeFolder: Bool) {
+        finderTagRead?.cancel.cancel()
+        let cancel = CancellationFlag()
+        finderTagRead = (cancel, wholeFolder)
         finderTagWork = Task { [weak self] in
-            guard let tags = await reader.value, !reader.isCancelled, let self,
-                  let current = self.folder, Self.samePath(current, folder) else { return }
-            self.applyFinderTags(tags)
+            // Extended attribute reads block: on GCD (BlockingWork), with a
+            // flag in place of task cancellation.
+            let tags = await BlockingWork.run(qos: wholeFolder ? .utility : .userInitiated) {
+                () -> [String: [FinderTag]]? in
+                var tags: [String: [FinderTag]] = [:]
+                for (index, url) in urls.enumerated() {
+                    if index % 128 == 0, cancel.isCancelled { return nil }
+                    let found = FinderTag.read(from: url)
+                    if !found.isEmpty { tags[url.lastPathComponent] = found }
+                }
+                return tags
+            }
+            guard let self, !cancel.isCancelled else { return }
+            if self.finderTagRead?.cancel === cancel { self.finderTagRead = nil }
+            guard let tags, let current = self.folder, Self.samePath(current, folder) else { return }
+            if wholeFolder {
+                self.applyFinderTags(tags)
+            } else {
+                var merged = self.finderTags
+                for url in urls { merged[url.lastPathComponent] = tags[url.lastPathComponent] }
+                self.applyFinderTags(merged)
+            }
         }
     }
 
@@ -611,6 +646,9 @@ nonisolated struct FolderSnapshot: Sendable {
         }
         var changed = Set<String>()
         if !files.isEmpty {
+            // Marking a file is a moment the user is looking at it: its
+            // Finder tags may have changed too, unseen by the watcher.
+            refreshFinderTags(of: files)
             let fresh = catalog.marks(for: files)
             for url in files {
                 let name = url.lastPathComponent, value = fresh[url] ?? .none
@@ -748,6 +786,35 @@ nonisolated struct FolderSnapshot: Sendable {
         return total
     }
     private var cachedSelectedBytes: Int64?
+
+    /// What the selected images' marks have in common.
+    struct SelectionMarks: Equatable {
+        /// The rating every selected image has; nil when they differ or no
+        /// image is selected.
+        var sharedRating: Int?
+        /// Whether there are selected images and every one is tagged.
+        var allTagged: Bool
+    }
+
+    /// The Rating and Tag menu checkmarks' answer. Menu validation asks once
+    /// per item (six ratings and the tag) on every menu update, so it is
+    /// worked out once, without sorting the selection, and kept until the
+    /// selection, the entries or the marks change.
+    var selectedMarks: SelectionMarks {
+        if let cachedSelectedMarks { return cachedSelectedMarks }
+        var rating: Int?, mixed = false, allTagged = true, any = false
+        for url in selection {
+            guard let entry = entry(for: url), !entry.isDirectory else { continue }
+            let value = marks[entry.name] ?? .none
+            if !any { rating = value.rating } else if rating != value.rating { mixed = true }
+            allTagged = allTagged && value.isTagged
+            any = true
+        }
+        let result = SelectionMarks(sharedRating: any && !mixed ? rating : nil, allTagged: any && allTagged)
+        cachedSelectedMarks = result
+        return result
+    }
+    private var cachedSelectedMarks: SelectionMarks?
 
     /// The selection as the grid reports it. URLs not visible are ignored.
     func setSelection(_ urls: Set<URL>, lead newLead: URL?) {

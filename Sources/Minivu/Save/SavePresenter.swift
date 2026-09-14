@@ -89,9 +89,9 @@ enum SavePresenter {
         let url = entry.url
         Task { [weak window] in
             // Reading the header is disk work: never on the main thread.
-            let (info, sourceSpace) = await Task.detached(priority: .userInitiated) {
+            let (info, sourceSpace) = await BlockingWork.run {
                 (ImageDecoder.info(for: url), SavePolicy.sourceColorSpace(of: url))
-            }.value
+            }
             guard let window else { return completion(false) }
             guard let format = SavePolicy.inPlaceFormat(for: url, info: info), let info else {
                 presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
@@ -123,9 +123,7 @@ enum SavePresenter {
         let url = entry.url
         let progress = SaveProgress(on: window, title: "Saving “\(entry.name)”…")
         let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
-            try await Task.detached(priority: .userInitiated) {
-                try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer)
-            }.value
+            try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer)
         }
         Task { [weak window] in
             do {
@@ -148,9 +146,9 @@ enum SavePresenter {
     /// The Save As write: the panel's render for `options`, encoded in the background.
     static func write(_ source: SaveImageSource, options: ExportOptions, to url: URL, metadataSource: URL) async throws {
         let image = try await source.image(for: options)
-        try await Task.detached(priority: .userInitiated) {
+        try await BlockingWork.run {
             try ImageEncoder.write(image, to: url, options: options, metadataSource: metadataSource)
-        }.value
+        }
     }
 
     /// The Save write: the committed operations rendered at full resolution
@@ -160,7 +158,8 @@ enum SavePresenter {
                                          options: ExportOptions, to url: URL, renderer: EditRenderer) async throws {
         let bits = options.format.supports16Bit && options.sixteenBit ? 16 : 8
         let image = try await renderer.renderForExport(snapshot, colorSpace: colorSpace, bitsPerComponent: bits)
-        try ImageEncoder.write(image, to: url, options: options, metadataSource: url)
+        // Encoding and the file write block: on GCD (BlockingWork).
+        try await BlockingWork.run { try ImageEncoder.write(image, to: url, options: options, metadataSource: url) }
     }
 
     /// "Replace the original?", unless the user ticked "Don't ask again" once.
@@ -205,7 +204,7 @@ enum CommentEditor {
     /// Edits the COM comment of a JPEG. Calls `completion(true)` after writing.
     static func present(for url: URL, on window: NSWindow, completion: @escaping (Bool) -> Void) {
         Task { [weak window] in
-            let text = await Task.detached(priority: .userInitiated) { JPEGComment.read(from: url) ?? "" }.value
+            let text = await BlockingWork.run { JPEGComment.read(from: url) ?? "" }
             guard let window else { return completion(false) }
             CommentEditorSheet(url: url, comment: text).begin(on: window, completion: completion)
         }

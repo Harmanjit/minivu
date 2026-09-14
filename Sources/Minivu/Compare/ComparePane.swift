@@ -327,7 +327,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     private func readSummary(of entry: FolderEntry) {
         let url = entry.url
         summaryTask = Task { [weak self] in
-            let summary = await Task.detached(priority: .userInitiated) { MetadataReader.summary(for: url) }.value
+            let summary = await BlockingWork.run { MetadataReader.summary(for: url) }
             guard !Task.isCancelled, let self, self.entry?.url == url else { return }
             var parts: [String] = []
             if let size = summary.pixelSize { parts.append("\(Int(size.width)) × \(Int(size.height))") }
