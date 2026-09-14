@@ -131,7 +131,11 @@ final class ImageCanvasView: NSView, SnapshotProviding {
 
     override var isFlipped: Bool { true }
     override var isOpaque: Bool { true }
-    override var acceptsFirstResponder: Bool { true }
+    /// Whether a click gives the canvas keyboard focus. The viewer wants it
+    /// (keys drive navigation there); the browser preview turns it off so the
+    /// grid keeps the arrow keys after the user clicks the preview.
+    var takesKeyboardFocus = true
+    override var acceptsFirstResponder: Bool { takesKeyboardFocus }
 
     // MARK: - Image
 

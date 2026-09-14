@@ -318,6 +318,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     private func makeCanvasIfNeeded() -> ImageCanvasView {
         if let canvas { return canvas }
         let canvas = ImageCanvasView(frame: imageArea.bounds)
+        canvas.takesKeyboardFocus = false
         canvas.clickAction = .none
         canvas.magnifierEnabled = true
         canvas.delegate = self

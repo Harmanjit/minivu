@@ -313,10 +313,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// The menu bar and Dock get out of the way while the full-screen window
     /// is key, and come back whenever it isn't: switching to another app
-    /// mustn't leave the user without a menu bar.
+    /// mustn't leave the user without a menu bar. The Dock is hidden outright
+    /// rather than auto-hidden, because an auto-hidden Dock slides up over the
+    /// bottom control bar whenever the pointer reaches for it.
     private func applyPresentationOptions() {
         if savedPresentationOptions == nil { savedPresentationOptions = NSApp.presentationOptions }
-        NSApp.presentationOptions = [.autoHideMenuBar, .autoHideDock]
+        NSApp.presentationOptions = [.autoHideMenuBar, .hideDock]
     }
 
     private func restorePresentationOptions() {
