@@ -120,6 +120,13 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private var currentFolder: URL?
     /// Set while selecting a row in code, so it isn't taken for a click.
     private var isSelectingInCode = false
+    /// Set while a row is expanded in code. `expandItem` asks the delegate
+    /// too, and a row opened because its first listing just arrived (or to
+    /// reveal a folder below it) must not be taken for the user opening it
+    /// again: that would list every row twice.
+    private var isExpandingInCode = false
+    /// Listings started, for tests.
+    private(set) var listingsStarted = 0
     /// Folders listed again because the folder being revealed wasn't among
     /// their children, so a folder that really is hidden isn't relisted
     /// over and over. Cleared for each new folder.
@@ -256,6 +263,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             return
         }
         node.isListing = true
+        listingsStarted += 1
         // Rows already shown keep their title, and rows whose own children
         // are listed know whether they have any: neither needs the disk again.
         var known: [String: (title: String, hasSubfolders: Bool?)] = [:]
@@ -297,7 +305,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             reloadRow(node, children: true)
             if node.wantsExpansion {
                 node.wantsExpansion = false
-                outlineView.expandItem(node)
+                expandInCode(node)
             }
             reveal(currentFolder)
             return
@@ -350,6 +358,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private func makeNode(_ folder: Found) -> SidebarNode {
         SidebarNode(kind: .folder, title: folder.title, url: folder.url, symbolName: "folder",
                     mayHaveChildren: folder.hasSubfolders)
+    }
+
+    private func expandInCode(_ node: SidebarNode) {
+        isExpandingInCode = true
+        outlineView.expandItem(node)
+        isExpandingInCode = false
     }
 
     private func reloadRow(_ node: SidebarNode, children: Bool) {
@@ -443,7 +457,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
                 return
             }
             isSelectingInCode = true
-            outlineView.expandItem(node)
+            expandInCode(node)
             isSelectingInCode = false
             node = child
         }
@@ -501,7 +515,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         if node.children == nil {
             node.wantsExpansion = true
             listChildren(of: node)
-        } else if node.kind != .header, !outlineView.isItemExpanded(node) {
+        } else if !isExpandingInCode, node.kind != .header, !outlineView.isItemExpanded(node) {
             listChildren(of: node, refresh: true)
         }
         return true

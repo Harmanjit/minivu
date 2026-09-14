@@ -232,11 +232,16 @@ extension BrowserWindowTests {
         defer { controller.window?.close() }
         _ = controller.grid.view
 
+        // The toolbar's up button validates the same way as the menu item.
+        let upButton = try #require(controller.window?.toolbar?.items.first { $0.itemIdentifier == .browserEnclosingFolder })
+
         controller.open(folder: locked)
         await settle(controller.model)
         #expect(controller.validateMenuItem(item(.goToEnclosingFolder)))
+        #expect(controller.validateToolbarItem(upButton))
         controller.open(folder: inside)
         await settle(controller.model)
         #expect(!controller.validateMenuItem(item(.goToEnclosingFolder)))
+        #expect(!controller.validateToolbarItem(upButton))
     }
 }

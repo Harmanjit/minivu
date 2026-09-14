@@ -357,6 +357,9 @@ import MinivuCore
         sidebar.reveal(inner)
         try await waitUntil { isSelected(inner) }
         let alphaNode = try #require(node(alpha))
+        // The favourite and Alpha, once each: opening a row because its
+        // first listing arrived is not opening it again.
+        #expect(sidebar.listingsStarted == 2)
 
         sidebar.outlineView.collapseItem(alphaNode)
         try t.folder("Second", in: alpha)
@@ -364,6 +367,7 @@ import MinivuCore
         sidebar.outlineView.expandItem(alphaNode)
         try await waitUntil { sidebar.rowOutline.contains("    Second") }
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Second"])
+        #expect(sidebar.listingsStarted == 3)
     }
 
     /// A collapsed row refreshed by its watcher shows the new rows as soon
