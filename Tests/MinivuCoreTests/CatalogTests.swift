@@ -350,6 +350,87 @@ import Foundation
         #expect(catalog.marks(for: link) == .none)
     }
 
+    @Test func healKeepsCustomOrderThroughFinderRenames() throws {
+        let t = try TemporaryFolder()
+        let trip = try t.folder("Trip")
+        try t.folder("Trip/Day")
+        let a = try t.file("Trip/a.jpg"), deep = try t.file("Trip/Day/deep.jpg")
+        try t.file("Trip/b.jpg")
+        let catalog = Catalog.inMemory()
+        catalog.setRating(3, for: [a, deep])
+        catalog.setCustomOrder(["b.jpg", "a.jpg"], in: trip)
+        catalog.setCustomOrder(["deep.jpg", "x.jpg"], in: trip.appendingPathComponent("Day"))
+
+        // Renamed in place: keeps its place under the new name.
+        try FileManager.default.moveItem(at: a, to: trip.appendingPathComponent("z.jpg"))
+        #expect(catalog.heal(folder: trip).count == 1)
+        #expect(catalog.customOrder(in: trip) == ["b.jpg", "z.jpg"])
+
+        // The whole folder renamed: its orders, and its subfolders', follow.
+        let renamed = t.url.appendingPathComponent("Trip to Japan")
+        try FileManager.default.moveItem(at: trip, to: renamed)
+        #expect(catalog.heal(folder: renamed).count == 1)
+        #expect(catalog.marks(for: renamed.appendingPathComponent("z.jpg")).rating == 3)
+        #expect(catalog.customOrder(in: renamed) == ["b.jpg", "z.jpg"])
+        #expect(catalog.customOrder(in: renamed.appendingPathComponent("Day")) == ["deep.jpg", "x.jpg"])
+        #expect(catalog.customOrder(in: trip) == [])
+        #expect(catalog.heal(folder: renamed.appendingPathComponent("Day")).count == 1)
+        #expect(catalog.customOrder(in: renamed.appendingPathComponent("Day")) == ["deep.jpg", "x.jpg"])
+    }
+
+    @Test func healMovesOrdersOfARenamedFolderOpenedFromTheInside() throws {
+        let t = try TemporaryFolder()
+        let trip = try t.folder("Trip"), day = try t.folder("Trip/Day")
+        let top = try t.file("Trip/top.jpg"), deep = try t.file("Trip/Day/deep.jpg")
+        let catalog = Catalog.inMemory()
+        catalog.setRating(1, for: [top, deep])
+        catalog.setCustomOrder(["Day", "top.jpg"], in: trip)
+        catalog.setCustomOrder(["deep.jpg"], in: day)
+        let renamed = t.url.appendingPathComponent("Trip 2024")
+        try FileManager.default.moveItem(at: trip, to: renamed)
+        // The subfolder is opened first, then the renamed folder itself.
+        #expect(catalog.heal(folder: renamed.appendingPathComponent("Day")).count == 1)
+        #expect(catalog.customOrder(in: renamed.appendingPathComponent("Day")) == ["deep.jpg"])
+        #expect(catalog.heal(folder: renamed).count == 1)
+        #expect(catalog.customOrder(in: renamed) == ["Day", "top.jpg"])
+        #expect(catalog.customOrder(in: renamed.appendingPathComponent("Day")) == ["deep.jpg"])
+    }
+
+    @Test func healDropsThePlaceOfAFileThatLeftAFolderStillThere() throws {
+        let t = try TemporaryFolder()
+        let from = try t.folder("from"), to = try t.folder("to")
+        let a = try t.file("from/a.jpg")
+        let catalog = Catalog.inMemory()
+        catalog.setRating(2, for: [a])
+        catalog.setCustomOrder(["a.jpg", "b.jpg"], in: from)
+        catalog.setCustomOrder(["c.jpg"], in: to)
+        try FileManager.default.moveItem(at: a, to: to.appendingPathComponent("a.jpg"))
+        #expect(catalog.heal(folder: to).count == 1)
+        #expect(catalog.customOrder(in: from) == ["b.jpg"])
+        #expect(catalog.customOrder(in: to) == ["c.jpg"])
+    }
+
+    @Test func healStampsRowsWhoseFileLeftTheTrash() throws {
+        let t = try TemporaryFolder()
+        try t.folder(".Trash")
+        let emptied = try t.file(".Trash/emptied.jpg"), kept = try t.file(".Trash/kept.jpg")
+        let catalog = Catalog.inMemory()
+        catalog.setRating(4, for: [emptied, kept])
+        try FileManager.default.removeItem(at: emptied)
+        catalog.heal(folder: try t.folder("elsewhere"))
+        let rows = try catalog.db.query("SELECT path, missing_since FROM files ORDER BY path")
+        #expect(rows.count == 2)
+        #expect(rows[0].string("path")?.hasSuffix("emptied.jpg") == true && rows[0]["missing_since"] != .null)
+        #expect(rows[1].string("path")?.hasSuffix("kept.jpg") == true && rows[1]["missing_since"] == .null)
+    }
+
+    /// Test runs must never read or write the user's real catalog.
+    @Test func sharedCatalogIsPrivateInTestRuns() throws {
+        #expect(Catalog.usesPrivateCatalog(ProcessInfo.processInfo))
+        let file = try Catalog.shared.db.query("PRAGMA database_list").first?.string("file")
+        #expect(file == "")
+    }
+
     @Test func healPrunesRowsMissingForAYear() throws {
         let t = try TemporaryFolder()
         let a = try t.file("a.jpg")

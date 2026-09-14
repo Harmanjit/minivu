@@ -225,14 +225,14 @@ public enum FileOperations {
                     try moveExclusively(url, to: destination)
                     catalog.fileMoved(from: url, to: destination)
                 } else {
-                    try FileManager.default.copyItem(at: url, to: destination)
+                    try copyExclusively(url, to: destination)
                     catalog.fileCopied(from: url, to: destination)
                 }
                 result.completed.append(Transfer(from: url, to: destination, replaced: replaced))
             } catch {
-                // A failed copy can leave a partial one: it's ours to remove.
-                // Then whatever was replaced goes back.
-                if !move && itemExists(destination) { try? FileManager.default.removeItem(at: destination) }
+                // Nothing of ours is left at `destination` (see
+                // copyExclusively), so whatever was replaced goes back, unless
+                // another app has put something there meanwhile.
                 if let replaced, (try? moveExclusively(replaced, to: destination)) != nil {
                     catalog.fileMoved(from: replaced, to: destination)
                 }
@@ -399,6 +399,24 @@ public enum FileOperations {
             path = (path as NSString).deletingLastPathComponent
         }
         return chain
+    }
+
+    /// Copies to a hidden temporary name beside `destination`, then renames
+    /// the copy into place without overwriting. A copy that fails partway, or
+    /// finds the name taken by another app since it was checked, leaves only
+    /// its own temporary item to remove: cleaning up after a direct copy
+    /// could delete a file someone else had just put at `destination`. The
+    /// browser also never lists a half-copied file under its real name.
+    static func copyExclusively(_ source: URL, to destination: URL) throws {
+        let temporary = destination.deletingLastPathComponent()
+            .appendingPathComponent(".minivu-copy-\(UUID().uuidString)")
+        do {
+            try FileManager.default.copyItem(at: source, to: temporary)
+            try moveExclusively(temporary, to: destination)
+        } catch {
+            if itemExists(temporary) { try? FileManager.default.removeItem(at: temporary) }
+            throw error
+        }
     }
 
     /// A rename that refuses to overwrite. Across volumes, where rename(2)

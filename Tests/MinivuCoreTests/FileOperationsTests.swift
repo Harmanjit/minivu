@@ -178,6 +178,45 @@ import Foundation
         #expect(s.catalog.marks(for: existing).rating == 5)
     }
 
+    /// A copy that fails cleans up only after itself: here another app puts
+    /// a file at the destination between the Trash step and the copy.
+    @Test func failedCopyNeverRemovesWhatAnotherAppPutThere() throws {
+        var s = try Sandbox()
+        let dst = try s.t.folder("dst")
+        let a = try s.write("a.jpg", "new")
+        try s.write("dst/a.jpg", "old")
+        let trash = s.trash
+        s.environment.trash = { url in
+            let destination = trash.appendingPathComponent(UUID().uuidString)
+            try FileManager.default.moveItem(at: url, to: destination)
+            try Data("newcomer".utf8).write(to: url)
+            return destination
+        }
+        let result = s.copy([a], to: dst, .replace)
+        #expect(result.failed.map(\.url) == [a] && result.completed.isEmpty)
+        #expect(text(dst.appendingPathComponent("a.jpg")) == "newcomer")
+        let trashed = try FileManager.default.contentsOfDirectory(atPath: trash.path)
+        #expect(trashed.count == 1 && text(trash.appendingPathComponent(trashed[0])) == "old")   // still recoverable
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dst.path) == ["a.jpg"])     // no temporary copy left
+    }
+
+    @Test func copyThatFailsPartwayLeavesNothingBehind() throws {
+        let s = try Sandbox()
+        try s.t.folder("Set")
+        try s.write("Set/readable.jpg", "R")
+        let locked = try s.write("Set/locked.jpg", "L")
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: locked.path) }
+        let dst = try s.t.folder("dst")
+        let result = s.copy([s.t.url.appendingPathComponent("Set")], to: dst, .skip)
+        #expect(result.failed.count == 1 && result.completed.isEmpty)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dst.path) == [])
+
+        let ok = s.copy([s.t.url.appendingPathComponent("Set/readable.jpg")], to: dst, .skip)
+        #expect(ok.completed.count == 1)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dst.path) == ["readable.jpg"])
+    }
+
     @Test func neverReplacesAcrossFilesAndFolders() throws {
         let s = try Sandbox()
         let dst = try s.t.folder("dst")

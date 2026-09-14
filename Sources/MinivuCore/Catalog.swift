@@ -44,12 +44,27 @@ public final class Catalog: @unchecked Sendable {
     /// is the `[URL]` of files (or the folder, for custom order) affected.
     public static let didChange = Notification.Name("MinivuCatalogDidChange")
 
+    /// The user's catalog, except in test runs and snapshot runs (or with
+    /// `MINIVU_CATALOG=memory`), which get a private one in memory: tests and
+    /// the snapshot harness rate and move files through app code, and must
+    /// never change or read the ratings a user has made.
     public static let shared: Catalog = {
+        if usesPrivateCatalog(ProcessInfo.processInfo) { return Catalog.inMemory() }
         do { return try Catalog(url: Catalog.defaultURL) } catch {
             log.error("Catalog unavailable, using a temporary one: \(String(describing: error), privacy: .public)")
             return Catalog.inMemory()
         }
     }()
+
+    /// XCTest runs in `xctest`, Swift Testing under SwiftPM in
+    /// `swiftpm-testing-helper`; Xcode sets XCTestConfigurationFilePath.
+    static func usesPrivateCatalog(_ process: ProcessInfo) -> Bool {
+        let environment = process.environment
+        return environment["MINIVU_CATALOG"] == "memory"
+            || environment["MINIVU_SNAPSHOT"] != nil
+            || environment["XCTestConfigurationFilePath"] != nil
+            || ["xctest", "swiftpm-testing-helper"].contains(process.processName)
+    }
 
     public static var defaultURL: URL {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -384,6 +399,10 @@ public final class Catalog: @unchecked Sendable {
     /// 2. Listed items without a row are looked up by (volume, file
     ///    identifier) in one query. A hit whose old path no longer holds that
     ///    file is the same file, moved here: its row takes the new path.
+    ///    Its custom-order place is renamed when it was renamed in this
+    ///    folder. When marked files arrive from one folder that no longer
+    ///    exists (a folder renamed or moved in Finder), that folder's custom
+    ///    orders move here too, unless this folder has its own.
     ///
     /// **Limits.** A moved file is found when the folder it went *to* is
     /// healed, so marks follow files into folders the user opens, not
@@ -436,6 +455,9 @@ public final class Catalog: @unchecked Sendable {
 
             let orphans = listed.filter { !rowed.contains($0.key) && $0.value.fileID != nil }.map(\.value)
             var moves: [(id: Int64, oldPath: String, name: String)] = []
+            // Old folders of moved files, and whether each is gone (renamed or
+            // moved as a whole in Finder), looked up before taking the lock.
+            var oldFolderIsGone: [String: Bool] = [:]
             if let volume, !orphans.isEmpty {
                 let json = "[" + orphans.map { String($0.fileID!) }.joined(separator: ",") + "]"
                 let hits = try db.query("""
@@ -452,10 +474,30 @@ public final class Catalog: @unchecked Sendable {
                     if Self.identity(ofPath: oldPath, volumes: &volumes).fileID == item.fileID { continue }
                     claimed.insert(id)
                     moves.append((id, oldPath, item.name))
+                    let oldFolder = Self.parent(ofKey: oldPath)
+                    if oldFolderIsGone[oldFolder] == nil {
+                        var st = stat()
+                        // Only "no such file": an unreadable folder isn't gone.
+                        oldFolderIsGone[oldFolder] = lstat(oldFolder, &st) != 0 && errno == ENOENT
+                    }
                 }
             }
 
             let prunes = claimFirstPrune()
+            // Marks of files that `.replace` sent to the Trash stay with them
+            // so undo can restore them. Nobody opens the Trash in minivu, so
+            // those rows would never be stamped missing and never pruned:
+            // stamp them once they've left it (emptied, or put back, where
+            // healing by identity still finds them within the year).
+            var goneFromTrash: [Int64] = []
+            if prunes {
+                for row in try db.query("SELECT id, path FROM files WHERE instr(path, '/.Trash') > 0 AND missing_since IS NULL") {
+                    var st = stat()
+                    if let id = row.int("id"), let path = row.string("path"), lstat(path, &st) != 0, errno == ENOENT {
+                        goneFromTrash.append(id)
+                    }
+                }
+            }
             guard prunes || !refresh.isEmpty || !missing.isEmpty || !moves.isEmpty else { return [] }
             let now = Date().timeIntervalSince1970
             try db.transaction {
@@ -466,17 +508,44 @@ public final class Catalog: @unchecked Sendable {
                 for id in missing {
                     try db.execute("UPDATE files SET missing_since = ?1 WHERE id = ?2", [.real(now), .integer(id)])
                 }
+                var goneFoldersMovedFrom = Set<String>()
                 for move in moves {
                     let newPath = folderKey == "/" ? "/" + move.name : folderKey + "/" + move.name
                     try db.execute("UPDATE OR IGNORE files SET path = ?1, folder = ?2, missing_since = NULL WHERE id = ?3",
                                    [.text(newPath), .text(folderKey), .integer(move.id)])
                     guard db.changes > 0 else { continue }
-                    try db.execute("DELETE FROM folder_order WHERE folder = ?1 AND name = ?2",
-                                   [.text(Self.parent(ofKey: move.oldPath)), .text(Self.name(ofKey: move.oldPath))])
                     healed.append(folder.appendingPathComponent(move.name))
+                    // The file's place in its old folder's custom order: kept
+                    // under the new name when renamed in place; left for the
+                    // order move below when the whole folder went; dropped
+                    // when the file left a folder that is still there.
+                    let oldFolder = Self.parent(ofKey: move.oldPath)
+                    let place: [SQLiteValue] = [.text(oldFolder), .text(Self.name(ofKey: move.oldPath)), .text(move.name)]
+                    if oldFolder.lowercased() == folderKey.lowercased() {
+                        try db.execute("UPDATE OR REPLACE folder_order SET name = ?3 WHERE folder = ?1 AND name = ?2", place)
+                    } else if oldFolderIsGone[oldFolder] == true {
+                        goneFoldersMovedFrom.insert(oldFolder)
+                    } else {
+                        try db.execute("DELETE FROM folder_order WHERE folder = ?1 AND name = ?2", Array(place.prefix(2)))
+                    }
+                }
+                // Marked files arriving from exactly one folder that no longer
+                // exists: the folder was renamed or moved in Finder, so its
+                // custom orders (its own and its subfolders') follow, unless
+                // this folder already has one. A subfolder healed earlier
+                // keeps the order it already took.
+                if goneFoldersMovedFrom.count == 1, let old = goneFoldersMovedFrom.first,
+                   try db.query("SELECT 1 AS x FROM folder_order WHERE folder = ?1 LIMIT 1", [.text(folderKey)]).isEmpty {
+                    try db.execute("""
+                        UPDATE OR IGNORE folder_order SET folder = ?4 || substr(folder, length(?1) + 1)
+                        WHERE folder = ?1 OR (folder >= ?2 AND folder < ?3)
+                        """, [.text(old), .text(old + "/"), .text(old + "0"), .text(folderKey)])
                 }
                 if prunes {
                     try db.execute("DELETE FROM files WHERE missing_since < ?1", [.real(now - Self.missingRetention)])
+                    for id in goneFromTrash {
+                        try db.execute("UPDATE files SET missing_since = ?1 WHERE id = ?2", [.real(now), .integer(id)])
+                    }
                 }
             }
         } catch {
