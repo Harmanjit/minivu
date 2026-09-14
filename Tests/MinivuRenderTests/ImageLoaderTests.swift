@@ -301,6 +301,39 @@ import CoreGraphics
         }
     }
 
+    /// Under "Embedded preview", a RAW file goes to the render slot only once
+    /// its preview has fallen short, handing its decode slot back on the
+    /// way. Three at once: all three previews use decode slots, the renders
+    /// then run one by one, nothing is left waiting, every requester hears
+    /// back, and photos asked for meanwhile still decode.
+    @Test func previewsThatFallShortQueueForTheRenderSlot() async {
+        let loader = makeLoader()
+        var results: [Bool] = []
+        for raw in (0..<3).map({ _ in makeFakeRaw() }) {
+            loader.load(raw, pixelSize: 100) { results.append((try? $0.get()) != nil) }
+        }
+        #expect(loader.decodeCount == 3 && loader.rawRenderCount == 0)   // previews first, in decode slots
+        await loader.waitUntilIdle()
+        #expect(results == [false, false, false])
+        #expect(loader.rawRenderCount == 3 && loader.peakConcurrentRawRenders == 1)
+        #expect(loader.decodeCount == 3)   // each render carried on its job
+
+        // The previews are known to fall short now: straight to the render
+        // slot, leaving every decode slot to other photos.
+        let raws = (0..<2).map { _ in makeFakeRaw() }
+        for raw in raws { loader.load(raw, pixelSize: 100) { _ in } }
+        await loader.waitUntilIdle()
+        for raw in raws { loader.load(raw, pixelSize: 100) { _ in } }
+        #expect(loader.rawRenderCount == 6 && loader.decodeCount == 6)   // one running, one waiting
+        var decoded = 0
+        for entry in (0..<3).map({ _ in makeEntry() }) {
+            loader.load(entry, pixelSize: 100) { if (try? $0.get()) != nil { decoded += 1 } }
+        }
+        #expect(loader.decodeCount == 9)   // all three at once
+        await loader.waitUntilIdle()
+        #expect(decoded == 3 && loader.rawRenderCount == 7 && loader.peakConcurrentRawRenders == 1)
+    }
+
     @Test func rawRenderPrefetchNeedsMoreThanEightGigabytes() {
         #expect(!ImageLoader.allowsRawRenderPrefetch(physicalMemory: 8 << 30))
         #expect(!ImageLoader.allowsRawRenderPrefetch(physicalMemory: 4 << 30))

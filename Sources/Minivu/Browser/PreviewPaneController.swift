@@ -296,7 +296,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         let pixelSize = previewPixelSize
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified, page: 0,
                                                               minimumLongEdge: pixelSize) {
-            display(texture, for: entry, neighbours: neighbours, keepingView: reloading)
+            display(texture, for: entry, neighbours: neighbours, reloading: reloading)
             return
         }
         let start = { [weak self] in
@@ -306,7 +306,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
                 self.loadHandle = nil
                 switch result {
                 case .success(let texture):
-                    self.display(texture, for: entry, neighbours: neighbours, keepingView: reloading)
+                    self.display(texture, for: entry, neighbours: neighbours, reloading: reloading)
                 case .failure(let error):
                     guard !(error is CancellationError) else { return }
                     self.shownEntry = nil
@@ -325,14 +325,21 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     /// `shownEntry` changes before the canvas gets the texture: the canvas
     /// may ask for a sharper one from inside `setImage` (the magnifier is
     /// up), once per texture, and that request must be for this photo, not
-    /// the one it replaces. `keepingView` keeps the zoom and pan of the same
+    /// the one it replaces. `reloading` keeps the zoom and pan of the same
     /// photo when the new texture is of the same image size.
+    ///
+    /// A reload doesn't prefetch while the viewer is open. The loader keeps
+    /// one prefetch set for the app, and the viewer sets its own neighbours
+    /// again after the same settings change. The pane's decode can land after
+    /// the viewer's, smaller as it is (it waits behind the viewer's for the
+    /// RAW render slot, or the viewer's photo was still cached), and its
+    /// neighbours would then replace the viewer's: the next flip would decode.
     private func display(_ texture: ImageTexture, for entry: FolderEntry, neighbours: [FolderEntry],
-                         keepingView: Bool = false) {
-        let preserveView = keepingView && shownEntry == entry && canvas?.image?.imageSize == texture.imageSize
+                         reloading: Bool = false) {
+        let preserveView = reloading && shownEntry == entry && canvas?.image?.imageSize == texture.imageSize
         shownEntry = entry
         canvas?.setImage(texture, preserveView: preserveView)
-        prefetch(neighbours)
+        if !(reloading && ViewerWindowController.current != nil) { prefetch(neighbours) }
     }
 
     private func prefetch(_ neighbours: [FolderEntry]) {

@@ -267,6 +267,47 @@ extension AppWindowTests {
             try await Task.sleep(for: .milliseconds(100))
             #expect(canvas.image === hidden)
         }
+
+        /// With the viewer open, the pane still shows its photo under the new
+        /// settings but leaves the prefetch to the viewer: the loader keeps
+        /// one prefetch set, and the pane's neighbours would replace the
+        /// viewer's.
+        @Test func reloadLeavesTheViewersPrefetchAlone() async throws {
+            _ = NSApplication.shared
+            let folder = try ScratchFolder()
+            let photos = try ["a", "b", "c", "d"].map { try #require(FolderEntry(url: try folder.jpeg("\($0).jpg", width: 1200, height: 800))) }
+            let cache = AppServices.images.cache
+            func cached(_ entry: FolderEntry) -> Bool {
+                cache.anyTexture(url: entry.url, modified: entry.modified, page: 0) != nil
+            }
+            let preview = PreviewPaneController()
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 640),
+                                  styleMask: [.titled], backing: .buffered, defer: false)
+            window.contentViewController = preview
+            window.setContentSize(NSSize(width: 320, height: 640))
+            window.contentView?.layoutSubtreeIfNeeded()
+            defer { preview.isVisible = false }
+            preview.show(.image(photos[0], neighbours: [photos[1]]))
+            await waitUntil { preview.canvasView?.image != nil && cached(photos[1]) }
+            let old = try #require(preview.canvasView?.image)
+
+            ViewerWindowController.show(images: [photos[2], photos[3]], index: 0, fullScreen: false) { _ in }
+            let viewer = try #require(ViewerWindowController.current)
+            defer { viewer.exitViewer(nil) }
+            await waitUntil { viewer.canvasTexture != nil && cached(photos[3]) }
+            try #require(cached(photos[3]))
+
+            // The viewer's photo stays cached, so it shows again (and sets its
+            // prefetch) at once; the pane's decodes, and arrives after.
+            for photo in [photos[0], photos[1], photos[3]] { AppServices.images.invalidate(photo.url) }
+            NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
+            await waitUntil { preview.canvasView?.image.map { $0 !== old } ?? false }
+            #expect(preview.canvasView?.image !== old)
+            await waitUntil { cached(photos[3]) }
+            try await Task.sleep(for: .milliseconds(300))   // time for a neighbour decode to land
+            #expect(cached(photos[3]))
+            #expect(!cached(photos[1]))
+        }
     }
 }
 
