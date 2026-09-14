@@ -1,6 +1,6 @@
-# Agate design
+# minivu design
 
-Agate is a lightweight image browser, viewer and editor for Apple Silicon
+minivu is a lightweight image browser, viewer and editor for Apple Silicon
 Macs, in the spirit of FastStone Image Viewer, built natively for macOS.
 GPLv3. This document is the spec: what the app does, how it is put
 together, and the rules that keep it small and fast.
@@ -37,7 +37,7 @@ together, and the rules that keep it small and fast.
 - **Swift 6.2**, strict concurrency. The app target defaults to the main
   actor; background work is explicitly `nonisolated` or in actors.
 - **SwiftPM, no Xcode project.** `scripts/make_app.sh` assembles and
-  signs `build/Agate.app`, as in Latent.
+  signs `build/minivu.app`, as in Latent.
 - **App Sandbox + hardened runtime**, ad-hoc signed. Entitlements: user
   selected files (read-write), app-scoped bookmarks, the Pictures folder,
   printing. No network.
@@ -53,21 +53,21 @@ All decoding goes through Apple frameworks:
 | PDF | PDFKit / CGPDFDocument |
 | SVG | AppKit (`NSImage` SVG rep) |
 
-`AgateCore/ImageFormats.swift` is the single list of extensions the
+`MinivuCore/ImageFormats.swift` is the single list of extensions the
 browser shows. Anything ImageIO can open is viewable; the list only
 decides what appears in folders.
 
 ## 4. Architecture
 
 ```
-Agate (app, AppKit + a little SwiftUI)
-  ├── AgateRender   Metal: textures, canvas presenter, kernels, transitions
-  │     └── AgateCore
-  └── AgateCore     decoding, metadata, folders, catalog, thumbnail cache
+minivu (app, AppKit + a little SwiftUI)
+  ├── MinivuRender   Metal: textures, canvas presenter, kernels, transitions
+  │     └── MinivuCore
+  └── MinivuCore     decoding, metadata, folders, catalog, thumbnail cache
 ```
 
-Three modules, one process. `AgateCore` has no GPU and no windows, so its
-tests run in milliseconds. `AgateRender` owns every Metal object. The app
+Three modules, one process. `MinivuCore` has no GPU and no windows, so its
+tests run in milliseconds. `MinivuRender` owns every Metal object. The app
 owns windows, menus and the glue.
 
 ### 4.1 AppKit first, SwiftUI for forms
@@ -118,7 +118,7 @@ One image goes from file to screen like this:
 
 ### 4.4 The canvas
 
-`ImageCanvasView` (app) + `CanvasRenderer` (AgateRender):
+`ImageCanvasView` (app) + `CanvasRenderer` (MinivuRender):
 
 - A `ViewportTransform` (zoom = screen pixels per image pixel, and the image
   point at the view centre) fully describes zoom and pan.

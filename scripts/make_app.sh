@@ -1,16 +1,16 @@
 #!/bin/bash
-# Builds build/Agate.app from the SwiftPM release binary.
+# Builds build/minivu.app from the SwiftPM release binary.
 #
 # SwiftPM produces a bare executable plus a resource bundle; macOS wants an
 # .app folder with an Info.plist so the app has a Dock icon, can be the
 # default viewer for image types, and can be signed with the sandbox:
 #
-#   build/Agate.app/Contents/Info.plist
-#   build/Agate.app/Contents/MacOS/Agate
-#   build/Agate.app/Contents/Resources/agate_AgateRender.bundle   (shaders)
+#   build/minivu.app/Contents/Info.plist
+#   build/minivu.app/Contents/MacOS/minivu
+#   build/minivu.app/Contents/Resources/minivu_MinivuRender.bundle   (shaders)
 #
 # Usage: scripts/make_app.sh [version] [--dev]
-#   --dev  skip the sandbox (lets `open build/Agate.app --args <path>` reach
+#   --dev  skip the sandbox (lets `open build/minivu.app --args <path>` reach
 #          any folder while testing).
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -25,17 +25,17 @@ for arg in "$@"; do
 done
 
 echo "Building release…"
-swift build -c release --product agate 2>&1 | tail -1
+swift build -c release --product minivu 2>&1 | tail -1
 
-APP="build/Agate.app"
+APP="build/minivu.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp .build/release/agate "$APP/Contents/MacOS/Agate"
-cp -R .build/release/agate_AgateRender.bundle "$APP/Contents/Resources/"
+cp .build/release/minivu "$APP/Contents/MacOS/minivu"
+cp -R .build/release/minivu_MinivuRender.bundle "$APP/Contents/Resources/"
 
 # Precompile shaders when the Metal toolchain is installed; otherwise the
 # app compiles the bundled sources at launch (a fraction of a second).
-SHADERS="$APP/Contents/Resources/agate_AgateRender.bundle/Shaders"
+SHADERS="$APP/Contents/Resources/minivu_MinivuRender.bundle/Shaders"
 if xcrun metal --version >/dev/null 2>&1; then
   TMP=$(mktemp -d)
   for f in "$SHADERS"/*.metal; do
@@ -53,12 +53,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key>               <string>Agate</string>
-  <key>CFBundleDisplayName</key>        <string>Agate</string>
-  <key>CFBundleIdentifier</key>         <string>com.agate.viewer</string>
+  <key>CFBundleName</key>               <string>minivu</string>
+  <key>CFBundleDisplayName</key>        <string>minivu</string>
+  <key>CFBundleIdentifier</key>         <string>com.minivu.app</string>
   <key>CFBundleVersion</key>            <string>${VERSION}</string>
   <key>CFBundleShortVersionString</key> <string>${VERSION}</string>
-  <key>CFBundleExecutable</key>         <string>Agate</string>
+  <key>CFBundleExecutable</key>         <string>minivu</string>
   <key>CFBundlePackageType</key>        <string>APPL</string>
   <key>LSMinimumSystemVersion</key>     <string>15.0</string>
   <key>LSApplicationCategoryType</key>  <string>public.app-category.photography</string>
@@ -96,7 +96,7 @@ PLIST
 if [ "$DEV" = "1" ]; then
   codesign --force --options runtime --sign - "$APP" && echo "Signed (ad hoc, DEV: no sandbox)"
 else
-  codesign --force --options runtime --entitlements scripts/Agate.entitlements --sign - "$APP" \
+  codesign --force --options runtime --entitlements scripts/minivu.entitlements --sign - "$APP" \
     && echo "Signed (ad hoc, sandboxed, hardened runtime)"
 fi
 codesign --verify --strict "$APP" && echo "Signature verifies"
