@@ -24,7 +24,12 @@ import MinivuCore
 /// needed. Metal content never reaches such a bitmap (it goes straight to
 /// the display), so views that show it conform to `SnapshotProviding` and
 /// are composited on top.
+///
+/// Debug builds only: a release build neither reads these variables nor
+/// carries the code that sends actions. `capture` and `write` stay, for
+/// tests that picture a window.
 enum SnapshotHarness {
+    #if DEBUG
     /// Plain values parsed from the environment. `nonisolated` because
     /// nothing here touches the UI, so it can be used (and tested) anywhere.
     nonisolated struct Configuration: Equatable, Sendable {
@@ -193,6 +198,8 @@ enum SnapshotHarness {
     private static func pause(_ seconds: Double) async {
         try? await Task.sleep(for: .seconds(seconds))
     }
+
+    #endif
 
     private static func report(_ message: String) {
         FileHandle.standardError.write(Data("MINIVU_SNAPSHOT: \(message)\n".utf8))

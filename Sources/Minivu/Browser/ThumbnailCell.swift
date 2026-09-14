@@ -293,7 +293,7 @@ final class ThumbnailCell: NSCollectionViewItem {
     private(set) var entry: FolderEntry?
     private var cellView: ThumbnailCellView { view as! ThumbnailCellView }
     private var thumbnailRequest: ThumbnailRequest?
-    private var sizeRequest: PixelSizeRequest?
+    private var sizeRequest: CancellationFlag?
     /// Pixel size asked of the thumbnail service for what's showing now.
     private var shownPixelSize = 0
     private var wantedPixelSize = 0

@@ -58,6 +58,7 @@ extension ViewerWindowController {
 
     // MARK: - Snapshot harness (debug only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness (`MINIVU_ACTIONS=debugDrawingSample:`):
     /// opens the drawing tool with an arrow, a highlight over a rectangle, a
     /// callout with text, an oval and a line of text, the callout selected
@@ -131,6 +132,7 @@ extension ViewerWindowController {
             }
         }
     }
+    #endif
 
     private static func addDebugScene(to state: AnnotationToolState) {
         guard state.objects.isEmpty else { return }

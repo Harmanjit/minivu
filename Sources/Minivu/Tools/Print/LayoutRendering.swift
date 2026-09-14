@@ -189,13 +189,13 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
         case .file(let url, let page):
             made = decode(url, page, wanted)
         case .image(let image):
-            made = Self.downscale(image, maxPixelSize: wanted).map { ($0, max(image.width, image.height) <= wanted) }
+            made = ImageDecoder.downscale(image, maxPixelSize: wanted).map { ($0, max(image.width, image.height) <= wanted) }
         }
         // A decoder may snap to a cheap size well above the one asked (a
         // JPEG's 1/8 scale of a large photo); kept that large, the cache
         // would never serve the request that made it.
         if let decoded = made, max(decoded.image.width, decoded.image.height) > wanted * 2,
-           let smaller = Self.downscale(decoded.image, maxPixelSize: wanted) {
+           let smaller = ImageDecoder.downscale(decoded.image, maxPixelSize: wanted) {
             made = (smaller, false)
         }
         guard let made else { return nil }
@@ -263,30 +263,6 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
         let date = needsDate ? MetadataReader.summary(for: url).dateTaken : nil
         return LayoutImageInfo(pixelSize: info.pixelSize, dateTaken: date)
     }
-
-    /// `image` no larger than `maxPixelSize` on its long edge, in its own
-    /// colour space when an 8-bit context takes it (else Display P3).
-    static func downscale(_ image: CGImage, maxPixelSize: Int) -> CGImage? {
-        let longEdge = max(image.width, image.height)
-        guard longEdge > maxPixelSize else { return image }
-        let scale = Double(maxPixelSize) / Double(longEdge)
-        let width = max(1, Int((Double(image.width) * scale).rounded()))
-        let height = max(1, Int((Double(image.height) * scale).rounded()))
-        let p3 = CGColorSpace(name: CGColorSpace.displayP3)!
-        var space = image.colorSpace ?? p3
-        if space.model != .rgb || CGColorSpaceUsesITUR_2100TF(space) || CGColorSpaceUsesExtendedRange(space) { space = p3 }
-        let info = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
-                                      space: space, bitmapInfo: info) else { return nil }
-        context.interpolationQuality = .high
-        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-        return context.makeImage()
-    }
-}
-
-/// Carries a finished CGImage across an `await`.
-nonisolated struct CGImageBox: @unchecked Sendable {
-    let image: CGImage
 }
 
 /// A flag a long job checks between steps; set from any thread.

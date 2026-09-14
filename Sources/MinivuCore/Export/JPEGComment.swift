@@ -69,13 +69,9 @@ public enum JPEGComment {
         OwnWrites.record(url)
     }
 
-    /// The same edit in memory, for freshly encoded files.
-    static func replacingComment(in data: Data, with comment: String) throws -> Data {
-        try replacingComments(in: data, withPayloads: payloads(of: comment))
-    }
-
-    /// The same with raw payloads, which keeps comments in an unknown
-    /// encoding byte for byte (the lossless rotate puts them back this way).
+    /// The same edit in memory, with raw payloads, which keeps comments in
+    /// an unknown encoding byte for byte (the lossless rotate puts them back
+    /// this way).
     static func replacingComments(in data: Data, withPayloads payloads: [Data]) throws -> Data {
         guard let rewrite = try rewrittenHeader(of: data, commentPayloads: payloads) else { return data }
         var result = rewrite.header

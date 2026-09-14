@@ -14,6 +14,7 @@ extension BrowserWindowController {
 
     // MARK: - Snapshot harness (debug only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness
     /// (`MINIVU_ACTIONS=printImages:;debugPrintFourUp:`): sets the open
     /// print panel's layout to four per page, filled, with name and date
@@ -50,7 +51,7 @@ extension BrowserWindowController {
             ?? "/tmp/minivu-print-page.png")
         let job = PrintJob(items: items, settings: PrintLayoutStore().settings, paper: PrintPaper(printInfo: .shared))
         Task {
-            let page = await BlockingWork.run { () -> CGImageBox? in
+            let page = await BlockingWork.run { () -> ImageBox? in
                 let size = job.currentLayout.pageSize
                 let scale = 150.0 / 72
                 guard let context = CGContext(data: nil, width: Int(size.width * scale), height: Int(size.height * scale),
@@ -61,7 +62,7 @@ extension BrowserWindowController {
                 context.fill(CGRect(x: 0, y: 0, width: context.width, height: context.height))
                 context.scaleBy(x: scale, y: scale)
                 job.drawPage(0, in: context)
-                return context.makeImage().map(CGImageBox.init)
+                return context.makeImage().map(ImageBox.init)
             }
             guard let page else { return }
             FileWriteQueue.shared.enqueue(replacing: [url]) {
@@ -71,4 +72,5 @@ extension BrowserWindowController {
             }
         }
     }
+    #endif
 }

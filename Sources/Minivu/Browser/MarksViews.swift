@@ -49,9 +49,6 @@ final class StarRatingView: NSView {
     override var intrinsicContentSize: NSSize { Self.size(starSize: starSize) }
     override var isFlipped: Bool { true }
 
-    /// Hidden while there's nothing to show, so it takes no clicks then.
-    var hasContent: Bool { rating > 0 || showsEmptyStars || hoverRating != nil }
-
     override func accessibilityValue() -> Any? { rating }
     override func accessibilityLabel() -> String? { "Rating" }
 

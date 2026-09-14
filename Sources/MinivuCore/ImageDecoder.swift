@@ -227,11 +227,12 @@ public enum ImageDecoder {
         }.max() ?? 0
     }
 
-    /// Draws `image` smaller with Core Graphics' high-quality filter, keeping
-    /// its colour space when an 8-bit context can use it (sRGB, Display P3)
-    /// and falling back to Display P3 otherwise (HDR PQ/HLG sources, which
-    /// a thumbnail shows as SDR anyway).
-    static func downscale(_ image: CGImage, maxPixelSize: Int, hasAlpha: Bool) -> CGImage? {
+    /// Draws `image` no larger than `maxPixelSize` on its long edge with Core
+    /// Graphics' high-quality filter (`image` itself when it already fits),
+    /// keeping its colour space when an 8-bit context can use it (sRGB,
+    /// Display P3) and falling back to Display P3 otherwise (HDR PQ/HLG and
+    /// extended-range sources, which thumbnails and paper show as SDR).
+    public static func downscale(_ image: CGImage, maxPixelSize: Int, hasAlpha: Bool = true) -> CGImage? {
         let scale = Double(maxPixelSize) / Double(max(image.width, image.height))
         guard scale < 1 else { return image }
         let w = max(1, Int((Double(image.width) * scale).rounded()))
@@ -242,7 +243,9 @@ public enum ImageDecoder {
         let bitmapInfo = alpha.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         let p3 = CGColorSpace(name: CGColorSpace.displayP3)!
         var space = image.colorSpace ?? p3
-        if space.model != .rgb || CGColorSpaceUsesITUR_2100TF(space) { space = p3 }
+        if space.model != .rgb || CGColorSpaceUsesITUR_2100TF(space) || CGColorSpaceUsesExtendedRange(space) {
+            space = p3
+        }
         guard let context = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: space, bitmapInfo: bitmapInfo)
             ?? CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,

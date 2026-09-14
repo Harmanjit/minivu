@@ -68,7 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             browser.open(folder: Self.startFolder())
         }
 
+        #if DEBUG
         SnapshotHarness.startIfRequested(app: self)
+        #endif
     }
 
     /// Compiles the shaders on a background thread so the window appears

@@ -355,6 +355,7 @@ extension BrowserWindowController {
 
     // MARK: - Debug (snapshot harness)
 
+    #if DEBUG
     /// Debug only: the Batch Rename sheet named by date taken, which gives
     /// photos taken the same day one name, so the harness can picture a clash.
     @objc func debugBatchRenameClash(_ sender: Any?) {
@@ -384,6 +385,7 @@ extension BrowserWindowController {
         let sheet = BatchProgressSheet(title: "Converting 48 Images to HEIC", progress: progress)
         BatchTools.beginSheet(sheet.window, on: window)
     }
+    #endif
 }
 
 /// Shows and ends the batch tools' sheets. Tests record them instead: under

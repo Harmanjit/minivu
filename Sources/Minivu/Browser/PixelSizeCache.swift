@@ -2,15 +2,6 @@ import Foundation
 import ImageIO
 import MinivuCore
 
-/// A request for an image's dimensions. Cancel it when the cell scrolls away.
-nonisolated final class PixelSizeRequest: @unchecked Sendable {
-    private let lock = NSLock()
-    private var cancelled = false
-
-    func cancel() { lock.withLock { cancelled = true } }
-    var isCancelled: Bool { lock.withLock { cancelled } }
-}
-
 /// Pixel dimensions for the grid's detail line ("6016 × 4016").
 ///
 /// Reading them means opening each file and parsing its header, which is
@@ -30,7 +21,7 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
 
     private struct Job {
         let entry: FolderEntry
-        let request: PixelSizeRequest
+        let request: CancellationFlag
         let completion: @MainActor @Sendable (CGSize?) -> Void
     }
 
@@ -47,8 +38,8 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
     /// Reads the dimensions in the background; `completion` runs on the
     /// main actor (with nil for files without them) unless cancelled first.
     @discardableResult
-    func request(_ entry: FolderEntry, completion: @escaping @MainActor @Sendable (CGSize?) -> Void) -> PixelSizeRequest {
-        let request = PixelSizeRequest()
+    func request(_ entry: FolderEntry, completion: @escaping @MainActor @Sendable (CGSize?) -> Void) -> CancellationFlag {
+        let request = CancellationFlag()
         if let value = memory.object(forKey: key(entry))?.sizeValue {
             deliver(value == .zero ? nil : value, to: Job(entry: entry, request: request, completion: completion))
             return request

@@ -73,10 +73,10 @@ import MinivuCore
         previewTask = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
-            let box = await BlockingWork.run { () -> CGImageBox? in
+            let box = await BlockingWork.run { () -> ImageBox? in
                 (try? ContactSheetRenderer.renderPage(0, items: items, settings: settings, header: header,
                                                       scale: scale, provider: provider, cancel: cancel))?
-                    .map(CGImageBox.init)
+                    .map(ImageBox.init)
             }
             guard !Task.isCancelled, !cancel.isCancelled, let self, let box else { return }
             self.preview = box.image

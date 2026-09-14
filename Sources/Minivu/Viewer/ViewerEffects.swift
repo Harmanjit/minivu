@@ -88,6 +88,7 @@ extension ViewerWindowController {
 
     // MARK: - Snapshot harness (debug only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness
     /// (`MINIVU_ACTIONS=debugEffectFrameAndShadow:`): commits a matte frame,
     /// then opens Drop Shadow over it with rounded corners, so both grow the
@@ -131,4 +132,5 @@ extension ViewerWindowController {
             }
         }
     }
+    #endif
 }

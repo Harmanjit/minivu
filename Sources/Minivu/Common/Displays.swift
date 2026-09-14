@@ -249,10 +249,12 @@ nonisolated enum DisplayPlacement {
 }
 
 extension AppDelegate {
+    #if DEBUG
     /// Debug only, for the snapshot harness: Settings opened at the Viewer
     /// pane, where the full-screen display is chosen
     /// (`MINIVU_SNAPSHOT_WINDOW=settings MINIVU_ACTIONS=debugShowViewerSettings:`).
     @objc func debugShowViewerSettings(_ sender: Any?) {
         showSettings(pane: .viewer)
     }
+    #endif
 }

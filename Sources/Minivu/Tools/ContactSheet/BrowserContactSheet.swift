@@ -16,6 +16,7 @@ extension BrowserWindowController {
 
     // MARK: - Snapshot harness (debug only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness
     /// (`MINIVU_ACTIONS=makeContactSheet:;debugWriteContactSheet:`): presses
     /// Save in the open Contact Sheet dialog, writing into the folder named
@@ -49,4 +50,5 @@ extension BrowserWindowController {
         controller.debugDestinationFolder = folder
         controller.save()
     }
+    #endif
 }

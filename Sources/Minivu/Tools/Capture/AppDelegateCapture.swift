@@ -15,6 +15,7 @@ extension AppDelegate {
         ScreenCaptureController.shared.captureSelection()
     }
 
+    #if DEBUG
     /// Debug only, for the snapshot harness: shows the selection overlay with
     /// a rectangle already dragged on the main screen. In a snapshot run the
     /// capturer never records, so letting go captures nothing.
@@ -27,4 +28,5 @@ extension AppDelegate {
                                                bounds: frame, scale: screen.scale)
         ScreenCaptureController.shared.captureSelection(preset: (pixels, screen))
     }
+    #endif
 }

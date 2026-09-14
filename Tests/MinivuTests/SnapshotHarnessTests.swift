@@ -2,6 +2,7 @@ import Testing
 import AppKit
 @testable import Minivu
 
+#if DEBUG
 @Suite struct SnapshotConfigurationTests {
     typealias Configuration = SnapshotHarness.Configuration
 
@@ -48,6 +49,7 @@ import AppKit
         #expect(config.delay == 1.5)
     }
 }
+#endif
 
 /// Captures a real (never shown) window and checks the composite step:
 /// a provider's image lands in its frame and views in front of it stay in
