@@ -214,6 +214,64 @@ import Metal
         #expect(Self.rgb(nothing, 64, 48).max() == 0)
     }
 
+    /// A solid extended-range slide (linear P3 above SDR white), mipmapped
+    /// like an uploaded HDR photo.
+    static func hdrSlide(_ value: SIMD3<Float>, headroom: Float) throws -> ImageTexture {
+        let width = 64, height = 48
+        var pixels = [Float16](repeating: 1, count: width * height * 4)
+        for i in 0..<(width * height) {
+            pixels[i * 4] = Float16(value.x); pixels[i * 4 + 1] = Float16(value.y); pixels[i * 4 + 2] = Float16(value.z)
+        }
+        let gpu = GPU.shared
+        let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: width, height: height,
+                                                         mipmapped: true)
+        d.storageMode = .shared
+        let texture = try #require(gpu.device.makeTexture(descriptor: d))
+        texture.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0, withBytes: pixels,
+                        bytesPerRow: width * 8)
+        let commands = try #require(gpu.queue.makeCommandBuffer())
+        let blit = try #require(commands.makeBlitCommandEncoder())
+        blit.generateMipmaps(for: texture)
+        blit.endEncoding()
+        commands.commit()
+        commands.waitUntilCompleted()
+        return ImageTexture(texture: texture, imageSize: CGSize(width: width, height: height), isFullResolution: true,
+                            isHDR: true, contentHeadroom: headroom)
+    }
+
+    /// HDR slides roll off to the display exactly as the viewer's canvas
+    /// does, each on its own terms: at t = 1 the slide matches the canvas at
+    /// the same display headroom, and halfway through a cross-fade with an
+    /// SDR slide the mix is of the two slides as each would show alone.
+    @Test func hdrSlidesToneMapLikeTheCanvas() throws {
+        let hdr = try Self.hdrSlide(SIMD3(3, 1.5, 0.25), headroom: 4)
+        let sdr = try Self.oldSlide()
+        let size = CGSize(width: Self.viewWidth, height: Self.viewHeight)
+        for headroom: Float in [1, 2, 4] {
+            let canvas = try Fixtures.render(
+                CanvasFrame(image: hdr, transform: .bestFit(imageSize: hdr.imageSize, viewSize: size, enlargeSmall: true),
+                            background: SIMD3(0, 0, 0), displayHeadroom: headroom, checkerboard: false),
+                width: Self.viewWidth, height: Self.viewHeight)
+            var still = frame(.crossFade, 1, sdr, hdr)
+            still.displayHeadroom = headroom
+            let shown = try Self.render(still)
+            #expect(Self.close(Self.rgb(shown, 64, 48), Self.rgb(canvas, 64, 48), 0.005), "headroom \(headroom)")
+            #expect(Self.rgb(shown, 64, 48).max() <= headroom + 0.001, "fits headroom \(headroom)")
+            if headroom == 4 {
+                #expect(Self.close(Self.rgb(shown, 64, 48), SIMD3(3, 1.5, 0.25), 0.01))   // passes through
+            }
+
+            var mid = frame(.crossFade, 0.5, sdr, hdr)
+            mid.displayHeadroom = headroom
+            let mixed = try Self.render(mid)
+            let sdrAlone = try Self.reference(sdr)
+            for (x, y) in [(10, 10), (120, 90)] {
+                let expected = (Self.rgb(sdrAlone, x, y) + Self.rgb(canvas, x, y)) / 2
+                #expect(Self.close(Self.rgb(mixed, x, y), expected, 0.01), "mix at \(x), \(y), headroom \(headroom)")
+            }
+        }
+    }
+
     @Test func snapshotIsTheViewSize() throws {
         let image = try SlideshowRenderer().snapshot(.still(try Self.oldSlide(), enlargeSmallImages: true),
                                                      width: 200, height: 100)

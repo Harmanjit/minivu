@@ -106,6 +106,9 @@ final class SlideshowControlBar: NSVisualEffectView {
         button.bezelStyle = .accessoryBarAction
         button.showsBorderOnlyWhileMouseInside = true
         button.toolTip = toolTip
+        // Never the key focus, even with keyboard navigation on: Space must
+        // always pause the show, not press whichever button was last focused.
+        button.refusesFirstResponder = true
         button.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             button.widthAnchor.constraint(equalToConstant: 36),

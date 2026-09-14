@@ -51,6 +51,14 @@ nonisolated struct SlideshowSequence: Equatable {
     /// Whether any image may still play.
     var hasPlayable: Bool { failed.count < order.count }
 
+    /// Whether the show is over once the slide on screen has had its time:
+    /// nothing comes next and it doesn't loop, or nothing can play at all.
+    /// A looping show whose only playable slide is on screen isn't over; it
+    /// keeps showing that slide.
+    var isOverAfterCurrent: Bool {
+        next == nil && (!loops || !hasPlayable || current.map(failed.contains) != false)
+    }
+
     /// Moves to `next`; false when there is none.
     @discardableResult
     mutating func advance() -> Bool {

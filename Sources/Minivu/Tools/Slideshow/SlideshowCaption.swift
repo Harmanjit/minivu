@@ -10,8 +10,9 @@ nonisolated enum SlideshowCaptionText {
 
     /// The caption for one image, or nil for none.
     /// - Parameters:
-    ///   - summary: the file's metadata; nil until read (the name shows
-    ///     meanwhile, so the caption never lags a slide behind).
+    ///   - summary: the file's metadata; nil if it couldn't be had, when the
+    ///     name stands in. (The slideshow waits for it rather than showing
+    ///     the name first, see `SlideshowWindowController.updateCaption`.)
     static func text(style: SlideshowSettings.Caption, name: String, modified: Date,
                      summary: MetadataSummary?) -> String? {
         switch style {

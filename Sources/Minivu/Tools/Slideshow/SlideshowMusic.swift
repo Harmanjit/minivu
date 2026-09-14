@@ -7,6 +7,10 @@ import MinivuCore
 nonisolated struct ResolvedPlaylist: Sendable, Equatable {
     var tracks: [URL]
     var scopedURLs: [URL]
+    /// New bookmark data for playlist items whose bookmarks resolved stale
+    /// (the file or folder was moved or renamed), by item id. Saved back to
+    /// Settings, so the next launch still finds them.
+    var refreshedBookmarks: [UUID: Data] = [:]
 }
 
 /// Turns the bookmarks in Settings into files to play.
@@ -35,6 +39,8 @@ nonisolated enum SlideshowPlaylistResolver {
                                  bookmarkDataIsStale: &stale))
             else { continue }
             if url.startAccessingSecurityScopedResource() { result.scopedURLs.append(url) }
+            // Made while access is held, as a bookmark must be.
+            if stale, let data = bookmarkData(for: url) { result.refreshedBookmarks[item.id] = data }
             let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
             if isFolder {
                 let files = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil,
@@ -55,11 +61,15 @@ nonisolated enum SlideshowPlaylistResolver {
     /// A bookmark for a file or folder the user just chose in an open panel
     /// (whose URL carries the permission); plain when the app isn't sandboxed.
     static func item(for url: URL) -> SlideshowSettings.PlaylistItem? {
-        guard let data = (try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil,
-                                                relativeTo: nil)) ?? (try? url.bookmarkData()) else { return nil }
+        guard let data = bookmarkData(for: url) else { return nil }
         let isFolder = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
         return SlideshowSettings.PlaylistItem(name: FileManager.default.displayName(atPath: url.path),
                                               isFolder: isFolder, bookmark: data)
+    }
+
+    private static func bookmarkData(for url: URL) -> Data? {
+        (try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil))
+            ?? (try? url.bookmarkData())
     }
 }
 
@@ -125,10 +135,12 @@ final class SlideshowMusic {
     /// - Parameters:
     ///   - resolve: turns the playlist into files; runs off the main thread.
     ///   - release: stops accessing the security-scoped files afterwards.
+    ///   - refreshBookmarks: saves bookmarks that resolved stale, by item id.
     ///   - schedule: runs the stop at the end of the fade-out; tests run it at once.
     init(items: [SlideshowSettings.PlaylistItem], shuffle: Bool, volume: Double, player: SlideshowAudioPlaying,
          resolve: @escaping @Sendable ([SlideshowSettings.PlaylistItem]) -> ResolvedPlaylist = SlideshowPlaylistResolver.resolve,
          release: @escaping ([URL]) -> Void = SlideshowPlaylistResolver.release,
+         refreshBookmarks: @escaping ([UUID: Data]) -> Void = { _ in },
          schedule: @escaping (TimeInterval, @escaping @MainActor @Sendable () -> Void) -> Void = { delay, work in
              DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { work() } }
          }) {
@@ -138,9 +150,17 @@ final class SlideshowMusic {
         self.release = release
         self.schedule = schedule
         player.onFinish = { [weak self] in self?.trackFinished() }
-        startTask = Task { [weak self] in
+        startTask = Task { [weak self, release, refreshBookmarks] in
             let resolved = await BlockingWork.run(qos: .userInitiated) { resolve(items) }
-            self?.begin(resolved)
+            if !resolved.refreshedBookmarks.isEmpty { refreshBookmarks(resolved.refreshedBookmarks) }
+            guard let self else {
+                // The slideshow ended and let go of its music while the
+                // bookmarks resolved: nothing will play, but the files
+                // started being accessed and must be released.
+                release(resolved.scopedURLs)
+                return
+            }
+            self.begin(resolved)
         }
     }
 

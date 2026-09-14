@@ -148,4 +148,16 @@ final class SlideshowSettingsStore: ObservableObject {
         settings = defaults.data(forKey: Self.key)
             .flatMap { try? JSONDecoder().decode(SlideshowSettings.self, from: $0) } ?? SlideshowSettings()
     }
+
+    /// Replaces the bookmarks of playlist items that resolved stale (moved or
+    /// renamed since they were chosen), as `BookmarkStore` does, so they keep
+    /// resolving after the next launch. Items removed meanwhile are ignored.
+    func refreshPlaylistBookmarks(_ refreshed: [UUID: Data]) {
+        guard settings.playlist.contains(where: { refreshed[$0.id] != nil }) else { return }
+        settings.playlist = settings.playlist.map { item in
+            var item = item
+            if let data = refreshed[item.id] { item.bookmark = data }
+            return item
+        }
+    }
 }

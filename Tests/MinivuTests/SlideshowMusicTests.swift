@@ -160,6 +160,32 @@ import Foundation
         #expect(released.value == [URL(fileURLWithPath: "/M")])
     }
 
+    /// The slideshow window lets go of its music as soon as the show ends; if
+    /// the bookmarks were still resolving, the files they opened are released
+    /// all the same (security-scoped access must always be paired).
+    @Test func musicLetGoOfWhileResolvingStillReleasesTheFiles() async {
+        let player = FakeSlideshowAudioPlayer()
+        let released = Box<[URL]>([])
+        let gate = DispatchSemaphore(value: 0)
+        let urls = Self.tracks(["1.mp3"])
+        var music: SlideshowMusic? = SlideshowMusic(
+            items: [], shuffle: false, volume: 1, player: player,
+            resolve: { _ in
+                gate.wait()
+                return ResolvedPlaylist(tracks: urls, scopedURLs: [URL(fileURLWithPath: "/M")])
+            },
+            release: { released.value += $0 }, schedule: { _, work in work() })
+        let task = music?.startTask
+        music?.finish()
+        weak let gone = music
+        music = nil
+        #expect(gone == nil)
+        gate.signal()
+        await task?.value
+        #expect(player.calls.isEmpty)
+        #expect(released.value == [URL(fileURLWithPath: "/M")])
+    }
+
     @Test func shuffleKeepsEverySongOnce() {
         let urls = Self.tracks((1...10).map { "\($0).mp3" })
         var generator = SlideshowTestGenerator(state: 3)
@@ -195,5 +221,37 @@ import Foundation
         #expect(resolved.tracks.map(\.lastPathComponent) == ["a.mp3", "b.m4a", "single.aiff"])
         #expect(SlideshowPlaylistResolver.isAudio(URL(fileURLWithPath: "/x/song.MP3")))
         #expect(!SlideshowPlaylistResolver.isAudio(URL(fileURLWithPath: "/x/notes.txt")))
+        #expect(resolved.refreshedBookmarks.isEmpty)
+    }
+
+    /// A song renamed after it was chosen still plays, and its bookmark is
+    /// refreshed in Settings (a scratch suite) so it keeps resolving.
+    @Test func staleBookmarksAreRefreshedInSettings() async throws {
+        let folder = try ScratchFolder()
+        let song = try folder.file("before.mp3")
+        let item = try #require(SlideshowPlaylistResolver.item(for: song))
+        let renamed = song.deletingLastPathComponent().appendingPathComponent("after.mp3")
+        try FileManager.default.moveItem(at: song, to: renamed)
+
+        let resolved = SlideshowPlaylistResolver.resolve([item])
+        SlideshowPlaylistResolver.release(resolved.scopedURLs)
+        #expect(resolved.tracks.map(\.lastPathComponent) == ["after.mp3"])
+        let fresh = try #require(resolved.refreshedBookmarks[item.id])
+
+        let suite = "minivu-slideshow-music-tests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = SlideshowSettingsStore(defaults: defaults)
+        let other = SlideshowSettings.PlaylistItem(name: "Other", isFolder: true, bookmark: Data([9]))
+        store.settings.playlist = [item, other]
+        let player = FakeSlideshowAudioPlayer()
+        let music = SlideshowMusic(items: [item], shuffle: false, volume: 1, player: player,
+                                   resolve: { _ in resolved }, release: { _ in },
+                                   refreshBookmarks: { store.refreshPlaylistBookmarks($0) },
+                                   schedule: { _, work in work() })
+        await music.startTask?.value
+        #expect(store.settings.playlist.map(\.bookmark) == [fresh, Data([9])])
+        #expect(SlideshowSettingsStore(defaults: defaults).settings.playlist.first?.bookmark == fresh)
+        music.finish()
     }
 }

@@ -76,12 +76,16 @@ extension AppWindowTests {
 
                 viewer.startSlideshow(nil)
                 let slideshow = try #require(SlideshowWindowController.current)
+                // A failed expectation below mustn't leave a show running into the next test.
+                defer { slideshow.end() }
                 #expect(slideshow.window?.frame == viewer.window?.screen?.frame)
                 #expect(slideshow.keepsDisplayAwake)
                 await settle(on: 0, slideshow)
                 #expect(slideshow.shownIndex == 0 && !slideshow.isAnimating)
                 #expect(slideshow.captionText == "a.jpg")
 
+                // Waited for rather than assumed, so a busy machine can't fail it.
+                await waitUntil { slideshow.hasDecoded(1) }
                 try press(NSRightArrowFunctionKey, in: slideshow)
                 #expect(slideshow.isTransitioning)   // started at once: b was decoded ahead
                 await settle(on: 1, slideshow)
@@ -128,6 +132,7 @@ extension AppWindowTests {
                 let started = SlideshowWindowController.start(images: [good, broken, last], startIndex: 0,
                                                               screen: nil) { ended.append($0) }
                 let slideshow = try #require(started)
+                defer { slideshow.end() }
                 // A second start while one runs brings that one forward.
                 #expect(SlideshowWindowController.start(images: [good], startIndex: 0, screen: nil) { _ in }
                     === slideshow)
@@ -162,6 +167,36 @@ extension AppWindowTests {
                 let content = try #require(slideshow.window?.contentView)
                 let view = try #require(content.subviews.compactMap { $0 as? SlideshowView }.first)
                 #expect(view.snapshotImage() != nil)
+            }
+        }
+
+        /// A looping show of one image keeps showing it when its interval is
+        /// up, and File > Close Window (⌘W) is enabled and ends the show,
+        /// though the borderless window has no close button.
+        @Test func aSingleImageLoopsOnAndCloseWindowEndsTheShow() async throws {
+            try await withSettings({
+                $0.interval = 1
+                $0.transitionDuration = 0.3
+                $0.loop = true
+            }) {
+                let folder = try ScratchFolder()
+                let only = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 300, height: 200)))
+                var ended: [FolderEntry?] = []
+                let slideshow = try #require(SlideshowWindowController.start(images: [only], startIndex: 0,
+                                                                            screen: nil) { ended.append($0) })
+                defer { slideshow.end() }
+                await settle(on: 0, slideshow)
+                // Past the interval: still up, and idle.
+                try? await Task.sleep(for: .milliseconds(1600))
+                #expect(!slideshow.hasEnded && slideshow.shownIndex == 0 && !slideshow.isAnimating)
+
+                let window = try #require(slideshow.window)
+                let close = NSMenuItem(title: "Close Window", action: #selector(NSWindow.performClose(_:)),
+                                       keyEquivalent: "w")
+                #expect(window.validateMenuItem(close))
+                window.performClose(close)
+                #expect(slideshow.hasEnded && SlideshowWindowController.current == nil)
+                #expect(ended == [only])
             }
         }
     }

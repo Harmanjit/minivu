@@ -28,6 +28,13 @@ final class SlideshowWindow: NSWindow {
 
     override func performClose(_ sender: Any?) { onClose?() }
     override func cancelOperation(_ sender: Any?) { onClose?() }
+
+    /// AppKit enables File > Close Window only for windows with a close
+    /// button, which a borderless one lacks, so ⌘W would just beep.
+    override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(performClose(_:)) { return onClose != nil }
+        return super.validateMenuItem(menuItem)
+    }
 }
 
 /// Holds the picture, the caption and the control bar, and hands keys, clicks
@@ -182,7 +189,8 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
                                      loops: settings.loop)
         music = settings.playsMusic
             ? SlideshowMusic(items: settings.playlist, shuffle: settings.shuffleMusic, volume: settings.volume,
-                             player: Self.makeAudioPlayer())
+                             player: Self.makeAudioPlayer(),
+                             refreshBookmarks: { [store] refreshed in store.refreshPlaylistBookmarks(refreshed) })
             : nil
         let screen = screen ?? NSScreen.main
         let frame = screen?.frame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
@@ -298,14 +306,19 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
         guard let target else {
             pendingStep = nil
             // The end of a show that doesn't loop, or nothing would load. A
-            // key press at the end only brings the controls up.
-            if step == .auto || step == .first || !sequence.hasPlayable {
+            // looping show with one playable slide just keeps showing it, and
+            // a key press at either end only brings the controls up.
+            if step == .first || !sequence.hasPlayable || (step == .auto && sequence.isOverAfterCurrent) {
                 end()
-            } else {
+            } else if step != .auto {
                 pointerMoved()
             }
             return
         }
+        // Cleared before asking for the texture: a cache hit delivers at once
+        // through `loaded`, which would otherwise run the stale pending step
+        // too and move the show twice.
+        pendingStep = nil
         guard let texture = texture(for: target) else {
             if sequence.failed.contains(target) {
                 perform(step)   // it failed at once: on to the one after
@@ -314,7 +327,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
             }
             return
         }
-        pendingStep = nil
+        guard !hasEnded else { return }
         switch step {
         case .first: if sequence.current != target { sequence.advance() }
         case .auto, .next: sequence.advance()
@@ -467,6 +480,10 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
         let style = captionStyle
         if SlideshowCaptionText.needsMetadata(style), summaries[entry.url] == nil {
             // Usually read ahead; if not, the caption follows in a moment.
+            // Meanwhile it fades out: the previous slide's caption must not
+            // stay under this one, and a file name swapping for a camera
+            // line a moment later would flicker.
+            caption.show(nil)
             readSummary(entry.url)
             return
         }
@@ -639,6 +656,8 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate {
     var areControlsShown: Bool { controlBar.isShown }
     var captionText: String? { caption.text }
     var musicPlayer: SlideshowMusic? { music }
+    /// Whether image `index` has decoded ahead and is ready to show.
+    func hasDecoded(_ index: Int) -> Bool { ready[index] != nil }
 
     /// Debug only, for the snapshot harness: holds a transition from the
     /// slide on screen to the next part way, with the control bar up, so a

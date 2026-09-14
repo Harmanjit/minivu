@@ -102,6 +102,26 @@ struct SlideshowTestGenerator: RandomNumberGenerator {
         s.markFailed(1)
         s.markFailed(2)
         #expect(s.next == nil)
+        #expect(s.isOverAfterCurrent)
+    }
+
+    @Test func whenTheShowIsOver() {
+        // A looping show goes on, even when its slide on screen is the only one left to play.
+        #expect(!sequence(3).isOverAfterCurrent)
+        #expect(!sequence(1, loops: true).isOverAfterCurrent)
+        var lastPlayable = sequence(3, start: 1)
+        lastPlayable.markFailed(0)
+        lastPlayable.markFailed(2)
+        #expect(lastPlayable.next == nil && !lastPlayable.isOverAfterCurrent)
+        // Without looping it ends after the last slide, or a lone one.
+        #expect(!sequence(3, start: 1, loops: false).isOverAfterCurrent)
+        #expect(sequence(3, start: 2, loops: false).isOverAfterCurrent)
+        #expect(sequence(1, loops: false).isOverAfterCurrent)
+        // Nothing left that can play is over whatever the setting.
+        var broken = sequence(2, loops: true)
+        broken.markFailed(0)
+        broken.markFailed(1)
+        #expect(broken.isOverAfterCurrent)
     }
 
     // MARK: - Settings
