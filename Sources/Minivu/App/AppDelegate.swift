@@ -50,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             .sink { ThemeColors.apply($0) }
 
         warmUpGPU()
+        AppServices.start()
 
         // Resolving the bookmarks restores access to the sidebar folders,
         // which the last folder may be inside.
