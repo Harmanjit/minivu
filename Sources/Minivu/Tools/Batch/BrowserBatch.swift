@@ -56,6 +56,16 @@ enum BatchReplaceChoice {
         window.attachedSheet != nil || sheetsUp[ObjectIdentifier(window)] != nil
     }
 
+    /// Batch renames moving files right now. Quitting waits for them: a
+    /// swap steps a file aside under a hidden name, and an exit then would
+    /// leave the photo hidden and the marks unmoved. Renames take
+    /// milliseconds a file.
+    fileprivate(set) static var renamesRunning = 0
+
+    static func waitForRenames() async {
+        while renamesRunning > 0 { try? await Task.sleep(for: .milliseconds(20)) }
+    }
+
     fileprivate static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
         work[id] = task
     }
@@ -141,9 +151,11 @@ extension BrowserWindowController {
         let work = Task {
             await previous?.value
             let requests = requests()
+            BatchTools.renamesRunning += 1
             let outcome = await BlockingWork.run {
                 BatchRenamer.perform(requests, restoring: restoring, catalog: catalog)
             }
+            BatchTools.renamesRunning -= 1
             BatchTools.end(id)
             record.requests = outcome.inverse
             for step in outcome.renamed {

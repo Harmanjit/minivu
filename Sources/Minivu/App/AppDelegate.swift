@@ -127,23 +127,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    /// Quitting must not lose work. Two things can be at risk:
+    /// Ratings, tags and Custom Order changes are written on their own queue
+    /// a moment after the key press; one pressed just before ⌘Q must still
+    /// reach the catalog. Blocks the main thread only for what is queued.
+    func applicationWillTerminate(_ notification: Notification) {
+        BrowserModel.catalogWrites.sync {}
+    }
+
+    /// Quitting must not lose work. Three things can be at risk:
     ///
     /// 1. Unsaved edits in the viewer: ask, exactly as moving to another
     ///    image does (Save / Don't Save / Cancel).
     /// 2. Writes still running (a Save, Save As, comment or batch rotate):
     ///    wait for them, so the file the user just saved is really on disk
     ///    and no hidden temporary file is left behind.
+    /// 3. A copy or move under way: it stops after the item it is on (its
+    ///    hidden temporary copy would otherwise stay in the destination),
+    ///    leaving every item either transferred or where it was. A batch
+    ///    rename under way finishes (a swap hides a file for a moment).
     ///
     /// `.terminateLater` keeps the app alive until `reply` is called.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let viewer = ViewerWindowController.current
         let hasEdits = viewer?.hasUnsavedEdits == true
         let writes = FileWriteQueue.shared
-        guard hasEdits || writes.pendingCount > 0 else { return .terminateNow }
+        guard hasEdits || writes.pendingCount > 0 || FileTransfer.isActive || BatchTools.renamesRunning > 0 else {
+            return .terminateNow
+        }
 
         func finishWritesThenQuit() {
+            FileTransfer.cancelActive()
             Task {
+                await FileTransfer.waitUntilInactive()
+                await BatchTools.waitForRenames()
                 await writes.waitUntilIdle()
                 NSApp.reply(toApplicationShouldTerminate: true)
             }

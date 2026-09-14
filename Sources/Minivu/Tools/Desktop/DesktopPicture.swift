@@ -179,13 +179,17 @@ nonisolated enum DesktopPicturePolicy {
     /// Removes all but the newest `keptCopies` desktop picture copies, never
     /// one a screen still shows. Montages are the user's own work and stay.
     func pruneCopies() async {
-        let inUse = Set(NSScreen.screens.compactMap { workspace.desktopImageURL(for: $0)?.standardizedFileURL.path })
+        let shown = NSScreen.screens.compactMap { workspace.desktopImageURL(for: $0) }
         let folder = wallpapersFolder, keep = keptCopies
         await BlockingWork.run(qos: .utility) {
+            // By real path: the system may report a copy through another
+            // spelling of Pictures (a symbolic link, the sandbox container's).
+            let real = { (url: URL) in url.standardizedFileURL.resolvingSymlinksInPath().path }
+            let inUse = Set(shown.map(real))
             let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
             for name in DesktopPictureCopies.namesToRemove(names, keeping: keep) {
                 let url = folder.appendingPathComponent(name)
-                guard !inUse.contains(url.standardizedFileURL.path) else { continue }
+                guard !inUse.contains(real(url)) else { continue }
                 try? FileManager.default.removeItem(at: url)
             }
         }

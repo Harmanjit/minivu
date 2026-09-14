@@ -177,6 +177,48 @@ import Foundation
         #expect(catalog.customOrder(in: t.url) == ["b.jpg", "z.jpg", "c.jpg"])
     }
 
+    /// minivu reports its renames to the catalog after the files have moved
+    /// (a batch rename, once all are done). If the folder watcher lists the
+    /// folder in between, `heal` has already moved the rows by identity: the
+    /// report must keep them, not drop them as a replaced file's.
+    @Test func aMoveReportedAfterHealKeepsTheMarks() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+        let catalog = Catalog.inMemory()
+        catalog.setRating(3, for: [a])
+        catalog.setTagged(true, for: [b])
+        catalog.setCustomOrder(["b.jpg", "a.jpg"], in: t.url)
+        let c = t.url.appendingPathComponent("c.jpg"), d = t.url.appendingPathComponent("d.jpg")
+        catalog.pauseHealing()
+        try FileManager.default.moveItem(at: a, to: c)
+        try FileManager.default.moveItem(at: b, to: d)
+        #expect(catalog.heal(folder: t.url).isEmpty)                // the watcher's reload, before the report
+        catalog.filesMoved([(a, c), (b, d)])
+        catalog.resumeHealing()
+        #expect(catalog.heal(folder: t.url).isEmpty, "nothing left to heal")
+        #expect(catalog.marks(for: c) == Marks(rating: 3))
+        #expect(catalog.marks(for: d) == Marks(isTagged: true))
+        #expect(catalog.customOrder(in: t.url) == ["d.jpg", "c.jpg"])
+        #expect(try rowCount(catalog) == 2)
+
+        // A replaced file's row is still dropped: its file is gone, the
+        // moved file's row takes the name.
+        let e = try t.file("e.jpg")
+        catalog.setRating(1, for: [e])
+        try FileManager.default.removeItem(at: e)
+        try FileManager.default.moveItem(at: c, to: e)
+        catalog.fileMoved(from: c, to: e)
+        #expect(catalog.marks(for: e) == Marks(rating: 3))
+        #expect(try rowCount(catalog) == 2)
+
+        // minivu's own renames pause healing for as long as they run.
+        let f = t.url.appendingPathComponent("f.jpg")
+        _ = try FileOperations.rename(e, to: "f.jpg", catalog: catalog)
+        _ = BatchRenamer.perform([.init(url: f, newName: "g.jpg")], catalog: catalog)
+        #expect(!catalog.isHealingPaused)
+        #expect(catalog.marks(for: t.url.appendingPathComponent("g.jpg")) == Marks(rating: 3))
+    }
+
     @Test func moveBetweenFoldersDropsOldPlaceAndReplacedRow() throws {
         let t = try TemporaryFolder()
         let src = try t.folder("src"), dst = try t.folder("dst")

@@ -929,18 +929,5 @@ public enum EditRenderError: Error, CustomStringConvertible {
 }
 
 /// What a file looked like when it was decoded for editing: enough to tell
-/// that it has been rewritten since (a save changes both on APFS, whose
-/// timestamps have nanosecond resolution).
-struct FileSignature: Sendable, Equatable {
-    let modified: Date?
-    let size: Int64?
-
-    static func read(_ url: URL) -> FileSignature? {
-        var fresh = url
-        fresh.removeAllCachedResourceValues()
-        guard let values = try? fresh.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]) else {
-            return nil
-        }
-        return FileSignature(modified: values.contentModificationDate, size: values.fileSize.map(Int64.init))
-    }
-}
+/// that it has been rewritten since (see `FileStamp`).
+typealias FileSignature = FileStamp

@@ -217,6 +217,34 @@ import Foundation
         #expect(try FileManager.default.contentsOfDirectory(atPath: dst.path) == ["readable.jpg"])
     }
 
+    /// A move to another volume copies first. A copy that fails partway
+    /// leaves the original whole and nothing under the destination's name;
+    /// one that succeeds removes the original. (Exercised on one volume:
+    /// EXDEV itself needs a second volume.)
+    @Test func moveAcrossVolumesNeverLeavesAPartialItem() throws {
+        let s = try Sandbox()
+        try s.t.folder("Set")
+        try s.write("Set/readable.jpg", "R")
+        let locked = try s.write("Set/locked.jpg", "L")
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: locked.path) }
+        let dst = try s.t.folder("dst")
+        let set = s.t.url.appendingPathComponent("Set")
+        #expect(throws: (any Error).self) { try FileOperations.moveByCopying(set, to: dst.appendingPathComponent("Set")) }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dst.path) == [])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: set.path).sorted() == ["locked.jpg", "readable.jpg"])
+
+        let readable = set.appendingPathComponent("readable.jpg")
+        try FileOperations.moveByCopying(readable, to: dst.appendingPathComponent("readable.jpg"))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dst.path) == ["readable.jpg"])
+        #expect(!FileManager.default.fileExists(atPath: readable.path))
+        try s.write("Set/other.jpg", "O")
+        #expect(throws: (any Error).self) {
+            try FileOperations.moveByCopying(set.appendingPathComponent("other.jpg"), to: dst.appendingPathComponent("readable.jpg"))
+        }
+        #expect(try String(contentsOf: dst.appendingPathComponent("readable.jpg"), encoding: .utf8) == "R")
+    }
+
     @Test func neverReplacesAcrossFilesAndFolders() throws {
         let s = try Sandbox()
         let dst = try s.t.folder("dst")
