@@ -1,4 +1,5 @@
 import AppKit
+import MinivuCore
 
 /// The small overlay in the top-left corner: file name, position in the
 /// folder, pixel size, zoom and, for photos, the exposure.
@@ -15,6 +16,10 @@ final class ViewerHUD: NSVisualEffectView {
     private let exposureLabel = NSTextField(labelWithString: "")
     /// "Edited · Undo Crop" while the image has unsaved edits.
     private let editLabel = NSTextField(labelWithString: "")
+    /// Stars and the tagged badge, shown while the image has either.
+    private let marksRow = NSStackView()
+    let stars = StarRatingView(starSize: 11)
+    let tagBadge = TagBadge.makeView(pointSize: 12)
     private var fadeWork: DispatchWorkItem?
 
     private(set) var isPinned = false
@@ -44,7 +49,14 @@ final class ViewerHUD: NSVisualEffectView {
         editLabel.textColor = .systemOrange
         editLabel.lineBreakMode = .byTruncatingTail
         editLabel.isHidden = true
-        let stack = NSStackView(views: [nameLabel, detailLabel, exposureLabel, editLabel])
+        stars.showsEmptyStars = true
+        tagBadge.shadow = nil
+        marksRow.orientation = .horizontal
+        marksRow.spacing = 6
+        marksRow.addArrangedSubview(stars)
+        marksRow.addArrangedSubview(tagBadge)
+        marksRow.isHidden = true
+        let stack = NSStackView(views: [nameLabel, marksRow, detailLabel, exposureLabel, editLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 2
@@ -76,9 +88,14 @@ final class ViewerHUD: NSVisualEffectView {
     ///     for a paused animation); nil for an ordinary image.
     ///   - edited: nil unless the image has unsaved edits; otherwise the step
     ///     Undo would take back ("Crop"), or "" when there is none to show.
+    ///   - marks: the image's rating and tag; the row shows only when it has one.
     func update(name: String, position: String, part: String? = nil, pixelSize: CGSize?, zoomPercent: Double?,
-                exposure: String?, edited: String? = nil) {
+                exposure: String?, edited: String? = nil, marks: Catalog.Marks = .none) {
         nameLabel.stringValue = name
+        stars.rating = marks.rating
+        if tagBadge.isHidden == marks.isTagged { tagBadge.isHidden = !marks.isTagged }
+        let showsMarks = marks != .none
+        if marksRow.isHidden == showsMarks { marksRow.isHidden = !showsMarks }
         detailLabel.stringValue = Self.detailText(position: position, part: part, pixelSize: pixelSize,
                                                   zoomPercent: zoomPercent)
         exposureLabel.stringValue = exposure ?? ""

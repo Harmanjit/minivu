@@ -164,6 +164,17 @@ file moved in Finder is found again by identifier and its path healed.
 Tags are also written as Finder tags so they show up in Finder and
 Spotlight. JPEG comments are written into the file itself.
 
+The browser reads a folder's marks in one catalog query, off the main
+thread with the folder listing, so a grid sorted by rating arrives already
+in order. Writes (a rating key, a tag, a drag that reorders) go through one
+serial queue off the main thread, so quick presses land in order; the
+catalog then posts `Catalog.didChange` naming the files, and each window
+redoes only what those files affect: the visible cells showing them, the
+filter or sort when it depends on marks, the preview pane and the viewer's
+HUD. Finder tags (the coloured dots) are read from each file's extended
+attribute after every listing, off the main thread, and never hold the
+listing back.
+
 ### 4.7 Editing
 
 Non-destructive until saved. An `EditDocument` holds the decoded original
@@ -253,6 +264,46 @@ Symbols, sidebar materials, system appearance).
 thumbnail grid | preview pane with file info and EXIF. Toolbar: back,
 forward, parent folder, sort, thumbnail size, filter, slideshow, compare.
 
+**Ratings and tags.** Each image has 0–5 stars and FastStone's "tagged"
+flag for culling. A grid cell shows its stars under the name (hollow stars
+appear on hover, and a click rates; clicking the current rating clears it),
+a checkmark badge on the picture's corner when tagged, and its Finder tag
+dots after the name. The preview pane shows the lead photo's stars and a tag
+button under it; the viewer's HUD shows both. Toggle Tag on a mixed
+selection tags all of it, and untags only when all were tagged.
+
+**Filter and sort.** The toolbar's Filter menu shows everything, images
+rated at least 1 to 5 stars, tagged images only, or one of the folder's
+Finder tags; the symbol fills while a filter is on and the status bar says
+"12 of 340 shown". Filters apply to images, never folders, and stay as the
+user moves between folders. Sort by Rating puts the most stars first (ties
+by name); Custom Order is the user's own arrangement, per folder, with new
+files after it by name. Each sort key remembers its own direction, as
+Finder's columns do.
+
+**Files.** Dropping files on the grid copies or moves them into its folder,
+on a folder cell or sidebar row into that folder, by Finder's rules: same
+volume moves, another copies, ⌥ copies and ⌘ moves. Files already in the
+folder do nothing, except in Custom Order, where the drop reorders them at
+the gap shown. Whether files are already there, or a folder would go into
+itself, is decided by file identity, not by path, so another spelling of
+the same folder (a symbolic link, `/tmp` for `/private/tmp`) can never make
+a file replace itself. Name clashes ask Replace, Keep Both or Skip (Apply
+to All), all before anything moves, and Replace puts the old item in the
+Trash rather than deleting it (an item that holds the file being moved is
+never replaced). The work runs off the main thread one file at a time,
+with a progress sheet and Cancel for more than 20 files or anything still
+running after half a second; the arrivals are selected afterwards.
+Copy To and Move To choose a folder with an open panel and remember the
+last five (as security-scoped bookmarks). Rename (F2 or the context menu)
+edits the name in place with the base name selected: Return or a click
+elsewhere commits, Esc cancels, and a name that can't be used is explained
+and offered back to correct. New Folder makes "untitled folder" and starts
+renaming it. Moves, copies, renames and new folders are undoable ("Undo
+Move 3 Items"); undoing a copy or a new folder moves it to the Trash, and
+undoing a transfer that replaced something brings that back from the Trash.
+A file renamed in Custom Order keeps its place.
+
 **Viewer:** opens on double-click or Return. Windowed or true full screen
 (borderless, instant, on the current display). In full screen the edges
 reveal fly-out panels on hover:
@@ -273,7 +324,14 @@ End first and last, ⌥→ ⌥← and ⌥Page Down ⌥Page Up next and previous 
 of a document, Page Down and Page Up a page first and then the next or
 previous image at either end, P plays and pauses an animation, Return
 toggles full screen, Esc back to the browser, `+` `-` zoom, `/` actual
-size, `*` fit, 0–5 rating, ⌘Z / ⇧⌘Z undo and redo.
+size, `*` fit, 0–5 rating, T or `` ` `` (backquote) tag, ⌘Z / ⇧⌘Z undo and
+redo.
+
+**Keyboard (grid):** arrows move the selection, Return opens, typing a name
+selects it, 0–5 rate the selection and `` ` `` tags it. A digit or
+backquote typed within a second of a letter continues the name instead
+(so "IMG_2" can still be typed), and T always types a name in the grid, as
+letters do in Finder; ⌘T tags from anywhere. F2 renames.
 
 **Menu shortcuts.** One table for the whole menu bar; a test checks that
 no two items share a shortcut (display-only ones included) and that each
@@ -287,13 +345,17 @@ key reaches the grid, the viewer or a text field otherwise.
 | minivu | Settings… | ⌘, |
 | | Hide minivu / Hide Others / Quit | ⌘H / ⌥⌘H / ⌘Q |
 | File | Open Folder… / Add Folder to Sidebar… | ⌘O / ⇧⌘O |
+| | New Folder | ⇧⌘N (Finder) |
 | | Open in Viewer / Close Window | ⌘↓ / ⌘W |
 | | Save / Save As… | ⌘S / ⇧⌘S |
 | | Revert to Saved | none (as in every Mac app) |
+| | Rename | F2 (Explorer, FastStone; Return opens and ⌘R rotates) |
+| | Copy To > / Move To > (recent folders, Choose Folder…) | none |
 | | Reveal in Finder / Move to Trash | ⌥⌘R / ⌘⌫ |
 | Edit | Undo / Redo | ⌘Z / ⇧⌘Z |
 | | Cut / Copy / Paste / Select All | ⌘X / ⌘C / ⌘V / ⌘A |
 | View | Show Hidden Files | ⇧⌘. |
+| | Filter > Show All, ★ or More … ★★★★★, Tagged Only | none |
 | | Show Sidebar / Show Preview Pane / Enter Full Screen | ⌃⌘S / ⌥⌘P / ⌃⌘F |
 | Image | Fit to Window / Actual Size / Zoom In / Zoom Out | ⌘9 / ⌘0 / ⌘= / ⌘- |
 | | Rotate Left / Rotate Right | ⌘L / ⌘R (Preview) |
@@ -309,7 +371,11 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Effects > Grayscale / Sepia / Negative | none |
 | | Edit Comment… | none |
 | | Play/Pause Animation | P (display) |
-| | Rating > Clear, 1–5 Stars | ⌃0–⌃5 (the viewer also takes bare 0–5) |
+| | Rating > Clear, 1–5 Stars | ⌃0–⌃5 (the grid and viewer also take bare 0–5) |
+| | Toggle Tag | ⌘T (no tabs or Fonts panel to clash with; bare `` ` `` in the grid and viewer, T in the viewer) |
+| | Compare Selected | ⌥⌘K (⌘K is Crop) |
+| | Histogram | ⇧⌘H (⌘H and ⌥⌘H hide apps) |
+| | Count Colors | none |
 | Go | Next / Previous / First / Last Image | → ← Home End (display) |
 | | Next Page / Previous Page | ⌥→ / ⌥← (display) |
 | | Enclosing Folder / Back / Forward | ⌘↑ / ⌘[ / ⌘] |

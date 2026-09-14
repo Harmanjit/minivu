@@ -24,6 +24,17 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     var onOpenViewer: (() -> Void)?
     /// The wheel asked for the next (+1) or previous (-1) image.
     var onStep: ((Int) -> Void)?
+    /// The stars under the photo were clicked (0 clears).
+    var onRate: ((Int) -> Void)?
+    /// The tag button under the photo was clicked.
+    var onToggleTag: (() -> Void)?
+
+    /// Stars and the tag for the photo shown, under it.
+    let marksBar = NSStackView()
+    let marksStars = StarRatingView(starSize: 13)
+    let tagButton = NSButton()
+    /// What the tag button shows, so it's redrawn only when that changes.
+    private var shownTagged: Bool?
 
     /// False while the pane is collapsed: nothing is decoded for a preview
     /// nobody can see.
@@ -99,6 +110,31 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             placeholder.centerYAnchor.constraint(equalTo: imageArea.centerYAnchor),
             placeholder.leadingAnchor.constraint(greaterThanOrEqualTo: imageArea.leadingAnchor, constant: 16),
             titleField.widthAnchor.constraint(lessThanOrEqualTo: imageArea.widthAnchor, constant: -32),
+        ])
+
+        marksStars.isInteractive = true
+        marksStars.showsEmptyStars = true
+        marksStars.onRate = { [weak self] stars in self?.onRate?(stars) }
+        marksStars.toolTip = "Rating"
+        tagButton.isBordered = false
+        tagButton.imagePosition = .imageOnly
+        tagButton.target = self
+        tagButton.action = #selector(tagClicked(_:))
+        tagButton.toolTip = "Tag"
+        tagButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        for view in [marksStars, spacer, tagButton] as [NSView] { marksBar.addArrangedSubview(view) }
+        marksBar.orientation = .horizontal
+        marksBar.isHidden = true
+        marksBar.translatesAutoresizingMaskIntoConstraints = false
+        imageArea.addSubview(marksBar)
+        NSLayoutConstraint.activate([
+            marksBar.leadingAnchor.constraint(equalTo: imageArea.leadingAnchor, constant: 12),
+            marksBar.trailingAnchor.constraint(equalTo: imageArea.trailingAnchor, constant: -12),
+            marksBar.bottomAnchor.constraint(equalTo: imageArea.bottomAnchor, constant: -6),
+            marksBar.heightAnchor.constraint(equalToConstant: 20),
+            marksStars.widthAnchor.constraint(equalToConstant: StarRatingView.size(starSize: 13).width),
         ])
 
         info.translatesAutoresizingMaskIntoConstraints = false
@@ -194,6 +230,24 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     }
 
     // MARK: - Content
+
+    /// The single photo's rating and tag; nil hides the bar (a folder,
+    /// several items, nothing).
+    func showMarks(_ marks: Catalog.Marks?) {
+        _ = view
+        marksBar.isHidden = marks == nil
+        guard let marks else { return }
+        marksStars.rating = marks.rating
+        guard shownTagged != marks.isTagged else { return }
+        shownTagged = marks.isTagged
+        let symbol = marks.isTagged ? "checkmark.circle.fill" : "checkmark.circle"
+        tagButton.image = NSImage(systemSymbolName: symbol, accessibilityDescription: marks.isTagged ? "Tagged" : "Not Tagged")
+        tagButton.contentTintColor = marks.isTagged ? .controlAccentColor : .secondaryLabelColor
+    }
+
+    @objc private func tagClicked(_ sender: NSButton) {
+        onToggleTag?()
+    }
 
     func show(_ newContent: Content) {
         guard newContent != content else { return }
@@ -377,7 +431,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             canvas.topAnchor.constraint(equalTo: imageArea.topAnchor, constant: margin),
             canvas.leadingAnchor.constraint(equalTo: imageArea.leadingAnchor, constant: margin),
             canvas.trailingAnchor.constraint(equalTo: imageArea.trailingAnchor, constant: -margin),
-            canvas.bottomAnchor.constraint(equalTo: imageArea.bottomAnchor, constant: -margin),
+            canvas.bottomAnchor.constraint(equalTo: marksBar.topAnchor, constant: -4),
         ])
         imageArea.layoutSubtreeIfNeeded()
         self.canvas = canvas

@@ -6,6 +6,7 @@ extension NSToolbarItem.Identifier {
     static let browserNavigation = NSToolbarItem.Identifier("minivu.browser.navigation")
     static let browserEnclosingFolder = NSToolbarItem.Identifier("minivu.browser.enclosing")
     static let browserSort = NSToolbarItem.Identifier("minivu.browser.sort")
+    static let browserFilter = NSToolbarItem.Identifier("minivu.browser.filter")
     static let browserThumbnailSize = NSToolbarItem.Identifier("minivu.browser.size")
     static let browserPreviewPane = NSToolbarItem.Identifier("minivu.browser.preview")
     static let browserSearch = NSToolbarItem.Identifier("minivu.browser.search")
@@ -18,8 +19,20 @@ extension NSToolbarItem.Identifier {
 final class BrowserToolbar: NSObject, NSToolbarDelegate {
     /// The search text changed.
     var onSearch: ((String) -> Void)?
+    /// A Finder tag was chosen in the filter menu.
+    var onFinderTagFilter: ((String?) -> Void)?
 
     private(set) weak var searchItem: NSSearchToolbarItem?
+    private(set) weak var filterItem: NSMenuToolbarItem?
+    /// What the filter item last showed, so model changes that don't touch
+    /// it (every selection change) leave its menu alone.
+    private var filterState: FilterState?
+
+    struct FilterState: Equatable {
+        var isActive: Bool
+        var finderTags: [FinderTag]
+        var selectedTag: String?
+    }
     private weak var backItem: NSToolbarItem?
     private weak var forwardItem: NSToolbarItem?
     private let slider = NSSlider(value: Preferences.shared.thumbnailSize,
@@ -51,8 +64,8 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         // sidebar toggle above the sidebar; without the tracking separator
         // the pane's divider ran through the search field.
         [.toggleSidebar, .sidebarTrackingSeparator, .browserNavigation, .browserEnclosingFolder, .flexibleSpace,
-         .browserThumbnailSize, .browserSort, .browserSearch, .inspectorTrackingSeparator, .flexibleSpace,
-         .browserPreviewPane]
+         .browserThumbnailSize, .browserSort, .browserFilter, .browserSearch, .inspectorTrackingSeparator,
+         .flexibleSpace, .browserPreviewPane]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -67,6 +80,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
             navigational(button(identifier, "Enclosing Folder", symbol: "arrow.up", action: .goToEnclosingFolder,
                                 tip: "Show the enclosing folder"))
         case .browserSort: sortItem()
+        case .browserFilter: filterItemMade()
         case .browserThumbnailSize: sizeItem()
         case .browserPreviewPane:
             button(identifier, "Preview", symbol: "sidebar.right", action: .togglePreviewPane,
@@ -140,6 +154,87 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         menu.addItem(withTitle: "Descending", action: .toggleSortDirection, keyEquivalent: "").tag = SortDirectionTag.descending
         item.menu = menu
         return item
+    }
+
+    /// Ratings, the tag and the folder's Finder tags. The symbol fills while
+    /// any filter is on, so a half-empty grid explains itself.
+    private func filterItemMade() -> NSToolbarItem {
+        let item = NSMenuToolbarItem(itemIdentifier: .browserFilter)
+        item.label = "Filter"
+        item.toolTip = "Show only rated or tagged images"
+        // No chevron (as Mail's filter button): with one, the default
+        // 1400-point window had no room left and the search field collapsed
+        // to a button.
+        item.showsIndicator = false
+        filterItem = item
+        let state = filterState ?? FilterState(isActive: false, finderTags: [], selectedTag: nil)
+        filterState = nil
+        updateFilter(isActive: state.isActive, finderTags: state.finderTags, selectedTag: state.selectedTag)
+        return item
+    }
+
+    static func filterSymbol(active: Bool) -> String {
+        active ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+    }
+
+    func updateFilter(isActive: Bool, finderTags: [FinderTag], selectedTag: String?) {
+        let state = FilterState(isActive: isActive, finderTags: finderTags, selectedTag: selectedTag)
+        guard state != filterState else { return }
+        filterState = state
+        guard let item = filterItem else { return }
+        item.image = NSImage(systemSymbolName: Self.filterSymbol(active: isActive), accessibilityDescription: "Filter")
+        item.menu = Self.filterMenu(state, target: self)
+    }
+
+    /// The rating and tag items have no target, so the window controller
+    /// validates them and gives them their checkmarks; Finder tags (which the
+    /// menu bar doesn't list) come here.
+    static func filterMenu(_ state: FilterState, target: BrowserToolbar?) -> NSMenu {
+        let menu = NSMenu(title: "Filter")
+        menu.addItem(withTitle: RatingText.filterTitle(minimum: 0), action: .filterByRating, keyEquivalent: "").tag = 0
+        menu.addItem(.separator())
+        for minimum in 1...5 {
+            menu.addItem(withTitle: RatingText.filterTitle(minimum: minimum), action: .filterByRating,
+                         keyEquivalent: "").tag = minimum
+        }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Tagged Only", action: .toggleTaggedFilter, keyEquivalent: "")
+        var tags = state.finderTags
+        // A tag filtered on stays listed, so it can be turned off in a
+        // folder that doesn't use it.
+        if let selected = state.selectedTag, !tags.contains(where: { $0.name == selected }) {
+            tags.append(FinderTag(name: selected, colorIndex: 0))
+        }
+        if !tags.isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(NSMenuItem.sectionHeader(title: "Finder Tags"))
+            for tag in tags {
+                let item = menu.addItem(withTitle: tag.name, action: #selector(finderTagChosen(_:)), keyEquivalent: "")
+                item.target = target
+                item.representedObject = tag.name
+                item.image = dotImage(tag.color)
+                item.state = tag.name == state.selectedTag ? .on : .off
+            }
+        }
+        return menu
+    }
+
+    @objc private func finderTagChosen(_ sender: NSMenuItem) {
+        onFinderTagFilter?(sender.representedObject as? String)
+    }
+
+    private static func dotImage(_ color: NSColor?) -> NSImage {
+        NSImage(size: NSSize(width: 12, height: 12), flipped: false) { rect in
+            let dot = NSBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5))
+            if let color {
+                color.setFill()
+                dot.fill()
+            } else {
+                NSColor.secondaryLabelColor.setStroke()
+                dot.stroke()
+            }
+            return true
+        }
     }
 
     private func sizeItem() -> NSToolbarItem {

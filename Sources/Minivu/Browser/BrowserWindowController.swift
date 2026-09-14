@@ -24,10 +24,21 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     /// A file opened from Finder, shown in the viewer once its folder is listed.
     private var pendingViewerFile: URL?
     private var isAnimatingPreview = false
+    /// A folder just made, whose name is edited once it's listed.
+    var pendingRename: URL?
+    /// A copy or move is running (one at a time: its sheets would collide).
+    var isTransferring = false
+    /// The transfer in flight, for tests to await.
+    var transferWork: Task<Void, Never>?
+    /// Answers name clashes instead of an alert; for tests.
+    var transferConflictResolver: FileTransfer.ConflictResolver?
+    /// Where Replace and the Undo of a copy put items; tests use a folder.
+    var transferTrash: FileTransfer.Trasher = TransferChecks.trash
 
-    init() {
+    /// - Parameter catalog: where ratings and tags live; tests pass their own.
+    init(catalog: Catalog = .shared) {
         model = BrowserModel(sortOrder: Preferences.shared.sortOrder,
-                             showHiddenFiles: Preferences.shared.showHiddenFiles)
+                             showHiddenFiles: Preferences.shared.showHiddenFiles, catalog: catalog)
         grid = GridViewController(model: model)
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
         gridItem = NSSplitViewItem(viewController: grid)
@@ -105,7 +116,21 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         grid.onNavigate = { [weak self] url in self?.navigate(to: url) }
         preview.onOpenViewer = { [weak self] in self?.openInViewer(nil) }
         preview.onStep = { [weak self] offset in self?.stepSelection(by: offset) }
+        preview.onRate = { [weak self] stars in
+            guard let self, let lead = self.model.leadEntry, !lead.isDirectory else { return }
+            self.model.setRating(stars, for: [lead.url])
+        }
+        preview.onToggleTag = { [weak self] in
+            guard let self, let lead = self.model.leadEntry, !lead.isDirectory else { return }
+            self.model.toggleTag(for: [lead.url])
+        }
+        grid.onDropFiles = { [weak self] files, destination, move in self?.transfer(files, to: destination, move: move) }
+        grid.onRename = { [weak self] url, name in self?.commitRename(url, to: name) }
+        sidebar.onDropFiles = { [weak self] files, destination, move in
+            self?.transfer(files, to: destination, move: move)
+        }
         toolbarController.onSearch = { [weak self] text in self?.model.filter = text }
+        toolbarController.onFinderTagFilter = { [weak self] name in self?.filterByFinderTag(name) }
 
         // The model follows the preferences, whichever window or menu set them.
         // (`@Published` passes the new value before it is stored.)
@@ -195,6 +220,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             window?.title = FileManager.default.displayName(atPath: folder.path)
             UserDefaults.standard.set(folder.path, forKey: AppDelegate.lastFolderKey)
             sidebar.reveal(folder)
+            pendingRename = nil
         }
         grid.modelChanged(changes)
         if changes.contains(.entries) || changes.contains(.state) {
@@ -203,11 +229,27 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         if changes.contains(.entries) || changes.contains(.selection) {
             preview.show(previewContent())
         }
+        if changes.contains(.entries) || changes.contains(.selection) || changes.contains(.marks) {
+            preview.showMarks(model.leadEntry.flatMap { $0.isDirectory || model.selection.count != 1 ? nil : $0 }
+                .map { model.marks(for: $0.url) })
+        }
+        if changes.contains(.entries), let url = pendingRename, model.entry(for: url) != nil {
+            pendingRename = nil
+            grid.beginRename(url)
+        }
+        toolbarController.updateFilter(isActive: model.marksFilter.isActive, finderTags: model.finderTagsInFolder,
+                                       selectedTag: model.marksFilter.finderTag)
         // History changes arrive after a listing, with no event to trigger
         // the toolbar's own validation.
         window?.toolbar?.validateVisibleItems()
         toolbarController.setNavigation(canGoBack: model.canGoBack, canGoForward: model.canGoForward)
         openPendingViewerIfReady()
+    }
+
+    /// Folders whose contents changed through minivu: the sidebar lists
+    /// them again if it has.
+    func sidebarFolderChanged(_ folders: [URL]) {
+        folders.forEach(sidebar.folderChangedOnDisk)
     }
 
     private func previewContent() -> PreviewPaneController.Content {
@@ -304,9 +346,13 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         model.goForward()
     }
 
+    /// Each key keeps the direction it was last used in, as Finder's columns
+    /// do, and starts in its natural one: highest rating first, everything
+    /// else A to Z, oldest or smallest first.
     @objc func sortBy(_ sender: Any?) {
         guard let tag = (sender as? NSMenuItem)?.tag, SortKey.allCases.indices.contains(tag) else { return }
-        Preferences.shared.sortOrder.key = SortKey.allCases[tag]
+        Preferences.shared.sortOrder = SortDirectionMemory.switching(from: Preferences.shared.sortOrder,
+                                                                     to: SortKey.allCases[tag])
     }
 
     @objc func toggleSortDirection(_ sender: Any?) {
@@ -369,7 +415,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .togglePreviewPane:
             menuItem.title = previewItem.isCollapsed ? "Show Preview Pane" : "Hide Preview Pane"
         default:
-            break
+            updateManagementState(menuItem)
         }
         return canPerform(action)
     }
@@ -391,7 +437,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .zoomIn: Preferences.shared.thumbnailSize < ThumbnailLayout.sizeRange.upperBound
         case .zoomOut: Preferences.shared.thumbnailSize > ThumbnailLayout.sizeRange.lowerBound
         case #selector(selectAll(_:)): !model.entries.isEmpty
-        default: canPerformEditing(action) ?? true
+        default: canPerformManagement(action) ?? canPerformEditing(action) ?? true
         }
     }
 

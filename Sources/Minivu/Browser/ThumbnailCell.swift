@@ -9,7 +9,13 @@ nonisolated struct ThumbnailLayout: Equatable {
     static let inset: CGFloat = 8
     static let labelGap: CGFloat = 6
     static let nameHeight: CGFloat = 15
+    /// The star row under the name: always reserved, so rating a photo
+    /// doesn't make its row taller than its neighbours'.
+    static let starsHeight: CGFloat = 12
     static let detailHeight: CGFloat = 14
+    /// The tagged badge's point size and its inset from the picture's corner.
+    static let badgeSize: CGFloat = 18
+    static let badgeInset: CGFloat = 4
 
     static let sizeRange: ClosedRange<Double> = 80...320
     /// ⌘= and ⌘- move the size by this much.
@@ -24,7 +30,8 @@ nonisolated struct ThumbnailLayout: Equatable {
 
     var itemSize: CGSize {
         CGSize(width: side + 2 * Self.inset,
-               height: Self.inset + side + Self.labelGap + Self.nameHeight + Self.detailHeight + Self.inset / 2)
+               height: Self.inset + side + Self.labelGap + Self.nameHeight + Self.starsHeight + Self.detailHeight
+                   + Self.inset / 2)
     }
 
     var thumbnailArea: CGRect { CGRect(x: Self.inset, y: Self.inset, width: side, height: side) }
@@ -33,8 +40,30 @@ nonisolated struct ThumbnailLayout: Equatable {
     var nameFrame: CGRect {
         CGRect(x: 2, y: Self.inset + side + Self.labelGap, width: itemSize.width - 4, height: Self.nameHeight)
     }
+    var starsFrame: CGRect {
+        CGRect(x: 2, y: nameFrame.maxY, width: itemSize.width - 4, height: Self.starsHeight)
+    }
     var detailFrame: CGRect {
-        CGRect(x: 2, y: nameFrame.maxY, width: itemSize.width - 4, height: Self.detailHeight)
+        CGRect(x: 2, y: starsFrame.maxY, width: itemSize.width - 4, height: Self.detailHeight)
+    }
+
+    /// The name and the Finder tag dots after it, centred together: the name
+    /// gets what's left once the dots have their room.
+    static func nameAndDots(in frame: CGRect, textWidth: CGFloat, dotsWidth: CGFloat) -> (name: CGRect, dots: CGRect) {
+        guard dotsWidth > 0 else { return (frame, .zero) }
+        let gap: CGFloat = 2
+        let name = min(textWidth.rounded(.up), max(frame.width - dotsWidth - gap, 0))
+        let x = (frame.minX + (frame.width - name - gap - dotsWidth) / 2).rounded()
+        let dotsHeight = TagDotsView.diameter + 2
+        return (CGRect(x: x, y: frame.minY, width: name, height: frame.height),
+                CGRect(x: x + name + gap, y: (frame.midY - dotsHeight / 2).rounded(), width: dotsWidth,
+                       height: dotsHeight))
+    }
+
+    /// The tagged badge, over the picture's top-left corner.
+    func badgeFrame(imageFrame: CGRect) -> CGRect {
+        CGRect(x: imageFrame.minX + Self.badgeInset, y: imageFrame.minY + Self.badgeInset,
+               width: Self.badgeSize, height: Self.badgeSize)
     }
 
     /// Where a picture of `pixels` sits in the square: as large as fits,
@@ -71,6 +100,9 @@ final class ThumbnailCellView: NSView {
     private let imageLayer = CALayer()
     let nameField = NSTextField(labelWithString: "")
     let detailField = NSTextField(labelWithString: "")
+    let stars = StarRatingView(starSize: 10)
+    let dots = TagDotsView()
+    let tagBadge = TagBadge.makeView(pointSize: 14)
 
     var layoutInfo = ThumbnailLayout(side: 150) {
         didSet { if layoutInfo != oldValue { needsLayout = true } }
@@ -78,6 +110,23 @@ final class ThumbnailCellView: NSView {
     var isSelected = false {
         didSet { if isSelected != oldValue { needsDisplay = true } }
     }
+    /// A folder under a drag of files: where they would go.
+    var isDropTarget = false {
+        didSet { if isDropTarget != oldValue { needsDisplay = true } }
+    }
+    /// The pointer is over the cell: a light fill, and hollow stars to click.
+    private(set) var isHovered = false {
+        didSet {
+            guard isHovered != oldValue else { return }
+            needsDisplay = true
+            updateStars()
+        }
+    }
+    /// Images take ratings; folders show no stars at all.
+    var isRatable = false {
+        didSet { if isRatable != oldValue { updateStars() } }
+    }
+    private var hoverArea: NSTrackingArea?
     /// Folder icons get no frame; photos get a hairline so dark pictures
     /// don't melt into a dark background.
     private var isIcon = false
@@ -110,10 +159,65 @@ final class ThumbnailCellView: NSView {
         nameField.textColor = .labelColor
         detailField.font = .monospacedDigitSystemFont(ofSize: NSFont.smallSystemFontSize - 1, weight: .regular)
         detailField.textColor = .secondaryLabelColor
+
+        stars.isHidden = true
+        tagBadge.isHidden = true
+        dots.isHidden = true
+        for view in [stars, dots, tagBadge] as [NSView] { addSubview(view) }
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("not used") }
+
+    /// Shows a rating, the tagged badge and Finder tag dots. Laying out and
+    /// drawing happen only when something actually changed, so refreshing
+    /// every visible cell after a catalog change costs nearly nothing.
+    func setMarks(_ marks: Catalog.Marks, finderTags: [FinderTag]) {
+        if stars.rating != marks.rating {
+            stars.rating = marks.rating
+            updateStars()
+        }
+        if tagBadge.isHidden == marks.isTagged { tagBadge.isHidden = !marks.isTagged }
+        if dots.tags != finderTags {
+            dots.tags = finderTags
+            dots.isHidden = finderTags.isEmpty || isRenaming
+            needsLayout = true
+        }
+    }
+
+    /// The name is being edited in a field over it. The label and tag dots
+    /// step aside: a bezeled field is translucent in Dark Mode, and they
+    /// would show through it.
+    var isRenaming = false {
+        didSet {
+            guard isRenaming != oldValue else { return }
+            nameField.isHidden = isRenaming
+            dots.isHidden = isRenaming || dots.tags.isEmpty
+            needsLayout = true
+        }
+    }
+
+    private func updateStars() {
+        stars.showsEmptyStars = isHovered && isRatable
+        stars.isInteractive = isRatable
+        let hidden = !isRatable || !(stars.rating > 0 || isHovered)
+        if stars.isHidden != hidden { stars.isHidden = hidden }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        guard hoverArea == nil else { return }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) { isHovered = true }
+    override func mouseExited(with event: NSEvent) { isHovered = false }
+
+    /// A reused cell starts without the pointer over it.
+    func resetHover() { isHovered = false }
 
     override var isFlipped: Bool { true }
     override var wantsUpdateLayer: Bool { true }
@@ -146,14 +250,31 @@ final class ThumbnailCellView: NSView {
         // than photos at full size; a little air balances the row.
         if isIcon { frame = frame.insetBy(dx: (frame.width * 0.08).rounded(), dy: (frame.height * 0.08).rounded()) }
         imageLayer.frame = frame
-        nameField.frame = info.nameFrame
+        tagBadge.frame = info.badgeFrame(imageFrame: frame)
+        if dots.isHidden {
+            nameField.frame = info.nameFrame
+        } else {
+            // The text's natural width: a label's intrinsic size follows the
+            // frame it last had, so it would shrink with every layout.
+            let textWidth = nameField.cell?.cellSize(forBounds: CGRect(x: 0, y: 0, width: 10_000, height: 100)).width ?? 0
+            let placed = ThumbnailLayout.nameAndDots(in: info.nameFrame, textWidth: textWidth,
+                                                     dotsWidth: TagDotsView.width(for: dots.tags.count))
+            nameField.frame = placed.name
+            dots.frame = placed.dots
+        }
+        stars.frame = info.starsFrame
         detailField.frame = info.detailFrame
     }
 
     /// Colours resolve here, against the view's appearance, so Bright, Gray
     /// and Dark all redraw correctly (the theme change asks every view to).
     override func updateLayer() {
-        layer?.backgroundColor = isSelected ? ThemeColors.selectionFill.cgColor : .clear
+        let fill: NSColor? = isDropTarget ? ThemeColors.selectionFill
+            : isSelected ? ThemeColors.selectionFill
+            : isHovered ? ThemeColors.hoverFill : nil
+        layer?.backgroundColor = fill?.cgColor ?? .clear
+        layer?.borderWidth = isDropTarget ? 2 : 0
+        layer?.borderColor = NSColor.controlAccentColor.cgColor
         let framed = hasImage && !isIcon
         imageLayer.borderWidth = framed ? 1 / max(1, window?.backingScaleFactor ?? 2) : 0
         imageLayer.borderColor = NSColor.separatorColor.cgColor
@@ -201,16 +322,34 @@ final class ThumbnailCell: NSCollectionViewItem {
 
     private func updateSelection() {
         cellView.isSelected = highlightState == .forSelection || (isSelected && highlightState != .forDeselection)
+        cellView.isDropTarget = highlightState == .asDropTarget && entry?.isDirectory == true
     }
 
-    /// Shows `entry` with a thumbnail side of `side` points.
-    func configure(_ entry: FolderEntry, layout: ThumbnailLayout, backingScale: CGFloat) {
+    /// A click on the cell's stars: the file and the rating chosen.
+    var onRate: ((URL, Int) -> Void)?
+
+    /// The cell's view, for the grid's inline rename and for tests.
+    var thumbnailView: ThumbnailCellView { cellView }
+
+    /// Shows `entry` with a thumbnail side of `side` points, its rating, tag
+    /// and Finder tags.
+    func configure(_ entry: FolderEntry, layout: ThumbnailLayout, backingScale: CGFloat,
+                   marks: Catalog.Marks = .none, finderTags: [FinderTag] = []) {
         let sameFile = self.entry == entry
         self.entry = entry
         cellView.layoutInfo = layout
-        cellView.nameField.stringValue = entry.name
+        if cellView.nameField.stringValue != entry.name {
+            cellView.nameField.stringValue = entry.name
+            cellView.needsLayout = true
+        }
         view.toolTip = entry.name
         wantedPixelSize = Int((layout.side * backingScale).rounded())
+        cellView.isRatable = !entry.isDirectory
+        cellView.setMarks(entry.isDirectory ? .none : marks, finderTags: finderTags)
+        cellView.stars.onRate = { [weak self] rating in
+            guard let url = self?.entry?.url else { return }
+            self?.onRate?(url, rating)
+        }
 
         if entry.isDirectory {
             cancelLoading()
@@ -290,6 +429,8 @@ final class ThumbnailCell: NSCollectionViewItem {
         shownPixelSize = 0
         cellView.setImage(nil, isIcon: false)
         cellView.detailField.stringValue = ""
+        cellView.resetHover()
+        cellView.isRenaming = false
     }
 
     nonisolated static func dimensions(_ size: CGSize) -> String {

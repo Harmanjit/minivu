@@ -68,7 +68,8 @@ import MinivuCore
         #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
                            "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "-", "Edit Comment…", "-",
-                           "Play/Pause Animation", "-", "Rating"])
+                           "Play/Pause Animation", "-", "Rating", "Toggle Tag", "-",
+                           "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
                                                       .sharpenImage, .blurImage])
@@ -140,10 +141,63 @@ import MinivuCore
             .saveImage, .saveImageAs, .revertToSaved, .rotateLeft, .rotateRight, .flipHorizontal, .flipVertical,
             .resizeImage, .cropImage, .straightenImage, .adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
             .sharpenImage, .blurImage, .applyGrayscale, .applySepia, .applyNegative, .editComment,
+            .toggleTag, .filterByRating, .toggleTaggedFilter, .renameItem, .newFolder, .copyToFolder, .moveToFolder,
+            .compareSelected, .toggleHistogram, .countColors,
         ]
         for selector in expected {
             #expect(inMenu.contains(selector), "\(selector) missing")
         }
+    }
+
+    /// File gains New Folder, Rename and the Copy To and Move To submenus
+    /// (recent folders, then Choose Folder…); View gains Filter.
+    @Test func managementItems() throws {
+        let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
+        let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
+        #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
+                           "Save", "Save As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
+                           "Reveal in Finder", "Move to Trash"])
+        let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
+        let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)
+        #expect(copyTo.items.last?.title == "Choose Folder…" && copyTo.items.last?.action == .copyToFolder)
+        #expect(moveTo.items.last?.title == "Choose Folder…" && moveTo.items.last?.action == .moveToFolder)
+        #expect(copyTo.delegate is RecentDestinationsMenu, "the recent folders are filled in when it opens")
+
+        let view = try #require(bar.items.first { $0.title == "View" }?.submenu)
+        let filter = try #require(view.items.first { $0.title == "Filter" }?.submenu)
+        #expect(filter.items.map { $0.isSeparatorItem ? "-" : $0.title }
+            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only"])
+        #expect(filter.items.filter { $0.action == .filterByRating }.map(\.tag) == [0, 1, 2, 3, 4, 5])
+    }
+
+    /// The management shortcuts, pressed as keys, reach their commands.
+    @Test func managementShortcutsResolve() throws {
+        let recorder = Recorder()
+        for item in allItems where item.action.map({ recorder.responds(to: $0) }) == true {
+            item.target = recorder
+        }
+        let presses: [(letter: String?, keyCode: CGKeyCode, flags: CGEventFlags, expected: String)] = [
+            ("n", 45, [.maskCommand, .maskShift], "newFolder:"),
+            (nil, 120, [], "renameItem:"),                                   // F2
+            ("t", 17, .maskCommand, "toggleTag:"),
+            ("k", 40, [.maskCommand, .maskAlternate], "compareSelected:"),
+            ("h", 4, [.maskCommand, .maskShift], "toggleHistogram:"),
+            (nil, 20, .maskControl, "setRating:"),                           // ⌃3
+        ]
+        var checked = 0
+        for press in presses {
+            let event = keyPress(press.keyCode, press.flags)
+            if let letter = press.letter, event.charactersIgnoringModifiers?.lowercased() != letter { continue }
+            recorder.calls = []
+            #expect(bar.performKeyEquivalent(with: event), "\(press.expected) not taken")
+            #expect(recorder.calls == [press.expected])
+            checked += 1
+        }
+        #expect(checked >= 3)
+        // Bare digits, T and ` stay with the grid and the viewer.
+        recorder.calls = []
+        for code: CGKeyCode in [20, 17, 50] { #expect(!bar.performKeyEquivalent(with: keyPress(code))) }
+        #expect(recorder.calls.isEmpty)
     }
 
     @Test func menuItemsHaveNoTarget() {
@@ -296,5 +350,11 @@ import MinivuCore
         @objc func adjustColors(_ sender: Any?) { calls.append("adjustColors:") }
         @objc func adjustCurves(_ sender: Any?) { calls.append("adjustCurves:") }
         @objc func adjustLevels(_ sender: Any?) { calls.append("adjustLevels:") }
+        @objc func newFolder(_ sender: Any?) { calls.append("newFolder:") }
+        @objc func renameItem(_ sender: Any?) { calls.append("renameItem:") }
+        @objc func toggleTag(_ sender: Any?) { calls.append("toggleTag:") }
+        @objc func compareSelected(_ sender: Any?) { calls.append("compareSelected:") }
+        @objc func toggleHistogram(_ sender: Any?) { calls.append("toggleHistogram:") }
+        @objc func setRating(_ sender: Any?) { calls.append("setRating:") }
     }
 }

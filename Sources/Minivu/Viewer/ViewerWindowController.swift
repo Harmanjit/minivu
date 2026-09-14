@@ -130,6 +130,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Files the Finder is moving to the Trash right now.
     private var trashing: Set<URL> = []
     private(set) var isClosing = false
+    /// The current image's rating and tag, read once per image rather than
+    /// on every zoom step that updates the HUD.
+    private var shownMarks: (url: URL, marks: Catalog.Marks)?
+    /// Rating and tag writes sent from here that haven't landed yet.
+    private var pendingMarkWrites = 0
 
     private init(images: [FolderEntry], index: Int, onClose: @escaping (FolderEntry?) -> Void) {
         model = ViewerModel(images: images, index: index, wrapAround: Preferences.shared.wrapAround)
@@ -196,6 +201,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // should look like. `closeViewer` removes both observers.
         NotificationCenter.default.addObserver(self, selector: #selector(displaySettingsChanged(_:)),
                                                name: .minivuDisplaySettingsChanged, object: nil)
+        // Ratings and tags set here, in the browser or anywhere else.
+        NotificationCenter.default.addObserver(self, selector: #selector(catalogDidChange(_:)),
+                                               name: Catalog.didChange, object: nil)
 
         // The surround can change in Settings while the viewer is open; the
         // window's own colour (title bar, camera strip) must follow the canvas.
@@ -763,7 +771,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         hud.update(name: entry.name, position: model.positionText, part: part,
                    pixelSize: shown ? canvas.image?.imageSize : nil, zoomPercent: zoom,
                    exposure: exposure?.url == entry.url ? exposure?.text : nil,
-                   edited: dirty ? (document?.undoTitle ?? "") : nil)
+                   edited: dirty ? (document?.undoTitle ?? "") : nil, marks: marks(for: entry))
         model.wrapAround = Preferences.shared.wrapAround
         let pages = model.isMultiPage
             ? ViewerControlBar.Pages(text: model.pageText, canGoPrevious: model.canGoPreviousPage,
@@ -923,7 +931,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .toggleFilmstrip:
             flyouts.togglePinned(.top)
             pinsChanged()
-        case .rating: break   // phase 5; taken so the key doesn't beep
+        case .rating(let stars): rate(stars)
+        case .toggleTag: toggleTag(nil)
         }
         return true
     }
@@ -1033,6 +1042,69 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         alert.beginSheetModal(for: window)
     }
 
+    // MARK: - Rating and tag
+
+    /// Image > Rating (⌃0–⌃5); the bare digits come through `handleKey`.
+    @objc func setRating(_ sender: Any?) {
+        guard let stars = (sender as? NSMenuItem)?.tag else { return }
+        rate(stars)
+    }
+
+    /// T, ` and ⌘T.
+    @objc func toggleTag(_ sender: Any?) {
+        guard let entry = model.current else { return }
+        var marks = marks(for: entry)
+        marks.isTagged.toggle()
+        let tagged = marks.isTagged
+        showMarks(marks, for: entry)
+        writeMarks { Catalog.shared.setTagged(tagged, for: [entry.url]) }
+    }
+
+    private func rate(_ stars: Int) {
+        guard let entry = model.current else { return }
+        var marks = marks(for: entry)
+        marks.rating = min(max(stars, 0), 5)
+        showMarks(marks, for: entry)
+        writeMarks { Catalog.shared.setRating(stars, for: [entry.url]) }
+    }
+
+    /// Writes on the catalog's queue, counting writes not yet landed: until
+    /// the last has, the HUD keeps what the keys set rather than reading back
+    /// a catalog that has only some of them (a quick T T would flash tagged).
+    private func writeMarks(_ write: @escaping @Sendable () -> Void) {
+        pendingMarkWrites += 1
+        BrowserModel.catalogWrites.async { [weak self] in
+            write()
+            // Queued after the catalog's own change notice, so it runs after it.
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.pendingMarkWrites -= 1 } }
+        }
+    }
+
+    /// Shown before the write lands, so a second quick press toggles from
+    /// what the first one set.
+    private func showMarks(_ marks: Catalog.Marks, for entry: FolderEntry) {
+        shownMarks = (entry.url, marks)
+        updateChrome()
+        hud.flash()
+    }
+
+    private func marks(for entry: FolderEntry) -> Catalog.Marks {
+        if let shownMarks, shownMarks.url == entry.url { return shownMarks.marks }
+        let marks = Catalog.shared.marks(for: entry.url)
+        shownMarks = (entry.url, marks)
+        return marks
+    }
+
+    /// The HUD shows the new stars at once, flashing up so a key press in
+    /// full screen is answered even with the HUD faded.
+    @objc private func catalogDidChange(_ notification: Notification) {
+        guard !isClosing, pendingMarkWrites == 0, let entry = model.current, let urls = notification.object as? [URL],
+              urls.contains(where: { $0.standardizedFileURL.path == entry.url.standardizedFileURL.path }) else { return }
+        shownMarks = nil
+        updateChrome()
+        hud.flash()
+    }
+
     /// The control bar's info button: pins the info panel open, or unpins it.
     @objc func toggleInfoPanel(_ sender: Any?) {
         flyouts.togglePinned(.right)
@@ -1081,6 +1153,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
         case .revealInFinder: return model.current != nil
         case .moveToTrash: return model.current.map { !trashing.contains($0.url) } ?? false
+        case .setRating, .toggleTag:
+            let marks = model.current.map(marks(for:))
+            menuItem.state = marks.map { menuItem.action == .toggleTag ? $0.isTagged : $0.rating == menuItem.tag } == true
+                ? .on : .off
+            return marks != nil
         case .toggleFullScreenViewer:
             menuItem.state = isFullScreen ? .on : .off
             return true
