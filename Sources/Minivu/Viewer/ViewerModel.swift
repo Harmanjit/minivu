@@ -216,9 +216,10 @@ nonisolated enum ViewerKeyCommand: Equatable {
     case toggleFullScreen, close
     case zoomIn, zoomOut, actualSize, fit
     case toggleHUD, toggleFilmstrip
-    /// 0 to 5 stars. Ratings arrive in a later phase; the keys are taken now
-    /// so a press is quietly ignored instead of beeping.
+    /// 0 to 5: the image's star rating (0 clears it).
     case rating(Int)
+    /// T or ` (backquote): tag or untag the image, FastStone's culling mark.
+    case toggleTag
 
     /// The fraction of the view one arrow press pans.
     static let panFraction: CGFloat = 0.1
@@ -274,6 +275,7 @@ nonisolated enum ViewerKeyCommand: Equatable {
         case "f": return .toggleFilmstrip
         case "p": return .togglePlayback
         case "0", "1", "2", "3", "4", "5": return .rating(Int(characters)!)
+        case "t", "`": return .toggleTag
         default: return nil
         }
     }

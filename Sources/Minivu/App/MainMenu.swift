@@ -59,6 +59,7 @@ enum MainMenu {
         let menu = NSMenu(title: "File")
         menu.add("Open Folder…", .openFolder, "o")
         menu.add("Add Folder to Sidebar…", .addFolderToSidebar, "o", [.command, .shift])
+        menu.add("New Folder", .newFolder, "n", [.command, .shift])
         menu.addItem(.separator())
         menu.add("Open in Viewer", .openInViewer, Key.down)
         menu.add("Close Window", #selector(NSWindow.performClose(_:)), "w")
@@ -67,6 +68,13 @@ enum MainMenu {
         menu.add("Save", .saveImage, "s")
         menu.add("Save As…", .saveImageAs, "s", [.command, .shift])
         menu.add("Revert to Saved", .revertToSaved)
+        menu.addItem(.separator())
+        // F2 as in Windows Explorer and FastStone: Return opens the viewer
+        // here (Finder's Return-to-rename is taken) and ⌘R rotates. A plain
+        // function key is safe as a real equivalent: text fields ignore it.
+        menu.add("Rename", .renameItem, Key.f2, [])
+        menu.add("Copy To", nil).submenu = RecentDestinationsMenu.make(title: "Copy To", action: .copyToFolder)
+        menu.add("Move To", nil).submenu = RecentDestinationsMenu.make(title: "Move To", action: .moveToFolder)
         menu.addItem(.separator())
         menu.add("Reveal in Finder", .revealInFinder, "r", [.command, .option])
         menu.add("Move to Trash", .moveToTrash, Key.backspace)
@@ -100,6 +108,7 @@ enum MainMenu {
         menu.add("Sort By", nil).submenu = sort
 
         menu.add("Show Hidden Files", .toggleHiddenFiles, ".", [.command, .shift])
+        menu.add("Filter", nil).submenu = filterMenu()
         menu.addItem(.separator())
 
         let theme = NSMenu(title: "Theme")
@@ -131,14 +140,36 @@ enum MainMenu {
         viewKeys.add(menu.add("Play/Pause Animation", .togglePlayback), key: "p")
         menu.addItem(.separator())
 
-        // The viewer also takes bare 0-5 (FastStone's keys). Those can't be
-        // menu equivalents: the menu would take digits from text fields.
+        // The grid and viewer also take bare 0-5 and ` (FastStone's keys).
+        // Those can't be menu equivalents: the menu would take them from
+        // text fields.
         let rating = NSMenu(title: "Rating")
         rating.add("Clear Rating", .setRating, "0", [.control]).tag = 0
         for stars in 1...5 {
             rating.add(stars == 1 ? "Rate 1 Star" : "Rate \(stars) Stars", .setRating, "\(stars)", [.control]).tag = stars
         }
         menu.add("Rating", nil).submenu = rating
+        // ⌘T: no tabs in minivu, and no Fonts panel to show.
+        menu.add("Toggle Tag", .toggleTag, "t")
+        menu.addItem(.separator())
+        // ⌥⌘K: ⌘K is Crop. ⇧⌘H: ⌘H and ⌥⌘H hide apps.
+        menu.add("Compare Selected", .compareSelected, "k", [.command, .option])
+        menu.add("Histogram", .toggleHistogram, "h", [.command, .shift])
+        menu.add("Count Colors", .countColors)
+        return menu
+    }
+
+    /// Rating and tag filters for the browser; the toolbar's Filter menu
+    /// also lists the folder's Finder tags.
+    private static func filterMenu() -> NSMenu {
+        let menu = NSMenu(title: "Filter")
+        menu.add(RatingText.filterTitle(minimum: 0), .filterByRating).tag = 0
+        menu.addItem(.separator())
+        for minimum in 1...5 {
+            menu.add(RatingText.filterTitle(minimum: minimum), .filterByRating).tag = minimum
+        }
+        menu.addItem(.separator())
+        menu.add("Tagged Only", .toggleTaggedFilter)
         return menu
     }
 
@@ -228,6 +259,7 @@ enum MainMenu {
         static let home = String(Character(UnicodeScalar(NSHomeFunctionKey)!))
         static let end = String(Character(UnicodeScalar(NSEndFunctionKey)!))
         static let backspace = String(Character(UnicodeScalar(NSBackspaceCharacter)!))
+        static let f2 = String(Character(UnicodeScalar(NSF2FunctionKey)!))
     }
 }
 

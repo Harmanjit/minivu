@@ -11,17 +11,39 @@ nonisolated struct FolderSnapshot: Sendable {
     /// once here keeps typing in the search field cheap on a huge folder.
     private(set) var searchKeys: [String]
 
-    init(contents: FolderContents, order: FileSortOrder) {
+    /// - Parameters:
+    ///   - marks: ratings by file name, for sorting by rating.
+    ///   - customOrder: the catalog's arrangement, for Custom Order.
+    init(contents: FolderContents, order: FileSortOrder, marks: [String: Catalog.Marks] = [:],
+         customOrder: [String] = []) {
         folder = contents.folder
-        entries = FolderListing.sorted(contents.subfolders, by: order) + FolderListing.sorted(contents.images, by: order)
+        let images: [FolderEntry]
+        var folderOrder = order
+        switch order.key {
+        case .rating:
+            images = MarksOrdering.byRating(contents.images, marks: marks, ascending: order.ascending)
+            folderOrder = FileSortOrder()
+        case .custom:
+            images = MarksOrdering.custom(contents.images, order: customOrder, ascending: order.ascending)
+            folderOrder = FileSortOrder()
+        default:
+            images = FolderListing.sorted(contents.images, by: order)
+        }
+        // Folders have no rating or place in an arrangement: by name, A to Z.
+        entries = FolderListing.sorted(contents.subfolders, by: folderOrder) + images
         searchKeys = entries.map { BrowserModel.searchKey($0.name) }
     }
 
     /// The same entries in another order, without reading the disk again.
-    func resorted(by order: FileSortOrder) -> FolderSnapshot {
+    func resorted(by order: FileSortOrder, marks: [String: Catalog.Marks] = [:],
+                  customOrder: [String] = []) -> FolderSnapshot {
         FolderSnapshot(contents: FolderContents(folder: folder, subfolders: entries.filter(\.isDirectory),
-                                                images: entries.filter { !$0.isDirectory }), order: order)
+                                                images: entries.filter { !$0.isDirectory }),
+                       order: order, marks: marks, customOrder: customOrder)
     }
+
+    /// Image names in display order, filters ignored: what a reorder works on.
+    var imageNames: [String] { entries.filter { !$0.isDirectory }.map(\.name) }
 
     mutating func remove(_ urls: Set<URL>) {
         let keep = entries.indices.filter { !urls.contains(entries[$0].url) }
@@ -51,7 +73,18 @@ final class BrowserModel {
         static let state = Changes(rawValue: 1 << 3)
         /// Back, Forward or Enclosing Folder became possible or impossible.
         static let history = Changes(rawValue: 1 << 4)
-        static let all: Changes = [.folder, .entries, .selection, .state, .history]
+        /// Ratings, tags or Finder tags changed: `changedMarkNames` says whose.
+        static let marks = Changes(rawValue: 1 << 5)
+        static let all: Changes = [.folder, .entries, .selection, .state, .history, .marks]
+    }
+
+    /// What a disk listing or a re-sort hands back to the main actor.
+    nonisolated struct Listing: Sendable {
+        var snapshot: FolderSnapshot
+        /// Files whose cached thumbnails and textures are out of date.
+        var changed: [URL]
+        /// Read with the listing; nil for a re-sort, which keeps the marks.
+        var marks: [String: Catalog.Marks]?
     }
 
     enum State: Equatable {
@@ -105,6 +138,30 @@ final class BrowserModel {
         }
     }
 
+    /// Rating, tag and Finder tag filters. They stay as the user moves
+    /// between folders, as FastStone's do.
+    var marksFilter = MarksFilter() {
+        didSet {
+            guard marksFilter != oldValue else { return }
+            applyFilter()
+            onChange?([.entries, .selection])
+        }
+    }
+
+    /// The catalog's stars and tag for each image of the folder, by name.
+    /// Only marked files have an entry.
+    private(set) var marks: [String: Catalog.Marks] = [:]
+    /// Finder tags by name (folders too), read after each listing.
+    private(set) var finderTags: [String: [FinderTag]] = [:]
+    /// Every Finder tag used in the folder, one per name, sorted: the filter menu.
+    private(set) var finderTagsInFolder: [FinderTag] = []
+    /// The names whose marks or Finder tags the last `.marks` change was
+    /// about; nil when it was about every entry.
+    private(set) var changedMarkNames: Set<String>?
+    let catalog: Catalog
+    /// Entries in the folder before any filter.
+    var totalCount: Int { snapshot?.entries.count ?? 0 }
+
     var onChange: ((Changes) -> Void)?
     /// The folder's watcher saw something added, removed or renamed in it,
     /// before the reload that follows: the sidebar lists its subfolders again.
@@ -114,7 +171,11 @@ final class BrowserModel {
     private let isReadableFolder: FolderCheck
     private let invalidate: @MainActor (URL) -> Void
     private let watchesFolder: Bool
-    private var snapshot: FolderSnapshot?
+    private var snapshot: FolderSnapshot? {
+        didSet { imageNameSet = nil }
+    }
+    /// The snapshot's image names, made when a drop first asks.
+    private var imageNameSet: Set<String>?
     private var visibleKeys: [String] = []
     /// Entry index by file name. Every entry is a child of one folder, so
     /// the name identifies it, and it survives the path spellings the file
@@ -127,6 +188,14 @@ final class BrowserModel {
     private var isListing = false
     /// Selected once the listing in progress arrives.
     private var pendingSelection: URL?
+    /// Selected, all of them, once the next listing arrives (files just
+    /// copied, moved or renamed in).
+    private var pendingSelections: [URL] = []
+    /// Reads Finder tags after a listing; replaced by the next listing.
+    private var finderTagReader: Task<[String: [FinderTag]]?, Never>?
+    /// The Finder tag read in flight, for tests to await.
+    private(set) var finderTagWork: Task<Void, Never>?
+    private var catalogObserver: NSObjectProtocol?
     /// The parent whose readability the next listing checks: set by each
     /// navigation, cleared when a listing that checked it lands.
     private var parentToCheck: URL?
@@ -140,17 +209,32 @@ final class BrowserModel {
     ///     changed or disappeared.
     ///   - watchesFolder: reload when the folder changes on disk.
     ///   - isReadableFolder: whether a folder can be opened; tests count calls.
+    ///   - catalog: ratings, tags and custom order; tests pass their own.
     init(sortOrder: FileSortOrder = FileSortOrder(), showHiddenFiles: Bool = false,
          lister: @escaping Lister = { try FolderListing.contents(of: $0, includeHidden: $1) },
          invalidate: @escaping @MainActor (URL) -> Void = BrowserModel.invalidateCaches,
          watchesFolder: Bool = true,
-         isReadableFolder: @escaping FolderCheck = BrowserModel.canOpenFolder) {
+         isReadableFolder: @escaping FolderCheck = BrowserModel.canOpenFolder,
+         catalog: Catalog = .shared) {
         self.sortOrder = sortOrder
         self.showHiddenFiles = showHiddenFiles
         self.lister = lister
         self.isReadableFolder = isReadableFolder
         self.invalidate = invalidate
         self.watchesFolder = watchesFolder
+        self.catalog = catalog
+        // Any catalog's change names its files, so a model can listen to all
+        // of them and pick out its own folder's.
+        catalogObserver = NotificationCenter.default.addObserver(forName: Catalog.didChange, object: nil,
+                                                                 queue: .main) { [weak self] note in
+            let urls = note.object as? [URL] ?? []
+            MainActor.assumeIsolated { self?.catalogChanged(urls) }
+        }
+    }
+
+    isolated deinit {
+        if let catalogObserver { NotificationCenter.default.removeObserver(catalogObserver) }
+        finderTagReader?.cancel()
     }
 
     static func invalidateCaches(_ url: URL) {
@@ -232,6 +316,12 @@ final class BrowserModel {
         folderCount = 0
         selection = []
         lead = nil
+        marks = [:]
+        finderTags = [:]
+        finderTagsInFolder = []
+        changedMarkNames = nil
+        finderTagReader?.cancel()
+        pendingSelections = []
         pendingSelection = item
         parentToCheck = enclosingFolder
         if parentToCheck == nil { canGoToEnclosingFolder = false }
@@ -245,6 +335,14 @@ final class BrowserModel {
     /// arrives (a watcher reload must not flash an empty grid).
     func reload() {
         guard folder != nil else { return }
+        load()
+    }
+
+    /// Lists again and selects `items` (those of them that are in this
+    /// folder) once they are listed: files just copied, moved or renamed here.
+    func reload(thenSelect items: [URL]) {
+        guard let folder else { return }
+        pendingSelections = items.filter { Self.samePath($0.deletingLastPathComponent(), folder) }
         load()
     }
 
@@ -273,12 +371,20 @@ final class BrowserModel {
         let generation = self.generation
         let lister = self.lister, hidden = showHiddenFiles, order = sortOrder
         let previous = snapshot.flatMap { Self.samePath($0.folder, folder) ? $0.entries : nil } ?? []
-        let parent = parentToCheck, isReadableFolder = self.isReadableFolder
+        let parent = parentToCheck, isReadableFolder = self.isReadableFolder, catalog = self.catalog
         work = Task { [weak self] in
             let (result, parentIsReadable) = await Task.detached(priority: .userInitiated) {
-                let result = Result { () throws -> (FolderSnapshot, [URL]) in
-                    let snapshot = FolderSnapshot(contents: try Self.list(folder, hidden, with: lister), order: order)
-                    return (snapshot, Self.changedFiles(old: previous, new: snapshot.entries))
+                let result = Result { () throws -> Listing in
+                    let contents = try Self.list(folder, hidden, with: lister)
+                    DebugMarks.seedIfRequested(folder: folder, names: Set(contents.images.map(\.name)), catalog: catalog)
+                    // One catalog read for the folder, with the listing, so a
+                    // grid sorted by rating arrives in its order. (The catalog's
+                    // path healing, when it has one, belongs here too.)
+                    let marks = Self.marksByName(contents.images, in: catalog)
+                    let custom = order.key == .custom ? catalog.customOrder(in: folder) : []
+                    let snapshot = FolderSnapshot(contents: contents, order: order, marks: marks, customOrder: custom)
+                    return Listing(snapshot: snapshot, changed: Self.changedFiles(old: previous, new: snapshot.entries),
+                                   marks: marks)
                 }
                 return (result, parent.map(isReadableFolder))
             }.value
@@ -310,21 +416,38 @@ final class BrowserModel {
             return
         }
         generation += 1
-        let generation = self.generation, order = sortOrder
+        let generation = self.generation, order = sortOrder, marks = self.marks, catalog = self.catalog
         work = Task { [weak self] in
-            let sorted = await Task.detached(priority: .userInitiated) { snapshot.resorted(by: order) }.value
-            self?.finish(.success((sorted, [])), generation: generation)
+            let sorted = await Task.detached(priority: .userInitiated) {
+                let custom = order.key == .custom ? catalog.customOrder(in: snapshot.folder) : []
+                return snapshot.resorted(by: order, marks: marks, customOrder: custom)
+            }.value
+            self?.finish(.success(Listing(snapshot: sorted, changed: [], marks: nil)), generation: generation)
         }
     }
 
-    private func finish(_ result: Result<(FolderSnapshot, [URL]), Error>, generation: Int) {
+    nonisolated static func marksByName(_ images: [FolderEntry], in catalog: Catalog) -> [String: Catalog.Marks] {
+        guard !images.isEmpty else { return [:] }
+        var result: [String: Catalog.Marks] = [:]
+        for (url, marks) in catalog.marks(for: images.map(\.url)) where marks != .none {
+            result[url.lastPathComponent] = marks
+        }
+        return result
+    }
+
+    private func finish(_ result: Result<Listing, Error>, generation: Int) {
         guard generation == self.generation else { return }
         isListing = false
         switch result {
-        case .success(let (listing, changed)):
-            changed.forEach(invalidate)
-            snapshot = listing
+        case .success(let listing):
+            listing.changed.forEach(invalidate)
+            snapshot = listing.snapshot
             state = .loaded
+            if let marks = listing.marks {
+                if marks != self.marks { changedMarkNames = nil }
+                self.marks = marks
+                readFinderTags()
+            }
         case .failure(let error):
             snapshot?.entries.filter { !$0.isDirectory }.forEach { invalidate($0.url) }
             snapshot = nil
@@ -335,7 +458,175 @@ final class BrowserModel {
             pendingSelection = nil
             select(item, notify: false)
         }
-        onChange?([.entries, .selection, .state, .history])
+        if !pendingSelections.isEmpty, state == .loaded {
+            let found = pendingSelections.compactMap { entry(for: $0)?.url }
+            pendingSelections = []
+            if let first = found.first {
+                selection = Set(found)
+                lead = first
+            }
+        }
+        #if DEBUG
+        if let name = DebugMarks.selection, !Self.debugSelectionDone, state == .loaded,
+           let url = entries.first(where: { $0.name == name })?.url {
+            Self.debugSelectionDone = true
+            select(url, notify: false)
+        }
+        #endif
+        onChange?([.entries, .selection, .state, .history, .marks])
+    }
+
+    #if DEBUG
+    private static var debugSelectionDone = false
+    #endif
+
+    // MARK: - Marks
+
+    /// Reads every entry's Finder tags off the main thread: one extended
+    /// attribute read each, too many for the main thread in a big folder, and
+    /// never worth holding the listing back for. A newer listing cancels it.
+    private func readFinderTags() {
+        finderTagReader?.cancel()
+        guard let snapshot else { return }
+        let urls = snapshot.entries.map(\.url), folder = snapshot.folder
+        let reader = Task.detached(priority: .utility) { () -> [String: [FinderTag]]? in
+            var tags: [String: [FinderTag]] = [:]
+            for (index, url) in urls.enumerated() {
+                if index % 128 == 0, Task.isCancelled { return nil }
+                let found = FinderTag.read(from: url)
+                if !found.isEmpty { tags[url.lastPathComponent] = found }
+            }
+            return tags
+        }
+        finderTagReader = reader
+        finderTagWork = Task { [weak self] in
+            guard let tags = await reader.value, !reader.isCancelled, let self,
+                  let current = self.folder, Self.samePath(current, folder) else { return }
+            self.applyFinderTags(tags)
+        }
+    }
+
+    private func applyFinderTags(_ tags: [String: [FinderTag]]) {
+        guard tags != finderTags else { return }
+        var changed = Set<String>()
+        for name in Set(tags.keys).union(finderTags.keys) where tags[name] != finderTags[name] { changed.insert(name) }
+        finderTags = tags
+        var seen = Set<String>()
+        finderTagsInFolder = tags.values.joined()
+            .filter { seen.insert($0.name).inserted }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        changedMarkNames = changed
+        if marksFilter.finderTag != nil {
+            applyFilter()
+            onChange?([.marks, .entries, .selection])
+        } else {
+            onChange?(.marks)
+        }
+    }
+
+    /// Whether the folder has an image of this name, shown or filtered out.
+    func containsImage(named name: String) -> Bool {
+        if imageNameSet == nil { imageNameSet = Set(snapshot?.imageNames ?? []) }
+        return imageNameSet?.contains(name) ?? false
+    }
+
+    func marks(for url: URL) -> Catalog.Marks { marks[url.lastPathComponent] ?? .none }
+    func finderTags(for url: URL) -> [FinderTag] { finderTags[url.lastPathComponent] ?? [] }
+
+    /// The selected images; folders have no rating or tag.
+    var selectedImageURLs: [URL] { selectedEntries.filter { !$0.isDirectory }.map(\.url) }
+
+    /// Whether any selected item is an image: menu validation's question,
+    /// answered without sorting a big selection for every item it checks.
+    var hasSelectedImages: Bool { selection.contains { entry(for: $0)?.isDirectory == false } }
+
+    /// Catalog writes go through one serial queue, off the main thread
+    /// (DESIGN.md 6, rule 1), so two quick key presses land in order.
+    nonisolated static let catalogWrites = DispatchQueue(label: "minivu.catalog-writes", qos: .userInitiated)
+
+    /// Rates `urls`. The grid updates when the catalog reports the change.
+    func setRating(_ rating: Int, for urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        let catalog = self.catalog
+        Self.catalogWrites.async { catalog.setRating(rating, for: urls) }
+    }
+
+    /// Tags them all, unless every one is tagged already: then untags them
+    /// (Finder's rule for a mixed selection and a checkbox).
+    func toggleTag(for urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        let tag = !urls.allSatisfy { marks(for: $0).isTagged }
+        let catalog = self.catalog
+        Self.catalogWrites.async { catalog.setTagged(tag, for: urls) }
+    }
+
+    /// Custom Order: moves images to just before `target` (the end for nil)
+    /// and stores the folder's new arrangement. Hidden images keep their
+    /// places relative to the rest.
+    func moveImages(_ urls: [URL], before target: URL?) {
+        guard sortOrder.key == .custom, let snapshot, let folder else { return }
+        let names = snapshot.imageNames
+        let known = Set(names)
+        let moving = urls.map(\.lastPathComponent).filter(known.contains)
+        guard !moving.isEmpty else { return }
+        var order = MarksOrdering.reordered(names, moving: moving, before: target?.lastPathComponent)
+        guard order != names else { return }
+        // Descending shows the arrangement back to front.
+        if !sortOrder.ascending { order.reverse() }
+        let catalog = self.catalog, stored = order
+        Self.catalogWrites.async { catalog.setCustomOrder(stored, in: folder) }
+    }
+
+    /// The catalog changed some files, or a folder's order. Marks of this
+    /// folder's files are read again (one small read), then only what they
+    /// affect is redone: the cells, the filter, or the order.
+    func catalogChanged(_ urls: [URL]) {
+        guard let folder, state == .loaded else { return }
+        var files: [URL] = []
+        var orderChanged = false
+        for url in urls {
+            if Self.samePath(url, folder) {
+                orderChanged = true
+            } else if Self.samePath(url.deletingLastPathComponent(), folder) {
+                files.append(url)
+            }
+        }
+        var changed = Set<String>()
+        if !files.isEmpty {
+            let fresh = catalog.marks(for: files)
+            for url in files {
+                let name = url.lastPathComponent, value = fresh[url] ?? .none
+                guard (marks[name] ?? .none) != value else { continue }
+                marks[name] = value == .none ? nil : value
+                changed.insert(name)
+            }
+        }
+        let resorts = (!changed.isEmpty && sortOrder.key == .rating) || (orderChanged && sortOrder.key == .custom)
+        let refilters = !changed.isEmpty && marksFilter.isActive
+        guard !changed.isEmpty || resorts else { return }
+        changedMarkNames = changed
+
+        // A mark that hides everything selected moves the selection on, as
+        // the Trash does, so culling with a filter up keeps going.
+        var next: URL?
+        if refilters, !selection.isEmpty {
+            let hidden = selection.filter { url in
+                guard let entry = entry(for: url) else { return false }
+                return !marksFilter.passes(entry, marks: marks(for: url), finderTags: finderTags(for: url))
+            }
+            if hidden == selection { next = selectionAfterRemoving(hidden) }
+        }
+        if resorts {
+            if let next { pendingSelection = next }
+            resort()
+            onChange?(.marks)
+        } else if refilters {
+            applyFilter()
+            if let next { select(next, notify: false) }
+            onChange?([.marks, .entries, .selection])
+        } else {
+            onChange?(.marks)
+        }
     }
 
     /// The images that changed size or date, or vanished, between two
@@ -381,11 +672,17 @@ final class BrowserModel {
             return
         }
         let query = Self.searchKey(filter.trimmingCharacters(in: .whitespacesAndNewlines))
-        if query.isEmpty {
+        let marksFilter = self.marksFilter
+        if query.isEmpty, !marksFilter.isActive {
             entries = snapshot.entries
             visibleKeys = snapshot.searchKeys
         } else {
-            let keep = snapshot.searchKeys.indices.filter { snapshot.searchKeys[$0].contains(query) }
+            let keep = snapshot.searchKeys.indices.filter { i in
+                if !query.isEmpty, !snapshot.searchKeys[i].contains(query) { return false }
+                guard marksFilter.isActive else { return true }
+                let entry = snapshot.entries[i]
+                return marksFilter.passes(entry, marks: marks[entry.name] ?? .none, finderTags: finderTags[entry.name] ?? [])
+            }
             entries = keep.map { snapshot.entries[$0] }
             visibleKeys = keep.map { snapshot.searchKeys[$0] }
         }
@@ -559,10 +856,24 @@ final class BrowserModel {
         return bytes > 0 ? "\(count) — \(bytes.formatted(.byteCount(style: .file)))" : count
     }
 
+    /// Status bar: the selection, or "12 of 340 shown" while a search or a
+    /// filter hides some of the folder.
     var statusText: String {
         guard state == .loaded else { return "" }
+        if selection.isEmpty, isFiltering {
+            return Self.shownText(shown: entries.count, total: totalCount)
+        }
         return Self.selectionText(selected: selection.count, total: entries.count, bytes: selectedBytes,
                                   images: imageCount, folders: folderCount)
+    }
+
+    /// A search or a marks filter is narrowing the folder.
+    var isFiltering: Bool {
+        marksFilter.isActive || !filter.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    nonisolated static func shownText(shown: Int, total: Int) -> String {
+        "\(shown.formatted()) of \(total.formatted()) shown"
     }
 
     nonisolated static func samePath(_ a: URL, _ b: URL) -> Bool {

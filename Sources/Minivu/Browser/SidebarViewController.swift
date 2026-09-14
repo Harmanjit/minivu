@@ -110,6 +110,10 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     /// A row was chosen by the user.
     var onNavigate: ((URL) -> Void)?
+    /// Files were dropped on a row: (files, the row's folder, move).
+    var onDropFiles: (([URL], URL, Bool) -> Void)?
+    /// Volume answers for the drag in progress, by folder path.
+    private var dropVolumeCache: (sequence: Int, answers: [String: Bool]) = (-1, [:])
 
     /// Internal so tests can expand and collapse rows as a click would.
     let outlineView = NSOutlineView()
@@ -162,6 +166,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         outlineView.delegate = self
         outlineView.menu = NSMenu()
         outlineView.menu?.delegate = self
+        outlineView.registerForDraggedTypes([.fileURL])
 
         scrollView.documentView = outlineView
         scrollView.hasVerticalScroller = true
@@ -495,6 +500,37 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         guard let node = item as? SidebarNode else { return false }
         if node.kind == .header { return true }
         return node.children.map { !$0.isEmpty } ?? node.mayHaveChildren
+    }
+
+    // MARK: - Drop
+
+    /// Files dropped on a folder row go into that folder, moved or copied by
+    /// Finder's rules. The drop always targets the row itself, never a gap
+    /// between rows: the tree is sorted, there is no "between".
+    func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?,
+                     proposedChildIndex index: Int) -> NSDragOperation {
+        guard let node = item as? SidebarNode, let folder = node.url else { return [] }
+        let (files, operation) = drop(info, into: folder)
+        guard !files.isEmpty, !operation.isEmpty else { return [] }
+        outlineView.setDropItem(node, dropChildIndex: NSOutlineViewDropOnItemIndex)
+        return operation
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
+        guard let folder = (item as? SidebarNode)?.url else { return false }
+        let (files, operation) = drop(info, into: folder)
+        guard !files.isEmpty, !operation.isEmpty else { return false }
+        onDropFiles?(files, folder, operation.contains(.move))
+        return true
+    }
+
+    private func drop(_ info: NSDraggingInfo, into folder: URL) -> ([URL], NSDragOperation) {
+        let files = DropRules.movableItems(GridViewController.fileURLs(from: info.draggingPasteboard), into: folder)
+        guard let first = files.first, VolumePolicy.isAllowed(folder) else { return ([], []) }
+        if dropVolumeCache.sequence != info.draggingSequenceNumber { dropVolumeCache = (info.draggingSequenceNumber, [:]) }
+        let same = dropVolumeCache.answers[folder.path] ?? DropRules.sameVolume(first, folder)
+        dropVolumeCache.answers[folder.path] = same
+        return (files, DropRules.operation(sourceMask: info.draggingSourceOperationMask, sameVolume: same))
     }
 
     // MARK: - Delegate
