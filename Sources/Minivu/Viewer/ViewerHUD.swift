@@ -66,17 +66,24 @@ final class ViewerHUD: NSVisualEffectView {
     ///   - pixelSize: nil until the image is decoded, so the previous image's
     ///     size never shows beside the new name.
     ///   - exposure: nil for non-photos and until the metadata is read.
-    func update(name: String, position: String, pixelSize: CGSize?, zoomPercent: Double?, exposure: String?) {
+    ///   - part: where in the file this is ("Page 2 of 10", or "Frame 3 / 24"
+    ///     for a paused animation); nil for an ordinary image.
+    func update(name: String, position: String, part: String? = nil, pixelSize: CGSize?, zoomPercent: Double?,
+                exposure: String?) {
         nameLabel.stringValue = name
-        detailLabel.stringValue = Self.detailText(position: position, pixelSize: pixelSize, zoomPercent: zoomPercent)
+        detailLabel.stringValue = Self.detailText(position: position, part: part, pixelSize: pixelSize,
+                                                  zoomPercent: zoomPercent)
         exposureLabel.stringValue = exposure ?? ""
         exposureLabel.isHidden = exposure == nil
     }
 
-    /// "3 / 120 · 6000 × 4000 · 25%", leaving out what isn't known.
-    nonisolated static func detailText(position: String, pixelSize: CGSize?, zoomPercent: Double?) -> String {
+    /// "3 / 120 · Page 2 of 10 · 6000 × 4000 · 25%", leaving out what
+    /// isn't known.
+    nonisolated static func detailText(position: String, part: String? = nil, pixelSize: CGSize?,
+                                       zoomPercent: Double?) -> String {
         var parts: [String] = []
         if !position.isEmpty { parts.append(position) }
+        if let part, !part.isEmpty { parts.append(part) }
         if let size = pixelSize, size.width > 0, size.height > 0 {
             parts.append("\(Int(size.width)) × \(Int(size.height))")
         }

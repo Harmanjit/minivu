@@ -232,16 +232,22 @@ public struct DisplaySettings: Sendable, Equatable {
     /// Pass the nearest neighbours first: waiting prefetches start in the
     /// order given.
     public func prefetch(_ entries: [FolderEntry], pixelSize: Int) {
+        prefetch(pages: entries.map { ($0, 0) }, pixelSize: pixelSize)
+    }
+
+    /// The same for particular pages, so a document's next page can be
+    /// prefetched ahead of the neighbouring files.
+    public func prefetch(pages: [(entry: FolderEntry, page: Int)], pixelSize: Int) {
         var wanted: Set<Int> = []
-        for entry in entries where !entry.isDirectory && entry.kind != nil {
-            let size = snapped(pixelSize, for: entry, page: 0)
+        for (entry, page) in pages where !entry.isDirectory && entry.kind != nil {
+            let size = snapped(pixelSize, for: entry, page: page)
             // A cache hit also marks the texture used, so the neighbours of
             // the current photo are the last thing evicted.
-            if cache.bestTexture(url: entry.url, modified: entry.modified, page: 0, minimumLongEdge: size) != nil {
+            if cache.bestTexture(url: entry.url, modified: entry.modified, page: page, minimumLongEdge: size) != nil {
                 continue
             }
-            let job = existingJob(entry, page: 0, pixelSize: size)
-                ?? makeJob(entry, page: 0, pixelSize: size, priority: .utility)
+            let job = existingJob(entry, page: page, pixelSize: size)
+                ?? makeJob(entry, page: page, pixelSize: size, priority: .utility)
             job.wantedByPrefetch = true
             job.stop.set(false)
             if job.priority < .userInitiated {
@@ -495,9 +501,11 @@ public struct DisplaySettings: Sendable, Equatable {
     /// Snaps a screen request the way the decoder will, once the image's size
     /// is known from any cached texture of it. Requests of 3000 and 3024 px
     /// then both ask for the 3016 px the JPEG codec makes cheaply, and share
-    /// one decode.
+    /// one decode. A PDF or SVG renders at exactly the size asked, so there is
+    /// nothing to snap to.
     private func snapped(_ pixelSize: Int, for entry: FolderEntry, page: Int) -> Int {
-        guard let size = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page) else {
+        guard entry.kind != .pdf, entry.kind != .svg,
+              let size = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page) else {
             return pixelSize
         }
         let longest = Int(max(size.width, size.height))

@@ -1,5 +1,6 @@
 import Testing
 import AppKit
+import ImageIO
 import MinivuCore
 @testable import Minivu
 
@@ -140,6 +141,126 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         model.replace(images: entries(8), index: 6)
         #expect(model.index == 6 && model.count == 8 && model.wrapAround)
     }
+
+    // MARK: - Pages
+
+    @Test func pagesAreKnownOnlyForTheCurrentImage() {
+        let list = entries(3)
+        var model = ViewerModel(images: list, index: 0)
+        #expect(!model.isMultiPage && model.pageText.isEmpty && model.pageHUDText == nil)
+        model.setPageCount(10, for: list[1])   // a late answer for another image
+        #expect(model.pageCount == 1)
+        model.setPageCount(10, for: list[0])
+        #expect(model.isMultiPage && model.pageText == "1 / 10" && model.pageHUDText == "Page 1 of 10")
+        #expect(!model.canGoPreviousPage && model.canGoNextPage)
+    }
+
+    @Test func optionArrowsStayWithinTheDocument() {
+        let list = entries(3)
+        var model = ViewerModel(images: list, index: 1)
+        model.setPageCount(2, for: list[1])
+        let backFromFirst = model.previousPage()
+        #expect(!backFromFirst)
+        let forward = model.nextPage()
+        #expect(forward && model.page == 1 && model.pageText == "2 / 2")
+        let pastLast = model.nextPage()
+        #expect(!pastLast)
+        #expect(model.index == 1)
+        let back = model.previousPage()
+        #expect(back && model.page == 0)
+    }
+
+    @Test func pageKeysTurnPagesThenMoveOn() {
+        let list = entries(3)
+        var model = ViewerModel(images: list, index: 1)
+        model.setPageCount(3, for: list[1])
+        var steps: [ViewerModel.PageStep] = []
+        steps.append(model.pageForward())
+        steps.append(model.pageForward())
+        #expect(steps == [.page, .page] && model.page == 2)
+        // The last page: on to the next image, which starts on its first page.
+        steps = [model.pageForward()]
+        #expect(steps == [.image])
+        #expect(model.index == 2 && model.page == 0 && model.pageCount == 1)
+        steps = [model.pageForward()]
+        #expect(steps == [.none])
+        // Back into the document (its page count is read again) and out.
+        steps = [model.pageBackward()]
+        #expect(steps == [.image] && model.index == 1 && model.page == 0)
+        model.setPageCount(3, for: list[1])
+        model.nextPage()
+        steps = [model.pageBackward(), model.pageBackward(), model.pageBackward()]
+        #expect(steps == [.page, .image, .none] && model.index == 0)
+    }
+
+    @Test func movingOrRemovingResetsThePage() {
+        let list = entries(4)
+        var model = ViewerModel(images: list, index: 1)
+        model.setPageCount(5, for: list[1])
+        model.nextPage()
+        model.move(to: 3)
+        #expect(model.page == 0 && model.pageCount == 1)
+
+        model.setPageCount(5, for: list[3])
+        model.nextPage()
+        model.remove(list[0])   // an earlier image: same document, same page
+        #expect(model.current == list[3] && model.page == 1)
+        model.remove(list[3])   // the document itself: the next one starts over
+        #expect(model.page == 0 && model.pageCount == 1)
+    }
+
+    @Test func prefetchPutsTheNextPageFirst() {
+        let list = entries(5)
+        var model = ViewerModel(images: list, index: 2)
+        #expect(model.prefetchPages.map { "\($0.entry.name):\($0.page)" } == ["d.jpg:0", "e.jpg:0", "b.jpg:0"])
+        model.setPageCount(3, for: list[2])
+        #expect(model.prefetchPages.map { "\($0.entry.name):\($0.page)" }
+                == ["c.jpg:1", "d.jpg:0", "e.jpg:0", "b.jpg:0"])
+        model.nextPage()
+        model.nextPage()
+        #expect(model.prefetchPages.first?.entry.name == "d.jpg")
+    }
+}
+
+@Suite struct ViewerDocumentRulesTests {
+    func entry(_ name: String, _ kind: ImageKind) -> FolderEntry {
+        FolderEntry(url: URL(fileURLWithPath: "/tmp/\(name)"), name: name, isDirectory: false, kind: kind,
+                    fileSize: 1, modified: .distantPast, created: .distantPast)
+    }
+
+    @Test func onlyFormatsWithPagesOrFramesAreInspected() {
+        #expect(ViewerWindowController.mayHavePagesOrFrames(entry("a.pdf", .pdf)))
+        #expect(ViewerWindowController.mayHavePagesOrFrames(entry("a.TIF", .raster)))
+        #expect(ViewerWindowController.mayHavePagesOrFrames(entry("a.gif", .raster)))
+        #expect(ViewerWindowController.mayHavePagesOrFrames(entry("a.webp", .raster)))
+        #expect(!ViewerWindowController.mayHavePagesOrFrames(entry("a.jpg", .raster)))
+        #expect(!ViewerWindowController.mayHavePagesOrFrames(entry("a.nef", .raw)))
+        #expect(!ViewerWindowController.mayHavePagesOrFrames(entry("a.svg", .svg)))
+    }
+
+    @Test func sharpeningRules() {
+        typealias C = ViewerWindowController
+        // Zoomed in: full resolution.
+        #expect(!C.wantsScreenSizedSharpening(fitted: false, kind: .raster, imageLongEdge: 6000, textureLongEdge: 2880,
+                                              canvasLongEdge: 2880))
+        #expect(!C.wantsScreenSizedSharpening(fitted: false, kind: .pdf, imageLongEdge: 6740, textureLongEdge: 1000,
+                                              canvasLongEdge: 2880))
+        // Fitted, the window outgrew the texture (or a stand-in is up): screen size.
+        #expect(C.wantsScreenSizedSharpening(fitted: true, kind: .raster, imageLongEdge: 6000, textureLongEdge: 1600,
+                                             canvasLongEdge: 2880))
+        #expect(C.wantsScreenSizedSharpening(fitted: true, kind: .pdf, imageLongEdge: 6740, textureLongEdge: 1600,
+                                             canvasLongEdge: 2880))
+        // Fitted with a texture that covers the canvas: the magnifier wants
+        // detail, which only full resolution has (a screen-sized load would
+        // hand back the texture already showing).
+        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .raster, imageLongEdge: 6000, textureLongEdge: 2880,
+                                              canvasLongEdge: 2880))
+        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .pdf, imageLongEdge: 6740, textureLongEdge: 2880,
+                                              canvasLongEdge: 2880))
+        // A vector smaller than the canvas always takes full resolution.
+        #expect(!C.wantsScreenSizedSharpening(fitted: true, kind: .svg, imageLongEdge: 200, textureLongEdge: 800,
+                                              canvasLongEdge: 2880))
+    }
 }
 
 @Suite struct ViewerKeyCommandTests {
@@ -153,10 +274,10 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
     @Test func navigationKeys() {
         #expect(command(key(NSRightArrowFunctionKey)) == .next)
         #expect(command(" ") == .next)
-        #expect(command(key(NSPageDownFunctionKey)) == .next)
+        #expect(command(key(NSPageDownFunctionKey)) == .pageForward)
         #expect(command(key(NSLeftArrowFunctionKey)) == .previous)
         #expect(command(key(NSDeleteCharacter)) == .previous)
-        #expect(command(key(NSPageUpFunctionKey)) == .previous)
+        #expect(command(key(NSPageUpFunctionKey)) == .pageBackward)
         #expect(command(key(NSDownArrowFunctionKey)) == .next)
         #expect(command(key(NSUpArrowFunctionKey)) == .previous)
         #expect(command(key(NSHomeFunctionKey)) == .first)
@@ -170,8 +291,19 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(command(key(NSDownArrowFunctionKey), zoomedIn: true) == .pan(x: 0, y: 1))
         #expect(command(key(NSUpArrowFunctionKey), zoomedIn: true) == .pan(x: 0, y: -1))
         #expect(command(" ", zoomedIn: true) == .next)
-        #expect(command(key(NSPageUpFunctionKey), zoomedIn: true) == .previous)
+        #expect(command(key(NSPageUpFunctionKey), zoomedIn: true) == .pageBackward)
         #expect(command(key(NSDeleteCharacter), zoomedIn: true) == .previous)
+    }
+
+    /// Option with the arrows or paging keys turns pages, zoomed in or not.
+    @Test func optionKeysTurnPages() {
+        #expect(command(key(NSRightArrowFunctionKey), .option) == .nextPage)
+        #expect(command(key(NSPageDownFunctionKey), .option) == .nextPage)
+        #expect(command(key(NSLeftArrowFunctionKey), [.option, .function], zoomedIn: true) == .previousPage)
+        #expect(command(key(NSPageUpFunctionKey), .option) == .previousPage)
+        #expect(command("p") == .togglePlayback)
+        #expect(ViewerKeyCommand.nextPage.repeats && ViewerKeyCommand.pageForward.repeats)
+        #expect(!ViewerKeyCommand.togglePlayback.repeats)
     }
 
     @Test func viewKeys() {
@@ -205,7 +337,9 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
     @Test func leavesOtherKeysAlone() {
         #expect(command("w", .command) == nil)
         #expect(command("=", .command) == nil)
-        #expect(command(key(NSRightArrowFunctionKey), .option) == nil)
+        #expect(command(key(NSRightArrowFunctionKey), [.option, .command]) == nil)
+        #expect(command("p", .option) == nil)
+        #expect(command(key(NSHomeFunctionKey), .option) == nil)
         #expect(command("") == nil)
         #expect(command("x") == nil)
     }
@@ -284,6 +418,8 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(ViewerHUD.detailText(position: "3 / 120", pixelSize: CGSize(width: 6000, height: 4000),
                                      zoomPercent: 25) == "3 / 120  ·  6000 × 4000  ·  25%")
         #expect(ViewerHUD.detailText(position: "3 / 120", pixelSize: nil, zoomPercent: nil) == "3 / 120")
+        #expect(ViewerHUD.detailText(position: "3 / 120", part: "Page 2 of 10", pixelSize: CGSize(width: 1190, height: 1684),
+                                     zoomPercent: 50) == "3 / 120  ·  Page 2 of 10  ·  1190 × 1684  ·  50%")
     }
 
     @Test func zoomText() {
@@ -340,6 +476,123 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         ViewerWindowController.show(images: [], index: 0, fullScreen: false) { closed.append("new:\($0?.name ?? "nil")") }
         #expect(ViewerWindowController.current == nil)
         #expect(closed == ["new:nil"])
+    }
+
+    func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+        let end = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < end {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
+    /// A real three-page PDF: its page count arrives from a background read,
+    /// the option keys turn pages and Page Down carries on to the next file.
+    @Test func documentPagesTurnWithTheKeys() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-pages-\(UUID())")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let pdf = folder.appendingPathComponent("a.pdf")
+        var box = CGRect(x: 0, y: 0, width: 120, height: 160)
+        let context = try #require(CGContext(pdf as CFURL, mediaBox: &box, nil))
+        for _ in 0..<3 {
+            context.beginPDFPage(nil)
+            context.endPDFPage()
+        }
+        context.closePDF()
+        let other = folder.appendingPathComponent("b.pdf")
+        try FileManager.default.copyItem(at: pdf, to: other)
+        let list = try [pdf, other].map { try #require(FolderEntry(url: $0)) }
+
+        ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+        let viewer = try #require(ViewerWindowController.current)
+        defer { viewer.exitViewer(nil) }
+        await waitUntil { viewer.pageState.count == 3 }
+        #expect(viewer.pageState == (0, 3))
+
+        func press(_ key: Int, _ modifiers: NSEvent.ModifierFlags = []) throws {
+            let window = try #require(viewer.window)
+            let characters = String(Character(UnicodeScalar(key)!))
+            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+                                                      timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                                      characters: characters, charactersIgnoringModifiers: characters,
+                                                      isARepeat: false, keyCode: 0))
+            window.contentView?.keyDown(with: event)
+        }
+        try press(NSRightArrowFunctionKey, .option)
+        #expect(viewer.pageState == (1, 3))
+        #expect(viewer.window?.title == "a.pdf")
+        try press(NSPageDownFunctionKey)
+        #expect(viewer.pageState == (2, 3))
+        try press(NSRightArrowFunctionKey, .option)   // the last page: stays
+        #expect(viewer.pageState == (2, 3))
+        try press(NSPageDownFunctionKey)               // on to the next file, page 1
+        #expect(viewer.window?.title == "b.pdf")
+        #expect(viewer.pageState.page == 0)
+        viewer.previousImage(nil)
+        #expect(viewer.pageState == (0, 1))            // not read again yet
+    }
+
+    /// An animated GIF plays by itself onto the canvas, P pauses it, and
+    /// moving to another image or closing stops it.
+    @Test func animationsPlayAndPause() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-gif-\(UUID())")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = folder.appendingPathComponent("a.gif")
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, 3, nil))
+        // Loops forever, so it is still playing whenever the test looks.
+        CGImageDestinationSetProperties(destination, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]]
+            as CFDictionary)
+        for level in [0.0, 0.5, 1.0] {
+            let ctx = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.setFillColor(gray: level, alpha: 1)
+            ctx.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
+            let props = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.05]]
+            CGImageDestinationAddImage(destination, try #require(ctx.makeImage()), props as CFDictionary)
+        }
+        #expect(CGImageDestinationFinalize(destination))
+        let still = folder.appendingPathComponent("b.png")
+        let stillDestination = try #require(CGImageDestinationCreateWithURL(still as CFURL, "public.png" as CFString, 1, nil))
+        let stillContext = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
+                                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        CGImageDestinationAddImage(stillDestination, try #require(stillContext.makeImage()), nil)
+        #expect(CGImageDestinationFinalize(stillDestination))
+        let entries = try [url, still].map { try #require(FolderEntry(url: $0)) }
+
+        ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
+        let viewer = try #require(ViewerWindowController.current)
+        defer { viewer.exitViewer(nil) }
+        await waitUntil { (viewer.animationPlayer?.frameCount ?? 0) > 0 }
+        let player = try #require(viewer.animationPlayer)
+        #expect(player.frameCount == 3 && player.isPlaying)
+        #expect(viewer.pageState.count == 1)   // frames aren't pages
+
+        // Frames reach the canvas: one texture per frame, where the still
+        // decode is just one. A test run's window is usually not on screen,
+        // which suspends the clock; let it play as if it were.
+        player.isSuspended = false
+        var textures: Set<ObjectIdentifier> = []
+        await waitUntil {
+            if let texture = viewer.canvasTexture { textures.insert(ObjectIdentifier(texture)) }
+            return textures.count >= 3
+        }
+        #expect(textures.count >= 3)
+
+        viewer.togglePlayback(nil)
+        #expect(!player.isPlaying)
+        viewer.togglePlayback(nil)
+        #expect(player.isPlaying)
+
+        // On to the still: the animation stops for good.
+        viewer.nextImage(nil)
+        #expect(!player.isPlaying && viewer.animationPlayer == nil)
+        let frame = player.currentFrame
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(player.currentFrame == frame)
+        #expect(viewer.animationPlayer == nil)   // a still, so nothing started
     }
 
     /// Nothing (a display link, a work item, a panel callback) keeps a closed
