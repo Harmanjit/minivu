@@ -366,10 +366,24 @@ extension AppWindowTests {
             try await Task.sleep(for: .milliseconds(100))
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400))
 
+            viewer.histogramPanel.model.onCountColors?()
+            await waitUntil { viewer.histogramPanel.model.colorCount != .counting }
+            #expect(viewer.histogramPanel.model.colorCount != .idle)
             try folder.jpeg("a.jpg", width: 300, height: 500)
             ExternalEditWatcher.filesChanged([a])
             await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500))
+            // The entry takes the saved file's date and size at once, so the
+            // info panel and colour count describe it without moving away.
+            let saved = try #require(FolderEntry(url: a))
+            #expect(saved.fileSize != list[0].fileSize)
+            #expect(viewer.model.current?.fileSize == saved.fileSize)
+            #expect(viewer.model.current?.modified == saved.modified)
+            #expect(viewer.model.index == 0 && viewer.model.images[1] == list[1])
+            #expect(viewer.displayed?.entry == viewer.model.current)
+            #expect(viewer.histogramPanel.model.colorCount == .idle, "the old file's count is gone")
+            await waitUntil { viewer.canEditCurrent }
+            #expect(viewer.canEditCurrent, "the saved file can be edited")
 
             // With unsaved edits the user is asked. Keep My Edits: the edited
             // image stays, and Save becomes Save As, leaving the file alone.

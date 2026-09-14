@@ -10,6 +10,9 @@ import MinivuCore
 struct InfoPanelView: View {
     /// The file to describe, or nil for "nothing selected".
     let url: URL?
+    /// The file's date as listed: a new one (another application saved the
+    /// file) reads the metadata again, for the same URL.
+    var modified: Date?
 
     @State private var sections: [MetadataSection] = []
     @State private var loadedURL: URL?
@@ -55,7 +58,7 @@ struct InfoPanelView: View {
                 }
             }
         }
-        .task(id: url) {
+        .task(id: Subject(url: url, modified: modified)) {
             guard let url else { sections = []; return }
             let read = await BlockingWork.run {
                 MetadataReader.sections(for: url)
@@ -64,5 +67,10 @@ struct InfoPanelView: View {
             sections = read
             loadedURL = url
         }
+    }
+
+    private struct Subject: Hashable {
+        var url: URL?
+        var modified: Date?
     }
 }

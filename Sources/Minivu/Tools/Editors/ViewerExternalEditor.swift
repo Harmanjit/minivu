@@ -27,7 +27,7 @@ extension ViewerWindowController {
               urls.contains(where: { SavePresenter.sameFile($0, shown.entry.url) }) else { return }
         guard hasUnsavedEdits, let session = editSession else {
             if editSession != nil { endEditSession() }
-            loadCurrentPage(reloading: true)
+            showSavedFile()
             return
         }
         guard session.externalChange == .none else { return }
@@ -42,7 +42,7 @@ extension ViewerWindowController {
             // The edits went (undone, or saved as a new file) while waiting:
             // nothing to lose, so show what the other application saved.
             endEditSession()
-            loadCurrentPage(reloading: true)
+            showSavedFile()
             return
         }
         guard window.attachedSheet == nil else {
@@ -57,12 +57,30 @@ extension ViewerWindowController {
             switch choice {
             case .reload:
                 self.endEditSession()
-                self.loadCurrentPage(reloading: true)
+                self.showSavedFile()
             case .keepEdits:
                 session.externalChange = .kept
                 self.updateChrome()
             }
         }
+    }
+
+    /// Decodes the image shown again, from the file the editor saved. Its
+    /// entry takes the file's new date and size first (the viewer keeps the
+    /// listing it was opened with), and everything that describes the image
+    /// is brought up to date as for a new one: the info panel, the colour
+    /// count, the filmstrip's thumbnail, the pages and frames read. Zoom and
+    /// pan are kept when the size didn't change. Only with no edit session,
+    /// which belongs to the entry it began with.
+    private func showSavedFile() {
+        if let shown = current, editSession == nil {
+            var entry = shown.entry
+            let stamp = ExternalEditWatcher.stamp(of: entry.url)
+            entry.modified = stamp.modified ?? entry.modified
+            entry.fileSize = stamp.size.map(Int64.init) ?? entry.fileSize
+            refreshEntry(entry)
+        }
+        loadCurrentPage(reloading: true)
     }
 
     @objc private func sheetEndedBeforeExternalChangeQuestion(_ notification: Notification) {

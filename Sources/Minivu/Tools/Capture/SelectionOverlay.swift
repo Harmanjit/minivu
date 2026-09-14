@@ -97,14 +97,27 @@ final class SelectionOverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    /// Every key press is the overlay's while it is up. AppKit offers key
-    /// presses to the key window, then to the menu bar, and a menu item with
-    /// a nil target would reach the browser or viewer behind, which stays
-    /// main: ⌘Delete would trash its photos. Esc and Return still work.
+    /// Every key press is the overlay's while it is up, but ⌘Q. AppKit offers
+    /// key presses to the key window, then to the menu bar, and a menu item
+    /// with a nil target would reach the browser or viewer behind, which
+    /// stays main: ⌘Delete would trash its photos. Esc and Return still work.
     /// (Not by way of `keyDown`: NSWindow's sends unhandled keys back here.)
+    ///
+    /// ⌘Q abandons the capture, before anything is captured or written, and
+    /// goes on to Quit. The overlay closes first, so a question Quit asks
+    /// (unsaved edits) isn't hidden under it.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if Self.isQuit(event) {
+            overlayView.onFinish?(nil)
+            return false
+        }
         _ = overlayView.handleKey(event)
         return true
+    }
+
+    static func isQuit(_ event: NSEvent) -> Bool {
+        event.modifierFlags.intersection([.command, .control, .option, .shift]) == .command
+            && event.charactersIgnoringModifiers?.lowercased() == "q"
     }
 }
 

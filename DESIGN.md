@@ -556,8 +556,12 @@ above 20). Files sent are watched with one FSEvents stream per folder, for
 the 8 most recent folders; stamps are read after the previous comparison
 finishes, with cached resource values dropped, and a missing file isn't
 reported. A changed file's caches drop and the viewer reloads it, keeping
-the zoom when the size is unchanged. With unsaved edits the viewer asks as a
-sheet, after any other sheet ends: Keep My Edits (the default) or Reload.
+the zoom when the size is unchanged; its entry takes the file's new date and
+size first and is described again (info panel, colour count, filmstrip,
+pages). The info panel reads again when the date changes, not only the URL,
+so the browser's preview, whose listing already updates, follows too. With
+unsaved edits the viewer asks as a sheet, after any other sheet ends: Keep
+My Edits (the default) or Reload.
 From the moment the change is seen, the session's `externalChange` turns
 Save into Save As, even for a "Replace the original?" already on screen.
 minivu's own writes (`SavePresenter.didWrite`) re-stamp watched files, so a
@@ -861,9 +865,10 @@ shows display-only shortcuts on the bar it is given, so it must get a fresh
   `NSPrintPreviewGraphicsContext`, the preview decodes at print quality on
   the main thread.
 - **Capture:** captures are 8-bit SDR PNGs; HDR capture is future work.
-- **External editors:** after an editor saves, the viewer's entry keeps the
-  old date and size, so the info panel and colour count lag until you move
-  to another image.
+- **External editors:** after Keep My Edits, the viewer's entry keeps the
+  old date and size while that edit session lasts, so if the edits are then
+  reverted the info panel and colour count lag until the editor saves again
+  or you move to another image.
 - **Desktop picture:** copies set on other Spaces can be pruned while still
   in use there.
 - **Help:** without a Help Book, the Help menu's search field finds menu

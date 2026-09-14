@@ -129,6 +129,25 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(model.count == 3 && model.index == 1)
     }
 
+    /// A file saved elsewhere: its entry takes the new date and size where it
+    /// is, without moving the viewer or resetting its page.
+    @Test func refreshReplacesAnEntryInPlace() {
+        let list = entries(3)
+        var model = ViewerModel(images: list, index: 1)
+        model.setPageCount(4, for: list[1])
+        model.nextPage()
+        var saved = list[1]
+        saved.modified = Date(timeIntervalSince1970: 1_789_381_805)
+        saved.fileSize = 2048
+        let refreshed = model.refresh(saved)
+        #expect(refreshed)
+        #expect(model.current == saved && model.index == 1 && model.page == 1 && model.count == 3)
+        let again = model.refresh(saved), unlisted = model.refresh(entries(5)[4])
+        #expect(!again, "nothing changed")
+        #expect(!unlisted, "not listed")
+        #expect(model.images.map(\.url) == list.map(\.url))
+    }
+
     @Test func removingEverythingEmptiesTheModel() {
         let list = entries(1)
         var model = ViewerModel(images: list, index: 0)
