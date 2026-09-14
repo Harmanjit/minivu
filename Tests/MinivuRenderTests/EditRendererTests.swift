@@ -207,6 +207,72 @@ import Metal
         #expect(!ok(2, false, after: (2, true)))       // blurrier, same state
     }
 
+    // MARK: - Stages
+
+    /// After a downsizing resize, slider renders start from the resized
+    /// image rendered once, and show the same pixels as a render from the
+    /// original.
+    @Test func rendersAfterADownsizingResizeStartFromAStage() async throws {
+        let doc = document(quadrantFile(width: 1600, height: 800))
+        try await renderer.prepare(doc, proxyPixelSize: 800)
+        doc.apply(.rotate(degrees: 3, autoCrop: true))
+        doc.apply(.resize(width: 400, height: 190, filter: .lanczos3))
+        doc.apply(.blur(radius: 3))
+        let lighting = { (b: Double) in EditOperation.lighting(brightness: b, contrast: 0.2, gamma: 1, shadows: 0, highlights: 0) }
+
+        doc.preview = lighting(0.1)
+        _ = await preview(doc, 1000)
+        let stage = try #require(doc.previewLane.stage)
+        #expect(stage.operations.count == 2 && stage.size == CGSize(width: 400, height: 190))
+        #expect(stage.texture.width == 400 && stage.texture.height == 190)
+
+        doc.preview = lighting(0.3)
+        let staged = await preview(doc, 1000)
+        #expect(doc.previewLane.stage === stage, "the same stage for the next frame")
+
+        let source = try #require(doc.source)
+        let direct = EditGraph.image(source: source.image, sourceSize: source.size,
+                                     operations: doc.renderedOperations, scale: 1)
+        let expected = F.pixels(try EditRenderer.renderTexture(direct, context: renderer.context, gpu: renderer.gpu))
+        let got = F.pixels(staged.texture)
+        #expect(got.width == expected.width && got.height == expected.height)
+        var worst: Float = 0
+        for y in 0..<got.height {
+            for x in 0..<got.width {
+                let a = got[x, y], b = expected[x, y]
+                for c in 0..<4 { worst = max(worst, abs(a[c] - b[c])) }
+            }
+        }
+        #expect(worst < 2e-3, "largest difference \(worst)")
+
+        // Undoing the resize drops the stage with the next render.
+        doc.preview = nil
+        doc.undo()
+        doc.undo()
+        _ = await preview(doc, 1000)
+        #expect(doc.previewLane.stage == nil)
+    }
+
+    @Test func stageLengths() {
+        let size = CGSize(width: 6000, height: 4000)
+        let smaller = EditOperation.resize(width: 1500, height: 1000, filter: .lanczos3)
+        let larger = EditOperation.resize(width: 9000, height: 6000, filter: .lanczos3)
+        func length(_ ops: [EditOperation], committed: Int? = nil) -> Int? {
+            EditRenderer.stageLength(operations: ops, committed: committed ?? ops.count, sourceSize: size)
+        }
+        #expect(length([smaller, .grayscale]) == 1)
+        #expect(length([.grayscale, smaller, .grayscale], committed: 2) == 2, "a preview after it")
+        #expect(length([smaller]) == nil, "nothing after it")
+        #expect(length([.grayscale, smaller], committed: 1) == nil, "the resize is only a preview")
+        #expect(length([larger, .grayscale]) == nil, "more pixels, not fewer")
+        #expect(length([.crop(CGRect(x: 0, y: 0, width: 0.1, height: 0.1)), larger, .grayscale]) == nil)
+        let smallest = EditOperation.resize(width: 750, height: 500, filter: .box)
+        #expect(length([smaller, .blur(radius: 2), smallest, .grayscale]) == 3, "the last one")
+        #expect(length([smaller, .blur(radius: 2), larger, .grayscale]) == 1, "the last one that shrinks")
+        #expect(length([smaller, smaller, .grayscale]) == 1, "the same size again shrinks nothing")
+        #expect(length([.grayscale]) == nil)
+    }
+
     // MARK: - Plans
 
     @Test func previewPlans() {

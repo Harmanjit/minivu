@@ -236,4 +236,7 @@ extension EditDocument {
     var pending: Request?
     /// The document revision the running render took, once it has.
     var runningRevision: Int?
+    /// This lane's renders' committed operations up to a downsizing resize,
+    /// already rendered (see `EditStage`).
+    var stage: EditStage?
 }
