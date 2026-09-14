@@ -167,9 +167,12 @@ public struct Annotation: Codable, Hashable, Sendable, Identifiable {
              textOutlineColor, autoresizesHeight
     }
 
+    /// Missing keys take the kind's defaults. So do enum values this version
+    /// doesn't know (a dash style or weight added later): one unfamiliar
+    /// word shouldn't make a whole document fail to load.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let kind = try c.decodeIfPresent(Kind.self, forKey: .kind) ?? .rectangle
+        let kind = (try? c.decodeIfPresent(Kind.self, forKey: .kind)) ?? .rectangle
         let d = Annotation(kind: kind, id: try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID())
         self = d
         frame = try c.decodeIfPresent(CGRect.self, forKey: .frame) ?? d.frame
@@ -180,16 +183,16 @@ public struct Annotation: Codable, Hashable, Sendable, Identifiable {
         strokeColor = try c.decodeIfPresent(EditColor.self, forKey: .strokeColor) ?? d.strokeColor
         fillColor = try c.decodeIfPresent(EditColor.self, forKey: .fillColor) ?? d.fillColor
         strokeWidth = try c.decodeIfPresent(Double.self, forKey: .strokeWidth) ?? d.strokeWidth
-        dash = try c.decodeIfPresent(Dash.self, forKey: .dash) ?? d.dash
-        arrowheads = try c.decodeIfPresent(Arrowheads.self, forKey: .arrowheads) ?? d.arrowheads
+        dash = (try? c.decodeIfPresent(Dash.self, forKey: .dash)) ?? d.dash
+        arrowheads = (try? c.decodeIfPresent(Arrowheads.self, forKey: .arrowheads)) ?? d.arrowheads
         arrowheadSize = try c.decodeIfPresent(Double.self, forKey: .arrowheadSize) ?? d.arrowheadSize
         opacity = try c.decodeIfPresent(Double.self, forKey: .opacity) ?? d.opacity
         shadow = try c.decodeIfPresent(Bool.self, forKey: .shadow) ?? d.shadow
         text = try c.decodeIfPresent(String.self, forKey: .text) ?? d.text
         fontFamily = try c.decodeIfPresent(String.self, forKey: .fontFamily) ?? d.fontFamily
-        fontWeight = try c.decodeIfPresent(FontWeight.self, forKey: .fontWeight) ?? d.fontWeight
+        fontWeight = (try? c.decodeIfPresent(FontWeight.self, forKey: .fontWeight)) ?? d.fontWeight
         fontSize = try c.decodeIfPresent(Double.self, forKey: .fontSize) ?? d.fontSize
-        alignment = try c.decodeIfPresent(Alignment.self, forKey: .alignment) ?? d.alignment
+        alignment = (try? c.decodeIfPresent(Alignment.self, forKey: .alignment)) ?? d.alignment
         textColor = try c.decodeIfPresent(EditColor.self, forKey: .textColor) ?? d.textColor
         textOutlineColor = try c.decodeIfPresent(EditColor.self, forKey: .textOutlineColor) ?? d.textOutlineColor
         autoresizesHeight = try c.decodeIfPresent(Bool.self, forKey: .autoresizesHeight) ?? d.autoresizesHeight
@@ -269,14 +272,15 @@ extension Annotation {
             let head = arrowheads == .none ? 0 : AnnotationRenderer.arrowheadLength(self, in: size)
             r = r.insetBy(dx: -(w + head), dy: -(w + head))
         } else {
-            let box = localBox(in: size).insetBy(dx: -w, dy: -w)
+            // Text may reach a tenth of the font size past the box (the
+            // renderer clips it there). That margin is in the box's own,
+            // possibly turned, coordinates, so it goes on before turning.
+            let margin = w + (kind.hasText ? fontPixelSize(in: size) * 0.1 : 0)
+            let box = localBox(in: size).insetBy(dx: -margin, dy: -margin)
             let t = boxTransform(in: size)
             let corners = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
                            CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)].map { $0.applying(t) }
             r = Self.boundingRect(corners)
-            if kind.hasText {
-                r = r.insetBy(dx: -fontPixelSize(in: size) * 0.1, dy: -fontPixelSize(in: size) * 0.1)
-            }
             if kind == .callout {
                 r = r.union(CGRect(origin: pixelPoint(tailPoint, in: size), size: .zero).insetBy(dx: -2 * w, dy: -2 * w))
             }
@@ -339,7 +343,10 @@ extension Annotation {
 /// translucent black, blurred with `CIGaussianBlur` and offset. A layer
 /// never holds an object whose shadow would fall on an earlier object of
 /// the same layer, so every shadow still lands exactly where list order
-/// puts it.
+/// puts it. One approximation remains: shadows of one layer that overlap
+/// each other merge like one silhouette's (half black) instead of darkening
+/// each other, as the overlay's per-object Core Graphics shadows do while an
+/// object is dragged.
 ///
 /// **Measured** (debug build, `AnnotationGraphTests`), 20 objects of every
 /// kind with labels, 7 of them shadowed:

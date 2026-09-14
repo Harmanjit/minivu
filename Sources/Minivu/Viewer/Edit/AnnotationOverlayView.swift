@@ -402,14 +402,25 @@ final class AnnotationOverlayView: NSView, NSMenuItemValidation, NSTextViewDeleg
             if state.selectedID != nil { state.duplicateSelection() } else { NSSound.beep() }
             return
         }
+        let isDelete = [NSDeleteCharacter, NSBackspaceCharacter, NSDeleteFunctionKey].contains(Int(scalar.value))
         guard flags.subtracting(.shift).isEmpty, state.selectedID != nil else {
+            // The viewer reads Delete as "previous image": pressed once too
+            // often after deleting an object, it would leave the image.
+            if isDelete, flags.subtracting(.shift).isEmpty {
+                NSSound.beep()
+                return
+            }
             super.keyDown(with: event)
             return
         }
         let step: CGFloat = flags.contains(.shift) ? 10 : 1
         switch Int(scalar.value) {
-        case NSDeleteCharacter, NSBackspaceCharacter, NSDeleteFunctionKey:
+        case _ where isDelete:
             state.deleteSelection()
+        case 0x1B:
+            // Esc lets go of the selection first; with nothing selected it
+            // reaches the viewer, which cancels the tool.
+            state.select(nil)
         case NSLeftArrowFunctionKey: state.nudge(dx: -step, dy: 0)
         case NSRightArrowFunctionKey: state.nudge(dx: step, dy: 0)
         case NSUpArrowFunctionKey: state.nudge(dx: 0, dy: -step)
@@ -429,8 +440,14 @@ final class AnnotationOverlayView: NSView, NSMenuItemValidation, NSTextViewDeleg
     /// every tool's) cancels a tool with changes. Handled as key equivalents
     /// rather than as `undo:` because declaring that selector in Swift turns
     /// `ViewerWindow`'s string selectors for it into warnings.
+    ///
+    /// Whatever has the keyboard, except text being typed (its own typing
+    /// undo comes first): the overlay loses first responder to a click on
+    /// the filmstrip or a panel, and ⌘Z must not then throw the whole drawing
+    /// away. Key equivalents reach every view of the key window, so this
+    /// still runs.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard window?.firstResponder === self,
+        guard let window, !(window.firstResponder is NSText),
               event.charactersIgnoringModifiers?.lowercased() == "z" else { return super.performKeyEquivalent(with: event) }
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         if flags == .command, state.undoName != nil {
@@ -460,16 +477,15 @@ final class AnnotationOverlayView: NSView, NSMenuItemValidation, NSTextViewDeleg
     /// Shows, moves or removes the text view to match `state.editingID`.
     private func syncTextView() {
         guard let id = state.editingID, state.object(id) != nil else {
-            if let textView {
+            if textView != nil {
                 let hadKeyboard = window?.firstResponder === textView
-                textView.removeFromSuperview()
-                self.textView = nil
+                removeTextView()
                 if hadKeyboard { window?.makeFirstResponder(self) }
             }
             return
         }
         if textView?.objectID != id {
-            textView?.removeFromSuperview()
+            removeTextView()
             let view = AnnotationTextView(objectID: id)
             view.delegate = self
             view.onCancel = { [weak self] in
@@ -484,6 +500,26 @@ final class AnnotationOverlayView: NSView, NSMenuItemValidation, NSTextViewDeleg
         } else {
             layoutTextView()
         }
+    }
+
+    /// The tool closed (or the viewer is switching windows) while text was
+    /// being typed: its typing leaves the window's undo manager with it.
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow !== window, textView != nil { textView?.undoManager?.removeAllActions() }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    /// Removes the text view, and its typing from the window's undo manager:
+    /// the tool records the typing as one step of its own, and the text
+    /// view's entries would otherwise keep it alive and come back as "Undo
+    /// Typing" into text that is no longer on screen. (Removing them by
+    /// target doesn't work: AppKit registers them on private objects. The
+    /// viewer window's manager holds nothing else while a tool is open.)
+    private func removeTextView() {
+        guard let textView else { return }
+        textView.undoManager?.removeAllActions()
+        textView.removeFromSuperview()
+        self.textView = nil
     }
 
     /// Places the text view over the object's text block at the canvas's

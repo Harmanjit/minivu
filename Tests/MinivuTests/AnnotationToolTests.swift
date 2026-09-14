@@ -339,6 +339,36 @@ private func near(_ a: CGRect, _ b: CGRect, _ tolerance: CGFloat = 1e-4) -> Bool
         #expect(state.object(callout.id) != nil)
     }
 
+    /// A text box that ends up empty leaves no undo steps: Undo goes straight
+    /// to the step before it rather than bringing back an invisible box. Text
+    /// that was there and was all deleted comes back with Undo.
+    @Test func emptyTextLeavesNoUndoStepsButDeletedTextComesBack() {
+        let state = AnnotationToolState(document: document(), imageSize: size)
+        state.add(arrow())
+        #expect(state.undoName == "Add Arrow")
+
+        let clicked = state.newObject(.text)
+        state.add(clicked, live: true)
+        state.beginTextEditing(clicked.id)
+        state.endTextEditing()
+        #expect(state.object(clicked.id) == nil && state.objects.count == 1)
+        #expect(state.undoName == "Add Arrow")
+        state.undo()
+        #expect(state.objects.isEmpty)
+
+        let written = state.newObject(.text)
+        state.add(written)
+        state.beginTextEditing(written.id)
+        state.setText("Keep me", of: written.id)
+        state.endTextEditing()
+        state.beginTextEditing(written.id)
+        state.setText("", of: written.id)
+        state.endTextEditing()
+        #expect(state.object(written.id) == nil)
+        state.undo()
+        #expect(state.object(written.id)?.text == "Keep me")
+    }
+
     @Test func toolKindsMatchTheirTags() {
         #expect(AnnotationToolKind(rawValue: 0) == .select)
         #expect(AnnotationToolKind.allCases.map(\.rawValue) == Array(0...7))
@@ -441,6 +471,74 @@ extension AppWindowTests {
             textView.cancelOperation(nil)   // Esc ends typing, not the tool
             #expect(state.editingID == nil && overlay.textView == nil && viewer.drawingToolState === state)
             viewer.closeTool()
+        }
+
+        /// Keys the drawing tool keeps from the viewer: Delete with nothing
+        /// selected doesn't go to the previous image, Esc first lets go of
+        /// the selection, and ⌘Z undoes within the tool even when the overlay
+        /// has lost the keyboard (but not while text is being typed).
+        @Test func keysStayWithTheTool() async throws {
+            let folder = try ScratchFolder()
+            let entries = try ["a.jpg", "b.jpg"].map { try #require(FolderEntry(url: try folder.jpeg($0, width: 600, height: 400))) }
+            let savedQuestion = ViewerWindowController.askAboutUnsavedEdits
+            var asked = 0
+            ViewerWindowController.askAboutUnsavedEdits = { _, _, reply in
+                asked += 1
+                reply(.cancel)
+            }
+            defer { ViewerWindowController.askAboutUnsavedEdits = savedQuestion }
+            ViewerWindowController.show(images: entries, index: 1, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            viewer.openDrawing(tool: .arrow)
+            await waitUntil { viewer.drawingToolState != nil }
+            let state = try #require(viewer.drawingToolState)
+            let overlay = try #require(viewer.container.canvasOverlay as? AnnotationOverlayView)
+            var a = state.newObject(.arrow)
+            a.start = CGPoint(x: 0.1, y: 0.1)
+            a.end = CGPoint(x: 0.5, y: 0.5)
+            state.add(a)
+            var b = state.newObject(.rectangle)
+            b.frame = CGRect(x: 0.6, y: 0.6, width: 0.2, height: 0.2)
+            state.add(b)
+
+            // Delete removes the selection; pressed again it stays in the tool.
+            try press(NSDeleteCharacter, in: viewer, to: overlay)
+            #expect(state.objects.map(\.id) == [a.id])
+            try press(NSDeleteCharacter, in: viewer, to: overlay)
+            #expect(asked == 0 && viewer.model.index == 1 && viewer.drawingToolState === state)
+
+            // Esc: first the selection, then the tool.
+            state.select(a.id)
+            try press(0x1B, in: viewer, to: overlay)
+            #expect(state.selectedID == nil && viewer.drawingToolState === state)
+
+            // ⌘Z with the keyboard elsewhere still takes back the last step.
+            let window = try #require(viewer.window)
+            window.makeFirstResponder(viewer.canvas)
+            func commandZ(shift: Bool = false) throws -> NSEvent {
+                try #require(NSEvent.keyEvent(with: .keyDown, location: .zero,
+                                              modifierFlags: shift ? [.command, .shift] : .command, timestamp: 0,
+                                              windowNumber: window.windowNumber, context: nil,
+                                              characters: "z", charactersIgnoringModifiers: "z", isARepeat: false,
+                                              keyCode: 6))
+            }
+            #expect(overlay.performKeyEquivalent(with: try commandZ()))
+            #expect(state.objects.map(\.id) == [a.id, b.id] && viewer.drawingToolState === state)
+            #expect(overlay.performKeyEquivalent(with: try commandZ(shift: true)))
+            #expect(state.objects.map(\.id) == [a.id])
+            // While typing, ⌘Z belongs to the text.
+            var text = state.newObject(.text)
+            text.frame = CGRect(x: 0.1, y: 0.7, width: 0.4, height: 0.1)
+            state.add(text)
+            state.beginTextEditing(text.id)
+            #expect(window.firstResponder === overlay.textView)
+            #expect(!overlay.performKeyEquivalent(with: try commandZ()))
+            overlay.textView?.cancelOperation(nil)
+
+            try press(0x1B, in: viewer, to: overlay)
+            #expect(viewer.activeTool == nil && asked == 0)
         }
 
         @Test func drawApplyReopenAndCancel() async throws {

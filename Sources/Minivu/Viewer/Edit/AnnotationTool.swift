@@ -371,9 +371,20 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
            objects[index].text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             objects.remove(at: index)
             if selectedID == id { selectedID = nil }
-            // Typing nothing into a new text box leaves no undo step behind.
-            if undoStack.last?.name == "Typing", undoStack.last.map({ !$0.objects.contains { $0.id == id } }) == true {
+            // Typing nothing into a new text box leaves no undo step behind:
+            // neither the typing (which began on an empty box) nor the adding
+            // of the box. Otherwise Undo would bring back an invisible, empty
+            // box. Text that was there before and was all deleted keeps its
+            // step, so Undo brings the text back.
+            func hadNoText(_ step: UndoStep?) -> Bool {
+                guard let step else { return false }
+                return step.objects.first { $0.id == id }.map { $0.text.isEmpty } ?? true
+            }
+            if undoStack.last?.name == "Typing", hadNoText(undoStack.last) {
                 undoStack.removeLast()
+                if let last = undoStack.last, last.name.hasPrefix("Add "), !last.objects.contains(where: { $0.id == id }) {
+                    undoStack.removeLast()
+                }
             }
         }
         let wasLive = liveIDs.remove(id) != nil

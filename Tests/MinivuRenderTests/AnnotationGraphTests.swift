@@ -268,6 +268,76 @@ import simd
         #expect(sparse.start == CGPoint(x: 0.1, y: 0.2) && sparse.end == Annotation(kind: .arrow).end)
         let empty = try JSONDecoder().decode(Annotation.self, from: Data("{}".utf8))
         #expect(empty.kind == .rectangle && empty.opacity == 1)
+
+        // Values a later version might add fall back to the kind's defaults
+        // instead of failing the whole document.
+        let future = try JSONDecoder().decode(Annotation.self, from: Data(
+            #"{"kind":"arrow","dash":"wavy","arrowheads":"start","fontWeight":"black","alignment":"justified","opacity":0.5}"#.utf8))
+        #expect(future.kind == .arrow && future.dash == .solid && future.arrowheads == .end)
+        #expect(future.fontWeight == Annotation(kind: .arrow).fontWeight && future.alignment == .left && future.opacity == 0.5)
+        let unknownKind = try JSONDecoder().decode(Annotation.self, from: Data(#"{"kind":"star"}"#.utf8))
+        #expect(unknownKind.kind == .rectangle)
+    }
+
+    /// The painted bounds hold everything a turned text object can draw: its
+    /// clip reaches a tenth of the font size past the box in the box's own
+    /// axes, so at 45° the corners of that margin stick out further than the
+    /// same margin added after turning.
+    @Test func paintedBoundsHoldATurnedTextsClipMargin() {
+        let size = CGSize(width: 1000, height: 1000)
+        var text = Annotation(kind: .text)
+        text.frame = CGRect(x: 0.4, y: 0.4, width: 0.2, height: 0.2)
+        text.fontSize = 0.1   // 100 px: a 10 px margin
+        text.rotation = 45
+        text.shadow = false
+        let bounds = text.paintedBounds(in: size, includingShadow: false)
+        let margin = text.fontPixelSize(in: size) * 0.1
+        let box = text.localBox(in: size).insetBy(dx: -margin, dy: -margin)
+        let t = text.boxTransform(in: size)
+        for corner in [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                       CGPoint(x: box.maxX, y: box.maxY), CGPoint(x: box.minX, y: box.maxY)] {
+            let p = corner.applying(t)
+            #expect(bounds.insetBy(dx: 1.9, dy: 1.9).contains(p), "\(p) outside \(bounds)")
+        }
+    }
+
+    /// An output wider than a Metal texture (and than many provider tiles)
+    /// renders in pieces: a line with a shadow and a highlight running
+    /// across all of them come out the same in every column, over SDR and
+    /// HDR rows alike.
+    @Test func outputsWiderThanATextureHaveNoSeams() {
+        let width = 17000, height = 64
+        var line = Annotation(kind: .line)
+        line.start = CGPoint(x: 0.01, y: 0.25)
+        line.end = CGPoint(x: 0.99, y: 0.25)
+        line.strokeWidth = 0.1
+        line.shadow = true
+        var highlight = Annotation(kind: .highlight)
+        highlight.frame = CGRect(x: 0.005, y: 0.55, width: 0.99, height: 0.3)
+        // Solid colours rather than a bitmap: SDR on the top half, HDR below
+        // (Core Image's y is up).
+        func flat(_ v: CGFloat, _ rect: CGRect) -> CIImage {
+            CIImage(color: CIColor(red: v, green: v, blue: v, alpha: 1, colorSpace: F.space)!).cropped(to: rect)
+        }
+        let half = CGFloat(height / 2)
+        let source = flat(0.5, CGRect(x: 0, y: half, width: CGFloat(width), height: half))
+            .composited(over: flat(2, CGRect(x: 0, y: 0, width: CGFloat(width), height: half)))
+        let p = render([.annotations([line, highlight])], source: source, fullSize: CGSize(width: width, height: height))
+        var worst: Float = 0
+        p.data.withUnsafeBufferPointer { data in
+            for y in 0..<height {
+                let reference = (y * width + 400) * 4
+                for x in stride(from: 400, to: width - 400, by: 5) {
+                    let i = (y * width + x) * 4
+                    for c in 0..<4 { worst = max(worst, abs(data[i + c] - data[reference + c])) }
+                }
+            }
+        }
+        #expect(worst < 0.01, "worst difference along the rows \(worst)")
+        // The highlight still multiplies the HDR rows without clamping.
+        #expect(p[8000, 44].x > 1, "\(p[8000, 44])")
+        // The line is there, and the rows above it are untouched.
+        #expect(p[8000, 16].y < 0.1 && p[8000, 1] == SIMD4(0.5, 0.5, 0.5, 1), "\(p[8000, 16]) \(p[8000, 1])")
     }
 
     // MARK: - Timing
