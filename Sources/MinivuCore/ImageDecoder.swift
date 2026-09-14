@@ -258,12 +258,13 @@ public enum ImageDecoder {
 
     // MARK: - Display decode
 
-    /// Decodes for display, oriented. `maxPixelSize` nil means full resolution.
+    /// Decodes for display, oriented. `maxPixelSize` and `fitting` both nil
+    /// means full resolution; otherwise see `wantedLongEdge`.
     ///
     /// Screen-sized requests are snapped to a size the codec can produce
     /// without resampling (see `scaledDecodeSize`). RAW files use the
     /// camera's embedded preview when it is large enough.
-    public static func decode(_ url: URL, maxPixelSize: Int? = nil, page: Int = 0,
+    public static func decode(_ url: URL, maxPixelSize: Int? = nil, fitting: CGSize? = nil, page: Int = 0,
                               allowHDR: Bool = true) throws -> DecodedImage {
         guard let kind = ImageFormats.kind(of: url) else { throw DecodeError.noImage(url) }
         switch kind {
@@ -272,7 +273,8 @@ public enum ImageDecoder {
             guard doc.numberOfPages > 0, let pdfPage = doc.page(at: min(max(page, 0), doc.numberOfPages - 1) + 1)
             else { throw DecodeError.noImage(url) }
             let size = pdfPixelSize(pdfPage)
-            let render = vectorRenderEdge(for: size, maxPixelSize: maxPixelSize)
+            let wanted = wantedLongEdge(imageSize: size, maxPixelSize: maxPixelSize, fitting: fitting)
+            let render = vectorRenderEdge(for: size, maxPixelSize: wanted)
             guard let image = renderPDF(pdfPage, maxPixelSize: render.edge) else { throw DecodeError.noImage(url) }
             return DecodedImage(image: image, orientation: .up, imageSize: size,
                                 isFullResolution: render.isFullResolution, isHDR: false, contentHeadroom: 1,
@@ -280,7 +282,8 @@ public enum ImageDecoder {
         case .svg:
             guard let svg = NSImage(contentsOf: url) else { throw DecodeError.unreadable(url) }
             guard let size = svgPixelSize(svg) else { throw DecodeError.noImage(url) }
-            let render = vectorRenderEdge(for: size, maxPixelSize: maxPixelSize)
+            let wanted = wantedLongEdge(imageSize: size, maxPixelSize: maxPixelSize, fitting: fitting)
+            let render = vectorRenderEdge(for: size, maxPixelSize: wanted)
             guard let image = renderSVG(svg, maxPixelSize: render.edge) else { throw DecodeError.noImage(url) }
             return DecodedImage(image: image, orientation: .up, imageSize: size,
                                 isFullResolution: render.isFullResolution, isHDR: false, contentHeadroom: 1,
@@ -294,7 +297,8 @@ public enum ImageDecoder {
             let index = kind == .raw || page <= 0 || count <= 1 ? primaryIndex(source) : min(page, count - 1)
             guard let info = info(source: source, kind: kind, index: index) else { throw DecodeError.noImage(url) }
             let longest = Int(max(info.pixelSize.width, info.pixelSize.height))
-            let wantsFull = maxPixelSize == nil || maxPixelSize! >= longest
+            let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
+            let wantsFull = wanted == nil || wanted! >= longest
             let hdr = allowHDR && info.isHDR
 
             var options: [CFString: Any] = [kCGImageSourceShouldCacheImmediately: true]
@@ -307,7 +311,7 @@ public enum ImageDecoder {
 
             options[kCGImageSourceCreateThumbnailWithTransform] = true
             options[kCGImageSourceThumbnailMaxPixelSize] = wantsFull
-                ? longest : scaledDecodeSize(longestEdge: longest, needed: maxPixelSize!)
+                ? longest : scaledDecodeSize(longestEdge: longest, needed: wanted!)
             if kind == .raw && !wantsFull {
                 // The camera's embedded preview if it's at least the
                 // requested size, otherwise a real (slow) raw render.
@@ -324,14 +328,15 @@ public enum ImageDecoder {
     }
 
     /// The largest preview the camera embedded in a RAW file, oriented and
-    /// no larger than `maxPixelSize` (nil: as large as it is), or nil when
+    /// no larger than `wantedLongEdge` (nil: as large as it is), or nil when
     /// the file has none.
     ///
     /// Unlike `decode`, this never falls back to rendering the sensor data,
     /// which ImageIO does on the CPU when the preview is smaller than asked.
     /// Callers compare the result's size with the image's to decide whether
     /// a real RAW render is needed.
-    public static func decodeRawPreview(_ url: URL, maxPixelSize: Int? = nil) throws -> DecodedImage? {
+    public static func decodeRawPreview(_ url: URL, maxPixelSize: Int? = nil,
+                                        fitting: CGSize? = nil) throws -> DecodedImage? {
         guard let source = makeSource(url) else { throw DecodeError.unreadable(url) }
         guard var info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
         let longest = Int(max(info.pixelSize.width, info.pixelSize.height))
@@ -344,7 +349,10 @@ public enum ImageDecoder {
         // A camera newer than the RAW engine has no size ImageIO can read,
         // only its preview. Then the preview is the image, decoded whole so
         // every texture of the file agrees on its size.
-        if longest > 0 { options[kCGImageSourceThumbnailMaxPixelSize] = min(maxPixelSize ?? longest, longest) }
+        if longest > 0 {
+            let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
+            options[kCGImageSourceThumbnailMaxPixelSize] = min(wanted ?? longest, longest)
+        }
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
         else { return nil }
         if longest == 0 { info.pixelSize = CGSize(width: image.width, height: image.height) }
@@ -358,6 +366,50 @@ public enum ImageDecoder {
     /// any zoom, so rendering the RAW for it would be wasted time.
     public static func isFullSizePreview(longEdge: Int, imageLongEdge: Int) -> Bool {
         Double(longEdge) >= Double(imageLongEdge) * 0.97
+    }
+
+    /// The long edge `imageSize` has when fitted whole into `viewSize`,
+    /// enlarged or shrunk with its aspect kept, rounded up: what the canvas
+    /// shows at fit zoom. A square view gives its side whatever the aspect,
+    /// so a plain long-edge request is the square of that edge. An unknown
+    /// (empty) image size gives the view's long edge, the most any image
+    /// fitted into it can need.
+    ///
+    /// Computed along the limiting axis, so a fit that lands on a whole
+    /// pixel isn't pushed one past it by floating-point error.
+    public static func fittedLongEdge(imageSize: CGSize, in viewSize: CGSize) -> Int {
+        let viewLongest = max(viewSize.width, viewSize.height, 0)
+        guard imageSize.width > 0, imageSize.height > 0, viewSize.width > 0, viewSize.height > 0 else {
+            return Int(viewLongest.rounded(.up))
+        }
+        let fitted = viewSize.width * imageSize.height <= viewSize.height * imageSize.width
+            ? CGSize(width: viewSize.width, height: imageSize.height * viewSize.width / imageSize.width)
+            : CGSize(width: imageSize.width * viewSize.height / imageSize.height, height: viewSize.height)
+        return Int(max(fitted.width, fitted.height).rounded(.up))
+    }
+
+    /// The long edge a display decode wants from an image of `imageSize`:
+    /// at most `maxPixelSize`, and with `fitting` no more than the image
+    /// fitted into that view size. nil when neither is given: full resolution.
+    public static func wantedLongEdge(imageSize: CGSize, maxPixelSize: Int?, fitting: CGSize?) -> Int? {
+        guard let fitting else { return maxPixelSize }
+        let fitted = fittedLongEdge(imageSize: imageSize, in: fitting)
+        return min(maxPixelSize ?? fitted, fitted)
+    }
+
+    /// The oriented pixel size from the file's header alone, no pixels
+    /// decoded; nil for PDF, SVG and files without one.
+    public static func headerPixelSize(of url: URL) -> CGSize? {
+        guard let kind = ImageFormats.kind(of: url), kind == .raster || kind == .raw,
+              let source = makeSource(url), CGImageSourceGetCount(source) > 0,
+              let props = CGImageSourceCopyPropertiesAtIndex(source, primaryIndex(source), nil) as? [CFString: Any]
+        else { return nil }
+        let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
+        let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
+        guard w > 0, h > 0 else { return nil }
+        let raw = (props[kCGImagePropertyOrientation] as? NSNumber)?.uint32Value ?? 1
+        let swapsAxes = CGImagePropertyOrientation(rawValue: raw)?.swapsAxes ?? false
+        return swapsAxes ? CGSize(width: h, height: w) : CGSize(width: w, height: h)
     }
 
     /// The decode size to ask ImageIO for, given what the screen needs.

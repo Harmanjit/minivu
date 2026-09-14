@@ -77,7 +77,7 @@ import CoreGraphics
         #expect(first.imageSize == CGSize(width: 1224, height: 1584))
         #expect(first.texture.height == 1000 && !first.isFullResolution)
 
-        loader.prefetch(pages: [(pdf, 1)], pixelSize: 1000)
+        loader.prefetch(pages: [(pdf, 1)], fitting: CGSize(width: 1000, height: 1000))
         await loader.waitUntilIdle()
         #expect(loader.decodeCount == 2)
         var second: ImageTexture?

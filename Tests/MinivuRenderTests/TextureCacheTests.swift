@@ -99,6 +99,26 @@ import Metal
         #expect(cache.bestTexture(url: Self.url, modified: Self.date, page: 1, minimumLongEdge: 100) == nil)
     }
 
+    @Test func bestTextureFitsEachImageIntoTheView() {
+        // A 3:2 photo in a 3420 x 2048 view is 3072 px wide at fit, not
+        // 3420: the 3016 px half-size decode covers it (3% slack), and a
+        // larger texture decoded for the long edge still serves.
+        let cache = TextureCache(budgetBytes: 1 << 30)
+        let image = CGSize(width: 6000, height: 4000)
+        let half = texture(3000, 2000, imageSize: image)
+        func best(_ width: CGFloat, _ height: CGFloat) -> ImageTexture? {
+            cache.bestTexture(url: Self.url, modified: Self.date, page: 0, fitting: CGSize(width: width, height: height))
+        }
+        cache.insert(half, for: key(longEdge: 3000))
+        #expect(best(3420, 2048) === half)
+        #expect(best(3420, 2214) == nil)   // 3321 px at fit
+        #expect(best(2048, 3420) === half)   // a tall view: 2048 px
+        let full = texture(6000, 4000, imageSize: image)
+        cache.insert(full, for: key(longEdge: 6000))
+        #expect(best(3420, 2214) === full)
+        #expect(best(1000, 1000) === half)   // the smallest that covers
+    }
+
     @Test func bestTextureCapsTheNeedAtTheImageSize() {
         // A 500 px image can't have a texture larger than 500 px, so its
         // (not full-resolution, say an embedded preview) texture covers a

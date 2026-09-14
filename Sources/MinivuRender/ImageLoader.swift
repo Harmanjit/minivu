@@ -188,8 +188,10 @@ public struct DisplaySettings: Sendable, Equatable {
         let id: Int
         let entry: FolderEntry
         let page: Int
-        /// Requested long edge in pixels; nil for full resolution.
-        let pixelSize: Int?
+        /// The view size (drawable pixels) the image is fitted into, a square
+        /// for a plain long-edge request; nil for full resolution. Resolved
+        /// to a long edge by the decode, which reads the image's size anyway.
+        let target: CGSize?
         /// The settings when the job was made, which its decode follows.
         let settings: DisplaySettings
         var priority: TaskPriority
@@ -211,12 +213,12 @@ public struct DisplaySettings: Sendable, Equatable {
         /// Wanted by a prefetch that allows it to go on to a RAW render.
         var prefetchMayRender = false
 
-        init(id: Int, entry: FolderEntry, page: Int, pixelSize: Int?, settings: DisplaySettings,
+        init(id: Int, entry: FolderEntry, page: Int, target: CGSize?, settings: DisplaySettings,
              priority: TaskPriority, sequence: Int, stage: Stage) {
             self.id = id
             self.entry = entry
             self.page = page
-            self.pixelSize = pixelSize
+            self.target = target
             self.settings = settings
             self.priority = priority
             self.sequence = sequence
@@ -231,7 +233,7 @@ public struct DisplaySettings: Sendable, Equatable {
     private struct PreviewKey: Hashable {
         let url: URL
         let modified: Date
-        let pixelSize: Int?
+        let target: CGSize?
     }
 
     private var jobs: [Int: Job] = [:]
@@ -258,23 +260,32 @@ public struct DisplaySettings: Sendable, Equatable {
 
     // MARK: - Requests
 
-    /// Texture whose long edge covers pixelSize (the canvas drawable's long
-    /// edge), for entry/page.
-    ///
-    /// Cache hit: `update` is called synchronously before returning. Otherwise
-    /// decode (ImageDecoder.decode with maxPixelSize, or RawRenderer for RAW
-    /// files as `settings` say) + upload (TextureUploader.upload) off the
-    /// main actor, then `update` on the main actor. Never called after
-    /// cancel().
+    /// Texture whose long edge covers pixelSize, for entry/page, whatever
+    /// the image's aspect: `load(_:page:fitting:update:)` with a square view.
     @discardableResult
     public func load(_ entry: FolderEntry, page: Int = 0, pixelSize: Int,
                      update: @escaping (Result<ImageTexture, Error>) -> Void) -> LoadHandle {
-        let size = snapped(pixelSize, for: entry, page: page)
-        if let hit = cache.bestTexture(url: entry.url, modified: entry.modified, page: page, minimumLongEdge: size) {
+        load(entry, page: page, fitting: Self.square(pixelSize), update: update)
+    }
+
+    /// Texture that covers the image fitted into `viewSize` (the canvas's
+    /// drawable pixels), for entry/page: a 3:2 photo in a 16:10 window needs
+    /// less than the window's long edge. The image's size needn't be known:
+    /// the decode fits it once it has read the header.
+    ///
+    /// Cache hit: `update` is called synchronously before returning. Otherwise
+    /// decode (ImageDecoder.decode, or RawRenderer for RAW files as
+    /// `settings` say) + upload (TextureUploader.upload) off the main actor,
+    /// then `update` on the main actor. Never called after cancel().
+    @discardableResult
+    public func load(_ entry: FolderEntry, page: Int = 0, fitting viewSize: CGSize,
+                     update: @escaping (Result<ImageTexture, Error>) -> Void) -> LoadHandle {
+        let target = snapped(viewSize, for: entry, page: page)
+        if let hit = cache.bestTexture(url: entry.url, modified: entry.modified, page: page, fitting: target) {
             update(.success(hit))
             return LoadHandle(loader: nil, update: nil)
         }
-        return enqueue(entry, page: page, pixelSize: size, update: update)
+        return enqueue(entry, page: page, target: target, update: update)
     }
 
     /// Same, full resolution (used when the user zooms beyond the screen
@@ -286,7 +297,7 @@ public struct DisplaySettings: Sendable, Equatable {
             update(.success(hit))
             return LoadHandle(loader: nil, update: nil)
         }
-        return enqueue(entry, page: page, pixelSize: nil, update: update)
+        return enqueue(entry, page: page, target: nil, update: update)
     }
 
     /// Background decode at utility priority of these entries at pixelSize;
@@ -296,7 +307,7 @@ public struct DisplaySettings: Sendable, Equatable {
     /// Pass the nearest neighbours first: waiting prefetches start in the
     /// order given.
     public func prefetch(_ entries: [FolderEntry], pixelSize: Int) {
-        prefetch(pages: entries.map { ($0, 0) }, pixelSize: pixelSize)
+        prefetch(pages: entries.map { ($0, 0) }, fitting: Self.square(pixelSize))
     }
 
     /// The same for particular pages, so a document's next page can be
@@ -306,7 +317,10 @@ public struct DisplaySettings: Sendable, Equatable {
     /// in `pages`), and not at all where `prefetchesRawRenders` is false;
     /// other RAW files are prefetched only as far as their embedded preview
     /// covers the size.
-    public func prefetch(pages: [(entry: FolderEntry, page: Int)], pixelSize: Int) {
+    ///
+    /// Each image is fitted into `viewSize` by its own aspect, as `load`
+    /// does, so the texture is the one a flip to it asks for.
+    public func prefetch(pages: [(entry: FolderEntry, page: Int)], fitting viewSize: CGSize) {
         var wanted: Set<Int> = []
         var renderAllowance = prefetchesRawRenders
         for (entry, page) in pages where !entry.isDirectory && entry.kind != nil {
@@ -315,17 +329,17 @@ public struct DisplaySettings: Sendable, Equatable {
                 mayRender = renderAllowance
                 renderAllowance = false
             }
-            let size = snapped(pixelSize, for: entry, page: page)
+            let target = snapped(viewSize, for: entry, page: page)
             // A cache hit also marks the texture used, so the neighbours of
             // the current photo are the last thing evicted.
-            if cache.bestTexture(url: entry.url, modified: entry.modified, page: page, minimumLongEdge: size) != nil {
+            if cache.bestTexture(url: entry.url, modified: entry.modified, page: page, fitting: target) != nil {
                 continue
             }
-            let existing = existingJob(entry, page: page, pixelSize: size)
-            if !mayRender, (existing?.stage ?? initialStage(entry, pixelSize: size)) == .rawRender {
+            let existing = existingJob(entry, page: page, target: target)
+            if !mayRender, (existing?.stage ?? initialStage(entry, target: target)) == .rawRender {
                 continue   // left out of `wanted`, so dropped below unless the user wants it
             }
-            let job = existing ?? makeJob(entry, page: page, pixelSize: size, priority: .utility)
+            let job = existing ?? makeJob(entry, page: page, target: target, priority: .utility)
             job.wantedByPrefetch = true
             job.prefetchMayRender = mayRender
             job.stop.set(false)
@@ -361,16 +375,16 @@ public struct DisplaySettings: Sendable, Equatable {
 
     // MARK: - Jobs
 
-    private func enqueue(_ entry: FolderEntry, page: Int, pixelSize: Int?,
+    private func enqueue(_ entry: FolderEntry, page: Int, target: CGSize?,
                          update: @escaping (Result<ImageTexture, Error>) -> Void) -> LoadHandle {
         let handle = LoadHandle(loader: self, update: update)
         let job: Job
-        if let existing = existingJob(entry, page: page, pixelSize: pixelSize) {
+        if let existing = existingJob(entry, page: page, target: target) {
             job = existing
             job.stop.set(false)
             raisePriority(of: job)
         } else {
-            job = makeJob(entry, page: page, pixelSize: pixelSize, priority: .userInitiated)
+            job = makeJob(entry, page: page, target: target, priority: .userInitiated)
         }
         handle.jobID = job.id
         job.handles.append(handle)
@@ -379,25 +393,44 @@ public struct DisplaySettings: Sendable, Equatable {
     }
 
     /// A job that will produce what's asked for: the same image, and for
-    /// screen requests a size at least as large (with the usual 3%).
-    private func existingJob(_ entry: FolderEntry, page: Int, pixelSize: Int?) -> Job? {
-        jobs.values
+    /// screen requests a size at least as large (see `covers`).
+    private func existingJob(_ entry: FolderEntry, page: Int, target: CGSize?) -> Job? {
+        let imageSize = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page)
+        func area(_ target: CGSize?) -> CGFloat { target.map { $0.width * $0.height } ?? .infinity }
+        return jobs.values
             .filter { job in
                 guard !job.discardResult, job.entry.url == entry.url, job.entry.modified == entry.modified,
                       job.page == page else { return false }
-                switch (job.pixelSize, pixelSize) {
-                case (nil, nil): return true
-                case let (have?, need?): return Double(have) >= Double(need) * 0.97
-                default: return false   // a full decode is too slow to wait on for a screen request
-                }
+                return Self.covers(job.target, target, imageSize: imageSize)
             }
-            .min { ($0.pixelSize ?? .max) < ($1.pixelSize ?? .max) }
+            .min { area($0.target) < area($1.target) }
     }
 
-    private func makeJob(_ entry: FolderEntry, page: Int, pixelSize: Int?, priority: TaskPriority) -> Job {
+    /// Whether a job for `have` makes a texture good for `need` (nil: full
+    /// resolution), with the usual 3%. With the image's size known, by the
+    /// long edges the two fit it to, neither beyond the image's own; without
+    /// it, by the view sizes, since a view at least as large on both axes
+    /// fits any image at least as large.
+    nonisolated static func covers(_ have: CGSize?, _ need: CGSize?, imageSize: CGSize?) -> Bool {
+        switch (have, need) {
+        case (nil, nil):
+            return true
+        case let (have?, need?):
+            guard let imageSize, imageSize.width > 0, imageSize.height > 0 else {
+                return have.width >= need.width * 0.97 && have.height >= need.height * 0.97
+            }
+            let longest = Int(max(imageSize.width, imageSize.height))
+            func edge(_ view: CGSize) -> Int { min(ImageDecoder.fittedLongEdge(imageSize: imageSize, in: view), longest) }
+            return Double(edge(have)) >= Double(edge(need)) * 0.97
+        default:
+            return false   // a full decode is too slow to wait on for a screen request
+        }
+    }
+
+    private func makeJob(_ entry: FolderEntry, page: Int, target: CGSize?, priority: TaskPriority) -> Job {
         let id = nextSequence()
-        let job = Job(id: id, entry: entry, page: page, pixelSize: pixelSize, settings: settings,
-                      priority: priority, sequence: id, stage: initialStage(entry, pixelSize: pixelSize))
+        let job = Job(id: id, entry: entry, page: page, target: target, settings: settings,
+                      priority: priority, sequence: id, stage: initialStage(entry, target: target))
         jobs[job.id] = job
         waiting.append(job.id)
         return job
@@ -410,10 +443,10 @@ public struct DisplaySettings: Sendable, Equatable {
     /// Where a new job for `entry` starts: a RAW file goes straight to the
     /// render when the settings always render, or when its preview is
     /// already known to fall short at this size.
-    private func initialStage(_ entry: FolderEntry, pixelSize: Int?) -> Job.Stage {
+    private func initialStage(_ entry: FolderEntry, target: CGSize?) -> Job.Stage {
         guard Self.isRaw(entry) else { return .decode }
         if Self.rawPlan(settings: settings) != .previewOrRender { return .rawRender }
-        let key = PreviewKey(url: entry.url, modified: entry.modified, pixelSize: pixelSize)
+        let key = PreviewKey(url: entry.url, modified: entry.modified, target: target)
         return previewShortfalls.contains(key) ? .rawRender : .decode
     }
 
@@ -483,7 +516,7 @@ public struct DisplaySettings: Sendable, Equatable {
             peakConcurrentRawRenders = max(peakConcurrentRawRenders, runningRawRenders)
             if !job.continuedToRender { decodeCount += 1 }
         }
-        let id = job.id, url = job.entry.url, page = job.page, size = job.pixelSize, stop = job.stop
+        let id = job.id, url = job.entry.url, page = job.page, target = job.target, stop = job.stop
         let settings = job.settings, stage = job.stage
         // A decode blocks its thread for up to seconds, so it runs on GCD,
         // not the cooperative pool (see `BlockingWork`): three of them there
@@ -492,7 +525,7 @@ public struct DisplaySettings: Sendable, Equatable {
         let qos: DispatchQoS = job.priority >= .userInitiated ? .userInitiated : .utility
         let work = DispatchWorkItem(qos: qos, flags: .enforceQoS) { @Sendable [weak self] in
             let result = Result {
-                try Self.decodeAndUpload(url: url, pixelSize: size, page: page, settings: settings, stage: stage,
+                try Self.decodeAndUpload(url: url, target: target, page: page, settings: settings, stage: stage,
                                          stop: stop)
             }
             Task { @MainActor in self?.finish(jobID: id, stage: stage, result: result) }
@@ -505,7 +538,7 @@ public struct DisplaySettings: Sendable, Equatable {
     /// before and between the steps: an ImageIO decode or a RAW render can't
     /// be interrupted, but it needn't start, and the upload (a colour
     /// conversion and a GPU copy) can be skipped.
-    nonisolated private static func decodeAndUpload(url: URL, pixelSize: Int?, page: Int, settings: DisplaySettings,
+    nonisolated private static func decodeAndUpload(url: URL, target: CGSize?, page: Int, settings: DisplaySettings,
                                                     stage: Job.Stage, stop: StopFlag) throws -> ImageTexture {
         func checkStop() throws {
             if stop.isSet { throw CancellationError() }
@@ -514,15 +547,15 @@ public struct DisplaySettings: Sendable, Equatable {
         if ImageFormats.kind(of: url) == .raw {
             switch stage {
             case .decode:
-                return try loadRawPreview(url: url, pixelSize: pixelSize, checkStop: checkStop)
+                return try loadRawPreview(url: url, target: target, checkStop: checkStop)
             case .rawRender:
-                if let texture = try renderRaw(url: url, pixelSize: pixelSize, settings: settings,
+                if let texture = try renderRaw(url: url, target: target, settings: settings,
                                                checkStop: checkStop) {
                     return texture
                 }
             }
         }
-        let decoded = try ImageDecoder.decode(url, maxPixelSize: pixelSize, page: page, allowHDR: settings.showHDR)
+        let decoded = try ImageDecoder.decode(url, fitting: target, page: page, allowHDR: settings.showHDR)
         try checkStop()
         return try TextureUploader.upload(decoded)
     }
@@ -535,20 +568,20 @@ public struct DisplaySettings: Sendable, Equatable {
     /// 1616 px): a screen request gets that small preview, so the canvas
     /// keeps asking for pixels that never come, and a full-resolution
     /// request renders the RAW on the CPU (0.5-1.2 s for 24 MP).
-    nonisolated private static func loadRawPreview(url: URL, pixelSize: Int?,
+    nonisolated private static func loadRawPreview(url: URL, target: CGSize?,
                                                    checkStop: () throws -> Void) throws -> ImageTexture {
-        guard let preview = try? ImageDecoder.decodeRawPreview(url, maxPixelSize: pixelSize),
-              previewCovers(preview, pixelSize: pixelSize) else { throw NeedsRawRender() }
+        guard let preview = try? ImageDecoder.decodeRawPreview(url, fitting: target),
+              previewCovers(preview, target: target) else { throw NeedsRawRender() }
         try checkStop()
         return try TextureUploader.upload(preview)
     }
 
     /// A RAW file rendered as `settings` say; nil leaves it to ImageIO's
     /// decode (a file with no embedded preview whose render failed).
-    nonisolated private static func renderRaw(url: URL, pixelSize: Int?, settings: DisplaySettings,
+    nonisolated private static func renderRaw(url: URL, target: CGSize?, settings: DisplaySettings,
                                               checkStop: () throws -> Void) throws -> ImageTexture? {
         do {
-            return try RawRenderer.render(url: url, maxPixelSize: pixelSize,
+            return try RawRenderer.render(url: url, maxPixelSize: rawRenderEdge(url: url, target: target),
                                           hdr: rawPlan(settings: settings) == .render(hdr: true),
                                           headroom: settings.rawHeadroom)
         } catch DecodeError.noImage {
@@ -556,14 +589,23 @@ public struct DisplaySettings: Sendable, Equatable {
             // renders RAW files with the same engine: the embedded preview is
             // the most this file will show.
             try checkStop()
-            guard var preview = try? ImageDecoder.decodeRawPreview(url, maxPixelSize: pixelSize) else { return nil }
+            guard var preview = try? ImageDecoder.decodeRawPreview(url, fitting: target) else { return nil }
             // Smaller than asked for, so it is all there is. Saying so stops
             // the canvas asking again and again.
-            if !previewCovers(preview, pixelSize: pixelSize) { preview.isFullResolution = true }
+            if !previewCovers(preview, target: target) { preview.isFullResolution = true }
             return try TextureUploader.upload(preview)
         } catch {
             return nil   // a GPU failure: ImageIO's decode may still manage
         }
+    }
+
+    /// The long edge to render a RAW file at for `target`. The RAW engine
+    /// takes a long edge, so a view that isn't square needs the image's
+    /// size first: a header read, nothing next to the render.
+    nonisolated private static func rawRenderEdge(url: URL, target: CGSize?) -> Int? {
+        guard let target else { return nil }
+        guard target.width != target.height else { return Int(target.width) }
+        return ImageDecoder.fittedLongEdge(imageSize: ImageDecoder.headerPixelSize(of: url) ?? .zero, in: target)
     }
 
     /// How a RAW file is loaded.
@@ -580,13 +622,14 @@ public struct DisplaySettings: Sendable, Equatable {
         settings.alwaysRendersRaw ? .render(hdr: settings.rendersHDRRaw) : .previewOrRender
     }
 
-    /// Whether an embedded preview decoded for `pixelSize` (nil: full
+    /// Whether an embedded preview decoded for `target` (nil: full
     /// resolution) is as good as a render: the whole image, or at least the
-    /// requested size, with the usual 3% slack.
-    nonisolated static func previewCovers(_ preview: DecodedImage, pixelSize: Int?) -> Bool {
+    /// image fitted into the target, with the usual 3% slack.
+    nonisolated static func previewCovers(_ preview: DecodedImage, target: CGSize?) -> Bool {
         if preview.isFullResolution { return true }
-        guard let pixelSize else { return false }
-        return Double(max(preview.image.width, preview.image.height)) >= Double(pixelSize) * 0.97
+        guard let target else { return false }
+        let wanted = ImageDecoder.fittedLongEdge(imageSize: preview.imageSize, in: target)
+        return Double(max(preview.image.width, preview.image.height)) >= Double(wanted) * 0.97
     }
 
     private func finish(jobID: Int, stage: Job.Stage, result: Result<ImageTexture, Error>) {
@@ -634,7 +677,7 @@ public struct DisplaySettings: Sendable, Equatable {
         // A few bytes per RAW file and size looked at; a folder session
         // stays far below this, and forgetting only costs a preview decode.
         if previewShortfalls.count >= 1000 { previewShortfalls.removeAll() }
-        previewShortfalls.insert(PreviewKey(url: job.entry.url, modified: job.entry.modified, pixelSize: job.pixelSize))
+        previewShortfalls.insert(PreviewKey(url: job.entry.url, modified: job.entry.modified, target: job.target))
     }
 
     fileprivate func detach(_ handle: LoadHandle, from jobID: Int) {
@@ -658,18 +701,25 @@ public struct DisplaySettings: Sendable, Equatable {
 
     // MARK: - Sizes
 
-    /// Snaps a screen request the way the decoder will, once the image's size
-    /// is known from any cached texture of it. Requests of 3000 and 3024 px
-    /// then both ask for the 3016 px the JPEG codec makes cheaply, and share
-    /// one decode. A PDF or SVG renders at exactly the size asked, so there is
-    /// nothing to snap to.
-    private func snapped(_ pixelSize: Int, for entry: FolderEntry, page: Int) -> Int {
-        guard entry.kind != .pdf, entry.kind != .svg,
-              let size = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page) else {
-            return pixelSize
+    /// Fits and snaps a screen request the way the decoder will, once the
+    /// image's size is known from any cached texture of it: the result is a
+    /// square of the long edge to decode. Fits needing 3000 and 3024 px then
+    /// both ask for the 3016 px the JPEG codec makes cheaply, and share one
+    /// decode. A PDF or SVG renders at exactly the size asked, so it is
+    /// fitted but not snapped. Unknown, the view size goes to the decode.
+    private func snapped(_ viewSize: CGSize, for entry: FolderEntry, page: Int) -> CGSize {
+        guard let size = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page) else {
+            return viewSize
         }
+        let fitted = ImageDecoder.fittedLongEdge(imageSize: size, in: viewSize)
+        guard entry.kind != .pdf, entry.kind != .svg else { return Self.square(fitted) }
         let longest = Int(max(size.width, size.height))
-        return min(ImageDecoder.scaledDecodeSize(longestEdge: longest, needed: pixelSize), longest)
+        return Self.square(min(ImageDecoder.scaledDecodeSize(longestEdge: longest, needed: fitted), longest))
+    }
+
+    /// The view every image's long edge fits `edge` in.
+    nonisolated private static func square(_ edge: Int) -> CGSize {
+        CGSize(width: edge, height: edge)
     }
 
     /// A full-resolution texture, or for images beyond Metal's size limit the

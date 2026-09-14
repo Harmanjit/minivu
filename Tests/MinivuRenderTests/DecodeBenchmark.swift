@@ -32,6 +32,35 @@ import Foundation
     }
 }
 
+/// Screen-sized decode + upload of each JPEG/HEIC for a 3420 px wide canvas:
+/// the canvas's long edge against the image fitted into it, median of 5.
+///     MINIVU_BENCH_DIR=<copy of ~/latent/TestAssets> swift test --filter FitBenchmark
+@Suite(.serialized) struct FitBenchmark {
+    @Test(.enabled(if: DecodeBenchmark.folder != nil))
+    func longEdgeAgainstFitted() throws {
+        let files = try FileManager.default.contentsOfDirectory(at: DecodeBenchmark.folder!, includingPropertiesForKeys: nil)
+            .filter { ["jpg", "heic"].contains($0.pathExtension.lowercased()) }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        _ = GPU.shared
+        let clock = ContinuousClock()
+        func median(_ run: () throws -> ImageTexture) rethrows -> (ms: Double, texture: ImageTexture) {
+            var texture: ImageTexture?
+            var times: [Double] = []
+            for _ in 0..<5 { times.append(try clock.measure { texture = try run() }.ms) }
+            return (times.sorted()[2], texture!)
+        }
+        for url in files {
+            for canvas in [CGSize(width: 3420, height: 2048), CGSize(width: 3420, height: 2214)] {
+                let edge = try median { try TextureUploader.upload(ImageDecoder.decode(url, maxPixelSize: Int(canvas.width))) }
+                let fit = try median { try TextureUploader.upload(ImageDecoder.decode(url, fitting: canvas)) }
+                print(String(format: "%-20@ canvas %.0fx%.0f  long edge: %4d px %6.1f ms %4d MB | fitted: %4d px %6.1f ms %4d MB",
+                             url.lastPathComponent as NSString, canvas.width, canvas.height,
+                             edge.texture.texture.width, edge.ms, edge.texture.byteCost / 1_000_000,
+                             fit.texture.texture.width, fit.ms, fit.texture.byteCost / 1_000_000))
+            }
+        }
+    }
+}
+
 /// RAW renders (RawRenderer) against the embedded preview. The first render
 /// in the process pays for Core Image's setup; "first" is each file's first
 /// render, "again" a second render of the same file.
