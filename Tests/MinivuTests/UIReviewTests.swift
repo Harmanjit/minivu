@@ -121,3 +121,33 @@ import MinivuRender
         #expect(ViewerControlBar.spokenName("Play (Space)") == "Play")
     }
 }
+
+extension AppWindowTests {
+    /// The viewer's Move to Trash (⌘⌫) is off while a sheet is up on it:
+    /// the key is typing in the sheet's fields, and the photo is the one the
+    /// sheet works on.
+    @MainActor @Suite(.serialized) struct ViewerSheetKeyTests {
+        init() { _ = NSApplication.shared }
+
+        @Test func noTrashUnderASheet() async throws {
+            let folder = try ScratchFolder()
+            let entry = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 300, height: 200)))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            let window = try #require(viewer.window)
+            let trash = NSMenuItem(title: "", action: .moveToTrash, keyEquivalent: "")
+            #expect(viewer.validateMenuItem(trash))
+
+            let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled],
+                                 backing: .buffered, defer: false)
+            sheet.isReleasedWhenClosed = false
+            window.beginSheet(sheet, completionHandler: nil)
+            #expect(window.attachedSheet === sheet)
+            #expect(!viewer.validateMenuItem(trash))
+            window.endSheet(sheet)
+            sheet.orderOut(nil)
+            #expect(viewer.validateMenuItem(trash))
+        }
+    }
+}

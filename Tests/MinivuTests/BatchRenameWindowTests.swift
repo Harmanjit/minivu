@@ -102,14 +102,21 @@ extension AppWindowTests {
             let sheetTools: [Selector] = [.batchRename, .batchConvert, .printImages, .makeContactSheet, .makeMontage]
             #expect(sheetTools.allSatisfy(enabled))
 
+            controller.model.setSelection([a], lead: a)
+            let underSheet: [Selector] = [.moveToTrash, .openInViewer]
+            #expect(underSheet.allSatisfy(enabled))
             controller.batchRename(nil)
             let sheet = try #require(sheets.shown.last)
             #expect(!sheetTools.contains(where: enabled), "no second sheet while the rename sheet is up")
+            // ⌘⌫ or ⌘↓ typed in the sheet's fields must not reach the selection behind it.
+            #expect(!underSheet.contains(where: enabled), "no trashing or opening under the sheet")
             #expect(enabled(.startSlideshow))
             let host = try #require(sheet.contentView as? NSHostingView<BatchRenameView>)
             host.rootView.onCancel()
             #expect(sheets.shown.isEmpty)
             #expect(sheetTools.allSatisfy(enabled))
+            #expect(underSheet.allSatisfy(enabled))
+            controller.model.setSelection([], lead: nil)
 
             controller.performBatchRename([BatchRenamer.Request(url: a, newName: "c.jpg"),
                                            BatchRenamer.Request(url: b, newName: "d.jpg")], actionName: "Rename 2 Items")

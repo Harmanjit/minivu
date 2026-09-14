@@ -426,7 +426,14 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
     }
 
     private func canPerform(_ action: Selector) -> Bool {
-        switch action {
+        // A sheet is key while the browser stays main, so menu commands
+        // still reach the browser: ⌘⌫ typed in a Batch Rename pattern or
+        // the comment editor would trash the selection under the sheet, and
+        // ⌘↑ or ⌘[ would change the folder behind it.
+        let sheetUp = window.map(BatchTools.hasSheet(on:)) ?? false
+        let sheetBlocked: [Selector] = [.openInViewer, .moveToTrash, .goToEnclosingFolder, .goBack, .goForward]
+        if sheetUp, sheetBlocked.contains(action) { return false }
+        return switch action {
         case .openInViewer: model.leadEntry != nil && !isTypingText
         case .revealInFinder: model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText

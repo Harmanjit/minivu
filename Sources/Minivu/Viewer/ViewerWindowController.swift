@@ -1187,9 +1187,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
         case .revealInFinder: return model.current != nil
         case .moveToTrash:
-            // ⌘⌫ typed in a drawn text box or an inspector's field deletes
-            // text; it must not trash the photo being edited.
-            return model.current.map { !trashing.contains($0.url) } ?? false && !TextKeys.belongToText(in: window)
+            // ⌘⌫ typed in a drawn text box, an inspector's field or a sheet
+            // (Resize, the comment editor, Save As) deletes text; it must not
+            // trash the photo being edited.
+            return model.current.map { !trashing.contains($0.url) } ?? false
+                && !TextKeys.belongToText(in: window) && window?.attachedSheet == nil
         case .setRating, .toggleTag:
             let marks = model.current.map(marks(for:))
             menuItem.state = marks.map { menuItem.action == .toggleTag ? $0.isTagged : $0.rating == menuItem.tag } == true
