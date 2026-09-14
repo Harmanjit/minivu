@@ -224,6 +224,17 @@ final class CropOverlayView: NSView {
         selectionChanged()
     }
 
+    /// Return or Esc can close the tool mid-drag, removing the overlay before
+    /// its mouse-up: the closed hand pushed for the move comes off the
+    /// cursor stack here instead of staying on it.
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        if newWindow == nil, case .move = drag {
+            NSCursor.pop()
+            drag = nil
+        }
+    }
+
     private func clampedImagePoint(_ viewPoint: CGPoint) -> CGPoint {
         let p = imagePoint(viewPoint), size = state.selection.imageSize
         return CGPoint(x: min(max(p.x, 0), size.width), y: min(max(p.y, 0), size.height))

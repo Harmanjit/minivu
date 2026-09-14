@@ -485,3 +485,23 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
         if hasSelection != selection { hasSelection = selection }
     }
 }
+
+/// Edit > Undo chosen from the menu (or ⌘Z with the keyboard elsewhere)
+/// takes back one drawing step, as ⌘Z over the canvas does, rather than
+/// closing the tool and dropping every object in it.
+extension AnnotationToolState: EditToolSteps {
+    var undoStepTitle: String? { undoName }
+    var redoStepTitle: String? { redoName }
+
+    func undoStep() -> Bool {
+        guard undoName != nil else { return false }
+        undo()
+        return true
+    }
+
+    func redoStep() -> Bool {
+        guard redoName != nil else { return false }
+        redo()
+        return true
+    }
+}

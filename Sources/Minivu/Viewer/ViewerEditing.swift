@@ -352,7 +352,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             NSSound.beep()
             return
         }
-        if let tool = activeTool, tool.state != nil { closeTool() }
+        if let tool = activeTool, tool.state != nil { closeToolKeepingChanges() }
         session.document.apply(operation)
     }
 
@@ -425,7 +425,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     /// (cancelling a tool that is open).
     @objc func toggleToolsPanel(_ sender: Any?) {
         if flyouts.isPinned(.left) {
-            closeTool()
+            closeToolKeepingChanges()
             if flyouts.isPinned(.left) { flyouts.setPinned(false, edge: .left) }
         } else {
             flyouts.setPinned(true, edge: .left)
@@ -486,7 +486,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             NSSound.beep()
             return nil
         }
-        closeTool(replacing: replacing)
+        closeToolKeepingChanges(replacing: replacing)
         toolRequest += 1
         return session
     }
@@ -562,6 +562,19 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             // The inspector's text fields may have had the keyboard.
             if let window, window.firstResponder !== canvas { window.makeFirstResponder(canvas) }
         }
+    }
+
+    /// Closes the open tool on the way to another command (a different
+    /// tool, rotate, the edit button). A tool of hand-made steps (brush
+    /// strokes, drawn objects) applies them first: a drawing or twenty
+    /// strokes shouldn't vanish because ⌘R was pressed, and only Cancel, Esc,
+    /// Back or Undo drop them. A tool of settings (sliders, an effect that
+    /// previews as it opens) is cancelled, so looking through the tools
+    /// doesn't stack every effect looked at; its settings take seconds to set
+    /// again.
+    func closeToolKeepingChanges(replacing: Bool = false) {
+        let handMade = activeTool?.state is EditToolSteps && activeTool?.hasPendingChanges == true
+        closeTool(applying: handMade, replacing: replacing)
     }
 
     /// Return applies the open tool and Esc cancels it, before the viewer's

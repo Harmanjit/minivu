@@ -25,7 +25,7 @@ import CoreImage
 /// (about 100 ms, once per launch) on any Mac whose GPU supports dynamic
 /// libraries, which every Apple Silicon Mac does.
 enum ToneKernels {
-    static let source = """
+    static let prelude = """
     #include <CoreImage/CoreImage.h>
     using namespace metal;
 
@@ -43,6 +43,9 @@ enum ToneKernels {
         return sign(e) * c;
     }
 
+    """
+
+    static let lightingSource = """
     // params: brightness offset, contrast factor, 1 / gamma, shadows (-1...1).
     [[stitchable]] float4 minivuLighting(coreimage::sample_t s, float4 params, float highlights) {
         if (s.a <= 0.0) { return s; }
@@ -65,7 +68,9 @@ enum ToneKernels {
         e = sign(e) * pow(abs(e), float3(params.z));
         return float4(minivuDecode(e) * s.a, s.a);
     }
+    """
 
+    static let toneTableSource = """
     // A per-channel tone table (curves, levels) on the encoded scale, straight
     // lines beyond it (see ToneTable).
     [[stitchable]] float4 minivuToneTable(coreimage::sampler src, coreimage::sampler table, float size,
@@ -86,9 +91,16 @@ enum ToneKernels {
 
     /// Compiled once, on first use. A Mac that can't compile them can't run
     /// Metal at all (see `GPU.shared`), so failing loudly is right.
+    ///
+    /// Each kernel is compiled into a library of its own. Two kernels from
+    /// one runtime library that first render at the same moment on two
+    /// threads (a preview and a full-resolution render) can swap for the rest
+    /// of the process; see `EffectsKernels.kernel(_:)`.
     private static let kernels: [String: CIKernel] = {
         do {
-            let list = try CIKernel.kernels(withMetalString: source)
+            let list = try [lightingSource, toneTableSource].flatMap {
+                try CIKernel.kernels(withMetalString: prelude + $0)
+            }
             return Dictionary(uniqueKeysWithValues: list.map { ($0.name, $0) })
         } catch {
             fatalError("Edit kernels failed to compile: \(error)")

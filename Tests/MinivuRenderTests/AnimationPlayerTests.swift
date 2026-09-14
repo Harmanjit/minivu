@@ -44,7 +44,10 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         return "?(\(r),\(g),\(b))"
     }
 
-    func waitUntil(timeout: Double = 3, _ condition: () -> Bool) async {
+    /// Waits for something to happen, never for it not to: a long deadline
+    /// costs nothing when the player works, and frames arrive on the main
+    /// queue, which the suite's GPU-heavy tests share when run in parallel.
+    func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
         let end = Date().addingTimeInterval(timeout)
         while !condition(), Date() < end {
             try? await Task.sleep(for: .milliseconds(5))

@@ -181,10 +181,12 @@ Non-destructive until saved. An `EditDocument` holds the decoded original
 and an ordered list of `EditOperation` values; undo and redo move a cursor
 through that list. The list compiles to a Core Image graph rendered on
 Metal: at screen resolution while a slider moves, at full resolution when
-saving. Operations Core Image doesn't have (the eleven resampling filters,
-oil paint, lens, clone, heal, red-eye) are Metal compute kernels wrapped in
-`CIImageProcessorKernel`, so they join the same graph. Drawn objects (text,
-lines, callouts) stay editable as vectors until the image is saved.
+saving. Operations Core Image doesn't have join the same graph: the eleven
+resampling filters and oil paint are Metal compute kernels wrapped in
+`CIImageProcessorKernel`; bump map, sketch, frame, lens, clone, heal and
+red-eye are Core Image kernels compiled at runtime. Drawn objects (text,
+lines, callouts) stay editable as vectors: reopening the drawing tool on
+a document whose last step is a drawing edits that step.
 
 **Operations** are plain `Codable` values whose parameters are stored in
 full-resolution pixel units (or normalised coordinates for crops and
@@ -251,6 +253,35 @@ Quitting asks about unsaved edits and waits for queued writes to finish.
 Writes into a folder minivu hasn't opened (Save As onto the Desktop) put
 their temporary file in the volume's item-replacement folder, because the
 sandbox grants the save panel's file but not its folder.
+
+**Effects, drawing and retouching (Phase 6).** Every length is stored as
+a fraction of the photo's short side or in full-resolution pixels, so a
+proxy and the saved file agree. Drawn objects are rasterised with Core
+Graphics and Core Text at the working resolution, in tiles for outputs
+wider than a texture, and composited over the photo (highlights multiply).
+Clone and heal strokes are dabs along a path; heal copies the texture and
+matches it to its surroundings with a masked, normalised blur. Red-eye
+darkens reddish pupil pixels inside feathered circles, found by hand or by
+Vision's face landmarks. Tools of hand-made steps (strokes, objects) undo
+one step at a time while open, and moving on to another command applies
+them rather than dropping them.
+
+Core Image rules learned the hard way, which every new kernel follows:
+
+- A kernel whose image inputs are all `sample_t` is a colour kernel, and
+  Core Image may fuse it with neighbours and move later transforms inside
+  it. Anything that depends on position (`destination.coord()`, a
+  generator image, a hard-edged patch) is a general kernel with samplers,
+  or its positions come from a bitmap mask instead.
+- A position-dependent kernel renders over an infinite extent and is then
+  cropped, or a later transform lets it spill past the image.
+- Patches are computed a little past their area and mixed by mask, so a
+  later rotate never samples a hard edge between pixels.
+- Each runtime kernel is compiled into a library of its own: two kernels
+  from one library that first render at the same moment on two threads
+  can swap for the rest of the process.
+- Core Image submits its own command buffers when rendering to a texture;
+  sharing one of ours broke tiled renders around processor kernels.
 
 Known limits: saving an HDR photo in place writes tone-mapped SDR; Colors
 and RGB changes made in one visit to the Colors tool are two undo steps.
