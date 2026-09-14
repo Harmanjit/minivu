@@ -289,9 +289,12 @@ enum MainMenu {
     private static func helpMenu() -> NSMenu {
         let menu = NSMenu(title: "Help")
         menu.identifier = .help
-        // No action, so AppKit shows it disabled. Help will be bundled pages,
-        // never a website (the app has no network access).
-        menu.add("minivu Help", nil)
+        // Bundled pages in a window of minivu's own, never a website (the app
+        // has no network access) and no Help Book. ⌘? is every Mac app's Help
+        // item; ⌘/ is free everywhere in minivu (the viewer's bare / is
+        // Actual Size, and it ignores Command).
+        menu.add("minivu Help", #selector(AppDelegate.showMinivuHelp(_:)), "?")
+        menu.add("Keyboard Shortcuts", #selector(AppDelegate.showKeyboardShortcuts(_:)), "/")
         return menu
     }
 
