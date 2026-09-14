@@ -85,6 +85,10 @@ import AppKit
         content.addSubview(canvas)
         let badge = Badge(frame: NSRect(x: 10, y: 10, width: 20, height: 20))
         canvas.addSubview(badge)
+        // A translucent panel over the red half, like the viewer's fly-outs.
+        let panel = NSVisualEffectView(frame: NSRect(x: 60, y: 60, width: 30, height: 30))
+        panel.material = .hudWindow
+        canvas.addSubview(panel)
 
         let image = try #require(SnapshotHarness.capture(window))
         let scale = Int(window.backingScaleFactor)
@@ -94,6 +98,8 @@ import AppKit
         #expect(pixels.isNear(x: 150, y: 125, red: 1, green: 0, blue: 0, scale: scale))
         #expect(pixels.isNear(x: 180, y: 70, red: 0, green: 0, blue: 1, scale: scale))
         #expect(pixels.isNear(x: 120, y: 70, red: 0, green: 1, blue: 0, scale: scale))
+        // The panel stays in front of the canvas rather than showing it through.
+        #expect(!pixels.isNear(x: 175, y: 125, red: 1, green: 0, blue: 0, scale: scale))
     }
 }
 

@@ -25,8 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// Files opened before the browser exists (a launch by double-clicking
     /// an image in Finder delivers them before `didFinishLaunching`).
     private var pendingOpens: [URL] = []
-    /// The open panel holds its delegate weakly.
-    private var panelDelegate: InternalVolumesOnly?
+    /// The folder panel on screen, so a second ⌘O brings it forward
+    /// instead of stacking another panel.
+    private var folderPanel: NSOpenPanel?
 
     /// UserDefaults key for the folder the browser showed last. The browser
     /// writes it; launch reads it.
@@ -56,14 +57,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
         let browser = BrowserWindowController()
         self.browser = browser
-        let requested = pendingOpens + Self.pathsFromArguments()
+        let requested = pendingOpens + Self.paths(fromArguments: Array(CommandLine.arguments.dropFirst()))
         pendingOpens = []
-        if requested.isEmpty {
-            browser.open(folder: Self.startFolder())
-        }
+        // Shown first so a refusal can appear as a sheet on it. If nothing
+        // requested could be opened, the browser still needs a folder.
         browser.showWindow(nil)
         NSApp.activate()
-        if !requested.isEmpty { open(requested) }
+        if requested.isEmpty || !open(requested) {
+            browser.open(folder: Self.startFolder())
+        }
 
         SnapshotHarness.startIfRequested(app: self)
     }
@@ -103,12 +105,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         return true
     }
 
-    /// Paths given on the command line (`open Agate.app --args ~/Photos`).
-    /// Arguments starting with "-" are AppKit's own options.
-    private static func pathsFromArguments() -> [URL] {
-        CommandLine.arguments.dropFirst()
-            .filter { !$0.hasPrefix("-") && FileManager.default.fileExists(atPath: $0) }
-            .map { URL(fileURLWithPath: $0) }
+    /// Existing paths given on the command line (`open Agate.app --args
+    /// ~/Photos`), without the program name. An argument starting with "-"
+    /// is a defaults override that takes the next argument as its value
+    /// (`-lastFolder /tmp`), so both are skipped.
+    static func paths(fromArguments arguments: [String]) -> [URL] {
+        var remaining = arguments[...]
+        var paths: [URL] = []
+        while let argument = remaining.popFirst() {
+            if argument.hasPrefix("-") {
+                _ = remaining.popFirst()
+            } else if FileManager.default.fileExists(atPath: argument) {
+                paths.append(URL(fileURLWithPath: argument))
+            }
+        }
+        return paths
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
@@ -123,35 +134,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         open(urls)
     }
 
-    /// Opens folders and files from Finder, the Dock, the command line or
-    /// the snapshot harness. The browser shows one folder at a time, so if
-    /// several items arrive the last allowed one wins.
-    func open(_ urls: [URL]) {
-        guard let browser else { return }
-        var missing: [URL] = []
-        var external: [URL] = []
-        for url in urls {
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
-            guard let values else {
-                missing.append(url)
-                continue
+    /// What opening one URL means.
+    enum OpenTarget: Equatable {
+        case folder, file
+        /// Gone, or unreadable.
+        case missing
+        /// On a volume `VolumePolicy` refuses.
+        case external
+
+        init(_ url: URL) {
+            guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey]) else {
+                self = .missing
+                return
             }
             guard VolumePolicy.isAllowed(url) else {
-                external.append(url)
-                continue
+                self = .external
+                return
             }
-            if values.isDirectory == true {
-                browser.open(folder: url)
-            } else {
-                browser.open(file: url)
-            }
+            self = values.isDirectory == true ? .folder : .file
         }
+    }
+
+    /// Opens folders and files from Finder, the Dock, the command line or
+    /// the snapshot harness, and explains any it refuses. The browser shows
+    /// one folder at a time, so of several items only the last allowed one
+    /// is opened (opening each in turn would start and cancel a folder load
+    /// per item). Returns whether anything was opened.
+    @discardableResult
+    func open(_ urls: [URL]) -> Bool {
+        guard let browser else { return false }
+        let targets = urls.map { ($0, OpenTarget($0)) }
+        let external = targets.filter { $0.1 == .external }.map(\.0)
+        let missing = targets.filter { $0.1 == .missing }.map(\.0)
         if !external.isEmpty {
             explain(external, "Agate only works with files on this Mac’s internal storage. Copy the photos "
                 + "from the external drive, memory card or network share to a folder on this Mac first.")
-        } else if !missing.isEmpty {
+        }
+        if !missing.isEmpty {
             explain(missing, "The item may have been moved or deleted, or Agate may not have permission to read it.")
         }
+        guard let (url, target) = targets.last(where: { $0.1 == .folder || $0.1 == .file }) else { return false }
+        if target == .folder {
+            browser.open(folder: url)
+        } else {
+            browser.open(file: url)
+        }
+        return true
     }
 
     private func explain(_ urls: [URL], _ reason: String) {
@@ -192,16 +220,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// The bookmark must be made from the URL the panel returns: that URL
     /// carries the sandbox permission the user just granted.
     private func chooseFolder(prompt: String, then handle: @escaping (URL) -> Void) {
+        if let folderPanel {
+            folderPanel.makeKeyAndOrderFront(nil)
+            return
+        }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.prompt = prompt
+        // The panel holds its delegate weakly; the completion handler below
+        // keeps it alive exactly as long as the panel is up.
         let delegate = InternalVolumesOnly()
-        panelDelegate = delegate
         panel.delegate = delegate
+        folderPanel = panel
         let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-            self?.panelDelegate = nil
+            withExtendedLifetime(delegate) {}
+            self?.folderPanel = nil
             guard response == .OK, let url = panel.url else { return }
             handle(url)
         }

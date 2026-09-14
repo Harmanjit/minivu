@@ -7,22 +7,36 @@ import AppKit
 /// lighter surfaces: views that paint their own background use the dynamic
 /// colours below, which read the current theme when they are drawn.
 enum ThemeColors {
+    /// The theme last passed to `apply`, which the dynamic colours read.
+    ///
+    /// Not `Preferences.shared.theme`: `apply` is called from a `$theme`
+    /// subscriber, and `@Published` notifies before the property changes,
+    /// so the preference still holds the old theme while views react to
+    /// the new appearance.
+    private(set) static var current: Preferences.Theme = .system
+
     /// Applies `theme` app-wide. Call on launch and whenever it changes.
     static func apply(_ theme: Preferences.Theme) {
+        current = theme
         switch theme {
         case .system: NSApp.appearance = nil
         case .light: NSApp.appearance = NSAppearance(named: .aqua)
         case .gray, .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
         }
-        // Views using the dynamic colours need a redraw to pick up Gray vs Dark,
-        // which share an appearance.
+        // Gray and Dark share an appearance, so switching between them gives
+        // views no appearance change: every view is asked to redraw instead.
+        // Only on a theme change, and only views that exist, so it's cheap.
         for window in NSApp.windows {
-            window.contentView?.needsDisplay = true
-            window.contentView?.subviews.forEach { $0.needsDisplay = true }
+            if let root = window.contentView?.superview ?? window.contentView { redraw(root) }
         }
     }
 
-    private static var isGray: Bool { Preferences.shared.theme == .gray }
+    private static func redraw(_ view: NSView) {
+        view.needsDisplay = true
+        view.subviews.forEach(redraw)
+    }
+
+    private static var isGray: Bool { current == .gray }
 
     /// Background behind the thumbnail grid and other content areas.
     static let contentBackground = NSColor(name: "agate.content") { appearance in

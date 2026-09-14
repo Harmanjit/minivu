@@ -150,7 +150,7 @@ private struct MagnifierSettings: View {
                 }
                 LabeledContent("Size") {
                     HStack {
-                        Slider(value: $prefs.magnifierRadius, in: 60...300)
+                        Slider(value: wholePoints($prefs.magnifierRadius), in: MagnifierPreview.radii)
                         ValueLabel(text: "\(Int(prefs.magnifierRadius)) pt")
                     }
                 }
@@ -160,7 +160,6 @@ private struct MagnifierSettings: View {
             }
             Section("Preview") {
                 MagnifierPreview(zoom: prefs.magnifierZoom, radius: prefs.magnifierRadius)
-                    .frame(height: 170)
             }
         }
         .settingsForm()
@@ -169,10 +168,13 @@ private struct MagnifierSettings: View {
 
 /// A live picture of the loupe: a pattern with a circle that magnifies it.
 ///
-/// Drawn at half size so the largest radius (300 pt) still fits, which the
-/// caption says. SwiftUI's `Canvas` redraws only when zoom or radius
-/// change, and costs a few path fills.
+/// Drawn at one-third size, which the caption says, so the largest loupe
+/// (600 pt across) fits a preview of reasonable height. SwiftUI's `Canvas`
+/// redraws only when zoom or radius change, and costs a few path fills.
 private struct MagnifierPreview: View {
+    static let radii: ClosedRange<Double> = 60...300
+    static let scale = 1.0 / 3
+
     var zoom: Double
     var radius: Double
 
@@ -180,7 +182,7 @@ private struct MagnifierPreview: View {
         VStack(spacing: 4) {
             Canvas { context, size in
                 let centre = CGPoint(x: size.width / 2, y: size.height / 2)
-                let r = radius / 2
+                let r = radius * Self.scale
                 let loupe = Path(ellipseIn: CGRect(x: centre.x - r, y: centre.y - r, width: 2 * r, height: 2 * r))
                 drawPattern(in: &context, size: size, scale: 1, about: centre)
                 var inside = context
@@ -190,7 +192,9 @@ private struct MagnifierPreview: View {
                 context.stroke(loupe, with: .color(.white.opacity(0.9)), lineWidth: 2)
                 context.stroke(loupe, with: .color(.black.opacity(0.25)), lineWidth: 0.5)
             }
-            Text("Shown at half size").font(.caption).foregroundStyle(.secondary)
+            // Tall enough for the largest loupe plus its outline.
+            .frame(height: 2 * Self.radii.upperBound * Self.scale + 8)
+            Text("Shown at one-third size").font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -223,7 +227,7 @@ private struct ThumbnailSettings: View {
             LabeledContent("Size") {
                 HStack {
                     // No `step`: on macOS it draws a tick mark per step.
-                    Slider(value: $prefs.thumbnailSize, in: 80...320)
+                    Slider(value: wholePoints($prefs.thumbnailSize), in: 80...320)
                     ValueLabel(text: "\(Int(prefs.thumbnailSize)) pt")
                 }
             }
@@ -240,6 +244,12 @@ private struct ThumbnailSettings: View {
         }
         .settingsForm()
     }
+}
+
+/// Rounds a slider's value as it is written, so sizes are whole points: a
+/// fractional thumbnail size would give the grid blurry, uneven cells.
+private func wholePoints(_ value: Binding<Double>) -> Binding<Double> {
+    Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
 }
 
 /// A slider's current value, in a fixed width so sliders above each other

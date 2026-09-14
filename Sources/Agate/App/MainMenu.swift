@@ -178,12 +178,14 @@ enum MainMenu {
 
 /// Shows a shortcut beside a menu item without letting the menu take the key.
 ///
-/// Arrows, Home and End mean "move the selection" in the grid and "change
-/// image" in the viewer, and those views handle them in `keyDown`. A menu
-/// key equivalent is matched before the focused view sees the key, and
-/// AppKit consumes the key even when the item is disabled, so a real →
-/// equivalent would steal it from the grid. Instead each item has its
-/// equivalent only while its menu is on screen, where it is just a label.
+/// Arrows, Home and End mean "move the selection" in the grid, "change
+/// image" in the viewer and "move the insertion point" in a text field, and
+/// those views handle them in `keyDown`. AppKit offers every key press to
+/// the menu bar before the focused view, so a real → equivalent would send
+/// `nextImage:` whenever a controller up the chain implements it, and a
+/// rename field inside the browser would never see its arrow keys. Instead
+/// each item has its equivalent only while its menu is on screen, where it
+/// is just a label.
 ///
 /// Tried and rejected: AppKit does not call `menuNeedsUpdate` while
 /// searching for a key equivalent (so it can't hide them there), and it

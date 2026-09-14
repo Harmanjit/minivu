@@ -106,7 +106,7 @@ import AgateCore
         back.target = recorder
         let go = try #require(next.menu)
         let viewKeys = try #require(go.delegate as? DisplayOnlyShortcuts)
-        let rightArrow = keyEvent(MainMenu.Key.right, keyCode: 124, modifiers: [.function, .numericPad])
+        let rightArrow = keyPress(124)
 
         viewKeys.showShortcuts(true)
         #expect(bar.performKeyEquivalent(with: rightArrow))
@@ -122,6 +122,31 @@ import AgateCore
         #expect(recorder.calls == ["nextImage:", "goBack:"])
     }
 
+    /// Non-printing keys and their shortcuts, as the keyboard sends them.
+    @Test func shortcutsOnSpecialKeys() throws {
+        let recorder = Recorder()
+        for title in ["Move to Trash", "Open in Viewer", "Enclosing Folder"] {
+            try item(title).target = recorder
+        }
+        #expect(bar.performKeyEquivalent(with: keyPress(51, .maskCommand)))    // ⌘⌫
+        #expect(bar.performKeyEquivalent(with: keyPress(125, .maskCommand)))   // ⌘↓
+        #expect(bar.performKeyEquivalent(with: keyPress(126, .maskCommand)))   // ⌘↑
+        #expect(recorder.calls == ["moveToTrash:", "openInViewer:", "goToEnclosingFolder:"])
+        // A bare Delete must stay with the focused view.
+        #expect(!bar.performKeyEquivalent(with: keyPress(51)))
+    }
+
+    /// A key event made the way the window server makes one, so AppKit
+    /// matches it exactly as it would a real key press. (Events built from
+    /// characters alone match differently: ⌘⌫ arrives as DEL, 0x7F, and
+    /// only a real event matches the menu's backspace, 0x08.) Only for keys
+    /// whose code means the same on every keyboard layout.
+    func keyPress(_ keyCode: CGKeyCode, _ flags: CGEventFlags = []) -> NSEvent {
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)!
+        event.flags = flags
+        return NSEvent(cgEvent: event)!
+    }
+
     func keyEvent(_ characters: String, keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> NSEvent {
         NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: 0,
                          context: nil, characters: characters, charactersIgnoringModifiers: characters,
@@ -132,5 +157,8 @@ import AgateCore
         var calls: [String] = []
         @objc func nextImage(_ sender: Any?) { calls.append("nextImage:") }
         @objc func goBack(_ sender: Any?) { calls.append("goBack:") }
+        @objc func moveToTrash(_ sender: Any?) { calls.append("moveToTrash:") }
+        @objc func openInViewer(_ sender: Any?) { calls.append("openInViewer:") }
+        @objc func goToEnclosingFolder(_ sender: Any?) { calls.append("goToEnclosingFolder:") }
     }
 }
