@@ -113,6 +113,11 @@ import MinivuCore
     /// `EditRenderer.prepare` has decoded it. An original larger than Metal's
     /// 16384 px texture limit reports its own size too: it is shown at the
     /// limit while editing and saved at this size.
+    /// The file's modification date and size at the first decode. Set once
+    /// and kept across `EditRenderer.release`: the operations are relative to
+    /// that file, so decoding a changed file for them again is refused.
+    var sourceSignature: FileSignature?
+
     public internal(set) var sourceSize: CGSize? {
         didSet { if sourceSize != oldValue { onChange?() } }
     }
@@ -180,11 +185,13 @@ extension EditDocument {
         /// How to decode the file if `source` is nil (RAW files follow the
         /// viewer's settings, as in `prepare`).
         let settings: DisplaySettings
+        /// See `EditDocument.sourceSignature`.
+        let sourceSignature: FileSignature?
     }
 
     public func snapshot() -> Snapshot {
         Snapshot(url: entry.url, page: page, kind: entry.kind, operations: operations, sourceSize: sourceSize,
-                 source: source, settings: ImageLoader.shared.settings)
+                 source: source, settings: ImageLoader.shared.settings, sourceSignature: sourceSignature)
     }
 }
 

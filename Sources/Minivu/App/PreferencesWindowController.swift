@@ -114,6 +114,9 @@ private struct GeneralSettings: View {
             Toggle("Show hidden files", isOn: $prefs.showHiddenFiles)
             Toggle("Wrap around at end of folder", isOn: $prefs.wrapAround)
             Toggle("Open viewer in full screen", isOn: $prefs.openViewerFullScreen)
+            // The only way back after ticking "Don't ask again" in the
+            // Save confirmation.
+            Toggle("Ask before saving over the original", isOn: $prefs.confirmOverwriteOnSave)
         }
         .settingsForm()
     }

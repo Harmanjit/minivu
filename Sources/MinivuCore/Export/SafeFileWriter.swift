@@ -7,10 +7,15 @@ import Foundation
 /// name, flushed to disk, and only then swapped into place. Until the swap
 /// the original is untouched; after it the new file is complete. The
 /// temporary file lives in the same folder (not in the temporary
-/// directory) because a rename is only atomic within one volume, and
-/// because the sandbox grants access to the folder the user chose, not to
-/// other places on that volume. So writing next to a file needs read-write
-/// access to its folder, which user-selected folders have.
+/// directory) because a rename is only atomic within one volume.
+///
+/// Under the sandbox that needs write access to the folder, which folders
+/// the user opened in minivu have. A Save panel is different: it grants
+/// the one file the user named, not its folder, so a temporary sibling
+/// can't be created there (Save As onto the Desktop, say). In that case the
+/// temporary file goes in the system's item-replacement folder for that
+/// volume, which the sandbox allows and which is on the same volume, so the
+/// final swap is still atomic.
 ///
 /// Replacing goes through `FileManager.replaceItemAt`, which carries the
 /// original's creation date, permissions and extended attributes (Finder
@@ -31,12 +36,17 @@ public enum SafeFileWriter {
     /// batch convert writing "photo.jpg" next to a folder of that name must
     /// fail, not destroy it.
     public static func replace(_ url: URL, fill: (URL) throws -> Void) throws {
+        try replace(url, canCreateSibling: probeCreate, fill: fill)
+    }
+
+    static func replace(_ url: URL, canCreateSibling: (URL) -> Bool, fill: (URL) throws -> Void) throws {
         let url = url.resolvingSymlinksInPath()
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: url.path])
         }
-        let temp = temporaryURL(for: url)
+        let (temp, scratchFolder) = temporaryLocation(for: url, canCreateSibling: canCreateSibling)
+        defer { if let scratchFolder { try? FileManager.default.removeItem(at: scratchFolder) } }
         do {
             try fill(temp)
             try synchronize(temp)
@@ -49,6 +59,31 @@ public enum SafeFileWriter {
             try? FileManager.default.removeItem(at: temp)
             throw error
         }
+    }
+
+    /// Where to write the temporary file: a hidden sibling when the folder
+    /// accepts new files, otherwise a fresh item-replacement folder on the
+    /// same volume (returned so it can be removed afterwards).
+    /// `canCreateSibling` is injectable for tests; by default it tries to
+    /// create the sibling, which is the only reliable test under the sandbox
+    /// (`access(2)` reports POSIX permissions, not sandbox rules).
+    static func temporaryLocation(for url: URL,
+                                  canCreateSibling: (URL) -> Bool = probeCreate) -> (URL, URL?) {
+        let sibling = temporaryURL(for: url)
+        if canCreateSibling(sibling) { return (sibling, nil) }
+        if let folder = try? FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                                     appropriateFor: url, create: true) {
+            return (folder.appendingPathComponent(sibling.lastPathComponent, isDirectory: false), folder)
+        }
+        return (sibling, nil)
+    }
+
+    static func probeCreate(_ url: URL) -> Bool {
+        let fd = open(url.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
+        guard fd >= 0 else { return false }
+        close(fd)
+        unlink(url.path)
+        return true
     }
 
     /// Writes `data` to `url` atomically.

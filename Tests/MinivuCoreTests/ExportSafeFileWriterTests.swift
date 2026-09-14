@@ -21,6 +21,33 @@ import ImageIO
         return try fresh.resourceValues(forKeys: [.tagNamesKey]).tagNames ?? []
     }
 
+    /// A Save panel grants the named file but not its folder, so no sibling
+    /// can be created; the writer must fall back to the volume's
+    /// item-replacement folder and still replace atomically, keeping tags.
+    @Test func fallsBackWhenTheFolderRefusesNewFiles() throws {
+        let t = try TemporaryFolder()
+        let url = t.url.appendingPathComponent("photo.jpg")
+        try Data("old".utf8).write(to: url)
+        try (url as NSURL).setResourceValue(["Blue"], forKey: .tagNamesKey)
+
+        let (temp, scratch) = SafeFileWriter.temporaryLocation(for: url, canCreateSibling: { _ in false })
+        #expect(scratch != nil)
+        #expect(temp.deletingLastPathComponent() != url.deletingLastPathComponent())
+        if let scratch { try? FileManager.default.removeItem(at: scratch) }
+
+        var written: URL?
+        try SafeFileWriter.replace(url, canCreateSibling: { _ in false }) { temp in
+            written = temp
+            try Data("new".utf8).write(to: temp)
+        }
+        #expect(try Data(contentsOf: url) == Data("new".utf8))
+        #expect(written?.deletingLastPathComponent() != url.deletingLastPathComponent())
+        #expect(try tags(url) == ["Blue"])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path) == ["photo.jpg"])
+        // The scratch folder is removed afterwards.
+        #expect(written.map { !FileManager.default.fileExists(atPath: $0.deletingLastPathComponent().path) } == true)
+    }
+
     @Test func writesANewFileWithoutLeftovers() throws {
         let t = try TemporaryFolder()
         let url = t.url.appendingPathComponent("new.bin")

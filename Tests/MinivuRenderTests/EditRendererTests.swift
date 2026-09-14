@@ -327,4 +327,34 @@ import Metal
         }
         #expect(releasedDoc == nil && droppedDoc == nil && droppedSource == nil)
     }
+
+    /// A Save over the original puts the edits into the file. If the document
+    /// then had to decode the file again (after `release`, or for an original
+    /// too large to keep), it would apply every edit a second time. Both the
+    /// decode for editing and the decode for export must refuse instead.
+    @Test func aFileChangedAfterEditingBeganIsNotEditedAgain() async throws {
+        let url = quadrantFile(width: 64, height: 32)
+        let doc = document(url)
+        try await renderer.prepare(doc, proxyPixelSize: 64)
+        doc.apply(.rotate90(turns: 1))
+        renderer.release(doc)
+
+        // Simulate the save: the file is rewritten with the rotated pixels.
+        try await Task.sleep(for: .milliseconds(20))
+        let rotated = Fixtures.write(Fixtures.quadrants(width: 32, height: 64), name: "rotated-\(UUID()).tiff")
+        _ = try FileManager.default.replaceItemAt(url, withItemAt: rotated)
+
+        await #expect(throws: EditRenderError.self) { try await renderer.prepare(doc, proxyPixelSize: 64) }
+        let snapshot = doc.snapshot()
+        await #expect(throws: EditRenderError.self) {
+            _ = try await renderer.renderForExport(snapshot, colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                   bitsPerComponent: 8)
+        }
+
+        // A fresh document for the saved file edits it normally.
+        let fresh = document(url)
+        try await renderer.prepare(fresh, proxyPixelSize: 64)
+        #expect(fresh.sourceSize == CGSize(width: 32, height: 64))
+        renderer.release(fresh)
+    }
 }

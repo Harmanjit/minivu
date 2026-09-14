@@ -233,7 +233,16 @@ goes through one serial queue, so ⌘S, an edit and ⌘S again land in that
 order, and a document is marked saved only by the last write of its file.
 After an in-place save the file holds the edits, so a document is never
 decoded again from it (that would apply them twice); reloading means a new
-document.
+document, and undo history starts over after a save. As a safety net each
+document records the file's modification date and size at its first
+decode, and the renderer refuses to decode a changed file for it again.
+Quitting asks about unsaved edits and waits for queued writes to finish.
+Writes into a folder minivu hasn't opened (Save As onto the Desktop) put
+their temporary file in the volume's item-replacement folder, because the
+sandbox grants the save panel's file but not its folder.
+
+Known limits: saving an HDR photo in place writes tone-mapped SDR; Colors
+and RGB changes made in one visit to the Colors tool are two undo steps.
 
 ## 5. User interface
 

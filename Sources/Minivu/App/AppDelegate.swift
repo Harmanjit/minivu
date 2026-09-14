@@ -125,6 +125,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
+    /// Quitting must not lose work. Two things can be at risk:
+    ///
+    /// 1. Unsaved edits in the viewer: ask, exactly as moving to another
+    ///    image does (Save / Don't Save / Cancel).
+    /// 2. Writes still running (a Save, Save As, comment or batch rotate):
+    ///    wait for them, so the file the user just saved is really on disk
+    ///    and no hidden temporary file is left behind.
+    ///
+    /// `.terminateLater` keeps the app alive until `reply` is called.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let viewer = ViewerWindowController.current
+        let hasEdits = viewer?.hasUnsavedEdits == true
+        let writes = FileWriteQueue.shared
+        guard hasEdits || writes.pendingCount > 0 else { return .terminateNow }
+
+        func finishWritesThenQuit() {
+            Task {
+                await writes.waitUntilIdle()
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+        }
+        if let viewer, hasEdits {
+            viewer.reviewUnsavedEditsBeforeQuitting { mayQuit in
+                if mayQuit { finishWritesThenQuit() } else { NSApp.reply(toApplicationShouldTerminate: false) }
+            }
+        } else {
+            finishWritesThenQuit()
+        }
+        return .terminateLater
+    }
+
     // MARK: - Opening files and folders
 
     func application(_ application: NSApplication, open urls: [URL]) {

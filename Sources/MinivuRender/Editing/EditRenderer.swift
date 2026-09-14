@@ -133,18 +133,23 @@ final class EditProxy: @unchecked Sendable {
         let edge = proxyPixelSize ?? Self.screenLongEdge()
         let token = document.preparationToken
         let gpu = self.gpu, context = self.context
-        let work = Task.detached(priority: .userInitiated) { () throws -> (EditSource, EditProxy?) in
+        let expected = document.sourceSignature
+        let work = Task.detached(priority: .userInitiated) { () throws -> (EditSource, EditProxy?, FileSignature?) in
+            // Read before decoding, so a change racing the decode is caught.
+            let signature = FileSignature.read(url)
+            if let expected, signature != expected { throw EditRenderError.sourceChanged(url) }
             let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu)
             let scale = Self.proxyScale(sourceSize: source.size, sourceScale: source.scale, longEdge: edge)
             let proxy = try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
-            return (source, proxy)
+            return (source, proxy, signature)
         }
         let preparation = Task { [weak document] in
-            let (source, proxy) = try await work.value
+            let (source, proxy, signature) = try await work.value
             guard let document, document.preparationToken == token else { return }
             document.source = source
             document.proxy = proxy
             document.sourceSize = source.size
+            if document.sourceSignature == nil { document.sourceSignature = signature }
         }
         document.preparation = preparation
         defer { if document.preparationToken == token { document.preparation = nil } }
@@ -206,6 +211,13 @@ final class EditProxy: @unchecked Sendable {
         if let prepared = snapshot.source, prepared.scale >= 1 {
             source = prepared
         } else {
+            // Re-reading the file is only safe if it is still the file the
+            // operations were made on. After a Save over the original it
+            // isn't: the edits are already in it, and applying them again
+            // would write them twice.
+            if let expected = snapshot.sourceSignature, FileSignature.read(snapshot.url) != expected {
+                throw EditRenderError.sourceChanged(snapshot.url)
+            }
             source = try Self.loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
                                          settings: snapshot.settings, gpu: gpu, forExport: true)
         }
@@ -729,11 +741,33 @@ private extension CGImage {
 public enum EditRenderError: Error, CustomStringConvertible {
     case unsupportedBitDepth(Int)
     case renderFailed
+    /// The file changed on disk after editing began (often: it was saved
+    /// over), so its edits can't be applied to it again.
+    case sourceChanged(URL)
 
     public var description: String {
         switch self {
         case .unsupportedBitDepth(let bits): "\(bits) bits per component can't be exported (8 or 16 can)."
         case .renderFailed: "The edited image could not be rendered."
+        case .sourceChanged(let url):
+            "\u{201C}\(url.lastPathComponent)\u{201D} changed on disk after editing began, so the edits can\u{2019}t be applied to it again. Reopen the image to keep editing."
         }
+    }
+}
+
+/// What a file looked like when it was decoded for editing: enough to tell
+/// that it has been rewritten since (a save changes both on APFS, whose
+/// timestamps have nanosecond resolution).
+struct FileSignature: Sendable, Equatable {
+    let modified: Date?
+    let size: Int64?
+
+    static func read(_ url: URL) -> FileSignature? {
+        var fresh = url
+        fresh.removeAllCachedResourceValues()
+        guard let values = try? fresh.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey]) else {
+            return nil
+        }
+        return FileSignature(modified: values.contentModificationDate, size: values.fileSize.map(Int64.init))
     }
 }
