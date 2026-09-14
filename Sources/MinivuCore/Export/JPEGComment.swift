@@ -31,12 +31,13 @@ public enum JPEGComment {
     static let maxPayload = 65_533
 
     /// The comment text, or nil if the file has none (or isn't a JPEG).
-    /// Several COM segments are joined back together, so a long comment we
-    /// split over several segments reads back exactly as written.
+    /// A long comment we split over several segments reads back exactly as
+    /// written; separate comments (several tools each adding their own) are
+    /// joined with line breaks, each decoded on its own, so one Latin-1
+    /// comment doesn't garble a UTF-8 one next to it.
     public static func read(from url: URL) -> String? {
-        guard let data = try? Data(contentsOf: url, options: .alwaysMapped) else { return nil }
-        let payload = commentPayloads(in: data).reduce(into: Data()) { $0.append($1) }
-        let text = decode(payload).trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
+        guard let data = headerData(at: url) else { return nil }
+        let text = joined(commentPayloads(in: data))
         return text.isEmpty ? nil : text
     }
 
@@ -55,7 +56,7 @@ public enum JPEGComment {
         // Mapped, not read: only the header pages are faulted in to parse,
         // and the rest streams straight from the page cache into the new file.
         let data = try Data(contentsOf: url, options: .alwaysMapped)
-        guard let rewrite = try rewrittenHeader(of: data, comment: comment) else { return }
+        guard let rewrite = try rewrittenHeader(of: data, commentPayloads: payloads(of: comment)) else { return }
         try SafeFileWriter.replace(url) { temp in
             guard FileManager.default.createFile(atPath: temp.path, contents: nil) else {
                 throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: temp.path])
@@ -69,7 +70,13 @@ public enum JPEGComment {
 
     /// The same edit in memory, for freshly encoded files.
     static func replacingComment(in data: Data, with comment: String) throws -> Data {
-        guard let rewrite = try rewrittenHeader(of: data, comment: comment) else { return data }
+        try replacingComments(in: data, withPayloads: payloads(of: comment))
+    }
+
+    /// The same with raw payloads, which keeps comments in an unknown
+    /// encoding byte for byte (the lossless rotate puts them back this way).
+    static func replacingComments(in data: Data, withPayloads payloads: [Data]) throws -> Data {
+        guard let rewrite = try rewrittenHeader(of: data, commentPayloads: payloads) else { return data }
         var result = rewrite.header
         result.append(data[(data.startIndex + rewrite.scanStart)...])
         return result
@@ -89,12 +96,49 @@ public enum JPEGComment {
     /// encoding: modern tools write UTF-8, old Windows ones Latin-1, and
     /// every byte sequence is valid Latin-1, so that is the fallback.
     static func commentTexts(at url: URL) -> [String] {
-        guard let data = try? Data(contentsOf: url, options: .alwaysMapped) else { return [] }
+        guard let data = headerData(at: url) else { return [] }
         return commentPayloads(in: data).map(decode)
     }
 
     static func decode(_ payload: Data) -> String {
         String(data: payload, encoding: .utf8) ?? String(data: payload, encoding: .isoLatin1) ?? ""
+    }
+
+    /// Payloads back to one string. A payload within 3 bytes of the limit is
+    /// a piece `chunks(of:)` cut (it backs up at most 3 bytes to a character
+    /// boundary), so the next one continues it directly; anything shorter
+    /// ended a comment of its own.
+    static func joined(_ payloads: [Data]) -> String {
+        var text = ""
+        var previousWasFull = false
+        for (index, payload) in payloads.enumerated() {
+            let piece = decode(payload).trimmingCharacters(in: CharacterSet(charactersIn: "\0"))
+            if index > 0, !previousWasFull, !piece.isEmpty, !text.isEmpty { text += "\n" }
+            text += piece
+            previousWasFull = payload.count >= maxPayload - 3
+        }
+        return text
+    }
+
+    /// The start of the file up to and including the first SOS marker,
+    /// read in growing pieces rather than mapped: browsing calls this for
+    /// every JPEG, and a mapped file that another program truncates (or a
+    /// network volume that goes away) crashes the reader with SIGBUS the
+    /// moment a vanished page is touched, where a read just fails. Most
+    /// headers fit in the first 64 KB; big ICC profiles or XMP take a
+    /// second read. Nil if the file can't be read or isn't a JPEG.
+    static func headerData(at url: URL) -> Data? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        var data = Data()
+        var chunk = 64 * 1024
+        while true {
+            guard let more = try? handle.read(upToCount: chunk) else { return data.isEmpty ? nil : data }
+            data.append(more)
+            guard let parsed = data.withUnsafeBytes({ header(of: $0) }) else { return nil }
+            if parsed.scanStart != nil || !parsed.truncated || more.count < chunk { return data }
+            chunk *= 2
+        }
     }
 
     // MARK: - Segments
@@ -115,6 +159,9 @@ public enum JPEGComment {
         /// Offset of the first SOS marker, or nil if the header is damaged
         /// or the file ends before any image data.
         var scanStart: Int?
+        /// The bytes ran out in the middle of the header (as opposed to
+        /// the header being damaged), so reading more of the file may help.
+        var truncated = false
     }
 
     /// Walks the segments from SOI to the first SOS. Nil if the bytes don't
@@ -131,7 +178,7 @@ public enum JPEGComment {
             // as part of the segment that follows, so a kept segment is
             // copied exactly as it was, padding included.
             while pos < count, bytes[pos] == 0xFF { pos += 1 }
-            guard pos < count else { break }
+            guard pos < count else { return Header(segments: segments, scanStart: nil, truncated: true) }
             let marker = bytes[pos]
             pos += 1
             switch marker {
@@ -145,19 +192,20 @@ public enum JPEGComment {
                 // TEM and RSTn stand alone, with no length field.
                 segments.append(Segment(marker: marker, start: start, payloadStart: pos, end: pos))
             default:
-                guard pos + 2 <= count else { return Header(segments: segments, scanStart: nil) }
+                guard pos + 2 <= count else { return Header(segments: segments, scanStart: nil, truncated: true) }
                 let length = Int(bytes[pos]) << 8 | Int(bytes[pos + 1])
-                guard length >= 2, pos + length <= count else { return Header(segments: segments, scanStart: nil) }
+                guard length >= 2 else { return Header(segments: segments, scanStart: nil) }
+                guard pos + length <= count else { return Header(segments: segments, scanStart: nil, truncated: true) }
                 segments.append(Segment(marker: marker, start: start, payloadStart: pos + 2, end: pos + length))
                 pos += length
             }
         }
-        return Header(segments: segments, scanStart: nil)
+        return Header(segments: segments, scanStart: nil, truncated: pos >= count)
     }
 
     /// The new bytes before the first SOS, and where SOS was in the
     /// original. Nil when the new header is identical to the old one.
-    static func rewrittenHeader(of data: Data, comment: String) throws -> (header: Data, scanStart: Int)? {
+    static func rewrittenHeader(of data: Data, commentPayloads: [Data]) throws -> (header: Data, scanStart: Int)? {
         try data.withUnsafeBytes { raw -> (header: Data, scanStart: Int)? in
             guard let parsed = header(of: raw) else { throw Error.notJPEG }
             guard let scanStart = parsed.scanStart else { throw Error.malformed }
@@ -166,39 +214,65 @@ public enum JPEGComment {
             var insertAt = 0
             while insertAt < kept.count, (0xE0...0xEF).contains(kept[insertAt].marker) { insertAt += 1 }
 
-            var out = Data(capacity: scanStart + comment.utf8.count + 16)
-            out.append(contentsOf: [0xFF, 0xD8])
-            var mpf: (segment: Segment, newStart: Int)?
-            func append(_ segment: Segment) {
-                if isMPF(segment, in: raw) { mpf = (segment, out.count) }
-                out.append(contentsOf: raw[segment.start..<segment.end])
-            }
-            kept[..<insertAt].forEach(append)
-            for chunk in chunks(of: comment) {
-                let length = chunk.count + 2
-                out.append(contentsOf: [0xFF, 0xFE, UInt8(length >> 8), UInt8(length & 0xFF)])
-                out.append(contentsOf: chunk)
-            }
-            kept[insertAt...].forEach(append)
-
-            if out.elementsEqual(raw[0..<scanStart]) { return nil }
-
-            if let mpf {
-                // Secondary image offsets count from the MP header (4 bytes
-                // into the MPF payload). The images themselves sit after the
-                // scan, which moved by the total change in header size; the
-                // MP header moved by the change in size before it.
-                let headerOffset = mpf.segment.payloadStart - mpf.segment.start + 4
-                let movedHeader = mpf.newStart - mpf.segment.start
-                let movedImages = out.count - scanStart
-                let shift = movedImages - movedHeader
-                if shift != 0 {
-                    patchMPFOffsets(in: &out, header: mpf.newStart + headerOffset,
-                                    end: mpf.newStart + (mpf.segment.end - mpf.segment.start), shift: shift)
-                }
-            }
-            return (out, scanStart)
+            var pieces = kept[..<insertAt].map(Piece.segment)
+            pieces += commentPayloads.map { .bytes(comSegment($0)) }
+            pieces += kept[insertAt...].map(Piece.segment)
+            let out = assemble(pieces, from: raw, scanStart: scanStart)
+            return out.elementsEqual(raw[0..<scanStart]) ? nil : (out, scanStart)
         }
+    }
+
+    /// One part of a rebuilt header: a segment copied from the original
+    /// file, or new bytes (a whole segment, marker included).
+    enum Piece {
+        case segment(Segment)
+        case bytes(Data)
+    }
+
+    /// A COM segment around a payload of at most `maxPayload` bytes.
+    static func comSegment(_ payload: Data) -> Data {
+        let length = payload.count + 2
+        var segment = Data([0xFF, 0xFE, UInt8(length >> 8), UInt8(length & 0xFF)])
+        segment.append(payload)
+        return segment
+    }
+
+    static func payloads(of comment: String) -> [Data] {
+        chunks(of: comment).map { Data($0) }
+    }
+
+    /// SOI plus `pieces`: the new bytes that replace everything before the
+    /// original's first scan at `scanStart`. Everything from there on is
+    /// copied unchanged by the caller, so if an MPF index is among the
+    /// copied segments, its offsets to the secondary images (an HDR gain
+    /// map, a stereo pair) are corrected here. They count from the MP
+    /// header, 4 bytes into the MPF payload. The images sit after the scan,
+    /// which moves by the total change in header size; the MP header moves
+    /// by the change in size before it.
+    static func assemble(_ pieces: [Piece], from raw: UnsafeRawBufferPointer, scanStart: Int) -> Data {
+        var out = Data(capacity: scanStart + 1024)
+        out.append(contentsOf: [0xFF, 0xD8])
+        var mpf: (segment: Segment, newStart: Int)?
+        for piece in pieces {
+            switch piece {
+            case .segment(let segment):
+                if mpf == nil, isMPF(segment, in: raw) { mpf = (segment, out.count) }
+                out.append(contentsOf: raw[segment.start..<segment.end])
+            case .bytes(let bytes):
+                out.append(bytes)
+            }
+        }
+        if let mpf {
+            let headerOffset = mpf.segment.payloadStart - mpf.segment.start + 4
+            let movedHeader = mpf.newStart - mpf.segment.start
+            let movedImages = out.count - scanStart
+            let shift = movedImages - movedHeader
+            if shift != 0 {
+                patchMPFOffsets(in: &out, header: mpf.newStart + headerOffset,
+                                end: mpf.newStart + (mpf.segment.end - mpf.segment.start), shift: shift)
+            }
+        }
+        return out
     }
 
     /// Splits UTF-8 text into segment-sized pieces, never inside a

@@ -31,15 +31,15 @@ public enum ImageEncoder {
     /// Encodes to memory (also used for size estimation and the quality preview).
     public static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?) throws -> Data {
         try encode(image, options: options, metadataSource: metadataSource,
-                   comment: carriedComment(options: options, metadataSource: metadataSource))
+                   comments: carriedComments(options: options, metadataSource: metadataSource))
     }
 
     /// Encodes and writes atomically (temp file in the same folder, then
     /// replace), preserving the destination's creation date when overwriting.
     public static func write(_ image: CGImage, to url: URL, options: ExportOptions, metadataSource: URL?) throws {
-        if let comment = carriedComment(options: options, metadataSource: metadataSource) {
+        if let comments = carriedComments(options: options, metadataSource: metadataSource) {
             // The comment is spliced in after encoding, which is simplest in memory.
-            let data = try encode(image, options: options, metadataSource: metadataSource, comment: comment)
+            let data = try encode(image, options: options, metadataSource: metadataSource, comments: comments)
             try SafeFileWriter.write(data, to: url)
             return
         }
@@ -65,14 +65,14 @@ public enum ImageEncoder {
 
     // MARK: - Encoding
 
-    static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?, comment: String?) throws -> Data {
+    static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?, comments: [Data]?) throws -> Data {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, options.format.utType.identifier as CFString, 1, nil) else {
             throw ExportError.cannotCreateDestination(options.format)
         }
         try encode(image, into: destination, options: options, metadataSource: metadataSource)
-        guard let comment else { return data as Data }
-        return try JPEGComment.replacingComment(in: data as Data, with: comment)
+        guard let comments else { return data as Data }
+        return try JPEGComment.replacingComments(in: data as Data, withPayloads: comments)
     }
 
     static func encode(_ image: CGImage, into destination: CGImageDestination, options: ExportOptions, metadataSource: URL?) throws {
@@ -115,11 +115,15 @@ public enum ImageEncoder {
         guard CGImageDestinationFinalize(destination) else { throw ExportError.encodingFailed(format) }
     }
 
-    /// The source's JPEG comment, when both ends are JPEG and metadata is kept.
-    static func carriedComment(options: ExportOptions, metadataSource: URL?) -> String? {
+    /// The source's JPEG comment segments, when both ends are JPEG and
+    /// metadata is kept. Raw payloads, not text, so a comment in an old
+    /// encoding and several separate comments are carried exactly.
+    static func carriedComments(options: ExportOptions, metadataSource: URL?) -> [Data]? {
         guard options.format == .jpeg, options.keepMetadata, let metadataSource,
-              ExportFormat.format(for: metadataSource) == .jpeg else { return nil }
-        return JPEGComment.read(from: metadataSource)
+              ExportFormat.format(for: metadataSource) == .jpeg,
+              let header = JPEGComment.headerData(at: metadataSource) else { return nil }
+        let payloads = JPEGComment.commentPayloads(in: header)
+        return payloads.isEmpty ? nil : payloads
     }
 
     // MARK: - Pixels
@@ -169,7 +173,9 @@ public enum ImageEncoder {
         }
         let rect = CGRect(x: (canvas.width - width) / 2, y: (canvas.height - height) / 2, width: width, height: height)
         if flatten {
-            context.setFillColor(options.backgroundForOpaqueFormats.cgColor)
+            // Opaque whatever alpha the colour has: the file has no alpha
+            // channel, and a see-through background would fade to black.
+            context.setFillColor(options.backgroundForOpaqueFormats.cgColor.copy(alpha: 1) ?? options.backgroundForOpaqueFormats.cgColor)
             context.fill(CGRect(x: 0, y: 0, width: canvas.width, height: canvas.height))
         }
         context.interpolationQuality = .high

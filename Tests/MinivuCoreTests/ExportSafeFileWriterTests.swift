@@ -82,4 +82,43 @@ import ImageIO
         #expect(try String(contentsOf: url, encoding: .utf8) == "original")
         #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path) == ["photo.jpg"])
     }
+
+    @Test func aSymbolicLinkIsWrittenThrough() throws {
+        let t = try TemporaryFolder()
+        let target = t.url.appendingPathComponent("target.jpg")
+        try Data("old".utf8).write(to: target)
+        let link = t.url.appendingPathComponent("link.jpg")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        try SafeFileWriter.write(Data("new".utf8), to: link)
+        #expect(try String(contentsOf: target, encoding: .utf8) == "new")
+        #expect(try FileManager.default.attributesOfItem(atPath: link.path)[.type] as? FileAttributeType == .typeSymbolicLink)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path).sorted() == ["link.jpg", "target.jpg"])
+    }
+
+    /// `replaceItemAt` happily swaps a file in for a folder and deletes the
+    /// folder with its contents (measured), so a folder must be refused.
+    @Test func aFolderIsNeverReplaced() throws {
+        let t = try TemporaryFolder()
+        let folder = t.url.appendingPathComponent("photo.jpg")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        try Data("precious".utf8).write(to: folder.appendingPathComponent("inside.txt"))
+
+        #expect(throws: CocoaError.self) { try SafeFileWriter.write(Data("x".utf8), to: folder) }
+        #expect(try String(contentsOf: folder.appendingPathComponent("inside.txt"), encoding: .utf8) == "precious")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path) == ["photo.jpg"])
+    }
+
+    @Test func veryLongNamesStillGetATemporaryFile() throws {
+        let t = try TemporaryFolder()
+        // 251 bytes: a legal name, but not with ".minivu-XXXXXXXX.tmp" added.
+        // (Three-byte characters, so shortening must not cut one in half.)
+        let url = t.url.appendingPathComponent(String(repeating: "日", count: 70) + String(repeating: "a", count: 37) + ".jpg")
+        #expect(url.lastPathComponent.utf8.count == 251)
+        try Data("old".utf8).write(to: url)
+        try SafeFileWriter.write(Data("new".utf8), to: url)
+        #expect(try String(contentsOf: url, encoding: .utf8) == "new")
+        #expect(SafeFileWriter.temporaryURL(for: url).lastPathComponent.utf8.count <= 255)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path).count == 1)
+    }
 }

@@ -58,7 +58,7 @@ import ImageIO
         try insert([0xFF, 0xFF] + comSegment("second"), at: sos, into: url)
         try insert([0xFF, 0xFF] + comSegment("first"), at: 2, into: url)
         #expect(MetadataReader.jpegComments(url) == ["first", "second"])
-        #expect(JPEGComment.read(from: url) == "firstsecond")
+        #expect(JPEGComment.read(from: url) == "first\nsecond")   // two comments, not one split in two
         let scan = try F.scanData(url)
 
         try JPEGComment.write("only", to: url)
@@ -206,6 +206,34 @@ import ImageIO
         #expect(try F.segments(url).filter { $0.marker != 0xFE }.map(\.bytes) == before.filter { $0.marker != 0xFE }.map(\.bytes))
         #expect(JPEGComment.read(from: url) == "Día 1 — ünïcode ✓")
         #expect(MetadataReader.summary(for: url).pixelSize == MetadataReader.summary(for: F.sampleJPEG).pixelSize)
+    }
+
+    /// Each segment is decoded on its own: a Latin-1 comment from an old
+    /// Windows tool doesn't turn a UTF-8 one beside it into mojibake.
+    @Test func mixedEncodingsDecodePerSegment() throws {
+        let t = try TemporaryFolder()
+        let url = plainJPEG(in: t)
+        let latin1: [UInt8] = [0xFF, 0xFE, 0x00, 0x06] + [0x63, 0x61, 0x66, 0xE9]   // "café" in Latin-1
+        try insert(latin1 + comSegment("日本"), at: 2, into: url)
+        #expect(JPEGComment.read(from: url) == "café\n日本")
+        #expect(MetadataReader.jpegComments(url) == ["café", "日本"])
+    }
+
+    /// Reading takes only the header, in pieces, and copes with a file cut
+    /// off inside it: the comments before the cut are still found.
+    @Test func readingStopsAtTheScanAndSurvivesTruncation() throws {
+        let t = try TemporaryFolder()
+        let url = plainJPEG(in: t)
+        try JPEGComment.write("before the cut", to: url)
+        let header = try #require(JPEGComment.headerData(at: url))
+        let scanStart = try #require(header.withUnsafeBytes { JPEGComment.header(of: $0)?.scanStart })
+        #expect(header.count >= scanStart + 2)
+
+        let cut = t.url.appendingPathComponent("cut.jpg")
+        try Data(contentsOf: url).prefix(scanStart - 10).write(to: cut)
+        #expect(JPEGComment.read(from: cut) == "before the cut")
+        #expect(try Data(contentsOf: cut).withUnsafeBytes { JPEGComment.header(of: $0)?.truncated } == true)
+        #expect(JPEGComment.headerData(at: t.url.appendingPathComponent("missing.jpg")) == nil)
     }
 
     @Test func chunksNeverSplitCharacters() {

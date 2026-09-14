@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import CoreGraphics
 import ImageIO
+import CoreImage
 import UniformTypeIdentifiers
 @testable import MinivuCore
 
@@ -50,20 +51,22 @@ import UniformTypeIdentifiers
     /// is the upright image before it, rotated or flipped.
     @Test func displayedPixelsMatchImageIO() throws {
         let t = try TemporaryFolder()
-        let w = 6, h = 4
-        // Every pixel a different colour, so any wrong turn shows.
-        let ctx = try #require(CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: F.sRGB,
-                                         bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
-        for y in 0..<h { for x in 0..<w {
-            ctx.setFillColor(CGColor(srgbRed: CGFloat(x * 40) / 255, green: CGFloat(y * 60) / 255, blue: CGFloat((x + y) * 20) / 255, alpha: 1))
-            ctx.fill(CGRect(x: x, y: h - 1 - y, width: 1, height: 1))
-        }}
-        let stored = try #require(ctx.makeImage())
+        // A 6 x 4 grid of different colours, so any wrong turn shows; each
+        // cell `cell` pixels wide.
+        func grid(cell: Int) throws -> CGImage {
+            let ctx = try #require(CGContext(data: nil, width: 6 * cell, height: 4 * cell, bitsPerComponent: 8, bytesPerRow: 0, space: F.sRGB,
+                                             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+            for y in 0..<4 { for x in 0..<6 {
+                ctx.setFillColor(CGColor(srgbRed: CGFloat(x * 40) / 255, green: CGFloat(y * 60) / 255, blue: CGFloat((x + y) * 20) / 255, alpha: 1))
+                ctx.fill(CGRect(x: x * cell, y: (3 - y) * cell, width: cell, height: cell))
+            }}
+            return try #require(ctx.makeImage())
+        }
 
-        func displayed(_ url: URL) throws -> (w: Int, h: Int, px: [UInt8]) {
+        func displayed(_ url: URL, size: Int) throws -> (w: Int, h: Int, px: [UInt8]) {
             let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
             let image = try #require(CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: max(w, h),
+                kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: size,
                 kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary))
             return (image.width, image.height, F.pixels(of: image))
         }
@@ -85,15 +88,40 @@ import UniformTypeIdentifiers
             return (nw, nh, out)
         }
 
-        for orientation in LosslessTransform.allOrientations {
-            for kind in Self.kinds {
-                let url = TestImages.write(stored, to: t.url.appendingPathComponent("o\(orientation.rawValue)-\(kind).tif"), type: .tiff,
-                                           properties: [kCGImagePropertyOrientation: orientation.rawValue])
-                let before = try displayed(url)
-                try LosslessTransform.apply(kind, to: url)
-                let after = try displayed(url)
-                let expected = transformed(before, kind)
-                #expect(after.w == expected.w && after.h == expected.h && after.px == expected.px, "orientation \(orientation.rawValue), \(kind)")
+        // All four formats: each stores orientation its own way (TIFF tag,
+        // EXIF in a JPEG APP1, PNG eXIf chunk, HEIF item properties). The
+        // stored pixels never change, so TIFF, PNG and even JPEG compare
+        // exactly, one pixel per cell. ImageIO's HEIC decoder upsamples
+        // chroma differently for each orientation (up to 25 levels apart on
+        // single pixels, measured), so HEIC gets 12 px cells and is compared
+        // at the cell centres, which still tells every orientation apart.
+        let cases: [(type: UTType, cell: Int)] = [(.tiff, 1), (.jpeg, 1), (.png, 1), (.heic, 12)]
+        for (type, cell) in cases {
+            let stored = try grid(cell: cell)
+            for orientation in LosslessTransform.allOrientations {
+                for kind in Self.kinds {
+                    let name = "o\(orientation.rawValue)-\(kind).\(type.preferredFilenameExtension!)"
+                    let url = TestImages.write(stored, to: t.url.appendingPathComponent(name), type: type,
+                                               properties: [kCGImagePropertyOrientation: orientation.rawValue])
+                    let before = try displayed(url, size: 6 * cell)
+                    try LosslessTransform.apply(kind, to: url)
+                    let after = try displayed(url, size: 6 * cell)
+                    let expected = transformed(before, kind)
+                    #expect(after.w == expected.w && after.h == expected.h, "\(name)")
+                    guard after.w == expected.w, after.h == expected.h else { continue }
+                    if cell == 1 {
+                        #expect(after.px == expected.px, "\(name)")
+                    } else {
+                        var worst = 0
+                        for cy in stride(from: cell / 2, to: after.h, by: cell) {
+                            for cx in stride(from: cell / 2, to: after.w, by: cell) {
+                                let a = F.pixel(after.px, width: after.w, x: cx, y: cy), e = F.pixel(expected.px, width: expected.w, x: cx, y: cy)
+                                worst = max(worst, zip(a, e).map { abs($0 - $1) }.max()!)
+                            }
+                        }
+                        #expect(worst <= 6, "\(name): \(worst)")
+                    }
+                }
             }
         }
     }
@@ -115,6 +143,90 @@ import UniformTypeIdentifiers
         try LosslessTransform.apply(.rotateCounterclockwise, to: url)
         #expect(F.properties(url)[kCGImagePropertyOrientation as String] as? Int == 1)
         #expect(try Data(contentsOf: url) == original)   // the tag was patched in place, then back
+    }
+
+    /// A JPEG without an orientation tag: ImageIO rebuilds its header and,
+    /// left to itself, drops COM comments and unknown APPn segments. Every
+    /// segment but EXIF must come through byte for byte.
+    @Test func jpegWithoutAnOrientationTagKeepsEveryOtherSegment() throws {
+        let t = try TemporaryFolder()
+        let url = TestImages.write(TestImages.gradient(), to: t.url.appendingPathComponent("untagged.jpg"),
+                                   properties: [kCGImagePropertyTIFFDictionary: [kCGImagePropertyTIFFMake: "Maker"]])
+        #expect(F.properties(url)[kCGImagePropertyOrientation as String] == nil)
+        var bytes = [UInt8](try Data(contentsOf: url))
+        let jfifEnd = try #require(F.segments(url).first).bytes.count + 2
+        let app3: [UInt8] = [0xFF, 0xE3, 0x00, 0x08] + Array("META".utf8) + [1, 2]
+        let latin1Comment: [UInt8] = [0xFF, 0xFE, 0x00, 0x07] + [0x43, 0x61, 0x66, 0xE9, 0x21]   // "Café!" in Latin-1
+        bytes.insert(contentsOf: app3 + latin1Comment, at: jfifEnd)
+        try Data(bytes).write(to: url)
+        let before = try F.segments(url)
+        let scan = try F.scanData(url)
+
+        try LosslessTransform.apply(.rotateClockwise, to: url)
+        #expect(F.properties(url)[kCGImagePropertyOrientation as String] as? Int == 6)
+        let after = try F.segments(url)
+        func notEXIF(_ s: (marker: UInt8, bytes: Data)) -> Bool { !(s.marker == 0xE1 && s.bytes.dropFirst(4).starts(with: Array("Exif".utf8))) }
+        #expect(after.filter(notEXIF).map(\.bytes) == before.filter(notEXIF).map(\.bytes))
+        #expect(after.map(\.marker) == before.map(\.marker))
+        #expect(try F.scanData(url) == scan)
+        #expect(JPEGComment.read(from: url) == "Café!")
+        #expect((F.properties(url)[kCGImagePropertyTIFFDictionary as String] as? [String: Any])?[kCGImagePropertyTIFFMake as String] as? String == "Maker")
+
+        try LosslessTransform.apply(.rotateCounterclockwise, to: url)
+        #expect(F.properties(url)[kCGImagePropertyOrientation as String] as? Int == 1)
+        #expect(try F.segments(url).filter(notEXIF).map(\.bytes) == before.filter(notEXIF).map(\.bytes))
+    }
+
+    /// The TestAssets photo has EXIF but no orientation tag, and people
+    /// caption their photos: the caption must survive a rotation.
+    @Test(.enabled(if: ExportFixtures.exists(ExportFixtures.sampleJPEG)))
+    func realPhotoKeepsItsCommentWhenRotated() throws {
+        let t = try TemporaryFolder()
+        let url = t.url.appendingPathComponent("photo.jpg")
+        try FileManager.default.copyItem(at: F.sampleJPEG, to: url)
+        try JPEGComment.write("Harbour at dusk", to: url)
+        let scan = try F.scanData(url)
+        try LosslessTransform.apply(.rotateClockwise, to: url)
+        #expect(JPEGComment.read(from: url) == "Harbour at dusk")
+        #expect(try F.scanData(url) == scan)
+        #expect(F.properties(url)[kCGImagePropertyOrientation as String] as? Int == 6)
+    }
+
+    /// An HDR gain map JPEG with a comment: ImageIO's own copy drops the
+    /// comment and leaves the MPF index pointing 6 bytes past the gain map.
+    @Test func gainMapJPEGKeepsItsIndexAndComment() throws {
+        let t = try TemporaryFolder()
+        let url = t.url.appendingPathComponent("gainmap.jpg")
+        let base = CIImage(cgImage: TestImages.gradient(width: 256, height: 128))
+        let gainMap = CIImage(color: CIColor(red: 0.5, green: 0.5, blue: 0.5)).cropped(to: CGRect(x: 0, y: 0, width: 128, height: 64))
+        try CIContext().writeJPEGRepresentation(of: base, to: url, colorSpace: F.displayP3, options: [.hdrGainMapImage: gainMap])
+        try JPEGComment.write("gm", to: url)
+        func gainMapData() -> Data? {
+            let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
+            let info = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) as? [String: Any]
+            return info?[kCGImageAuxiliaryDataInfoData as String] as? Data
+        }
+        let before = try #require(gainMapData())
+
+        try LosslessTransform.apply(.rotateClockwise, to: url)
+        #expect(F.properties(url)[kCGImagePropertyOrientation as String] as? Int == 6)
+        #expect(JPEGComment.read(from: url) == "gm")
+        #expect(gainMapData() == before)
+        let data = try Data(contentsOf: url)
+        let offsets = try #require(ExportJPEGCommentTests().mpfImageOffsets(in: data))
+        #expect(offsets.count == 2)
+        let position = offsets[1].headerPosition + offsets[1].offset
+        #expect(data[position] == 0xFF && data[position + 1] == 0xD8)
+    }
+
+    @Test func splicingRefusesChangedImageData() throws {
+        let t = try TemporaryFolder()
+        let original = try Data(contentsOf: TestImages.write(TestImages.gradient(), to: t.url.appendingPathComponent("a.jpg")))
+        var reencoded = original
+        reencoded[reencoded.count - 10] ^= 0xFF   // one byte of the scan differs
+        #expect(throws: LosslessTransform.Error.copyFailed("the image data would have changed")) {
+            try LosslessTransform.splicedHeader(from: reencoded, into: original)
+        }
     }
 
     @Test(.enabled(if: ExportFixtures.exists(ExportFixtures.sampleJPEG)))
@@ -179,6 +291,32 @@ import UniformTypeIdentifiers
         #expect(throws: LosslessTransform.Error.unsupportedFormat) { try LosslessTransform.apply(.rotateClockwise, to: disguised) }
     }
 
+    /// Raw formats that aren't TIFF inside are caught by their first bytes,
+    /// before ImageIO gets a chance to guess from the name.
+    @Test func rawSignaturesAreRefusedWhateverTheName() throws {
+        let t = try TemporaryFolder()
+        let heads: [(String, [UInt8])] = [
+            ("raf", Array("FUJIFILMCCD-RAW 0201".utf8)),
+            ("cr3", [0, 0, 0, 0x18] + Array("ftypcrx ".utf8) + [0, 0, 0, 1]),
+            ("crw", [0x49, 0x49, 0x1A, 0, 0, 0] + Array("HEAPCCDR".utf8)),
+            ("orf", [0x49, 0x49, 0x52, 0x4F, 8, 0, 0, 0]),
+            ("rw2", [0x49, 0x49, 0x55, 0x00, 0x18, 0, 0, 0]),
+            ("x3f", Array("FOVb".utf8) + [0, 0, 2, 0]),
+            ("mrw", [0x00, 0x4D, 0x52, 0x4D, 0, 0, 0, 0]),
+        ]
+        let jpeg = try Data(contentsOf: TestImages.write(TestImages.gradient(), to: t.url.appendingPathComponent("real.jpg")))
+        for (name, head) in heads {
+            #expect(LosslessTransform.hasRawSignature(head), "\(name)")
+            let url = t.url.appendingPathComponent("\(name).jpg")
+            try (Data(head) + jpeg).write(to: url)
+            let bytes = try Data(contentsOf: url)
+            #expect(throws: LosslessTransform.Error.unsupportedFormat, "\(name)") { try LosslessTransform.apply(.rotateClockwise, to: url) }
+            #expect(try Data(contentsOf: url) == bytes)
+        }
+        #expect(!LosslessTransform.hasRawSignature(Array(jpeg.prefix(16))))
+        #expect(!LosslessTransform.isCameraRaw(t.url.appendingPathComponent("real.jpg")))
+    }
+
     @Test(.enabled(if: ExportFixtures.exists(ExportFixtures.sampleNEF)))
     func aRawFileNamedTIFFIsNeverModified() throws {
         let t = try TemporaryFolder()
@@ -189,6 +327,12 @@ import UniformTypeIdentifiers
         let after = try FileManager.default.attributesOfItem(atPath: url.path)
         #expect(after[.modificationDate] as? Date == attributes[.modificationDate] as? Date)
         #expect(after[.systemFileNumber] as? Int == attributes[.systemFileNumber] as? Int)
+        // Any other name ImageIO accepts reads it as TIFF too.
+        for ext in ["jpg", "png", "heic"] {
+            let renamed = t.url.appendingPathComponent("camera.\(ext)")
+            try FileManager.default.copyItem(at: F.sampleNEF, to: renamed)
+            #expect(throws: LosslessTransform.Error.unsupportedFormat) { try LosslessTransform.apply(.rotateClockwise, to: renamed) }
+        }
 
         // The structural sniff: every camera file is caught, real TIFFs pass.
         let files = try FileManager.default.contentsOfDirectory(at: F.assets, includingPropertiesForKeys: nil)

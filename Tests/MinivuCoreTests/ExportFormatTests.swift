@@ -57,6 +57,12 @@ import ImageIO
         options.backgroundForOpaqueFormats = ExportColor(red: 0.1, green: 0.2, blue: 0.3, alpha: 0.4)
         let json = try JSONEncoder().encode(options)
         #expect(try JSONDecoder().decode(ExportOptions.self, from: json) == options)
+
+        // A preset saved with fewer options still loads, the rest defaulted.
+        let old = try JSONDecoder().decode(ExportOptions.self, from: Data(#"{"format":"heic","quality":0.5}"#.utf8))
+        var expected = ExportOptions.defaults(for: .heic)
+        expected.quality = 0.5
+        #expect(old == expected)
     }
 
     @Test func exportColorConvertsToSRGB() throws {

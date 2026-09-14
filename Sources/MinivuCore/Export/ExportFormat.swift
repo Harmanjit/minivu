@@ -84,8 +84,8 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// Formats with 16 bits per channel. (HEIC stores at most 10, which
-    /// ImageIO picks by itself, so it isn't offered as a choice.)
+    /// Formats with 16 bits per channel. (HEIC is written with 8: ImageIO
+    /// could store 10 from a 16-bit image, but not 16, so it isn't offered.)
     public var supports16Bit: Bool {
         switch self {
         case .png, .tiff: true
@@ -233,6 +233,26 @@ public struct ExportOptions: Codable, Hashable, Sendable {
         self.sixteenBit = sixteenBit
         self.tiffCompression = tiffCompression
         self.backgroundForOpaqueFormats = backgroundForOpaqueFormats
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case format, quality, colorProfile, keepMetadata, progressive, sixteenBit, tiffCompression, backgroundForOpaqueFormats
+    }
+
+    /// Options are saved in preferences and batch presets, so decoding
+    /// fills anything missing (a preset saved before an option existed)
+    /// from `defaults(for:)` instead of failing and losing the preset.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        var options = ExportOptions.defaults(for: try container.decode(ExportFormat.self, forKey: .format))
+        if let value = try container.decodeIfPresent(Double.self, forKey: .quality) { options.quality = value }
+        if let value = try container.decodeIfPresent(ExportColorProfile.self, forKey: .colorProfile) { options.colorProfile = value }
+        if let value = try container.decodeIfPresent(Bool.self, forKey: .keepMetadata) { options.keepMetadata = value }
+        if let value = try container.decodeIfPresent(Bool.self, forKey: .progressive) { options.progressive = value }
+        if let value = try container.decodeIfPresent(Bool.self, forKey: .sixteenBit) { options.sixteenBit = value }
+        if let value = try container.decodeIfPresent(TIFFCompression.self, forKey: .tiffCompression) { options.tiffCompression = value }
+        if let value = try container.decodeIfPresent(ExportColor.self, forKey: .backgroundForOpaqueFormats) { options.backgroundForOpaqueFormats = value }
+        self = options
     }
 
     /// Sensible starting values. JPEG at 0.9 is where artefacts stop being

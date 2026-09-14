@@ -158,6 +158,13 @@ import UniformTypeIdentifiers
         let black = try #require(ImageEncoder.decodePreview(overBlack))
         #expect(within(F.pixel(F.pixels(of: black), width: black.width, x: 4, y: 4), [128, 0, 0, 255], 3))
 
+        // A see-through background colour is used opaque, not faded towards black.
+        let overClearBlue = try ImageEncoder.encode(halfRed, options: options(.jpeg) {
+            $0.quality = 1; $0.backgroundForOpaqueFormats = ExportColor(red: 0, green: 0, blue: 1, alpha: 0.2)
+        }, metadataSource: nil)
+        let blue = try #require(ImageEncoder.decodePreview(overClearBlue))
+        #expect(within(F.pixel(F.pixels(of: blue), width: blue.width, x: 4, y: 4), [128, 0, 127, 255], 3))
+
         let overWhite = try ImageEncoder.encode(halfRed, options: options(.bmp), metadataSource: nil)
         let white = try #require(ImageEncoder.decodePreview(overWhite))
         #expect(within(F.pixel(F.pixels(of: white), width: white.width, x: 4, y: 4), [255, 128, 128, 255], 2))
@@ -289,6 +296,14 @@ import UniformTypeIdentifiers
         let copy = t.url.appendingPathComponent("copy.jpg")
         try ImageEncoder.write(TestImages.gradient(), to: copy, options: options(.jpeg), metadataSource: source)
         #expect(JPEGComment.read(from: copy) == "From the source")
+
+        // Comments are carried as raw segments: a Latin-1 caption stays Latin-1.
+        let latin1 = t.url.appendingPathComponent("latin1.jpg")
+        var bytes = [UInt8](try Data(contentsOf: TestImages.write(TestImages.gradient(), to: latin1)))
+        bytes.insert(contentsOf: [0xFF, 0xFE, 0x00, 0x06, 0x63, 0x61, 0x66, 0xE9], at: 2)
+        try Data(bytes).write(to: latin1)
+        let exported = try ImageEncoder.encode(TestImages.gradient(), options: options(.jpeg), metadataSource: latin1)
+        #expect(JPEGComment.commentPayloads(in: exported) == [Data([0x63, 0x61, 0x66, 0xE9])])
     }
 
     @Test func decodePreviewRejectsGarbage() {

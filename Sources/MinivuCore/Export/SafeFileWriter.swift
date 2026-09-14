@@ -23,7 +23,19 @@ public enum SafeFileWriter {
     /// in place of `url` (creating it if it doesn't exist). If `fill` or
     /// anything after it throws, the temporary file is deleted and `url` is
     /// left as it was.
+    ///
+    /// A symbolic link is followed: the file it points at is replaced and
+    /// the link stays a link. (`replaceItemAt` refuses a link outright.) A
+    /// folder at `url` is refused, because `replaceItemAt` would otherwise
+    /// swap the new file in and delete the folder with everything in it; a
+    /// batch convert writing "photo.jpg" next to a folder of that name must
+    /// fail, not destroy it.
     public static func replace(_ url: URL, fill: (URL) throws -> Void) throws {
+        let url = url.resolvingSymlinksInPath()
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: url.path])
+        }
         let temp = temporaryURL(for: url)
         do {
             try fill(temp)
@@ -46,10 +58,15 @@ public enum SafeFileWriter {
 
     /// A hidden sibling (a leading dot keeps it out of Finder and our own
     /// folder listing) with a random part, so two saves never collide.
+    /// File names are limited to 255 bytes, and the dot and suffix add 21,
+    /// so a very long name is shortened first (by whole characters, so the
+    /// name stays valid UTF-8).
     static func temporaryURL(for url: URL) -> URL {
         let token = UUID().uuidString.prefix(8)
+        var name = url.lastPathComponent
+        while name.utf8.count > 200 { name.removeLast() }
         return url.deletingLastPathComponent()
-            .appendingPathComponent(".\(url.lastPathComponent).minivu-\(token).tmp", isDirectory: false)
+            .appendingPathComponent(".\(name).minivu-\(token).tmp", isDirectory: false)
     }
 
     /// Asks the kernel to write the file's data to disk before we rename
