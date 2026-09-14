@@ -131,6 +131,7 @@ public enum ImageDecoder {
         case .svg: return renderSVG(url: url, maxPixelSize: maxPixelSize)
         case .raster, .raw:
             guard let source = makeSource(url) else { return nil }
+            if let image = heifThumbnail(source: source, maxPixelSize: maxPixelSize) { return image }
             let options: [CFString: Any] = [
                 kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
                 kCGImageSourceCreateThumbnailWithTransform: true,
@@ -142,6 +143,68 @@ public enum ImageDecoder {
             ]
             return CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
         }
+    }
+
+    /// HEIC and HEIF thumbnails: decode at a quarter of full size, then
+    /// shrink on the CPU.
+    ///
+    /// The HEVC decoder has a cheap reduced-resolution path at 1/2 and 1/4
+    /// scale, but asking ImageIO for a small thumbnail directly decodes at
+    /// full size and resamples 24 MP down. Measured on HSB_6548.heic
+    /// (6032x4032, M4, median of 10):
+    ///
+    ///     direct 256 px                 92 ms
+    ///     direct 512 px                 75 ms
+    ///     1508 px (1/4), then CG 256    68 ms  (min 45)
+    ///     754 px (1/8), then CG 256     77 ms
+    ///     40 thumbnails on 10 threads:  1490 ms direct, 714 ms via 1/4
+    ///
+    /// The concurrent number matters most: the browser decodes many at
+    /// once. AVIF (an SVT-AV1 encode of the same photo) gains nothing, 37 ms
+    /// either way, so it keeps the direct path. Returns nil for other
+    /// formats, or when a quarter-size decode would be smaller than asked.
+    static func heifThumbnail(source: CGImageSource, maxPixelSize: Int) -> CGImage? {
+        guard let type = CGImageSourceGetType(source) as String?, type == "public.heic" || type == "public.heif",
+              let props = CGImageSourceCopyPropertiesAtIndex(source, primaryIndex(source), nil) as? [CFString: Any]
+        else { return nil }
+        let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue ?? 0
+        let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue ?? 0
+        let quarter = (max(w, h) + 3) / 4
+        guard quarter >= maxPixelSize else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceThumbnailMaxPixelSize: quarter,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+        ]
+        guard let large = CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
+        else { return nil }
+        return downscale(large, maxPixelSize: maxPixelSize, hasAlpha: (props[kCGImagePropertyHasAlpha] as? Bool) ?? false)
+    }
+
+    /// Draws `image` smaller with Core Graphics' high-quality filter, keeping
+    /// its colour space when an 8-bit context can use it (sRGB, Display P3)
+    /// and falling back to Display P3 otherwise (HDR PQ/HLG sources, which
+    /// a thumbnail shows as SDR anyway).
+    static func downscale(_ image: CGImage, maxPixelSize: Int, hasAlpha: Bool) -> CGImage? {
+        let scale = Double(maxPixelSize) / Double(max(image.width, image.height))
+        guard scale < 1 else { return image }
+        let w = max(1, Int((Double(image.width) * scale).rounded()))
+        let h = max(1, Int((Double(image.height) * scale).rounded()))
+        // Opaque images get no alpha channel, so the thumbnail cache can
+        // store them as JPEG rather than PNG.
+        let alpha = hasAlpha ? CGImageAlphaInfo.premultipliedFirst : .noneSkipFirst
+        let bitmapInfo = alpha.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        let p3 = CGColorSpace(name: CGColorSpace.displayP3)!
+        var space = image.colorSpace ?? p3
+        if space.model != .rgb || CGColorSpaceUsesITUR_2100TF(space) { space = p3 }
+        guard let context = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: space, bitmapInfo: bitmapInfo)
+            ?? CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                         space: p3, bitmapInfo: bitmapInfo)
+        else { return nil }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return context.makeImage()
     }
 
     // MARK: - Display decode
