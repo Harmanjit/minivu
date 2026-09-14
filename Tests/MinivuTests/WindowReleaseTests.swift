@@ -89,6 +89,40 @@ extension AppWindowTests {
             }
         }
 
+        /// The Resize sheet's own Cancel (Esc) reports no operation, ends the
+        /// sheet, and leaves nothing of it or its parent behind.
+        @Test func resizeSheetCancelledByItsButtonIsFreed() async throws {
+            weak var parent: NSWindow?
+            weak var sheet: NSWindow?
+            var results: [EditOperation?] = []
+            autoreleasepool {
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled],
+                                      backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                parent = window
+                ResizeSheet.present(size: CGSize(width: 600, height: 400), on: window) { results.append($0) }
+                sheet = window.attachedSheet
+            }
+            try autoreleasepool {
+                let attached = try #require(sheet)
+                attached.contentView?.layoutSubtreeIfNeeded()
+                let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                                           timestamp: 0, windowNumber: attached.windowNumber,
+                                                           context: nil, characters: "\u{1b}",
+                                                           charactersIgnoringModifiers: "\u{1b}", isARepeat: false,
+                                                           keyCode: 53))
+                #expect(attached.performKeyEquivalent(with: escape))
+            }
+            await waitUntil { results.count == 1 }
+            #expect(results.count == 1 && results.first == .some(nil))
+            #expect(parent?.attachedSheet == nil)
+            autoreleasepool { parent?.close() }
+            await drain()
+            await waitUntil { sheet == nil && parent == nil }
+            #expect(sheet == nil)
+            #expect(parent == nil)
+        }
+
         /// Moving to another image with a tool open (nothing changed) lets go
         /// of the old image's edit session and its textures. (An effect that
         /// previews as it opens asks about unsaved changes first, so none is
