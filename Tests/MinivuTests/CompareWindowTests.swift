@@ -121,7 +121,7 @@ extension AppWindowTests {
             #expect(catalog.marks(for: all[1].url).isTagged)
             let item = NSMenuItem(title: "", action: .toggleTag, keyEquivalent: "")
             #expect(controller.validateMenuItem(item))
-            #expect(item.state == .on)
+            #expect(item.title == "Remove Tag")
             // The menu's rating items act on the focused pane too.
             let rate = NSMenuItem(title: "", action: .setRating, keyEquivalent: "")
             rate.tag = 2

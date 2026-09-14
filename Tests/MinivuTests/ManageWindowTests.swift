@@ -76,7 +76,7 @@ extension AppWindowTests {
             #expect(catalog.marks(for: b).isTagged)
             #expect(!bCell.thumbnailView.tagBadge.isHidden)
             let tag = item(.toggleTag)
-            #expect(controller.validateMenuItem(tag) && tag.state == .on)
+            #expect(controller.validateMenuItem(tag) && tag.title == "Remove Tag")
 
             // Clicking the fourth star rates just that cell.
             bCell.onRate?(b, 4)

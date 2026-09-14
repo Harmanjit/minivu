@@ -11,24 +11,13 @@ extension ViewerWindowController {
         }
     }
 
-    /// Moves to the slide the show ended on, as a click on it in the
-    /// filmstrip would: through the viewer's own navigation, so unsaved edits
-    /// are asked about first and neighbours prefetch as usual.
+    /// Moves to the slide the show ended on, through the viewer's own
+    /// navigation, so unsaved edits are asked about first.
     private func slideshowEnded(lastShown entry: FolderEntry?) {
         guard !isClosing, let window else { return }
         window.makeKeyAndOrderFront(nil)
         guard let entry, let index = model.images.firstIndex(where: { $0.url == entry.url }), index != model.index
         else { return }
-        // The filmstrip's selection handler is the viewer's one way to jump
-        // to an index from outside its file; the filmstrip needn't be showing.
-        filmstripView(in: container)?.onSelect?(index)
-    }
-
-    private func filmstripView(in view: NSView) -> FilmstripView? {
-        for subview in view.subviews {
-            if let filmstrip = subview as? FilmstripView { return filmstrip }
-            if let found = filmstripView(in: subview) { return found }
-        }
-        return nil
+        showImage(at: index)
     }
 }

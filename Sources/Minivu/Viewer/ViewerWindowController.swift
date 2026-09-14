@@ -176,7 +176,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         hud.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(hud)
 
-        filmstrip.onSelect = { [weak self] index in self?.navigate { $0.move(to: index) } }
+        filmstrip.onSelect = { [weak self] index in self?.showImage(at: index) }
         filmstrip.setImages(model.images, current: model.index)
         // A hosting view tries to size its container to the SwiftUI content;
         // here the panel decides the size.
@@ -1200,6 +1200,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         pinsChanged()
     }
     #endif
+
+    /// Jumps to `index` as a click on the filmstrip does: unsaved edits are
+    /// asked about first and neighbours prefetch as usual.
+    func showImage(at index: Int) {
+        navigate { $0.move(to: index) }
+    }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         model.wrapAround = Preferences.shared.wrapAround
