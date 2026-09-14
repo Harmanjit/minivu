@@ -160,6 +160,41 @@ oil paint, lens, clone, heal, red-eye) are Metal compute kernels wrapped in
 `CIImageProcessorKernel`, so they join the same graph. Drawn objects (text,
 lines, callouts) stay editable as vectors until the image is saved.
 
+**Operations** are plain `Codable` values whose parameters are stored in
+full-resolution pixel units (or normalised coordinates for crops and
+points). Building the graph takes a `scale` so the same operation renders
+correctly on a screen-sized proxy: a 10 px blur becomes a 2.5 px blur on a
+quarter-size proxy.
+
+**Rendering an edit:**
+
+1. The original is decoded once at full resolution. A screen-sized proxy
+   (Lanczos) is made from it and cached.
+2. While a slider moves, the graph runs on the proxy and renders straight
+   into a mipmapped texture the canvas shows. Target: under 16 ms per
+   update for colour and tone operations on a 24 MP photo.
+3. When the slider settles, or the user zooms past the proxy, the graph
+   renders at full resolution in the background and replaces the texture.
+4. Saving renders at full resolution into a CGImage with the chosen colour
+   profile and encodes with ImageIO.
+
+**Resampling filters (11):** Box, Triangle (bilinear), Hermite, Bell,
+B-Spline, Mitchell–Netravali, Catmull-Rom, Cosine, Quadratic, Lanczos 3,
+Lanczos 8. One separable Metal kernel evaluates any of them: two passes
+(horizontal, vertical), taps computed in the shader from the filter's
+support widened by the downscale factor, weights normalised, filtering in
+linear light.
+
+**Undo:** the operation list with a cursor, capped at 50 steps. Undo is a
+cursor move plus a re-render, so it costs no memory for pixels. Brush
+operations (clone, heal, red-eye) record their strokes as parameters, so
+they replay the same way.
+
+**Lossless actions:** rotating a JPEG in the browser changes its EXIF
+orientation tag with `CGImageDestinationCopyImageSource`, never re-encoding
+pixels. JPEG comments are rewritten in the COM segment without touching
+image data.
+
 ## 5. User interface
 
 Loosely FastStone's layout, in current macOS style (unified toolbar, SF
