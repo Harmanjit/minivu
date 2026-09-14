@@ -158,3 +158,13 @@ final class TemporaryFolder {
         #expect(elapsed < .milliseconds(500), "listing took \(elapsed)")
     }
 }
+
+@Suite struct NameSortBaseFirstTests {
+    @Test func baseNameSortsBeforeSuffixedVariants() {
+        let names = ["HSB_6548_nosp.jpg", "HSB_6548.tif", "HSB_6548_P3.jpg", "HSB_6548.heic", "HSB_6548.jpg", "img10.png", "img2.png"]
+        let entries = names.map { FolderEntry(url: URL(fileURLWithPath: "/tmp/\($0)"), name: $0, isDirectory: false,
+                                              kind: .raster, fileSize: 0, modified: .distantPast, created: .distantPast) }
+        let sorted = FolderListing.sorted(entries, by: FileSortOrder(key: .name, ascending: true)).map(\.name)
+        #expect(sorted == ["HSB_6548.heic", "HSB_6548.jpg", "HSB_6548.tif", "HSB_6548_nosp.jpg", "HSB_6548_P3.jpg", "img2.png", "img10.png"])
+    }
+}

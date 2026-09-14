@@ -139,8 +139,9 @@ public enum FolderListing {
     /// Sorts entries for display. The sort is stable: entries that compare
     /// equal keep their incoming order, so re-sorting never shuffles ties.
     ///
-    /// - name: Finder order (`localizedStandardCompare`), so img2 comes
-    ///   before img10 and case is ignored.
+    /// - name: the name without its extension in Finder order
+    ///   (`localizedStandardCompare`: img2 before img10, case ignored), then
+    ///   the extension, so a photo's variants stay together.
     /// - type: extension, then name.
     /// - size, modified, created: that value, then name.
     ///
@@ -149,10 +150,12 @@ public enum FolderListing {
         // Decorate once: the extension would otherwise be recomputed (and
         // lowercased) on each of the ~n log n comparisons.
         let decorated = entries.enumerated().map { index, entry in
-            (index: index, entry: entry, ext: order.key == .type ? entry.url.pathExtension.lowercased() : "")
+            let ext = entry.isDirectory ? "" : entry.url.pathExtension.lowercased()
+            let base = ext.isEmpty ? entry.name : String(entry.name.dropLast(ext.count + 1))
+            return (index: index, entry: entry, ext: ext, base: base)
         }
         let result = decorated.sorted { a, b in
-            var c = compare(a.entry, a.ext, b.entry, b.ext, key: order.key)
+            var c = compare(a.entry, a.ext, a.base, b.entry, b.ext, b.base, key: order.key)
             if !order.ascending { c = c.reversed }
             if c == .orderedSame { return a.index < b.index }
             return c == .orderedAscending
@@ -160,7 +163,8 @@ public enum FolderListing {
         return result.map(\.entry)
     }
 
-    private static func compare(_ a: FolderEntry, _ aExt: String, _ b: FolderEntry, _ bExt: String,
+    private static func compare(_ a: FolderEntry, _ aExt: String, _ aBase: String,
+                                _ b: FolderEntry, _ bExt: String, _ bBase: String,
                                 key: SortKey) -> ComparisonResult {
         let primary: ComparisonResult
         switch key {
@@ -170,7 +174,14 @@ public enum FolderListing {
         case .modified: primary = ordering(a.modified, b.modified)
         case .created: primary = ordering(a.created, b.created)
         }
-        return primary != .orderedSame ? primary : a.name.localizedStandardCompare(b.name)
+        if primary != .orderedSame { return primary }
+        // Name without the extension first, so "IMG_1.heic" sits with
+        // "IMG_1.jpg" ahead of "IMG_1_edit.jpg", as in Finder's list and
+        // Windows Explorer; then the extension; then the full name.
+        let byBase = aBase.localizedStandardCompare(bBase)
+        if byBase != .orderedSame { return byBase }
+        let byExt = aExt.compare(bExt)
+        return byExt != .orderedSame ? byExt : a.name.localizedStandardCompare(b.name)
     }
 
     private static func ordering<T: Comparable>(_ a: T, _ b: T) -> ComparisonResult {
