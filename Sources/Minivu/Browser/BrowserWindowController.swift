@@ -371,8 +371,14 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         let collapse = !previewItem.isCollapsed
         if collapse { preview.isVisible = false }
         isAnimatingPreview = true
-        NSAnimationContext.runAnimationGroup { _ in
-            previewItem.animator().isCollapsed = collapse
+        NSAnimationContext.runAnimationGroup { context in
+            // Reduce Motion: the pane goes or comes at once, without sliding.
+            if Motion.isReduced {
+                context.duration = 0
+                previewItem.isCollapsed = collapse
+            } else {
+                previewItem.animator().isCollapsed = collapse
+            }
         } completionHandler: { [weak self] in
             // Only once the pane has its width: a preview loaded mid-animation
             // would be decoded for a sliver and then again at full size.
