@@ -28,6 +28,15 @@ public enum ExportError: Error, Equatable, LocalizedError {
 /// call from any thread; a 24 MP image takes tens to hundreds of
 /// milliseconds, so never call it on the main thread.
 public enum ImageEncoder {
+    /// Formats ImageIO (macOS 15) writes an ISO 21496-1 gain map into: an
+    /// SDR base image any reader shows, and a gain map that lifts it back to
+    /// HDR where the display can. Measured: JPEG and HEIC write one and
+    /// decode back to HDR; PNG refuses, and the "ISO HDR" request for PNG
+    /// and HEIC tone maps an extended-range image to SDR instead.
+    public static func canWriteGainMap(_ format: ExportFormat) -> Bool {
+        format == .jpeg || format == .heic
+    }
+
     /// Encodes to memory (also used for size estimation and the quality preview).
     public static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?) throws -> Data {
         try encode(image, options: options, metadataSource: metadataSource,
@@ -36,10 +45,17 @@ public enum ImageEncoder {
 
     /// Encodes and writes atomically (temp file in the same folder, then
     /// replace), preserving the destination's creation date when overwriting.
-    public static func write(_ image: CGImage, to url: URL, options: ExportOptions, metadataSource: URL?) throws {
+    ///
+    /// With `gainMap`, `image` is an HDR image (extended range, with its
+    /// content headroom set) written as an SDR base and a gain map, for a
+    /// format where `canWriteGainMap`; its pixels go to ImageIO as they are.
+    public static func write(_ image: CGImage, to url: URL, options: ExportOptions, metadataSource: URL?,
+                             gainMap: Bool = false) throws {
+        if gainMap, !canWriteGainMap(options.format) { throw ExportError.cannotCreateDestination(options.format) }
         if let comments = carriedComments(options: options, metadataSource: metadataSource) {
             // The comment is spliced in after encoding, which is simplest in memory.
-            let data = try encode(image, options: options, metadataSource: metadataSource, comments: comments)
+            let data = try encode(image, options: options, metadataSource: metadataSource, comments: comments,
+                                  gainMap: gainMap)
             try SafeFileWriter.write(data, to: url)
             return
         }
@@ -49,7 +65,7 @@ public enum ImageEncoder {
             guard let destination = CGImageDestinationCreateWithURL(temp as CFURL, options.format.utType.identifier as CFString, 1, nil) else {
                 throw ExportError.cannotCreateDestination(options.format)
             }
-            try encode(image, into: destination, options: options, metadataSource: metadataSource)
+            try encode(image, into: destination, options: options, metadataSource: metadataSource, gainMap: gainMap)
         }
     }
 
@@ -65,20 +81,25 @@ public enum ImageEncoder {
 
     // MARK: - Encoding
 
-    static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?, comments: [Data]?) throws -> Data {
+    static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?, comments: [Data]?,
+                       gainMap: Bool = false) throws -> Data {
         let data = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(data, options.format.utType.identifier as CFString, 1, nil) else {
             throw ExportError.cannotCreateDestination(options.format)
         }
-        try encode(image, into: destination, options: options, metadataSource: metadataSource)
+        try encode(image, into: destination, options: options, metadataSource: metadataSource, gainMap: gainMap)
         guard let comments else { return data as Data }
         return try JPEGComment.replacingComments(in: data as Data, withPayloads: comments)
     }
 
-    static func encode(_ image: CGImage, into destination: CGImageDestination, options: ExportOptions, metadataSource: URL?) throws {
+    static func encode(_ image: CGImage, into destination: CGImageDestination, options: ExportOptions, metadataSource: URL?,
+                       gainMap: Bool = false) throws {
         let format = options.format
-        let pixels = try prepare(image, options: options)
-        let space = pixels.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
+        // A gain map's base is ImageIO's own SDR rendition in Display P3;
+        // converting the HDR pixels first would clip what the map keeps.
+        let pixels = gainMap ? image : try prepare(image, options: options)
+        let space = gainMap ? CGColorSpace(name: CGColorSpace.displayP3)!
+                            : pixels.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
 
         var properties: [CFString: Any] = [
             // An embedded thumbnail is a stale second copy of the picture
@@ -87,6 +108,9 @@ public enum ImageEncoder {
         ]
         if format.supportsQuality {
             properties[kCGImageDestinationLossyCompressionQuality] = min(max(options.quality, 0), 1)
+        }
+        if gainMap {
+            properties[kCGImageDestinationEncodeRequest] = kCGImageDestinationEncodeToISOGainmap
         }
 
         var metadata: CGImageMetadata?
@@ -282,7 +306,10 @@ struct CarriedMetadata {
     /// Whole namespaces dropped by prefix. Camera Raw's develop settings
     /// ("crs") describe edits already baked into these pixels; left in, Adobe
     /// software would apply them a second time.
-    static let droppedPrefixes: Set<String> = ["crs"]
+    /// Gain map descriptions ("hdrgm", Adobe's and ISO's; "HDRGainMap",
+    /// Apple's) go too: they describe the source's map, which a new file
+    /// either doesn't have or gets afresh from ImageIO.
+    static let droppedPrefixes: Set<String> = ["crs", "hdrgm", "HDRGainMap"]
 
     init?(source: URL, width: Int, height: Int, colorSpace: CGColorSpace) {
         guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),

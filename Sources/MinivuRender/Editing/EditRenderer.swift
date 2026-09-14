@@ -260,22 +260,54 @@ final class EditStage: @unchecked Sendable {
         }
     }
 
+    /// Final pixels for saving an HDR photo with its highlights: the
+    /// committed operations at full resolution, as half floats in extended
+    /// linear Display P3 with the original's content headroom set, which is
+    /// what ImageIO needs to write a gain map (`ImageEncoder.write(gainMap:)`).
+    /// Values above the headroom are clipped by the gain map, as the canvas
+    /// showed them. The original is decoded for HDR whatever the viewer's HDR
+    /// setting (a setting for the screen, not for the file); nil when it has
+    /// no HDR form to decode.
+    nonisolated public func renderHDRForExport(_ snapshot: EditDocument.Snapshot) async throws -> CGImage? {
+        let gpu = self.gpu, context = self.context
+        return try await BlockingWork.run(qos: Task.currentPriority >= .userInitiated ? .userInitiated : .utility) {
+            var settings = snapshot.settings
+            settings.showHDR = true
+            let source = try Self.exportSource(snapshot, settings: settings, requireHDR: true, gpu: gpu)
+            guard source.isHDR, source.contentHeadroom > 1 else { return nil }
+            let image = EditGraph.image(source: Self.workingImage(source: source, proxy: nil, scale: 1),
+                                        sourceSize: source.size, operations: snapshot.operations, scale: 1)
+            guard let rendered = context.createCGImage(image, from: image.extent, format: .RGBAh,
+                                                       colorSpace: Self.workingSpace, deferred: false),
+                  let withHeadroom = CGImageCreateCopyWithContentHeadroom(source.contentHeadroom, rendered) else {
+                throw EditRenderError.renderFailed
+            }
+            return withHeadroom
+        }
+    }
+
+    /// The original an export renders from: the document's own when it has
+    /// every pixel (and, with `requireHDR`, is HDR), otherwise decoded again
+    /// with `settings`.
+    nonisolated private static func exportSource(_ snapshot: EditDocument.Snapshot, settings: DisplaySettings,
+                                                 requireHDR: Bool = false, gpu: GPU) throws -> EditSource {
+        if let prepared = snapshot.source, prepared.scale >= 1, prepared.isHDR || !requireHDR {
+            return prepared
+        }
+        // Re-reading the file is only safe if it is still the file the
+        // operations were made on. After a Save over the original it
+        // isn't: the edits are already in it, and applying them again
+        // would write them twice.
+        if let expected = snapshot.sourceSignature, FileSignature.read(snapshot.url) != expected {
+            throw EditRenderError.sourceChanged(snapshot.url)
+        }
+        return try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
+                              settings: settings, gpu: gpu, forExport: true)
+    }
+
     nonisolated private static func exportImage(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
                                                 bitsPerComponent: Int, context: CIContext, gpu: GPU) throws -> CGImage {
-        let source: EditSource
-        if let prepared = snapshot.source, prepared.scale >= 1 {
-            source = prepared
-        } else {
-            // Re-reading the file is only safe if it is still the file the
-            // operations were made on. After a Save over the original it
-            // isn't: the edits are already in it, and applying them again
-            // would write them twice.
-            if let expected = snapshot.sourceSignature, FileSignature.read(snapshot.url) != expected {
-                throw EditRenderError.sourceChanged(snapshot.url)
-            }
-            source = try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
-                                    settings: snapshot.settings, gpu: gpu, forExport: true)
-        }
+        let source = try exportSource(snapshot, settings: snapshot.settings, gpu: gpu)
         var image = EditGraph.image(source: workingImage(source: source, proxy: nil, scale: 1),
                                     sourceSize: source.size, operations: snapshot.operations, scale: 1)
         if source.isHDR && !CGColorSpaceUsesITUR_2100TF(colorSpace) {
