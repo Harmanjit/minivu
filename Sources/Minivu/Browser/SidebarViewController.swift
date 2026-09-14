@@ -196,14 +196,19 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         Task { [weak self] in
             // One listing plus, per subfolder, a check that stops at its
             // first subfolder: cheap even beside folders of 10,000 photos.
+            // Display names are looked up here too: each is a file system
+            // call, too many to make on the main thread for a big tree.
             let found = await Task.detached(priority: .userInitiated) {
-                FolderListing.subfolders(of: url).map { ($0, FolderListing.hasSubfolders($0)) }
+                FolderListing.subfolders(of: url).map {
+                    (url: $0, title: FileManager.default.displayName(atPath: $0.path),
+                     hasSubfolders: FolderListing.hasSubfolders($0))
+                }
             }.value
             guard let self else { return }
             node.isListing = false
-            node.children = found.map { url, hasSubfolders in
-                SidebarNode(kind: .folder, title: FileManager.default.displayName(atPath: url.path), url: url,
-                            symbolName: "folder", mayHaveChildren: hasSubfolders)
+            node.children = found.map { folder in
+                SidebarNode(kind: .folder, title: folder.title, url: folder.url, symbolName: "folder",
+                            mayHaveChildren: folder.hasSubfolders)
             }
             node.mayHaveChildren = !found.isEmpty
             self.reloadRow(node, children: true)

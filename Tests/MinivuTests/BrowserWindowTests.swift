@@ -45,6 +45,12 @@ import MinivuCore
         #expect(controller.validateMenuItem(item(.moveToTrash)))
         #expect(!controller.validateMenuItem(item(.goBack)))
 
+        // ⌘A in the grid selects everything and keeps the lead.
+        grid.collectionView.selectAll(nil)
+        #expect(controller.model.selection.count == 4)
+        #expect(controller.model.lead?.lastPathComponent == "b.jpg")
+        #expect(grid.collectionView.selectionIndexPaths.count == 4)
+
         // View to model, as a click reports it.
         let first = IndexPath(item: 1, section: 0)
         grid.collectionView.selectionIndexPaths = [first]

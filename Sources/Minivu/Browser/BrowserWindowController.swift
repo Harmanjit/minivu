@@ -31,7 +31,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         grid = GridViewController(model: model)
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
         gridItem = NSSplitViewItem(viewController: grid)
-        previewItem = NSSplitViewItem(viewController: preview)
+        // An inspector item, so the toolbar can split above its divider
+        // (`.inspectorTrackingSeparator`) as it does above the sidebar's.
+        previewItem = NSSplitViewItem(inspectorWithViewController: preview)
 
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -99,6 +101,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         model.onChange = { [weak self] changes in self?.modelChanged(changes) }
         sidebar.onNavigate = { [weak self] url in self?.navigate(to: url) }
         grid.onOpen = { [weak self] entry in self?.open(entry) }
+        grid.onNavigate = { [weak self] url in self?.navigate(to: url) }
         preview.onOpenViewer = { [weak self] in self?.openInViewer(nil) }
         toolbarController.onSearch = { [weak self] text in self?.model.filter = text }
 
@@ -116,6 +119,10 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
+        // The split view restores a collapsed preview without posting a
+        // resize, so without this the first photo would still be decoded
+        // for a pane nobody can see.
+        preview.isVisible = !previewItem.isCollapsed
         window?.makeFirstResponder(grid.collectionView)
     }
 
@@ -150,10 +157,13 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
 
     private func showViewer(on url: URL) {
         guard let (images, index) = model.imagesForViewer(startingAt: url) else { return }
+        let folder = model.folder
         ViewerWindowController.show(images: images, index: index,
                                     fullScreen: Preferences.shared.openViewerFullScreen) { [weak self] entry in
             guard let self else { return }
-            if let entry { self.model.select(entry.url) }
+            // The model finds entries by name, so a photo from a folder the
+            // browser has since left would select its namesake here.
+            if let entry, self.model.folder == folder { self.model.select(entry.url) }
             self.grid.scrollLeadIntoView()
             self.window?.makeFirstResponder(self.grid.collectionView)
         }
@@ -225,10 +235,14 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         let urls = model.selectedEntries.map(\.url)
         guard !urls.isEmpty else { return }
         let next = model.selectionAfterRemoving(Set(urls))
+        let folder = model.folder
         Task { [weak self] in
             do {
                 let moved = try await NSWorkspace.shared.recycle(urls)
-                self?.didTrash(Set(moved.keys), thenSelect: next)
+                // Entries are matched by name: if the user moved to another
+                // folder meanwhile, its namesakes must stay.
+                guard let self, self.model.folder == folder else { return }
+                self.didTrash(Set(moved.keys), thenSelect: next)
             } catch {
                 // Some files may have gone anyway: list again to show what's
                 // left, and say what went wrong.
@@ -340,7 +354,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         switch action {
         case .openInViewer: model.leadEntry != nil
         case .revealInFinder: model.folder != nil
-        case .moveToTrash: !model.selection.isEmpty
+        case .moveToTrash: !model.selection.isEmpty && !isTypingText
         case .goToEnclosingFolder: model.enclosingFolder != nil
         case .goBack: model.canGoBack
         case .goForward: model.canGoForward
@@ -349,6 +363,14 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case #selector(selectAll(_:)): !model.entries.isEmpty
         default: true
         }
+    }
+
+    /// ⌘⌫ in a text field (the search field) deletes to the start of the
+    /// line. AppKit offers the key to the menu bar first, so Move to Trash
+    /// would take it and trash the selected photos. A disabled item lets
+    /// the key through; the context menu and toolbar still work.
+    private var isTypingText: Bool {
+        window?.firstResponder is NSText && NSApp.currentEvent?.type == .keyDown
     }
 
     // MARK: - NSWindowDelegate

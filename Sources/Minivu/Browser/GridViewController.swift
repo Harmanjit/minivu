@@ -17,6 +17,8 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
 
     /// Open an image in the viewer, or go into a folder.
     var onOpen: ((FolderEntry) -> Void)?
+    /// A folder in the path bar was clicked.
+    var onNavigate: ((URL) -> Void)?
 
     private let scrollView = NSScrollView()
     private let flowLayout = NSCollectionViewFlowLayout()
@@ -31,6 +33,10 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     private var isReportingSelection = false
     /// The lead the grid last showed, to scroll only when it moves.
     private var shownLead: URL?
+    /// Grid width at the last layout, and whether the lead was on screen
+    /// just before this one: see `viewDidLayout`.
+    private var laidOutWidth: CGFloat = 0
+    private var leadWasVisible = false
     private var subscriptions: Set<AnyCancellable> = []
 
     private var thumbnailLayout = ThumbnailLayout(side: Preferences.shared.thumbnailSize)
@@ -68,6 +74,7 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
             self.model.select(url)
         }
         collectionView.onContextClick = { [weak self] indexPath in self?.contextClicked(indexPath) }
+        collectionView.onSelectAll = { [weak self] in self?.model.selectAll() }
 
         scrollView.documentView = collectionView
         scrollView.hasVerticalScroller = true
@@ -113,6 +120,23 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.themeChanged() }
             .store(in: &subscriptions)
+    }
+
+    /// A new width reflows the rows, and the scroll position, kept in
+    /// points, would leave the selected photo somewhere off screen. So a
+    /// lead that was visible before the window or a pane resized is scrolled
+    /// back into view; one the user had scrolled away from stays away.
+    override func viewWillLayout() {
+        super.viewWillLayout()
+        leadWasVisible = leadFrame().map { collectionView.visibleRect.intersects($0) } ?? false
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        let width = scrollView.contentView.bounds.width
+        guard width != laidOutWidth else { return }
+        laidOutWidth = width
+        if leadWasVisible { scrollLeadIntoView() }
     }
 
     private var backingScale: CGFloat {
@@ -162,13 +186,17 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     }
 
     func scrollLeadIntoView() {
-        guard let lead = model.lead, let index = model.index(of: lead) else { return }
+        guard model.lead != nil else { return }
         // Layout first: after a reload the item has no frame to scroll to yet.
         collectionView.layoutSubtreeIfNeeded()
-        guard let frame = collectionView.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame
-        else { return }
+        guard let frame = leadFrame() else { return }
         // A little room around it, rather than flush against the status bar.
         collectionView.scrollToVisible(frame.insetBy(dx: 0, dy: -flowLayout.minimumLineSpacing))
+    }
+
+    private func leadFrame() -> CGRect? {
+        guard let lead = model.lead, let index = model.index(of: lead) else { return nil }
+        return collectionView.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame
     }
 
     private func updateMessage() {
@@ -305,7 +333,7 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
 
     private func navigateFromPathBar(_ url: URL) {
         guard AppDelegate.isReadableFolder(url) else { NSSound.beep(); return }
-        model.navigate(to: url)
+        onNavigate?(url)
     }
 
     // MARK: - Drag out
@@ -330,6 +358,7 @@ final class GridCollectionView: NSCollectionView {
     var onOpen: ((IndexPath?) -> Void)?
     var onTypeSelect: ((String) -> Void)?
     var onContextClick: ((IndexPath?) -> Void)?
+    var onSelectAll: (() -> Void)?
 
     private var typed = ""
     private var lastKeyTime: TimeInterval = 0
@@ -351,6 +380,8 @@ final class GridCollectionView: NSCollectionView {
             onTypeSelect?(typed)
             return
         }
+        // Any other key (an arrow, say) ends the name being typed, as in Finder.
+        typed = ""
         super.keyDown(with: event)
     }
 
@@ -361,6 +392,13 @@ final class GridCollectionView: NSCollectionView {
         if scalar == " " { return continuing }
         if (0xF700...0xF8FF).contains(scalar.value) { return false }
         return !CharacterSet.controlCharacters.contains(scalar) && !CharacterSet.whitespacesAndNewlines.contains(scalar)
+    }
+
+    /// ⌘A goes to the model, which keeps the lead where it is. The view's
+    /// own select-all reports every item as newly added, and the lead would
+    /// jump to whichever end of the folder is farthest away.
+    override func selectAll(_ sender: Any?) {
+        onSelectAll?()
     }
 
     override func mouseDown(with event: NSEvent) {

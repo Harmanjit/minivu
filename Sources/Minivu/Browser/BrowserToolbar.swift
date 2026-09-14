@@ -15,7 +15,7 @@ extension NSToolbarItem.Identifier {
 ///
 /// Buttons send the same responder-chain actions as the menu bar, so the
 /// window controller handles and validates both in one place.
-final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
+final class BrowserToolbar: NSObject, NSToolbarDelegate {
     /// The search text changed.
     var onSearch: ((String) -> Void)?
 
@@ -47,8 +47,12 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        // The preview toggle sits above the preview pane, mirroring the
+        // sidebar toggle above the sidebar; without the tracking separator
+        // the pane's divider ran through the search field.
         [.toggleSidebar, .sidebarTrackingSeparator, .browserNavigation, .browserEnclosingFolder, .flexibleSpace,
-         .browserThumbnailSize, .browserSort, .browserPreviewPane, .browserSearch]
+         .browserThumbnailSize, .browserSort, .browserSearch, .inspectorTrackingSeparator, .flexibleSpace,
+         .browserPreviewPane]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -164,10 +168,12 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private func searchItemMade() -> NSToolbarItem {
         let item = NSSearchToolbarItem(itemIdentifier: .browserSearch)
         item.searchField.placeholderString = "Filter by Name"
-        item.searchField.delegate = self
         item.searchField.target = self
         item.searchField.action = #selector(searchChanged(_:))
         item.preferredWidthForSearchField = 180
+        // The item otherwise grows into all the free room, crowding the
+        // title; Finder's field stays about this wide.
+        item.searchField.widthAnchor.constraint(lessThanOrEqualToConstant: 220).isActive = true
         searchItem = item
         return item
     }

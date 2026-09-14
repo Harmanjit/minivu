@@ -62,6 +62,17 @@ import MinivuCore
     }
 }
 
+@Suite struct PreviewRefineTests {
+    /// The magnifier on a fitted preview whose texture already covers the
+    /// canvas needs the full image, not the same screen size again.
+    @Test func screenSizeOnlyWhenTheTextureIsTooSmall() {
+        #expect(PreviewPaneController.wantsScreenSizedRefine(fitted: true, textureEdge: 500, canvasEdge: 900))
+        #expect(!PreviewPaneController.wantsScreenSizedRefine(fitted: true, textureEdge: 900, canvasEdge: 900))
+        #expect(!PreviewPaneController.wantsScreenSizedRefine(fitted: true, textureEdge: 880, canvasEdge: 900))
+        #expect(!PreviewPaneController.wantsScreenSizedRefine(fitted: false, textureEdge: 500, canvasEdge: 900))
+    }
+}
+
 @Suite struct PixelSizeTests {
     /// A 30 × 20 JPEG tagged "rotate 90°" is shown 20 wide and 30 tall.
     @Test func readsOrientedSize() throws {

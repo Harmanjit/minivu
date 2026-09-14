@@ -115,6 +115,10 @@ final class BrowserModel {
     /// system hands back (a listing of /var/x reports /private/var/x).
     private var indexByName: [String: Int] = [:]
     private var generation = 0
+    /// A disk listing is in flight. A re-sort started now would work from
+    /// the older snapshot and, being newer, make the listing's result be
+    /// dropped: new files and the cache invalidations with them.
+    private var isListing = false
     /// Selected once the listing in progress arrives.
     private var pendingSelection: URL?
     private var watcher: FolderWatcher?
@@ -226,6 +230,7 @@ final class BrowserModel {
     private func load() {
         guard let folder else { return }
         generation += 1
+        isListing = true
         let generation = self.generation
         let lister = self.lister, hidden = showHiddenFiles, order = sortOrder
         let previous = snapshot.flatMap { Self.samePath($0.folder, folder) ? $0.entries : nil } ?? []
@@ -254,7 +259,7 @@ final class BrowserModel {
     /// A new order for the same listing. If a listing is still being read it
     /// simply starts again with the new order.
     private func resort() {
-        guard let snapshot, state == .loaded else {
+        guard let snapshot, state == .loaded, !isListing else {
             reload()
             return
         }
@@ -268,6 +273,7 @@ final class BrowserModel {
 
     private func finish(_ result: Result<(FolderSnapshot, [URL]), Error>, generation: Int) {
         guard generation == self.generation else { return }
+        isListing = false
         switch result {
         case .success(let (listing, changed)):
             changed.forEach(invalidate)

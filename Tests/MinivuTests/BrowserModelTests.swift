@@ -31,6 +31,16 @@ final class ScratchFolder {
     }
 }
 
+/// A listing delay the test can change after the model is made.
+final class ListingDelay: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: TimeInterval = 0
+    var seconds: TimeInterval {
+        get { lock.withLock { value } }
+        set { lock.withLock { value = newValue } }
+    }
+}
+
 /// Records what the model asked to invalidate.
 final class InvalidationLog {
     var urls: [URL] = []
@@ -193,6 +203,28 @@ final class InvalidationLog {
         #expect(model.selection.map(\.lastPathComponent) == ["keep.jpg"])
         #expect(model.lead?.lastPathComponent == "keep.jpg")
         #expect(names(model) == ["edited.jpg", "keep.jpg", "new.jpg"])
+    }
+
+    /// A re-sort asked for while a listing is still being read must not
+    /// work from the old snapshot and drop the listing's new files.
+    @Test func resortDuringAListingKeepsItsResult() async throws {
+        let t = try ScratchFolder()
+        try t.file("small.jpg", bytes: 10)
+        let gate = ListingDelay()
+        let model = makeModel(lister: { folder, hidden in
+            Thread.sleep(forTimeInterval: gate.seconds)
+            return try FolderListing.contents(of: folder, includeHidden: hidden)
+        })
+        await open(model, t.url)
+
+        try t.file("big.jpg", bytes: 1000)
+        gate.seconds = 0.3
+        model.reload()
+        let listing = model.work
+        model.sortOrder = FileSortOrder(key: .size, ascending: false)
+        await model.work?.value
+        await listing?.value
+        #expect(names(model) == ["big.jpg", "small.jpg"])
     }
 
     @Test func changedFilesDiff() {

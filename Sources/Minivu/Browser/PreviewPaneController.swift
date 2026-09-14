@@ -33,6 +33,8 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             } else {
                 cancelLoads()
                 targetEntry = nil
+                // Neighbours of a photo nobody can see aren't worth decoding.
+                AppServices.images.prefetch([], pixelSize: 0)
             }
         }
     }
@@ -189,8 +191,10 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         refresh()
     }
 
+    /// While collapsed nothing is read or decoded (the info panel reads
+    /// metadata from disk); showing the pane again refreshes it.
     private func refresh() {
-        guard isViewLoaded else { return }
+        guard isViewLoaded, isVisible else { return }
         switch content ?? .none {
         case .none:
             cancelLoads()
@@ -211,7 +215,6 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         case .image(let entry, let neighbours):
             setInfoVisible(true)
             info.rootView = InfoPanelView(url: entry.url)
-            guard isVisible else { return }
             showImage(entry, neighbours: neighbours)
         }
     }
@@ -220,6 +223,10 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         guard infoArea.isHidden == visible else { return }
         infoArea.isHidden = !visible
         layoutSplit()
+        // The divider is a layer of the split view's own, moved only when the
+        // split view lays out; frames set by hand leave the old line across
+        // the message.
+        split.needsLayout = true
         if visible {
             // The split view still counts the half it saw hidden as
             // collapsed and draws no divider until a position is set.
@@ -351,13 +358,26 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         return SIMD3(linear(srgb.redComponent), linear(srgb.greenComponent), linear(srgb.blueComponent))
     }
 
+    /// A screen-sized decode only helps a fitted canvas whose texture is
+    /// smaller than the canvas (3% slack, as the loader snaps sizes).
+    nonisolated static func wantsScreenSizedRefine(fitted: Bool, textureEdge: Int, canvasEdge: Int) -> Bool {
+        fitted && Double(textureEdge) < Double(canvasEdge) * 0.97
+    }
+
     // MARK: - ImageCanvasViewDelegate
 
     func canvasDidDoubleClick(_ canvas: ImageCanvasView) {
         onOpenViewer?()
     }
 
-    /// The pane grew past the texture, or the magnifier wants detail.
+    /// The pane grew past the texture, or the magnifier (or a wheel zoom)
+    /// wants detail.
+    ///
+    /// The zoom mode alone can't tell these apart: the preview stays fitted
+    /// while the magnifier shows. A texture that already covers the canvas
+    /// can only be sharpened by the full-resolution image; asking for the
+    /// screen size again would hand back the same texture and the
+    /// magnifier would stay blurry.
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {
         guard let entry = shownEntry else { return }
         refineHandle?.cancel()
@@ -366,7 +386,9 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             self.refineHandle = nil
             self.canvas?.setImage(texture, preserveView: true)
         }
-        if canvas.zoomMode == .fit {
+        let textureEdge = canvas.image.map { Int(max($0.textureSize.width, $0.textureSize.height)) } ?? 0
+        if Self.wantsScreenSizedRefine(fitted: canvas.zoomMode == .fit, textureEdge: textureEdge,
+                                       canvasEdge: previewPixelSize) {
             refineHandle = AppServices.images.load(entry, pixelSize: previewPixelSize, update: deliver)
         } else {
             refineHandle = AppServices.images.loadFullResolution(entry, update: deliver)
