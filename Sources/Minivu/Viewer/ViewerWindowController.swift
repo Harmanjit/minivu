@@ -71,8 +71,16 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     let errorLabel = NSTextField(labelWithString: "")
     let flyouts: FlyoutController
     private let filmstrip = FilmstripView()
-    private let controlBar = ViewerControlBar()
-    let toolsPanel = ViewerToolsPanel()
+    /// Made when the bottom panel first shows.
+    private var controlBar: ViewerControlBar?
+    /// Made on first use: the left panel showing, or a tool opening.
+    private(set) lazy var toolsPanel: ViewerToolsPanel = {
+        let panel = ViewerToolsPanel()
+        updateAvailability(of: panel, canEdit: canEditCurrent)
+        isToolsPanelLoaded = true
+        return panel
+    }()
+    private var isToolsPanelLoaded = false
     private let infoHost = NSHostingView(rootView: InfoPanelView(url: nil))
     /// The histogram and colour count, above the info panel on the right.
     let histogramPanel = HistogramPanelController()
@@ -175,12 +183,18 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         infoHost.sizingOptions = []
         infoHost.frame = NSRect(x: 0, y: 0, width: Self.infoPanelWidth, height: 600)
 
-        // Added after the HUD, so panels slide over it.
-        flyouts.add(panel(filmstrip, edge: .top), edge: .top, thickness: FilmstripView.height)
-        flyouts.add(panel(controlBar, edge: .bottom), edge: .bottom, thickness: ViewerControlBar.height)
-        flyouts.add(panel(toolsPanel, edge: .left), edge: .left, thickness: ViewerToolsPanel.width)
-        flyouts.add(panel(histogramPanel.makePanel(with: infoHost, width: Self.infoPanelWidth), edge: .right),
-                    edge: .right, thickness: Self.infoPanelWidth)
+        // Added after the HUD, so panels slide over it. Each makes its content
+        // when it first shows (see `FlyoutPanelView`), which only this
+        // controller's flyouts can ask for: hence `unowned`.
+        flyouts.add(FlyoutPanelView(edge: .top) { [unowned self] in filmstrip },
+                    edge: .top, thickness: FilmstripView.height)
+        flyouts.add(FlyoutPanelView(edge: .bottom) { [unowned self] in makeControlBar() },
+                    edge: .bottom, thickness: ViewerControlBar.height)
+        flyouts.add(FlyoutPanelView(edge: .left) { [unowned self] in toolsPanel },
+                    edge: .left, thickness: ViewerToolsPanel.width)
+        flyouts.add(FlyoutPanelView(edge: .right) { [unowned self] in
+            histogramPanel.makePanel(with: infoHost, width: Self.infoPanelWidth)
+        }, edge: .right, thickness: Self.infoPanelWidth)
         flyouts.onPointerMoved = { [weak self] in self?.pointerMoved() }
         flyouts.onVisibilityChange = { [weak self] edge, visible in self?.panelVisibilityChanged(edge, visible) }
 
@@ -223,15 +237,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             }
     }
 
-    private func panel(_ content: NSView, edge: FlyoutEdge) -> FlyoutPanelView {
-        let panel = FlyoutPanelView(edge: edge)
-        // Start at the content's own size, never zero: a collection view
-        // laid out at zero height complains its items don't fit.
-        panel.frame = content.frame
-        content.frame = panel.bounds
-        content.autoresizingMask = [.width, .height]
-        panel.addSubview(content)
-        return panel
+    private func makeControlBar() -> ViewerControlBar {
+        let bar = ViewerControlBar()
+        controlBar = bar
+        updateChrome()
+        return bar
     }
 
     /// The HUD sits below the title bar or camera housing, and beside any
@@ -623,7 +633,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         structureRead = Self.mayHavePagesOrFrames(entry) ? nil : entry
         filmstrip.setCurrent(model.index)
         // The info panel reads metadata only while it can be seen.
-        if !infoHost.isHiddenOrHasHiddenAncestor { infoHost.rootView = InfoPanelView(url: entry.url) }
+        if infoHost.window != nil, !infoHost.isHiddenOrHasHiddenAncestor {
+            infoHost.rootView = InfoPanelView(url: entry.url)
+        }
         histogramPanel.setEntry(entry)
         stopAnimation()
         readExposure(for: entry)
@@ -818,11 +830,15 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                                      canGoNext: model.canGoNextPage)
             : nil
         let canEdit = canEditCurrent
-        controlBar.update(zoomPercent: zoom, canGoPrevious: model.canGoPrevious, canGoNext: model.canGoNext,
-                          isFullScreen: isFullScreen, infoShown: flyouts.isPinned(.right),
-                          pages: pages, isPlaying: player?.isPlaying, canEdit: canEdit,
-                          toolsShown: flyouts.isPinned(.left))
-        toolsPanel.updateAvailability { [unowned self] action in
+        controlBar?.update(zoomPercent: zoom, canGoPrevious: model.canGoPrevious, canGoNext: model.canGoNext,
+                           isFullScreen: isFullScreen, infoShown: flyouts.isPinned(.right),
+                           pages: pages, isPlaying: player?.isPlaying, canEdit: canEdit,
+                           toolsShown: flyouts.isPinned(.left))
+        if isToolsPanelLoaded { updateAvailability(of: toolsPanel, canEdit: canEdit) }
+    }
+
+    private func updateAvailability(of panel: ViewerToolsPanel, canEdit: Bool) {
+        panel.updateAvailability { [unowned self] action in
             canEdit ? (validateEditAction(action) ?? false) : false
         }
     }

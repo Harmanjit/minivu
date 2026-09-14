@@ -88,6 +88,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         Task { await BlockingWork.run {
             let start = ContinuousClock.now
             _ = GPU.shared
+            // The canvas pipeline too, which the first viewer or preview
+            // would otherwise build on the main thread (GPU caches it).
+            _ = try? CanvasRenderer()
             let elapsed = ContinuousClock.now - start
             log.info("Metal ready in \(elapsed, privacy: .public)")
             if ProcessInfo.processInfo.environment["MINIVU_TRACE"] != nil {

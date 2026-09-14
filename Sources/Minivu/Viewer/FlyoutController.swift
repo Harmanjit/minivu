@@ -99,10 +99,17 @@ nonisolated enum FlyoutGeometry {
 
 /// A translucent panel for one edge: the system HUD material, flush with
 /// its edge, with only the corners that face the image rounded.
+///
+/// Its content is made when it first shows. A panel no one opens never
+/// builds or lays out its controls, which opening the viewer would
+/// otherwise wait for.
 final class FlyoutPanelView: NSVisualEffectView {
     static let cornerRadius: CGFloat = 12
 
-    init(edge: FlyoutEdge) {
+    private var makeContent: (() -> NSView)?
+
+    init(edge: FlyoutEdge, content: @escaping () -> NSView) {
+        makeContent = content
         super.init(frame: .zero)
         material = .hudWindow
         // The panel floats over the canvas in the same window, so it blurs
@@ -129,6 +136,22 @@ final class FlyoutPanelView: NSVisualEffectView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("made in code") }
+
+    /// Adds the content, laid out at once: a first layout left for later
+    /// could land inside the slide's animation and move every control in
+    /// from nowhere.
+    func loadContentIfNeeded() {
+        guard let makeContent else { return }
+        self.makeContent = nil
+        let content = makeContent()
+        // Never zero: a collection view laid out at zero height complains
+        // its items don't fit.
+        if bounds.isEmpty { setFrameSize(content.frame.size) }
+        content.frame = bounds
+        content.autoresizingMask = [.width, .height]
+        addSubview(content)
+        layoutSubtreeIfNeeded()
+    }
 }
 
 /// Slides edge panels in when the pointer touches an edge and out when it
@@ -275,6 +298,7 @@ final class FlyoutController: NSResponder {
                 // Start from just past the edge, so it slides rather than
                 // pops; with Reduce Motion, where it will stay, to fade in.
                 view.frame = frame(for: edge, open: still)
+                (view as? FlyoutPanelView)?.loadContentIfNeeded()
                 view.isHidden = false
                 onVisibilityChange?(edge, true)
             }

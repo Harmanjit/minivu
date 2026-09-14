@@ -55,6 +55,10 @@ final class HelpWindowController: NSWindowController {
         // The window's size is the user's, not the content's: a split view
         // would otherwise shrink it to its smallest fitting size.
         hosting.sizingOptions = []
+        // Sized before it goes in the window, so SwiftUI lays the whole
+        // window out once, at this size, rather than first at the content's
+        // own size and again when the window is sized below.
+        hosting.view.frame = NSRect(origin: .zero, size: Self.defaultSize)
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: Self.defaultSize),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: true)
