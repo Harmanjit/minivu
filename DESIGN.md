@@ -237,8 +237,8 @@ linear light.
 
 **Undo:** the operation list with a cursor, capped at 50 steps; a step is
 one or more operations (a Colors visit that changed both sections is one
-step). Undo is a
-cursor move plus a re-render, so it costs no memory for pixels. Brush
+step). Undo is a cursor move plus a re-render, so it costs no memory for
+pixels. Brush
 operations (clone, heal, red-eye) record their strokes as parameters, so
 they replay the same way.
 
@@ -601,9 +601,10 @@ Trash rather than deleting it (an item that holds the file being moved is
 never replaced); if the new item then can't arrive (unreadable, disk full)
 the old one comes back from the Trash. A move to another volume copies to
 a hidden name, renames into place and only then deletes the original, so
-it never leaves a partial item under the real name. The work runs off the main thread one file at a time,
-with a progress sheet and Cancel for more than 20 files or anything still
-running after half a second; the arrivals are selected afterwards.
+it never leaves a partial item under the real name. The work runs off the
+main thread one file at a time, with a progress sheet and Cancel for more
+than 20 files or anything still running after half a second; the arrivals
+are selected afterwards.
 Copy To and Move To choose a folder with an open panel and remember the
 last five (as security-scoped bookmarks). Rename (F2 or the context menu)
 edits the name in place with the base name selected: Return or a click
@@ -838,8 +839,9 @@ shows display-only shortcuts on the bar it is given, so it must get a fresh
   a symbolic link is written through to the file it points at.
 - **Files:** Save's own-write record is by path, so a comment written in
   minivu after another application changed a file being edited lets Save
-  replace that version. A Save As to a name that differs from the
-  original's only in letter case leaves the document marked unsaved.
+  replace that version. Captures, montages and desktop copies take a free
+  name just before writing, in the write queue; a file another app creates
+  under that name in the same instant would be replaced.
 - **Marks:** stars and tags live only in the catalog; they aren't written
   to XMP or Finder tags, so other apps don't see them.
 - **Batch Convert:** only the first page or frame of multi-page and animated

@@ -35,15 +35,19 @@ enum SavePresenter {
             let progress = window.map { SaveProgress(on: $0, title: "Saving “\(url.lastPathComponent)”…") }
             // In line with every other write, so a Save of the same file
             // asked for just before can't land after this one.
+            let original = entry.url
             let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
-                try await write(source, options: options, to: url, metadataSource: entry.url)
+                try await write(source, options: options, to: url, metadataSource: original)
+                // Asked of the disk once written: "Photo.JPG" chosen for
+                // "photo.jpg" is the same file on a case-insensitive volume.
+                return await BlockingWork.run { sameFile(url, original) || sameItem(url, original) }
             }
             Task {
                 do {
                     let outcome = try await job.value
                     progress?.finish()
                     didWrite(url)
-                    if let document, sameFile(url, entry.url), outcome.isNewest, document.operations == savedOperations {
+                    if let document, outcome.value, outcome.isNewest, document.operations == savedOperations {
                         document.markSaved()
                     }
                     completion(url)
@@ -103,6 +107,12 @@ enum SavePresenter {
                         edited.fileIsUnchangedSinceEditing())
             }
             guard let window else { return completion(false) }
+            // A file that has gone (renamed, trashed) or can't be written back
+            // is saved under a new name.
+            guard let format = SavePolicy.inPlaceFormat(for: url, info: info), let info else {
+                presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
+                return
+            }
             guard unchanged else {
                 guard let fileChanged else {
                     presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
@@ -110,10 +120,6 @@ enum SavePresenter {
                 }
                 fileChanged()
                 return completion(false)
-            }
-            guard let format = SavePolicy.inPlaceFormat(for: url, info: info), let info else {
-                presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
-                return
             }
             // Nothing to write: re-encoding unchanged pixels only loses quality.
             guard document.isDirty else { return completion(true) }
@@ -184,13 +190,16 @@ enum SavePresenter {
                                          gainMap: Bool = false) async throws {
         // Checked here, in the write queue, after every earlier write of
         // minivu's own has landed: another application's version saved since
-        // the edits began is not replaced.
-        guard await BlockingWork.run({ snapshot.fileIsUnchangedSinceEditing() }) else {
-            throw InPlaceSaveError.fileChanged(url.lastPathComponent)
+        // the edits began is not replaced. Before rendering (no render for
+        // nothing) and again just before writing (a render takes seconds).
+        let checkUnchanged = { @Sendable in
+            guard snapshot.fileIsUnchangedSinceEditing() else { throw InPlaceSaveError.fileChanged(url.lastPathComponent) }
         }
+        try await BlockingWork.run(checkUnchanged)
         if gainMap, ImageEncoder.canWriteGainMap(options.format),
            let hdr = try await renderer.renderHDRForExport(snapshot) {
             try await BlockingWork.run {
+                try checkUnchanged()
                 try ImageEncoder.write(hdr, to: url, options: options, metadataSource: url, gainMap: true)
             }
             return
@@ -198,7 +207,10 @@ enum SavePresenter {
         let bits = options.format.supports16Bit && options.sixteenBit ? 16 : 8
         let image = try await renderer.renderForExport(snapshot, colorSpace: colorSpace, bitsPerComponent: bits)
         // Encoding and the file write block: on GCD (BlockingWork).
-        try await BlockingWork.run { try ImageEncoder.write(image, to: url, options: options, metadataSource: url) }
+        try await BlockingWork.run {
+            try checkUnchanged()
+            try ImageEncoder.write(image, to: url, options: options, metadataSource: url)
+        }
     }
 
     /// "Replace the original?", unless the user ticked "Don't ask again" once.
@@ -236,6 +248,18 @@ enum SavePresenter {
 
     nonisolated static func sameFile(_ a: URL, _ b: URL) -> Bool {
         a.standardizedFileURL.resolvingSymlinksInPath().path == b.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    /// Whether two paths name one file on disk now (another letter case, a
+    /// hard link). Disk work.
+    nonisolated static func sameItem(_ a: URL, _ b: URL) -> Bool {
+        var a = a, b = b
+        a.removeAllCachedResourceValues()
+        b.removeAllCachedResourceValues()
+        let key: Set<URLResourceKey> = [.fileResourceIdentifierKey]
+        guard let first = (try? a.resourceValues(forKeys: key))?.fileResourceIdentifier as? NSObject,
+              let second = (try? b.resourceValues(forKeys: key))?.fileResourceIdentifier else { return false }
+        return first.isEqual(second)
     }
 }
 

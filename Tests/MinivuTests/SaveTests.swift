@@ -602,6 +602,19 @@ import MinivuRender
         #expect(!document.snapshot().fileIsUnchangedSinceEditing())
     }
 
+    /// Save As onto the original under another letter case is saving it.
+    @Test func sameItemFollowsTheDiskNotTheSpelling() throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 8, height: 8)
+        let other = try t.jpeg("other.jpg", width: 8, height: 8)
+        let upper = t.url.appendingPathComponent("PHOTO.JPG")
+        let caseSensitive = (try t.url.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]))
+            .volumeSupportsCaseSensitiveNames == true
+        #expect(SavePresenter.sameItem(url, upper) == !caseSensitive)
+        #expect(!SavePresenter.sameItem(url, other))
+        #expect(!SavePresenter.sameItem(url, t.url.appendingPathComponent("missing.jpg")))
+    }
+
     /// minivu's own writes of the file are not "another application": a Save
     /// whose document was edited again while it ran, then Save again, and a
     /// comment written in between.
