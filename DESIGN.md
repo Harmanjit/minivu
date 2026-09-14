@@ -431,8 +431,9 @@ hide while it is key.
   counted from the end of each transition, and the display link runs only
   during a transition. → and ← finish a transition at once and start a
   quick one (0.35 s).
-- Neighbours load through `ImageLoader.shared` at the screen's long edge,
-  and only those textures are kept. A move waits for a slide not yet
+- Neighbours load through `ImageLoader.shared` fitted to the picture area
+  (below any camera housing), and only those textures are kept. Zoom's
+  outgoing slide grows past fit only as it fades, so no larger decode. A move waits for a slide not yet
   decoded (cleared before the texture is requested, so a cache hit can't
   run it twice). Failed files are marked in `SlideshowSequence` and skipped
   both ways; if nothing loads, the show ends.
