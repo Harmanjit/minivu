@@ -89,9 +89,20 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var lastPointerMove: TimeInterval = 0
     private var backgroundSubscription: AnyCancellable?
     private var summaryTask: Task<Void, Never>?
-    /// The image whose pixels are on the canvas. It lags `model.current`
+    private var infoTask: Task<Void, Never>?
+
+    /// One page of one image.
+    private struct Shown: Equatable {
+        var entry: FolderEntry
+        var page: Int
+    }
+
+    /// The image and page whose pixels are on the canvas. It lags the model
     /// while a decode is on its way.
-    private var displayedEntry: FolderEntry?
+    private var displayed: Shown?
+    private var current: Shown? { model.current.map { Shown(entry: $0, page: model.page) } }
+    /// Plays the current image when it is animated; nil otherwise.
+    private var player: AnimationPlayer?
     /// The HUD's exposure line, and which file it belongs to.
     private var exposure: (url: URL, text: String?)?
     private var savedPresentationOptions: NSApplication.PresentationOptions?
@@ -154,6 +165,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             hudLeading,
             hudTop,
         ])
+
+        // An animation stops its clock while its window can't be seen:
+        // minimised, hidden, behind another window or on another Space.
+        NotificationCenter.default.addObserver(self, selector: #selector(occlusionChanged(_:)),
+                                               name: NSWindow.didChangeOcclusionStateNotification, object: nil)
 
         // The surround can change in Settings while the viewer is open; the
         // window's own colour (title bar, camera strip) must follow the canvas.
@@ -246,6 +262,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         } else {
             restorePresentationOptions()
         }
+        updateAnimationVisibility()
         updateChrome()
     }
 
@@ -385,23 +402,30 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         return Int(max(screen.frame.width, screen.frame.height) * screen.backingScaleFactor)
     }
 
-    /// Shows `model.current`: from the cache within this event if possible,
-    /// otherwise as soon as it is decoded.
+    /// Shows `model.current` after a move to another image.
     private func showCurrent() {
         guard let entry = model.current else { return }
+        loadCurrentPage()
+        entryDidChange(entry)
+    }
+
+    /// Shows the model's image and page: from the cache within this event if
+    /// possible, otherwise as soon as it is decoded. On its own for a page
+    /// turn, which is still the same file.
+    private func loadCurrentPage() {
+        guard let shown = current else { return }
         cancelLoads()
         let pixelSize = canvasPixelSize
-        let cache = AppServices.images.cache
-        if let texture = cache.bestTexture(url: entry.url, modified: entry.modified, page: 0,
-                                           minimumLongEdge: pixelSize) {
-            display(texture, of: entry, preserveView: false)
+        let entry = shown.entry
+        if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified,
+                                                              page: shown.page, minimumLongEdge: pixelSize) {
+            display(texture, of: shown, preserveView: false)
         } else {
-            schedulePlaceholder(for: entry)
-            loadHandle = AppServices.images.load(entry, pixelSize: pixelSize) { [weak self] result in
-                self?.loadFinished(result, entry: entry)
+            schedulePlaceholder(for: shown)
+            loadHandle = AppServices.images.load(entry, page: shown.page, pixelSize: pixelSize) { [weak self] result in
+                self?.loadFinished(result, shown: shown)
             }
         }
-        entryDidChange(entry)
     }
 
     private func cancelLoads() {
@@ -415,52 +439,180 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// After 150 ms without the real texture, any cached copy of the new image
     /// (the browser's preview, say) beats showing the previous photo.
-    private func schedulePlaceholder(for entry: FolderEntry) {
+    private func schedulePlaceholder(for shown: Shown) {
+        let entry = shown.entry
         let work = DispatchWorkItem { [weak self] in
-            guard let self, self.model.current == entry, self.displayedEntry != entry,
-                  let texture = AppServices.images.cache.anyTexture(url: entry.url, modified: entry.modified, page: 0)
+            guard let self, self.current == shown, self.displayed != shown,
+                  let texture = AppServices.images.cache.anyTexture(url: entry.url, modified: entry.modified,
+                                                                    page: shown.page)
             else { return }
-            self.display(texture, of: entry, preserveView: false, prefetch: false)
+            self.display(texture, of: shown, preserveView: false, prefetch: false)
         }
         placeholderWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.placeholderDelay, execute: work)
     }
 
-    private func loadFinished(_ result: Result<ImageTexture, Error>, entry: FolderEntry) {
-        guard model.current == entry, !isClosing else { return }
+    private func loadFinished(_ result: Result<ImageTexture, Error>, shown: Shown) {
+        guard current == shown, !isClosing else { return }
+        let entry = shown.entry
         placeholderWork?.cancel()
         switch result {
         case .success(let texture):
-            // Replacing a stand-in of the same image keeps any zoom the user
+            // Replacing a stand-in of the same page keeps any zoom the user
             // started on it.
-            display(texture, of: entry, preserveView: displayedEntry == entry)
+            display(texture, of: shown, preserveView: displayed == shown)
         case .failure(let error):
             guard !(error is CancellationError) else { return }
             canvas.setImage(nil, preserveView: false)
-            displayedEntry = entry
+            displayed = shown
             errorLabel.stringValue = "minivu can’t display “\(entry.name)”."
             errorLabel.isHidden = false
             updateChrome()
         }
     }
 
-    private func display(_ texture: ImageTexture, of entry: FolderEntry, preserveView: Bool, prefetch: Bool = true) {
+    private func display(_ texture: ImageTexture, of shown: Shown, preserveView: Bool, prefetch: Bool = true) {
         errorLabel.isHidden = true
         canvas.setImage(texture, preserveView: preserveView)
-        displayedEntry = entry
+        displayed = shown
         updateChrome()
-        if prefetch { AppServices.images.prefetch(model.prefetchList, pixelSize: canvasPixelSize) }
+        if prefetch { prefetchAhead() }
+    }
+
+    /// The next page of a document, then the neighbouring images.
+    private func prefetchAhead() {
+        AppServices.images.prefetch(pages: model.prefetchPages, pixelSize: canvasPixelSize)
     }
 
     /// The navigation happened: update everything that says which image this is.
     private func entryDidChange(_ entry: FolderEntry) {
-        if displayedEntry != entry { errorLabel.isHidden = true }
+        if displayed?.entry != entry { errorLabel.isHidden = true }
         filmstrip.setCurrent(model.index)
         // The info panel reads metadata only while it can be seen.
         if infoHost.superview?.isHidden == false { infoHost.rootView = InfoPanelView(url: entry.url) }
+        stopAnimation()
         readExposure(for: entry)
+        readStructure(of: entry)
         updateChrome()
         hud.flash()
+    }
+
+    // MARK: - Pages and animation
+
+    /// Whether a file's header is worth reading for pages or frames. Only
+    /// these formats can have either, so flipping through JPEGs and raw
+    /// files costs no extra reads.
+    nonisolated static func mayHavePagesOrFrames(_ entry: FolderEntry) -> Bool {
+        switch entry.kind {
+        case .pdf: true
+        case .raster: ["tif", "tiff", "gif", "png", "apng", "webp", "heic", "heif", "hif", "avif"]
+            .contains(entry.url.pathExtension.lowercased())
+        default: false
+        }
+    }
+
+    /// Reads how many pages the image has and whether it animates, off the
+    /// main thread (a header read, like the exposure line).
+    private func readStructure(of entry: FolderEntry) {
+        infoTask?.cancel()
+        infoTask = nil
+        guard Self.mayHavePagesOrFrames(entry) else { return }
+        let url = entry.url
+        infoTask = Task { [weak self] in
+            let info = await Task.detached(priority: .userInitiated) { ImageDecoder.info(for: url) }.value
+            guard !Task.isCancelled, let self, !self.isClosing, self.model.current == entry, let info else { return }
+            self.structureArrived(info, for: entry)
+        }
+    }
+
+    private func structureArrived(_ info: ImageInfo, for entry: FolderEntry) {
+        model.setPageCount(info.documentPageCount, for: entry)
+        if info.isAnimated { startAnimation(of: entry, imageSize: info.pixelSize) }
+        updateChrome()
+        // Now that a next page is known to exist, it's worth decoding.
+        if model.isMultiPage, displayed == current { prefetchAhead() }
+    }
+
+    /// Moves to another page of the current image and shows it fitted.
+    private func turnPage(_ turn: (inout ViewerModel) -> Bool) {
+        guard turn(&model) else {
+            hud.flash()   // the first or last page: say so rather than do nothing
+            return
+        }
+        loadCurrentPage()
+        updateChrome()
+        hud.flash()
+    }
+
+    /// Page Down or Page Up: pages while there are any, then images.
+    private func pageStep(_ step: (inout ViewerModel) -> ViewerModel.PageStep) {
+        model.wrapAround = Preferences.shared.wrapAround
+        switch step(&model) {
+        case .page:
+            loadCurrentPage()
+            updateChrome()
+            hud.flash()
+        case .image:
+            showCurrent()
+        case .none:
+            hud.flash()
+        }
+    }
+
+    /// The still image (the first frame) is already on its way through the
+    /// loader, so it shows as quickly as any photo; the player takes over
+    /// once its first frame is decoded.
+    private func startAnimation(of entry: FolderEntry, imageSize: CGSize) {
+        stopAnimation()
+        let player = AnimationPlayer(url: entry.url, pixelSize: animationPixelSize(for: imageSize))
+        player.onFrame = { [weak self] texture in self?.showFrame(texture, of: entry) }
+        player.onStateChange = { [weak self] in self?.updateChrome() }
+        self.player = player
+        updateAnimationVisibility()
+    }
+
+    private func stopAnimation() {
+        player?.stop()
+        player = nil
+    }
+
+    /// Each frame replaces the texture with zoom and pan kept, as a sharper
+    /// texture would. A still load still pending would put the first frame
+    /// back over the animation, so it is cancelled.
+    private func showFrame(_ texture: ImageTexture, of entry: FolderEntry) {
+        guard model.current == entry, !isClosing, let player else { return }
+        let shown = Shown(entry: entry, page: 0)
+        cancelLoads()
+        if displayed == shown {
+            errorLabel.isHidden = true   // the still decode may have failed where the player didn't
+            canvas.setImage(texture, preserveView: true)
+            // The HUD names the frame only while paused.
+            if !player.isPlaying { updateChrome() }
+        } else {
+            // The animation beat the still decode.
+            display(texture, of: shown, preserveView: false)
+        }
+    }
+
+    /// Frames are decoded at the size the animation is shown at when fitted,
+    /// not the canvas's long edge: every frame is a decode, and anything
+    /// larger would only be sampled down again. Zooming in asks for more
+    /// (`canvasNeedsFullResolution`).
+    private func animationPixelSize(for imageSize: CGSize) -> Int {
+        let view = canvas.drawablePixelSize
+        guard view.width > 0, view.height > 0, imageSize.width > 0, imageSize.height > 0 else { return canvasPixelSize }
+        let scale = min(view.width / imageSize.width, view.height / imageSize.height)
+        return Int((max(imageSize.width, imageSize.height) * scale).rounded(.up))
+    }
+
+    @objc private func occlusionChanged(_ notification: Notification) {
+        guard let window, notification.object as? NSWindow === window else { return }
+        updateAnimationVisibility()
+    }
+
+    private func updateAnimationVisibility() {
+        guard let player else { return }
+        player.isSuspended = !(window?.occlusionState.contains(.visible) ?? false)
     }
 
     /// The exposure line is in the file's EXIF: a few milliseconds of disk
@@ -484,19 +636,28 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// (setting it redraws the title bar).
     private func updateChrome() {
         guard let entry = model.current else { return }
-        let shown = displayedEntry == entry && canvas.image != nil
+        let shown = displayed == current && canvas.image != nil
         if let window {
             if window.title != entry.name { window.title = entry.name }
             let subtitle = isFullScreen ? "" : model.subtitleText
             if window.subtitle != subtitle { window.subtitle = subtitle }
         }
         let zoom = shown ? canvas.zoomPercent : nil
-        hud.update(name: entry.name, position: model.positionText,
+        var part = model.pageHUDText
+        if let player, !player.isPlaying, player.frameCount > 0 {
+            part = "Frame \(player.currentFrame + 1) / \(player.frameCount)"
+        }
+        hud.update(name: entry.name, position: model.positionText, part: part,
                    pixelSize: shown ? canvas.image?.imageSize : nil, zoomPercent: zoom,
                    exposure: exposure?.url == entry.url ? exposure?.text : nil)
         model.wrapAround = Preferences.shared.wrapAround
+        let pages = model.isMultiPage
+            ? ViewerControlBar.Pages(text: model.pageText, canGoPrevious: model.canGoPreviousPage,
+                                     canGoNext: model.canGoNextPage)
+            : nil
         controlBar.update(zoomPercent: zoom, canGoPrevious: model.canGoPrevious, canGoNext: model.canGoNext,
-                          isFullScreen: isFullScreen, infoShown: flyouts.isPinned(.right))
+                          isFullScreen: isFullScreen, infoShown: flyouts.isPinned(.right),
+                          pages: pages, isPlaying: player?.isPlaying)
     }
 
     // MARK: - ImageCanvasViewDelegate
@@ -513,20 +674,51 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {
-        guard let entry = model.current, displayedEntry == entry else { return }
+        guard let shown = current, displayed == shown else { return }
+        if let player, let imageSize = player.imageSize {
+            // An animation sharpens by decoding its next frames larger. The
+            // canvas asks again with every frame until they arrive; the
+            // player ignores a size it already has. Fitted frames that
+            // already cover the fitted size are being magnified by the
+            // magnifier, which only full size helps.
+            let fitted = animationPixelSize(for: imageSize)
+            let frameEdge = canvas.image.map { Int(max($0.textureSize.width, $0.textureSize.height)) } ?? 0
+            let full = canvas.zoomMode != .fit || Double(frameEdge) >= Double(fitted) * 0.97
+            player.setPixelSize(full ? TextureUploader.maximumDimension : fitted)
+            return
+        }
         sharpenHandle?.cancel()
         let deliver: (Result<ImageTexture, Error>) -> Void = { [weak self] result in
-            guard let self, case .success(let texture) = result, self.model.current == entry else { return }
+            guard let self, case .success(let texture) = result, self.current == shown else { return }
             self.canvas.setImage(texture, preserveView: true)
             self.updateChrome()
         }
-        if canvas.zoomMode == .fit {
+        if Self.wantsScreenSizedSharpening(fitted: canvas.zoomMode == .fit, kind: shown.entry.kind,
+                                           imageLongEdge: canvas.image.map { max($0.imageSize.width, $0.imageSize.height) } ?? 0,
+                                           canvasLongEdge: canvasPixelSize) {
             // The window outgrew the texture, or a stand-in is up: a
             // screen-sized decode is enough, and joins one already running.
-            sharpenHandle = AppServices.images.load(entry, pixelSize: canvasPixelSize, update: deliver)
+            sharpenHandle = AppServices.images.load(shown.entry, page: shown.page, pixelSize: canvasPixelSize,
+                                                    update: deliver)
         } else {
-            sharpenHandle = AppServices.images.loadFullResolution(entry, update: deliver)
+            sharpenHandle = AppServices.images.loadFullResolution(shown.entry, page: shown.page, update: deliver)
         }
+    }
+
+    /// Whether a screen-sized load can sharpen the canvas, or it takes full
+    /// resolution.
+    ///
+    /// Zoomed in, only full resolution helps. Fitted, a photo only needs the
+    /// canvas's size. A vector smaller than the canvas is the exception: the
+    /// loader and cache treat a texture as big as the image's actual size as
+    /// covering any screen request, so a screen-sized load would hand back
+    /// the blurry texture already showing (a small SVG enlarged to fit). Its
+    /// full-resolution render is small anyway, at most 4096 px.
+    nonisolated static func wantsScreenSizedSharpening(fitted: Bool, kind: ImageKind?, imageLongEdge: CGFloat,
+                                                       canvasLongEdge: Int) -> Bool {
+        guard fitted else { return false }
+        guard kind == .pdf || kind == .svg else { return true }
+        return imageLongEdge >= CGFloat(canvasLongEdge)
     }
 
     /// FastStone's double-click: back to the browser. (The canvas has already
@@ -552,6 +744,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .previous: previousImage(nil)
         case .first: firstImage(nil)
         case .last: lastImage(nil)
+        case .nextPage: nextPage(nil)
+        case .previousPage: previousPage(nil)
+        case .pageForward: pageStep { $0.pageForward() }
+        case .pageBackward: pageStep { $0.pageBackward() }
+        case .togglePlayback: togglePlayback(nil)
         case .pan(let x, let y):
             // The content moves opposite to where the user wants to look.
             let step = ViewerKeyCommand.panFraction
@@ -588,6 +785,19 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return
         }
         showCurrent()
+    }
+
+    /// Pages of a PDF or multi-page TIFF. Not in MinivuActions: only the
+    /// viewer has pages, and the control bar and the snapshot harness
+    /// (`MINIVU_ACTIONS=nextPage:`) reach these through the responder chain.
+    @objc func nextPage(_ sender: Any?) { turnPage { $0.nextPage() } }
+    @objc func previousPage(_ sender: Any?) { turnPage { $0.previousPage() } }
+
+    /// Plays or pauses an animated image; P and the control bar's button.
+    @objc func togglePlayback(_ sender: Any?) {
+        guard let player else { return }
+        player.togglePlayback()   // its state change updates the chrome
+        hud.flash()
     }
 
     @objc func fitToWindow(_ sender: Any?) { canvas.fit() }
@@ -716,6 +926,13 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         closeViewer()
     }
 
+    // MARK: - Testing
+
+    /// The page on screen and the page count, for tests.
+    var pageState: (page: Int, count: Int) { (model.page, model.pageCount) }
+    /// The current image's player, for tests.
+    var animationPlayer: AnimationPlayer? { player }
+
     /// Esc, ⌘W, the close button or a double-click: stop all work, put the
     /// menu bar back, and tell the browser which image to select.
     /// `reportsCurrent` is false when the browser has nothing left to show,
@@ -727,7 +944,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // update (or schedule a HUD fade) on the way out.
         canvas.delegate = nil
         cancelLoads()
+        stopAnimation()
         summaryTask?.cancel()
+        infoTask?.cancel()
         cursorWork?.cancel()
         backgroundSubscription = nil
         hud.cancelFade()

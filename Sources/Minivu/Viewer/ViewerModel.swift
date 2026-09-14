@@ -21,6 +21,13 @@ nonisolated struct ViewerModel: Equatable {
     /// The way the user last moved. Flipping forward usually continues
     /// forward, so prefetch spends its decodes ahead rather than behind.
     private(set) var direction: Direction = .forward
+    /// The page of the current image on screen, from 0. Every image starts
+    /// on its first page.
+    private(set) var page = 0
+    /// Pages in the current image: 1 until its header has been read (the
+    /// controller does that off the main thread and reports it with
+    /// `setPageCount`), and for everything that isn't a PDF or multi-page TIFF.
+    private(set) var pageCount = 1
 
     init(images: [FolderEntry], index: Int, wrapAround: Bool = false) {
         self.images = images
@@ -61,6 +68,7 @@ nonisolated struct ViewerModel: Equatable {
         guard target != index else { return false }
         index = target
         direction = offset > 0 ? .forward : .backward
+        resetPages()
         return true
     }
 
@@ -71,12 +79,72 @@ nonisolated struct ViewerModel: Equatable {
         guard images.indices.contains(target), target != index else { return false }
         direction = target > index ? .forward : .backward
         index = target
+        resetPages()
         return true
     }
 
     /// Shows another folder listing (the browser called `show` again).
     mutating func replace(images: [FolderEntry], index: Int) {
         self = ViewerModel(images: images, index: index, wrapAround: wrapAround)
+    }
+
+    // MARK: - Pages
+
+    var isMultiPage: Bool { pageCount > 1 }
+    var canGoNextPage: Bool { page < pageCount - 1 }
+    var canGoPreviousPage: Bool { page > 0 }
+
+    /// "2 / 10" for the control bar; empty for single-page images.
+    var pageText: String { isMultiPage ? "\(page + 1) / \(pageCount)" : "" }
+    /// "Page 2 of 10" for the HUD; nil for single-page images.
+    var pageHUDText: String? { isMultiPage ? "Page \(page + 1) of \(pageCount)" : nil }
+
+    /// The header of `entry` has been read. Ignored when the viewer has
+    /// moved on to another image in the meantime.
+    mutating func setPageCount(_ count: Int, for entry: FolderEntry) {
+        guard current == entry else { return }
+        pageCount = max(count, 1)
+        page = min(page, pageCount - 1)
+    }
+
+    /// Option-arrows: the pages of this image only. Return whether the
+    /// page changed.
+    @discardableResult
+    mutating func nextPage() -> Bool {
+        guard canGoNextPage else { return false }
+        page += 1
+        return true
+    }
+
+    @discardableResult
+    mutating func previousPage() -> Bool {
+        guard canGoPreviousPage else { return false }
+        page -= 1
+        return true
+    }
+
+    /// What Page Down or Page Up did.
+    enum PageStep: Equatable {
+        case page, image, none
+    }
+
+    /// Page Down, as FastStone does it: the next page while there is one,
+    /// then the next image.
+    mutating func pageForward() -> PageStep {
+        if nextPage() { return .page }
+        return next() ? .image : .none
+    }
+
+    /// Page Up: the previous page, then the previous image (which opens on
+    /// its first page; how many pages it has isn't known until it's read).
+    mutating func pageBackward() -> PageStep {
+        if previousPage() { return .page }
+        return previous() ? .image : .none
+    }
+
+    private mutating func resetPages() {
+        page = 0
+        pageCount = 1
     }
 
     // MARK: - Prefetch
@@ -102,6 +170,15 @@ nonisolated struct ViewerModel: Equatable {
         return result
     }
 
+    /// Everything worth decoding now, as (image, page): the current
+    /// document's next page first (the likeliest next key press in a
+    /// document), then the neighbouring images' first pages.
+    var prefetchPages: [(entry: FolderEntry, page: Int)] {
+        var result: [(entry: FolderEntry, page: Int)] = []
+        if let current, canGoNextPage { result.append((current, page + 1)) }
+        return result + prefetchList.map { ($0, 0) }
+    }
+
     // MARK: - Removing
 
     /// Takes `entry` out of the list (it was moved to the Trash). When it was
@@ -114,6 +191,8 @@ nonisolated struct ViewerModel: Equatable {
         images.remove(at: removed)
         if removed < index {
             index -= 1   // an earlier image went; stay on the same one
+        } else if removed == index {
+            resetPages()   // another image takes its place
         }
         index = images.isEmpty ? 0 : min(index, images.count - 1)
         return !images.isEmpty
@@ -124,6 +203,12 @@ nonisolated struct ViewerModel: Equatable {
 /// keyboard map (DESIGN.md 5) is a table that tests can read.
 nonisolated enum ViewerKeyCommand: Equatable {
     case next, previous, first, last
+    /// Option-arrows and Option-Page Down/Up: pages of this document only.
+    case nextPage, previousPage
+    /// Page Down/Up: pages first, then images (see `ViewerModel.pageForward`).
+    case pageForward, pageBackward
+    /// P: play or pause an animation.
+    case togglePlayback
     /// Move the image by a tenth of the view per step: x and y are -1, 0 or
     /// +1 in the direction the user wants to look (right arrow: see more of
     /// the right side).
@@ -143,26 +228,34 @@ nonisolated enum ViewerKeyCommand: Equatable {
     /// I make their panel flicker.
     var repeats: Bool {
         switch self {
-        case .next, .previous, .pan, .zoomIn, .zoomOut: true
+        case .next, .previous, .pan, .zoomIn, .zoomOut, .nextPage, .previousPage, .pageForward, .pageBackward: true
         default: false
         }
     }
 
     /// - Parameters:
     ///   - characters: `charactersIgnoringModifiers` of the key event.
-    ///   - modifiers: Command, Control or Option make it a shortcut for
-    ///     someone else (the menu), so those return nil.
+    ///   - modifiers: Command or Control make it a shortcut for someone else
+    ///     (the menu), so those return nil. Option is the viewer's own only
+    ///     with the arrows and paging keys, where it means pages.
     ///   - zoomedIn: the image overflows the view, so arrows pan it.
     static func command(characters: String, modifiers: NSEvent.ModifierFlags, zoomedIn: Bool) -> ViewerKeyCommand? {
-        guard modifiers.intersection([.command, .control, .option]).isEmpty,
-              let scalar = characters.unicodeScalars.first else { return nil }
+        let shortcut = modifiers.intersection([.command, .control, .option])
+        guard shortcut.isEmpty || shortcut == .option, let scalar = characters.unicodeScalars.first else { return nil }
+        if shortcut == .option {
+            switch Int(scalar.value) {
+            case NSRightArrowFunctionKey, NSPageDownFunctionKey: return .nextPage
+            case NSLeftArrowFunctionKey, NSPageUpFunctionKey: return .previousPage
+            default: return nil
+            }
+        }
         switch Int(scalar.value) {
         case NSRightArrowFunctionKey: return zoomedIn ? .pan(x: 1, y: 0) : .next
         case NSLeftArrowFunctionKey: return zoomedIn ? .pan(x: -1, y: 0) : .previous
         case NSDownArrowFunctionKey: return zoomedIn ? .pan(x: 0, y: 1) : .next
         case NSUpArrowFunctionKey: return zoomedIn ? .pan(x: 0, y: -1) : .previous
-        case NSPageDownFunctionKey: return .next
-        case NSPageUpFunctionKey: return .previous
+        case NSPageDownFunctionKey: return .pageForward
+        case NSPageUpFunctionKey: return .pageBackward
         case NSHomeFunctionKey: return .first
         case NSEndFunctionKey: return .last
         // The Mac's Delete key sends DEL; some keyboards send backspace.
@@ -179,6 +272,7 @@ nonisolated enum ViewerKeyCommand: Equatable {
         case "*": return .fit
         case "i": return .toggleHUD
         case "f": return .toggleFilmstrip
+        case "p": return .togglePlayback
         case "0", "1", "2", "3", "4", "5": return .rating(Int(characters)!)
         default: return nil
         }
