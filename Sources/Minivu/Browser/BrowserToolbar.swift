@@ -251,6 +251,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         item.label = "Thumbnail Size"
         item.toolTip = "Thumbnail size"
         slider.controlSize = .small
+        slider.setAccessibilityLabel("Thumbnail Size")
         slider.isContinuous = true
         slider.target = self
         slider.action = #selector(sliderMoved(_:))

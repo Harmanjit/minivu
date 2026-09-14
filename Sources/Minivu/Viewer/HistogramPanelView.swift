@@ -19,6 +19,17 @@ nonisolated enum HistogramDisplayMode: String, CaseIterable, Identifiable, Senda
         }
     }
 
+    /// What VoiceOver says for a segment whose title is a single letter.
+    var spokenTitle: String {
+        switch self {
+        case .rgb: "RGB"
+        case .red: "Red"
+        case .green: "Green"
+        case .blue: "Blue"
+        case .luminance: "Luminance"
+        }
+    }
+
     var channels: [HistogramData.Channel] {
         switch self {
         case .rgb: [.red, .green, .blue]
@@ -295,7 +306,7 @@ struct HistogramPanelView: View {
                 }
             }
             Picker("Channels", selection: $mode) {
-                ForEach(HistogramDisplayMode.allCases) { Text($0.title).tag($0) }
+                ForEach(HistogramDisplayMode.allCases) { Text($0.title).accessibilityLabel($0.spokenTitle).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
