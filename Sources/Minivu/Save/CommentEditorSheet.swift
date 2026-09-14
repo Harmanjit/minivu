@@ -34,13 +34,17 @@ import MinivuCore
     }
 
     /// Writes the comment in the background, replacing the file atomically
-    /// without touching the compressed image.
+    /// without touching the compressed image. In line behind any other write
+    /// (`FileWriteQueue`): a rotate still running on this file would
+    /// otherwise be undone by the comment's rewrite, or undo it.
     func save() async throws {
         isSaving = true
         defer { isSaving = false }
         let text = self.text, url = self.url
-        try await Task.detached(priority: .userInitiated) {
-            try JPEGComment.write(text, to: url)
+        _ = try await FileWriteQueue.shared.enqueue {
+            try await Task.detached(priority: .userInitiated) {
+                try JPEGComment.write(text, to: url)
+            }.value
         }.value
     }
 }
@@ -105,6 +109,9 @@ struct CommentEditorView: View {
     @Bindable var model: CommentEditorModel
     var onCancel: () -> Void
     var onSave: () -> Void
+    /// The text is focused when the sheet opens, so typing, ⌘Return and Esc
+    /// work without a click first.
+    @FocusState private var isEditing: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -125,6 +132,8 @@ struct CommentEditorView: View {
                 .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
                 .frame(minHeight: 120)
+                .focused($isEditing)
+                .onAppear { isEditing = true }
 
             HStack(spacing: 10) {
                 Text(model.byteCountText)

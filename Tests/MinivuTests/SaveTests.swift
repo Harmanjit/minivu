@@ -80,6 +80,13 @@ import MinivuRender
         #expect(SaveRenderKey.forEdit(options) == SaveRenderKey(profile: .displayP3, bitsPerComponent: 8))
     }
 
+    @Test func overwriteConfirmationNamesTheEncoding() {
+        #expect(SavePolicy.overwriteDetail(ExportOptions(format: .jpeg, quality: 0.3))
+            == "The edited image is saved over the file as JPEG at quality 30. This can’t be undone.")
+        #expect(SavePolicy.overwriteDetail(.defaults(for: .png))
+            == "The edited image is saved over the file as PNG. This can’t be undone.")
+    }
+
     @Test func errorMessages() {
         #expect(SaveAlert.message(for: ExportError.encodingFailed(.png)) == "The image couldn't be encoded as PNG.")
         #expect(SaveAlert.message(for: DecodeError.noImage(URL(fileURLWithPath: "/tmp/x.jpg"))).hasPrefix("x.jpg"))
@@ -328,7 +335,88 @@ import MinivuRender
             #expect(bytes == Int64(expected))
             #expect(model.sizeText == SaveSizeText.file(bytes))
             #expect(!model.isEstimating)
+
+            // A change keeps the old figure on screen but marks it as being
+            // worked out, until the figure for the new options is in.
+            model.options.keepMetadata.toggle()
+            #expect(model.isEstimating)
+            #expect(model.sizeText == SaveSizeText.file(bytes))
+            let second = ContinuousClock.now + .seconds(20)
+            while ContinuousClock.now < second, model.isEstimating {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            #expect(!model.isEstimating)
+            guard case .exact(let updated) = model.estimate else {
+                Issue.record("no second estimate: \(model.estimate)")
+                return
+            }
+            let reencoded = try ImageEncoder.encode(image, options: model.options, metadataSource: url).count
+            #expect(updated == Int64(reencoded))
         }
+    }
+
+    /// Converting from the viewer converts the page on screen.
+    @Test func convertsThePageOnScreen() async throws {
+        let t = try ScratchFolder()
+        let url = t.url.appendingPathComponent("pages.tif")
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "public.tiff" as CFString, 2, nil))
+        for (width, height) in [(40, 30), (20, 10)] {
+            let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                 bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+            CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
+        }
+        #expect(CGImageDestinationFinalize(destination))
+        let entry = try #require(FolderEntry(url: url))
+        let second = SaveImageSource(entry: entry, document: EditDocument(entry: entry, page: 1))
+        let image = try await second.image(for: .defaults(for: .png))
+        #expect(image.width == 20 && image.height == 10)
+        let first = try await SaveImageSource(entry: entry, document: nil).image(for: .defaults(for: .png))
+        #expect(first.width == 40)
+    }
+}
+
+/// Writes to image files run one at a time, in the order asked for.
+@MainActor @Suite struct FileWriteQueueTests {
+    actor Log {
+        var items: [Int] = []
+        func append(_ item: Int) { items.append(item) }
+    }
+
+    @Test func writesRunInOrderAndOnlyTheNewestSaveCounts() async throws {
+        let queue = FileWriteQueue()
+        let log = Log()
+        let photo = URL(fileURLWithPath: "/tmp/minivu-queue/a.jpg")
+        // The first save is slow; the comment and the second save asked for
+        // after it must still wait for it.
+        let first = queue.enqueue(replacing: [photo]) {
+            try await Task.sleep(for: .milliseconds(80))
+            await log.append(1)
+            return 1
+        }
+        let comment = queue.enqueue { await log.append(2); return 2 }
+        let second = queue.enqueue(replacing: [URL(fileURLWithPath: "/tmp/minivu-queue/../minivu-queue/a.jpg")]) {
+            await log.append(3)
+            return 3
+        }
+        #expect(queue.pendingCount == 3)
+        let a = try await first.value, b = try await comment.value, c = try await second.value
+        #expect(await log.items == [1, 2, 3])
+        #expect((a.value, b.value, c.value) == (1, 2, 3))
+        // The first save was overwritten by the second: it mustn't mark its
+        // document saved. The comment doesn't supersede anything.
+        #expect(!a.isNewest && b.isNewest && c.isNewest)
+
+        // A failed write doesn't hold up the ones behind it.
+        let failing = queue.enqueue(replacing: [photo]) { () async throws -> Int in throw CocoaError(.fileWriteOutOfSpace) }
+        let after = queue.enqueue { 4 }
+        await #expect(throws: CocoaError.self) { try await failing.value }
+        #expect(try await after.value.value == 4)
+        await queue.waitUntilIdle()
+        #expect(queue.pendingCount == 0)
+
+        // Once the newest has finished, the next save of the file is the newest again.
+        #expect(try await queue.enqueue(replacing: [photo]) { 5 }.value.isNewest)
     }
 }
 

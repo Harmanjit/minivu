@@ -228,6 +228,12 @@ last change, one at a time; an encode slower than 400 ms first shows a
 figure extrapolated from a 1024 px centre crop. The quality comparison is a
 separate window showing the original and the encoded result side by side
 at 100/200/400%, re-encoding only the region on screen as the slider moves.
+Every write to an image file (Save, Save As, a comment, a lossless rotate)
+goes through one serial queue, so ⌘S, an edit and ⌘S again land in that
+order, and a document is marked saved only by the last write of its file.
+After an in-place save the file holds the edits, so a document is never
+decoded again from it (that would apply them twice); reloading means a new
+document.
 
 ## 5. User interface
 

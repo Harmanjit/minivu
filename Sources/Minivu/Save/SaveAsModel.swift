@@ -102,6 +102,10 @@ nonisolated enum SizeEstimator {
     }
 
     private(set) var estimate: SizeEstimate = .none
+    /// Whether `estimate` was measured for the current options. After a
+    /// change the old figure stays on screen, with a spinner, until the new
+    /// one is in, rather than passing for the size of the new options.
+    private(set) var isEstimateCurrent = false
     /// The pixels for the current options are being rendered or decoded.
     private(set) var isRendering = false
     /// Why the image couldn't be rendered, when it couldn't.
@@ -207,8 +211,9 @@ nonisolated enum SizeEstimator {
     /// Whether the size shown is still being worked out.
     var isEstimating: Bool {
         guard renderError == nil else { return false }
+        if isRendering || !isEstimateCurrent { return true }
         switch estimate {
-        case .exact, .failed: return isRendering
+        case .exact, .failed: return false
         default: return true
         }
     }
@@ -216,6 +221,7 @@ nonisolated enum SizeEstimator {
     // MARK: - Estimating
 
     func refreshEstimate() {
+        isEstimateCurrent = false
         generation += 1
         let generation = self.generation
         estimateTask?.cancel()
@@ -237,22 +243,17 @@ nonisolated enum SizeEstimator {
             isRendering = false
             renderError = SaveAlert.message(for: error)
             estimate = .failed
+            isEstimateCurrent = true
             return
         }
         guard generation == self.generation else { return }
         isRendering = false
         renderError = nil
 
-        // Wait for an encode that is still running for older options rather
-        // than stack a second 100 MB encode on top of it.
-        if let running = runningEncode { await running.value }
-        guard generation == self.generation, !Task.isCancelled else { return }
-
-        let url = entry.url
-        let exact = Task.detached(priority: .userInitiated) {
-            try? SizeEstimator.exactBytes(image, options: options, metadataSource: url)
-        }
-        runningEncode = Task { _ = await exact.value }
+        // The approximation's clock starts now, so it also covers the wait
+        // for a superseded encode below: dragging the quality slider over a
+        // 100 MP TIFF shows a rough figure within 400 ms, not after the
+        // previous full encode.
         let slow = Task { [weak self] in
             try? await Task.sleep(for: Self.slowEncode)
             guard !Task.isCancelled, let self, generation == self.generation else { return }
@@ -263,9 +264,22 @@ nonisolated enum SizeEstimator {
             guard !Task.isCancelled, generation == self.generation, let approximate else { return }
             self.estimate = .approximate(approximate)
         }
+        defer { slow.cancel() }
+
+        // Wait for an encode that is still running for older options rather
+        // than stack a second 100 MB encode on top of it. ImageIO can't stop
+        // one part way, so a superseded encode finishes and is ignored.
+        if let running = runningEncode { await running.value }
+        guard generation == self.generation, !Task.isCancelled else { return }
+
+        let url = entry.url
+        let exact = Task.detached(priority: .userInitiated) {
+            try? SizeEstimator.exactBytes(image, options: options, metadataSource: url)
+        }
+        runningEncode = Task { _ = await exact.value }
         let bytes = await exact.value
-        slow.cancel()
         guard generation == self.generation else { return }
         estimate = bytes.map(SizeEstimate.exact) ?? .failed
+        isEstimateCurrent = true
     }
 }

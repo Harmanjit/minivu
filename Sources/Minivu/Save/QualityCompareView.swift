@@ -169,10 +169,12 @@ struct CompareTile {
         do {
             image = try await save.source.image(for: options)
         } catch {
+            guard generation == self.generation else { return }
             self.error = SaveAlert.message(for: error)
             return
         }
         guard generation == self.generation else { return }
+        self.error = nil
         if viewport?.imageWidth != image.width || viewport?.imageHeight != image.height {
             viewport = CompareViewport(imageWidth: image.width, imageHeight: image.height, zoom: zoom)
         }

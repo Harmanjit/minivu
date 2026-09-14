@@ -120,6 +120,18 @@ extension AppWindowTests {
             #expect(!valid(controller, .editComment) && !valid(controller, .saveImageAs))
             controller.model.setSelection([gif, raw, folder], lead: gif)
             #expect(!valid(controller, .rotateLeft))
+
+            // Nothing changes the files under a sheet (Save As, the comment editor).
+            controller.model.select(jpeg)
+            let window = try #require(controller.window)
+            let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled],
+                                 backing: .buffered, defer: true)
+            window.beginSheet(sheet, completionHandler: nil)
+            defer { window.endSheet(sheet) }
+            #expect(window.attachedSheet === sheet)
+            for action: Selector in [.rotateLeft, .rotateRight, .flipHorizontal, .flipVertical, .editComment, .saveImageAs] {
+                #expect(!valid(controller, action), "\(action)")
+            }
         }
 
         @Test func rotatingTheSelectionRewritesTheFiles() async throws {

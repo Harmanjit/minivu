@@ -22,7 +22,7 @@ extension BrowserWindowController {
     }
 
     @objc func editComment(_ sender: Any?) {
-        guard let window, let entry = singleSelectedImage, ExportFormat.format(for: entry.url) == .jpeg else { return }
+        guard canPerformEditing(.editComment) == true, let window, let entry = singleSelectedImage else { return }
         CommentEditor.present(for: entry.url, on: window) { [weak self] saved in
             if saved { self?.model.reload() }
         }
@@ -30,7 +30,7 @@ extension BrowserWindowController {
 
     /// Converts the selected file: Save As with the original's pixels.
     @objc func saveImageAs(_ sender: Any?) {
-        guard let window, let entry = singleSelectedImage else { return }
+        guard canPerformEditing(.saveImageAs) == true, let window, let entry = singleSelectedImage else { return }
         SavePresenter.presentSaveAs(entry: entry, document: nil, on: window) { [weak self] url in
             // The watcher would notice a file written into this folder too;
             // listing now shows it without waiting.
@@ -45,6 +45,7 @@ extension BrowserWindowController {
     /// dimensions and the preview show the files as they now are. Files that
     /// can't be transformed are skipped and reported afterwards in one alert.
     func transformSelection(_ kind: LosslessTransform.Kind) {
+        guard window?.attachedSheet == nil else { return NSSound.beep() }
         let (applicable, skipped) = LosslessBatch.partition(model.selectedEntries)
         guard !applicable.isEmpty else { return NSSound.beep() }
         LosslessQueue.shared.enqueue(kind, urls: applicable, skipped: skipped) { [weak self] outcome in
@@ -67,8 +68,16 @@ extension BrowserWindowController {
     }
 
     /// Whether an editing command applies to the selection; nil for other commands.
+    ///
+    /// None does while a sheet is up. A sheet is key but the browser stays
+    /// the main window, so its commands would still reach it from the menu
+    /// bar: a rotate under the Save As panel would change the file after its
+    /// pixels were read (and the save would undo the turn), and a second
+    /// panel or comment editor would queue behind the first.
     func canPerformEditing(_ action: Selector) -> Bool? {
-        switch action {
+        let editing: [Selector] = [.rotateLeft, .rotateRight, .flipHorizontal, .flipVertical, .editComment, .saveImageAs]
+        if editing.contains(action), window?.attachedSheet != nil { return false }
+        return switch action {
         case .rotateLeft, .rotateRight, .flipHorizontal, .flipVertical:
             model.selectedEntries.contains(where: LosslessBatch.isApplicable)
         case .editComment:

@@ -33,12 +33,17 @@ enum SavePresenter {
             store.lastFolder = url.deletingLastPathComponent()
             let source = model.source
             let progress = window.map { SaveProgress(on: $0, title: "Saving “\(url.lastPathComponent)”…") }
+            // In line with every other write, so a Save of the same file
+            // asked for just before can't land after this one.
+            let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
+                try await write(source, options: options, to: url, metadataSource: entry.url)
+            }
             Task {
                 do {
-                    try await write(source, options: options, to: url, metadataSource: entry.url)
+                    let outcome = try await job.value
                     progress?.finish()
                     didWrite(url)
-                    if let document, sameFile(url, entry.url), document.operations == savedOperations {
+                    if let document, sameFile(url, entry.url), outcome.isNewest, document.operations == savedOperations {
                         document.markSaved()
                     }
                     completion(url)
@@ -57,6 +62,17 @@ enum SavePresenter {
     /// RAW, WebP, JPEG XL, AVIF, PDF, SVG, PSD, animated files) fall back to
     /// Save As. On success calls `document.markSaved()`, invalidates caches and
     /// calls `completion(true)`.
+    ///
+    /// Saves run one after another (`FileWriteQueue`): ⌘S, an edit and ⌘S
+    /// again write in that order, and the document is marked saved only by
+    /// the last write of its file, when its operations are still the ones
+    /// written.
+    ///
+    /// After a save the file holds the edits. The document's operations are
+    /// still relative to the original it decoded, so the caller must not
+    /// decode this document again from the file (`EditRenderer.release`
+    /// then `prepare`): the edits would be applied a second time. To reload,
+    /// start a new `EditDocument` on the saved file.
     static func save(entry: FolderEntry, document: EditDocument, on window: NSWindow,
                      completion: @escaping (Bool) -> Void) {
         save(entry: entry, document: document, on: window, store: SaveOptionsStore(),
@@ -78,10 +94,10 @@ enum SavePresenter {
             }
             // Nothing to write: re-encoding unchanged pixels only loses quality.
             guard document.isDirty else { return completion(true) }
-            confirmOverwrite(of: entry, on: window, preferences: preferences) { confirmed in
+            let options = SavePolicy.inPlaceOptions(remembered: store.options(for: format),
+                                                    sourceBitDepth: info.bitDepth)
+            confirmOverwrite(of: entry, options: options, on: window, preferences: preferences) { confirmed in
                 guard confirmed else { return completion(false) }
-                let options = SavePolicy.inPlaceOptions(remembered: store.options(for: format),
-                                                        sourceBitDepth: info.bitDepth)
                 let space = SavePolicy.renderColorSpace(source: sourceSpace, isHDR: info.isHDR, preferWideGamut: false)
                 writeInPlace(entry: entry, document: document, options: options, colorSpace: space, on: window,
                              completion: completion)
@@ -97,16 +113,20 @@ enum SavePresenter {
         let renderer = EditRenderer.shared
         let url = entry.url
         let progress = SaveProgress(on: window, title: "Saving “\(entry.name)”…")
+        let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
+            try await Task.detached(priority: .userInitiated) {
+                try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer)
+            }.value
+        }
         Task { [weak window] in
             do {
-                try await Task.detached(priority: .userInitiated) {
-                    try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer)
-                }.value
+                let outcome = try await job.value
                 progress.finish()
                 didWrite(url)
                 // Only what was written counts as saved: an edit made while
-                // the save ran leaves the document dirty.
-                if document.operations == savedOperations { document.markSaved() }
+                // the save ran leaves the document dirty, and so does a
+                // newer write of the file still queued behind this one.
+                if outcome.isNewest, document.operations == savedOperations { document.markSaved() }
                 completion(true)
             } catch {
                 progress.finish()
@@ -135,12 +155,12 @@ enum SavePresenter {
     }
 
     /// "Replace the original?", unless the user ticked "Don't ask again" once.
-    private static func confirmOverwrite(of entry: FolderEntry, on window: NSWindow, preferences: Preferences,
-                                         then: @escaping (Bool) -> Void) {
+    private static func confirmOverwrite(of entry: FolderEntry, options: ExportOptions, on window: NSWindow,
+                                         preferences: Preferences, then: @escaping (Bool) -> Void) {
         guard preferences.confirmOverwriteOnSave else { return then(true) }
         let alert = NSAlert()
         alert.messageText = "Replace the original “\(entry.name)”?"
-        alert.informativeText = "The edited image is written over the file. This can’t be undone."
+        alert.informativeText = SavePolicy.overwriteDetail(options)
         let replace = alert.addButton(withTitle: "Replace")
         replace.hasDestructiveAction = true
         alert.addButton(withTitle: "Cancel")

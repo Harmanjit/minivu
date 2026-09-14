@@ -125,30 +125,32 @@ nonisolated enum LosslessBatch {
     }
 }
 
-/// Runs lossless batches one after another. Two quick ⌘R presses on the
-/// same photos must turn them twice: run side by side, both would read the
-/// old orientation and one turn would be lost.
+/// Runs lossless batches one after another, and after any other write to
+/// an image (see `FileWriteQueue`). Two quick ⌘R presses on the same photos
+/// must turn them twice: run side by side, both would read the old
+/// orientation and one turn would be lost.
 @MainActor final class LosslessQueue {
     static let shared = LosslessQueue()
 
-    private var tail: Task<Void, Never>?
-
-    /// Transforms `urls` after any batch already queued, then calls `done`
+    /// Transforms `urls` after any write already queued, then calls `done`
     /// on the main actor.
     func enqueue(_ kind: LosslessTransform.Kind, urls: [URL], skipped: [URL],
                  done: @escaping (LosslessBatch.Outcome) -> Void) {
-        let previous = tail
-        tail = Task {
-            await previous?.value
-            let outcome = await Task.detached(priority: .userInitiated) {
+        // The work never throws, and only the orientation changes, so no
+        // save under way is superseded by it.
+        let job = FileWriteQueue.shared.enqueue {
+            await Task.detached(priority: .userInitiated) {
                 await LosslessBatch.run(kind, on: urls, skipped: skipped)
             }.value
-            done(outcome)
+        }
+        Task {
+            guard let outcome = try? await job.value else { return }
+            done(outcome.value)
         }
     }
 
     /// For tests: waits until everything queued so far has finished.
     func waitUntilIdle() async {
-        await tail?.value
+        await FileWriteQueue.shared.waitUntilIdle()
     }
 }

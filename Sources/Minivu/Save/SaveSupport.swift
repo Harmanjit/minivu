@@ -78,6 +78,17 @@ nonisolated enum SavePolicy {
         return image.colorSpace
     }
 
+    /// The confirmation's explanation. The quality is named because it is
+    /// the one last chosen in Save As, which may have been a small copy for
+    /// the web: overwriting a photo at quality 30 should not be a surprise.
+    static func overwriteDetail(_ options: ExportOptions) -> String {
+        let format = options.format
+        let encoding = format.supportsQuality
+            ? "\(format.title) at quality \(Int((options.quality * 100).rounded()))"
+            : format.title
+        return "The edited image is saved over the file as \(encoding). This can’t be undone."
+    }
+
     /// Save's options: the ones remembered for the format, in the original's
     /// colour space and depth, and always keeping metadata, because
     /// overwriting a photo must never quietly strip its EXIF.
@@ -155,7 +166,9 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
 @MainActor final class SaveImageSource {
     enum Origin: Sendable {
         case edit(EditDocument.Snapshot)
-        case original(URL)
+        /// A file and the page of it on screen (a multi-page TIFF's third
+        /// page converts the third page).
+        case original(URL, page: Int)
     }
 
     let origin: Origin
@@ -166,9 +179,11 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
         if let document, !document.operations.isEmpty {
             origin = .edit(document.snapshot())
         } else if entry.kind == .raw {
-            origin = .edit(EditDocument(entry: entry, page: document?.page ?? 0).snapshot())
+            // The viewer's document, when there is one, may hold the decoded
+            // RAW already, which spares a second render of the sensor data.
+            origin = .edit((document ?? EditDocument(entry: entry)).snapshot())
         } else {
-            origin = .original(entry.url)
+            origin = .original(entry.url, page: document?.page ?? 0)
         }
     }
 
@@ -206,8 +221,8 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
 
     nonisolated static func render(_ origin: Origin, key: SaveRenderKey, renderer: EditRenderer) async throws -> CGImage {
         switch origin {
-        case .original(let url):
-            return try ImageDecoder.decode(url, maxPixelSize: nil, page: 0, allowHDR: false).image
+        case .original(let url, let page):
+            return try ImageDecoder.decode(url, maxPixelSize: nil, page: page, allowHDR: false).image
         case .edit(let snapshot):
             let space = SavePolicy.namedColorSpace(key.profile) ?? SavePolicy.renderColorSpace(
                 source: snapshot.kind == .raw ? nil : SavePolicy.sourceColorSpace(of: snapshot.url),
