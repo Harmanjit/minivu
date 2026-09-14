@@ -46,7 +46,7 @@ public struct Magnifier: Equatable, Sendable {
     }
 }
 
-/// The canvas shader's HDR roll-off (`toneMapToHeadroom` in Canvas.metal),
+/// The canvas shader's HDR roll-off (`toneMapToHeadroom` in Common.h),
 /// copied line for line so its properties can be tested without a GPU.
 /// Change both together.
 enum HeadroomToneMap {
