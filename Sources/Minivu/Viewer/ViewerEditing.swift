@@ -151,18 +151,23 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     // MARK: - Undo
 
     var undoEditTitle: String? {
+        if let steps = activeTool?.state as? EditToolSteps, let title = steps.undoStepTitle { return title }
         if let tool = activeTool, tool.hasPendingChanges { return tool.title }
         return editSession?.document.undoTitle
     }
 
     var redoEditTitle: String? {
+        if let steps = activeTool?.state as? EditToolSteps, let title = steps.redoStepTitle { return title }
         if let tool = activeTool, tool.hasPendingChanges { return nil }
         return editSession?.document.redoTitle
     }
 
     /// ⌘Z with a tool showing unapplied changes takes those back (the tool
-    /// closes); otherwise it undoes the last committed step.
+    /// closes), or only its last step for a tool that has steps of its own
+    /// (`EditToolSteps`: a brush stroke); otherwise it undoes the last
+    /// committed step.
     func undoEdit() {
+        if let steps = activeTool?.state as? EditToolSteps, steps.undoStep() { return }
         if let tool = activeTool, tool.hasPendingChanges {
             closeTool()
             return
@@ -173,6 +178,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     }
 
     func redoEdit() {
+        if let steps = activeTool?.state as? EditToolSteps, steps.redoStep() { return }
         guard let document = editSession?.document, document.canRedo else { return }
         closeTool()
         document.redo()
