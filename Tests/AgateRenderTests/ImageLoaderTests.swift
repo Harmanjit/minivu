@@ -93,10 +93,47 @@ import CoreGraphics
         let loader = makeLoader()
         let entries = (0..<5).map { _ in makeEntry() }
         loader.prefetch(entries, pixelSize: 100)
-        #expect(loader.decodeCount == ImageLoader.maximumConcurrentDecodes)   // two wait for a slot
+        #expect(loader.decodeCount == ImageLoader.maximumConcurrentPrefetches)   // the rest wait for a slot
         loader.prefetch([], pixelSize: 100)
         await loader.waitUntilIdle()
+        #expect(loader.decodeCount == ImageLoader.maximumConcurrentPrefetches)
+    }
+
+    @Test func prefetchesLeaveASlotForTheUser() async throws {
+        let loader = makeLoader()
+        loader.prefetch((0..<5).map { _ in makeEntry() }, pixelSize: 100)
+        #expect(loader.decodeCount == ImageLoader.maximumConcurrentPrefetches)
+        // A photo outside the prefetch set starts at once, not after a neighbour.
+        let far = makeEntry()
+        var result: Result<ImageTexture, Error>?
+        loader.load(far, pixelSize: 100) { result = $0 }
         #expect(loader.decodeCount == ImageLoader.maximumConcurrentDecodes)
+        await loader.waitUntilIdle()
+        _ = try #require(result).get()
+    }
+
+    /// The viewer may replace the prefetch set before asking for the photo
+    /// it flipped to. The decode already running for that photo must be
+    /// picked up, not stopped and started again.
+    @Test func loadPicksUpADecodeTheLastPrefetchLetGo() async throws {
+        let loader = makeLoader(), next = makeEntry(), other = makeEntry()
+        loader.prefetch([next], pixelSize: 100)
+        loader.prefetch([other], pixelSize: 100)   // `next` is no longer wanted...
+        var result: Result<ImageTexture, Error>?
+        loader.load(next, pixelSize: 100) { result = $0 }   // ...until it is
+        #expect(loader.decodeCount == 2)   // joined, nothing new started
+        await loader.waitUntilIdle()
+        // Never a cancellation, even if the decode gave up just before the join.
+        #expect(try #require(result).get().texture.width == 100)
+    }
+
+    @Test func invalidateStopsWaitingPrefetchesOfTheFile() async {
+        let loader = makeLoader()
+        let entries = (0..<3).map { _ in makeEntry() }
+        loader.prefetch(entries, pixelSize: 100)   // the third waits
+        loader.invalidate(entries[2].url)
+        await loader.waitUntilIdle()
+        #expect(loader.decodeCount == 2)
     }
 
     @Test func fullResolutionLoadCoversScreenRequests() async throws {

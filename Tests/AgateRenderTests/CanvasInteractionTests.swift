@@ -61,6 +61,19 @@ import CoreGraphics
         #expect(p.released(at: .zero, time: 1) == .drag)
     }
 
+    @Test func withoutAHoldALongPressStillDrags() {
+        // Magnifier off: holding still first must not block the pan after it.
+        var p = CI.PressClassifier(location: .zero, time: 0, allowsHold: false)
+        #expect(p.update(time: 1) == .pending)
+        #expect(p.moved(to: CGPoint(x: 10, y: 0), time: 1.1) == .drag)
+
+        // Released late without moving: not a click, which would toggle zoom.
+        var late = CI.PressClassifier(location: .zero, time: 0, allowsHold: false)
+        #expect(late.released(at: .zero, time: 0.5) == .hold)
+        var quick = CI.PressClassifier(location: .zero, time: 0, allowsHold: false)
+        #expect(quick.released(at: .zero, time: 0.1) == .click)
+    }
+
     // MARK: - Wheel
 
     func wheel(_ mode: CI.WheelMode = .navigate, command: Bool = false, dy: CGFloat, dx: CGFloat = 0,
@@ -110,6 +123,17 @@ import CoreGraphics
         // The next swipe works again, the other way.
         #expect(w.interpret(wheel(dy: 30, precise: true, phase: .began)) == .none)
         #expect(w.interpret(wheel(dy: 30, precise: true, phase: .changed)) == .navigate(-1))
+    }
+
+    @Test func trackpadInZoomModeZoomsAtAnyZoomAndCommandPansOrNavigates() {
+        var w = CI.WheelInterpreter()
+        // Zoomed in, zoom preference: scrolling still zooms (and can zoom out).
+        #expect(w.interpret(wheel(.zoom, dy: -100, precise: true, phase: .changed, exceeds: true)) == .zoom(0.5))
+        // Command swaps in the navigate behaviour: pan when zoomed in...
+        #expect(w.interpret(wheel(.zoom, command: true, dy: -60, precise: true, phase: .changed, exceeds: true))
+                == .pan(CGSize(width: 0, height: -60)))
+        // ...and one step per swipe at fit.
+        #expect(w.interpret(wheel(.zoom, command: true, dy: -60, precise: true, phase: .began)) == .navigate(1))
     }
 
     @Test func momentumAloneNeverNavigates() {

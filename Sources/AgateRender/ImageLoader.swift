@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import AgateCore
 
 /// A request for a texture. Cancel it when the image is no longer wanted
@@ -47,9 +48,14 @@ import AgateCore
 /// - **At most three decodes at once.** A 24 MP decode holds ~100 MB of CPU
 ///   memory until it is uploaded; unbounded concurrency would spike memory
 ///   when the user flips quickly. Waiting jobs start in priority order: what
-///   the user is looking at before what might be looked at next.
+///   the user is looking at before what might be looked at next. Prefetches
+///   never take the last slot, so a jump to a far-away photo starts decoding
+///   at once instead of queueing behind three neighbours.
 /// - **Stale work stops.** When every requester of a job cancels, a waiting
-///   job is dropped and a running one skips its upload.
+///   job is dropped and a running one skips its upload. A running job that
+///   is wanted again before its decode finishes (the user flipped away and
+///   straight back, or `prefetch` replaced the set just before `load` asked
+///   for the same photo) is picked up again rather than decoded twice.
 @MainActor public final class ImageLoader {
     public static let shared = ImageLoader(cache: TextureCache(budgetBytes: TextureCache.defaultBudget()))
 
@@ -57,6 +63,20 @@ import AgateCore
 
     /// Memory, not CPU, is the limit: see the type's documentation.
     static let maximumConcurrentDecodes = 3
+    /// One slot stays free for what the user asks for.
+    static let maximumConcurrentPrefetches = maximumConcurrentDecodes - 1
+
+    /// "Nobody wants this any more", shared with the decoding task.
+    ///
+    /// Task cancellation can't be undone, but a job that loses its last
+    /// requester may be wanted again a moment later, so the task checks this
+    /// flag instead. Atomic because the main actor writes it while the
+    /// decoding thread reads it.
+    private final class StopFlag: Sendable {
+        private let value = Atomic<Bool>(false)
+        var isSet: Bool { value.load(ordering: .relaxed) }
+        func set(_ stop: Bool) { value.store(stop, ordering: .relaxed) }
+    }
 
     /// One decode + upload, shared by everyone who asked for it.
     private final class Job {
@@ -71,9 +91,9 @@ import AgateCore
         var handles: [LoadHandle] = []
         var wantedByPrefetch = false
         var task: Task<Void, Never>?
-        /// Nobody wants the result any more; don't let new requests join.
-        var abandoned = false
-        /// The file changed while decoding; don't cache what was read.
+        let stop = StopFlag()
+        /// The file changed on disk; don't cache what was read, and don't
+        /// let new requests join.
         var discardResult = false
         var escalated = false
 
@@ -153,6 +173,12 @@ import AgateCore
             let job = existingJob(entry, page: 0, pixelSize: size)
                 ?? makeJob(entry, page: 0, pixelSize: size, priority: .utility)
             job.wantedByPrefetch = true
+            job.stop.set(false)
+            if job.priority < .userInitiated {
+                // Waiting prefetches start in the order of this call, not
+                // the order of whichever call first asked for them.
+                job.sequence = nextSequence()
+            }
             wanted.insert(job.id)
         }
         for id in prefetchJobIDs.subtracting(wanted) {
@@ -166,12 +192,14 @@ import AgateCore
 
     /// Forgets every texture of a file that changed on disk. Decodes already
     /// running still deliver to whoever asked, but their result isn't cached
-    /// and new requests start fresh.
+    /// and new requests start fresh. Prefetches of the file stop: their
+    /// result could only be thrown away.
     public func invalidate(_ url: URL) {
         cache.removeAll(for: url)
         for job in jobs.values where job.entry.url == url {
             job.discardResult = true
-            job.abandoned = true
+            job.wantedByPrefetch = false
+            dropIfUnwanted(job)
         }
     }
 
@@ -183,6 +211,7 @@ import AgateCore
         let job: Job
         if let existing = existingJob(entry, page: page, pixelSize: pixelSize) {
             job = existing
+            job.stop.set(false)
             raisePriority(of: job)
         } else {
             job = makeJob(entry, page: page, pixelSize: pixelSize, priority: .userInitiated)
@@ -198,7 +227,7 @@ import AgateCore
     private func existingJob(_ entry: FolderEntry, page: Int, pixelSize: Int?) -> Job? {
         jobs.values
             .filter { job in
-                guard !job.abandoned, job.entry.url == entry.url, job.entry.modified == entry.modified,
+                guard !job.discardResult, job.entry.url == entry.url, job.entry.modified == entry.modified,
                       job.page == page else { return false }
                 switch (job.pixelSize, pixelSize) {
                 case (nil, nil): return true
@@ -210,17 +239,22 @@ import AgateCore
     }
 
     private func makeJob(_ entry: FolderEntry, page: Int, pixelSize: Int?, priority: TaskPriority) -> Job {
-        nextID += 1
-        let job = Job(id: nextID, entry: entry, page: page, pixelSize: pixelSize, priority: priority, sequence: nextID)
+        let id = nextSequence()
+        let job = Job(id: id, entry: entry, page: page, pixelSize: pixelSize, priority: priority, sequence: id)
         jobs[job.id] = job
         waiting.append(job.id)
         return job
     }
 
+    /// One counter for job ids and request order: both only need to grow.
+    private func nextSequence() -> Int {
+        nextID += 1
+        return nextID
+    }
+
     /// The user now wants what a prefetch was doing in the background.
     private func raisePriority(of job: Job) {
-        nextID += 1
-        job.sequence = nextID
+        job.sequence = nextSequence()
         guard job.priority < .userInitiated else { return }
         job.priority = .userInitiated
         if let task = job.task, !job.escalated {
@@ -233,7 +267,8 @@ import AgateCore
 
     /// Starts waiting jobs while slots are free: user requests first, newest
     /// first (the photo the user flipped to last is the one on screen);
-    /// then prefetches in the order they were asked for.
+    /// then prefetches in the order they were asked for, leaving one slot
+    /// free.
     private func startWaitingJobs() {
         while runningCount < Self.maximumConcurrentDecodes, !waiting.isEmpty {
             let candidates = waiting.compactMap { jobs[$0] }
@@ -241,6 +276,8 @@ import AgateCore
                 if a.priority != b.priority { return a.priority < b.priority }
                 return a.priority >= .userInitiated ? a.sequence < b.sequence : a.sequence > b.sequence
             }) else { waiting.removeAll(); return }
+            // The best candidate is a prefetch only when no user request waits.
+            if next.priority < .userInitiated, runningCount >= Self.maximumConcurrentPrefetches { return }
             waiting.removeAll { $0 == next.id }
             start(next)
         }
@@ -249,26 +286,37 @@ import AgateCore
     private func start(_ job: Job) {
         runningCount += 1
         decodeCount += 1
-        let id = job.id, url = job.entry.url, page = job.page, size = job.pixelSize
+        let id = job.id, url = job.entry.url, page = job.page, size = job.pixelSize, stop = job.stop
         job.task = Task.detached(priority: job.priority) { [weak self] in
-            let result = Result { try Self.decodeAndUpload(url: url, pixelSize: size, page: page) }
+            let result = Result { try Self.decodeAndUpload(url: url, pixelSize: size, page: page, stop: stop) }
             await self?.finish(jobID: id, result: result)
         }
     }
 
-    /// The only part that leaves the main actor. Cancellation is checked
-    /// between the two steps: an ImageIO decode can't be interrupted, but the
-    /// upload (a colour conversion and a GPU copy) can be skipped.
-    nonisolated private static func decodeAndUpload(url: URL, pixelSize: Int?, page: Int) throws -> ImageTexture {
-        try Task.checkCancellation()
+    /// The only part that leaves the main actor. The stop flag is checked
+    /// before and between the two steps: an ImageIO decode can't be
+    /// interrupted, but it needn't start, and the upload (a colour conversion
+    /// and a GPU copy) can be skipped.
+    nonisolated private static func decodeAndUpload(url: URL, pixelSize: Int?, page: Int,
+                                                    stop: StopFlag) throws -> ImageTexture {
+        if stop.isSet || Task.isCancelled { throw CancellationError() }
         let decoded = try ImageDecoder.decode(url, maxPixelSize: pixelSize, page: page)
-        try Task.checkCancellation()
+        if stop.isSet || Task.isCancelled { throw CancellationError() }
         return try TextureUploader.upload(decoded)
     }
 
     private func finish(jobID: Int, result: Result<ImageTexture, Error>) {
         runningCount -= 1
-        guard let job = jobs.removeValue(forKey: jobID) else { startWaitingJobs(); return }
+        guard let job = jobs[jobID] else { startWaitingJobs(); return }
+        job.task = nil
+        if case .failure(let error) = result, error is CancellationError, job.isWanted {
+            // Stopped, but wanted again after the task had already given up:
+            // run it again rather than hand the requester a cancellation.
+            waiting.append(jobID)
+            startWaitingJobs()
+            return
+        }
+        jobs[jobID] = nil
         prefetchJobIDs.remove(jobID)
         if case .success(let texture) = result, !job.discardResult {
             let key = TextureKey(url: job.entry.url, modified: job.entry.modified, page: job.page,
@@ -288,11 +336,11 @@ import AgateCore
 
     private func dropIfUnwanted(_ job: Job) {
         guard !job.isWanted else { return }
-        job.abandoned = true
-        if let task = job.task {
+        if job.isRunning {
             // Running: it still holds its slot until ImageIO returns, which
-            // is what keeps memory bounded.
-            task.cancel()
+            // is what keeps memory bounded. Stay findable in `jobs` so a new
+            // request can pick it up again.
+            job.stop.set(true)
         } else {
             waiting.removeAll { $0 == job.id }
             jobs[job.id] = nil

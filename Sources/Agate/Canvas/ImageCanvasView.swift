@@ -9,9 +9,10 @@ protocol ImageCanvasViewDelegate: AnyObject {
     /// The wheel or a swipe asked for another image: +1 next, -1 previous.
     func canvasRequestsNavigation(_ canvas: ImageCanvasView, offset: Int)
     func canvasDidChangeZoom(_ canvas: ImageCanvasView)
-    /// The current texture is being magnified; load the full-resolution one
-    /// and hand it over with `setImage(_:preserveView: true)`. Asked once per
-    /// texture.
+    /// The current texture is being magnified; load a sharper one and hand
+    /// it over with `setImage(_:preserveView: true)`. Asked once per texture.
+    /// At `.fit` the window has outgrown the texture, so a screen-sized load
+    /// for `drawablePixelSize` is enough; otherwise load full resolution.
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView)
     func canvasDidDoubleClick(_ canvas: ImageCanvasView)
 }
@@ -109,11 +110,11 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         // redraw or it would call display on a layer that has no contents
         // to give.
         layerContentsRedrawPolicy = .never
-        preferencesObserver = Preferences.shared.objectWillChange.sink { [weak self] _ in
-            // Fires before the value changes; the redraw happens on the next
-            // display refresh, by which time the new value is in place.
-            self?.setNeedsRedraw()
-        }
+        preferencesObserver = Preferences.shared.objectWillChange
+            // objectWillChange fires before the new value is stored; a hop to
+            // the next main queue turn reads the new one.
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.preferencesChanged() }
         NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
     }
@@ -137,11 +138,14 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// Shows `texture`. `preserveView` keeps zoom and pan (a sharper texture
     /// of the same image arrived); otherwise the new image is fitted.
     func setImage(_ texture: ImageTexture?, preserveView: Bool) {
-        let isNewTexture = texture !== image
+        if texture !== image { askedForFullResolution = false }
         image = texture
-        if isNewTexture { askedForFullResolution = false }
-        if preserveView, texture != nil {
-            if zoomMode == .fit { applyFit() } else { clampTransform() }
+        if !preserveView {
+            // A double-click must not restore another image's zoom and pan.
+            viewBeforeClick = nil
+        }
+        if preserveView, texture != nil, zoomMode != .fit {
+            clampTransform()
         } else {
             applyFit()
         }
@@ -190,7 +194,10 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     }
 
     private func applyFit() {
-        guard let image else { return }
+        guard let image else {
+            zoomMode = .fit   // nothing to preserve; the next image starts fitted
+            return
+        }
         transform = .bestFit(imageSize: image.imageSize, viewSize: drawablePixelSize,
                              enlargeSmall: Preferences.shared.enlargeSmallImages)
         zoomMode = .fit
@@ -248,17 +255,20 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         // Pause first: anything that changes during the draw unpauses again.
         link.isPaused = true
         guard needsRedraw else { return }
-        drawFrame(synchronously: false)
+        drawFrame()
     }
 
-    private func drawFrame(synchronously: Bool) {
+    /// Draws one frame now. While the layer presents with transactions (live
+    /// resize) the present must wait for the GPU, whoever asked for the frame.
+    private func drawFrame() {
         guard let renderer, let layer = metalLayer, window != nil else { return }
         let size = drawablePixelSize
         guard size.width >= 1, size.height >= 1 else { return }
         if layer.drawableSize != size { layer.drawableSize = size }
         guard let drawable = layer.nextDrawable() else { return }
         needsRedraw = false
-        renderer.draw(currentFrame(headroom: displayHeadroom), to: drawable, presentsWithTransaction: synchronously)
+        renderer.draw(currentFrame(headroom: displayHeadroom), to: drawable,
+                      presentsWithTransaction: layer.presentsWithTransaction)
     }
 
     private func currentFrame(headroom: Float) -> CanvasFrame {
@@ -349,16 +359,37 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// Fit follows the window; any other zoom keeps the image point at the
     /// view centre where it is (`ViewportTransform.center` is exactly that
     /// point, so only the clamp is needed).
+    ///
+    /// A fitted zoom changes with the window, so the delegate hears about it
+    /// (the zoom readout) and a window grown past the texture asks for more
+    /// pixels, as any other zoom change would.
     private func sizeChanged() {
+        let oldZoom = transform.zoom
         if zoomMode == .fit { applyFit() } else { clampTransform() }
         updatePannable()
+        if image != nil, transform.zoom != oldZoom { delegate?.canvasDidChangeZoom(self) }
+        requestFullResolutionIfNeeded()
         if inLiveResize, metalLayer?.presentsWithTransaction == true {
             // Draw now, inside the resize transaction, so the image never
             // shows stretched or a frame behind the window edge.
-            drawFrame(synchronously: true)
+            drawFrame()
         } else {
             setNeedsRedraw()
         }
+    }
+
+    /// Settings changed: the next frame reads background, pixelated zoom and
+    /// magnifier values afresh; "enlarge small images" changes the fit.
+    private func preferencesChanged() {
+        if zoomMode == .fit, image != nil {
+            let old = transform
+            applyFit()
+            if transform != old {
+                viewDidChange(zoomChanged: true)
+                return
+            }
+        }
+        setNeedsRedraw()
     }
 
     // MARK: - Cursor
@@ -386,8 +417,8 @@ final class ImageCanvasView: NSView, SnapshotProviding {
             guard event.clickCount == 2 else { return }
             // The first click of the pair already toggled the zoom; put it back
             // so a double-click means only what the delegate makes of it.
-            if let before = viewBeforeClick {
-                transform = before.transform
+            if let before = viewBeforeClick, let image {
+                transform = before.transform.clamped(imageSize: image.imageSize, viewSize: drawablePixelSize)
                 zoomMode = before.mode
                 viewBeforeClick = nil
                 viewDidChange(zoomChanged: true)
@@ -396,17 +427,38 @@ final class ImageCanvasView: NSView, SnapshotProviding {
             return
         }
         viewBeforeClick = nil
-        press = CanvasInteraction.PressClassifier(location: location, time: event.timestamp)
+        let classifier = CanvasInteraction.PressClassifier(location: location, time: event.timestamp,
+                                                           allowsHold: magnifierEnabled && image != nil)
+        press = classifier
         lastDragLocation = location
-        perform(#selector(holdDelayElapsed), with: nil,
-                afterDelay: CanvasInteraction.PressClassifier.holdDelay, inModes: [.common])
+        if classifier.allowsHold { scheduleHoldCheck(after: CanvasInteraction.PressClassifier.holdDelay) }
+    }
+
+    /// A one-shot check when the hold delay is up, for a pointer that never
+    /// moves (no events arrive to ask). Not a repeating timer.
+    private func scheduleHoldCheck(after delay: TimeInterval) {
+        perform(#selector(holdDelayElapsed), with: nil, afterDelay: delay, inModes: [.common])
     }
 
     @objc private func holdDelayElapsed() {
         guard var current = press else { return }
-        let state = current.update(time: ProcessInfo.processInfo.systemUptime)
+        let now = ProcessInfo.processInfo.systemUptime
+        let state = current.update(time: now)
         press = current
-        if state == .hold { beginMagnifier(at: lastDragLocation) }
+        switch state {
+        case .hold:
+            beginMagnifier(at: lastDragLocation)
+        case .pending:
+            // The run loop can fire a hair before the event clock says the
+            // delay is up; check once more for the remainder (bounded, in case
+            // an event carried a timestamp from another clock).
+            let remaining = current.startTime + CanvasInteraction.PressClassifier.holdDelay - now
+            if remaining > 0, remaining < CanvasInteraction.PressClassifier.holdDelay {
+                scheduleHoldCheck(after: remaining + 0.005)
+            }
+        case .click, .drag:
+            break
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -490,6 +542,8 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// Scrolling while the magnifier shows changes its zoom preference: one
     /// step per wheel notch, or per 20 points of trackpad travel.
     private func scrollMagnifier(_ event: NSEvent) {
+        // Momentum would keep changing the zoom after the fingers lift.
+        guard event.momentumPhase.isEmpty else { return }
         let prefs = Preferences.shared
         let dy = event.isDirectionInvertedFromDevice ? -event.scrollingDeltaY : event.scrollingDeltaY
         var steps = 0

@@ -50,6 +50,11 @@ public enum CanvasInteraction {
     /// `holdDelay` makes it a hold, moving further than `dragDistance` makes
     /// it a drag. Once a press is a hold or a drag it stays one, so the
     /// magnifier doesn't turn into a pan when the hand trembles.
+    ///
+    /// When there is no magnifier to show (turned off, or no image), a long
+    /// still press must not swallow the drag that follows, so `allowsHold`
+    /// false keeps the press open for dragging and only calls it a hold (not
+    /// a click) if it is released late.
     public struct PressClassifier: Sendable {
         public static let holdDelay: TimeInterval = 0.25
         /// In points: small enough to feel immediate, large enough that a
@@ -58,17 +63,19 @@ public enum CanvasInteraction {
 
         public let start: CGPoint
         public let startTime: TimeInterval
+        public let allowsHold: Bool
         public private(set) var state: Press = .pending
 
-        public init(location: CGPoint, time: TimeInterval) {
+        public init(location: CGPoint, time: TimeInterval, allowsHold: Bool = true) {
             start = location
             startTime = time
+            self.allowsHold = allowsHold
         }
 
         /// The hold timer fired, or any other chance to check the clock.
         @discardableResult
         public mutating func update(time: TimeInterval) -> Press {
-            if state == .pending, time - startTime >= Self.holdDelay { state = .hold }
+            if allowsHold, state == .pending, time - startTime >= Self.holdDelay { state = .hold }
             return state
         }
 
@@ -87,7 +94,7 @@ public enum CanvasInteraction {
         /// The button went up: the final answer (never `.pending`).
         public mutating func released(at location: CGPoint, time: TimeInterval) -> Press {
             moved(to: location, time: time)
-            if state == .pending { state = .click }
+            if state == .pending { state = time - startTime >= Self.holdDelay ? .hold : .click }
             return state
         }
     }
@@ -185,6 +192,12 @@ public enum CanvasInteraction {
 
         /// A trackpad. Deltas are used as reported, so the content follows
         /// the fingers the way the user has set scrolling up.
+        ///
+        /// Zoom (the preference, or Command swapping it in) comes first, so
+        /// it works at any zoom. Otherwise a zoomed-in image pans and a fitted
+        /// one navigates. Checking "zoomed in" first instead would make the
+        /// zoom preference unable to zoom back out, and Command-scroll flip
+        /// images while zoomed in.
         private mutating func precise(_ e: WheelEvent, wantsZoom: Bool) -> WheelOutcome {
             if e.phase == .began {
                 accumulated = 0
@@ -192,15 +205,15 @@ public enum CanvasInteraction {
             }
             let momentum = e.momentumPhase != .none
 
-            // Zoomed in: scrolling moves around the image, momentum included.
-            if e.imageExceedsView && !e.commandKey {
-                return e.delta == .zero ? .none : .pan(e.delta)
-            }
             if wantsZoom {
                 // Momentum would keep zooming after the fingers lift.
                 guard !momentum, e.delta.height != 0 else { return .none }
                 let factor = pow(2, e.delta.height / Self.pointsPerDoubling)
                 return .zoom(min(max(factor, 0.5), 2))
+            }
+            // Zoomed in: scrolling moves around the image, momentum included.
+            if e.imageExceedsView {
+                return e.delta == .zero ? .none : .pan(e.delta)
             }
 
             // At fit: one photo per swipe.
