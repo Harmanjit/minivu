@@ -116,9 +116,10 @@ enum SnapshotHarness {
             exit(1)
         }
         report("wrote \(config.output.path) (\(image.width)x\(image.height) px)")
-        // A sheet still up (the picture was of it) would hold up terminating.
-        if NSApp.windows.contains(where: { $0.attachedSheet != nil }) { exit(0) }
-        NSApp.terminate(nil)
+        // Exit rather than terminate: a sheet still up (the picture was of
+        // it) or an edit made for the picture would make a normal quit stop
+        // and ask. The picture is written; a snapshot run has nothing to save.
+        exit(0)
     }
 
     /// Lists the file's folder the way the browser would and opens the viewer
