@@ -203,8 +203,10 @@ public enum EditOperation: Codable, Hashable, Sendable {
         case .flip:
             return false
         case .crop(let rect):
+            // Every component finite: a NaN origin would otherwise pass the
+            // checks below and trap when converted to whole pixels.
             let r = rect.standardized
-            let valid = r.width.isFinite && r.height.isFinite
+            let valid = [r.minX, r.minY, r.width, r.height].allSatisfy(\.isFinite)
             let clipped = r.intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
             return !valid || clipped.isNull || clipped.width <= 0 || clipped.height <= 0
                 || (r.minX <= 0 && r.minY <= 0 && r.maxX >= 1 && r.maxY >= 1)

@@ -89,7 +89,7 @@ static float resampleWeight(uint filter, float x) {
 }
 
 kernel void resampleAxis(texture2d<float, access::read> src [[texture(0)]],
-                         texture2d<float, access::write> dst [[texture(1)]],
+                         texture2d<half, access::write> dst [[texture(1)]],
                          constant ResampleUniforms &u [[buffer(0)]],
                          uint2 gid [[thread_position_in_grid]])
 {
@@ -139,8 +139,23 @@ kernel void resampleAxis(texture2d<float, access::read> src [[texture(0)]],
         int index = clamp(int(floor(centre)), 0, length - 1);
         uint2 coord = vertical ? uint2(across, clamp(int(u.origins.y) - 1 - index, 0, srcH - 1))
                                : uint2(clamp(index - int(u.origins.x), 0, srcW - 1), across);
-        dst.write(src.read(coord), gid);
+        dst.write(half4(src.read(coord)), gid);
         return;
     }
-    dst.write(sum / weights, gid);
+    float4 result = sum / weights;
+    // Negative lobes ring in alpha as well as colour where an opaque area
+    // meets a transparent one (Lanczos 3 measured alpha from -0.12 to 1.12).
+    // Colour may ring past white, which is just a brighter value, but alpha
+    // outside 0...1 means nothing, and a pixel with no coverage and some
+    // colour would add light when composited or saved. Alpha is held to its
+    // range, and a pixel left with none is fully clear. Opaque areas stay
+    // opaque: their alpha is one, give or take round-off.
+    result.a = clamp(result.a, 0.0, 1.0);
+    if (result.a <= 0.0) { result = float4(0.0); }
+    // Converted to half here, which rounds to the nearest half float. Writing
+    // a float4 to the half-float texture instead truncates towards zero
+    // (measured: 0.99999994 stored as 0.99951), so round-off a hair below one
+    // lost a whole half-float step, and "opaque" pixels saved as 16-bit came
+    // out with alpha 65503 instead of 65535.
+    dst.write(half4(result), gid);
 }

@@ -98,15 +98,17 @@ import Metal
 
         doc.apply(.crop(CGRect(x: 0.5, y: 0.5, width: 0.5, height: 0.5)))
         let crop = await preview(doc, 400)
-        #expect(crop.texture.width == 400 && crop.texture.height == 200)
+        // The crop needs scale 0.5; the new proxy is a quarter larger, so a
+        // crop dragged a little smaller doesn't rebuild it again.
+        #expect(crop.texture.width == 500 && crop.texture.height == 250)
         #expect(crop.imageSize == CGSize(width: 800, height: 400))
         #expect(quadrantColours(crop) == ["white", "white", "white", "white"])
-        #expect(doc.proxy?.scale == 0.5)   // grown for the crop
+        #expect(doc.proxy?.scale == 0.625)   // grown for the crop
 
         doc.undo()
         let back = await preview(doc, 400)
         #expect(back.texture.width == 400 && back.texture.height == 200)
-        #expect(doc.proxy?.scale == 0.5)   // proxies only grow
+        #expect(doc.proxy?.scale == 0.625)   // proxies only grow
 
         let full = await fullResolution(doc)
         #expect(full.texture.width == 1600 && full.texture.height == 800 && full.isFullResolution)
@@ -175,13 +177,34 @@ import Metal
         // A crop to a quarter needs twice the proxy's pixels: a new proxy.
         #expect(EditRenderer.previewPlan(outputSize: CGSize(width: 3000, height: 2000), pixelSize: 3000, proxyScale: 0.5)
                 == .init(scale: 1, maximumScale: 1, useProxy: false, rebuildProxy: false))
+        // Needs 0.5, the proxy has 0.25: rebuilt a quarter larger than needed.
         #expect(EditRenderer.previewPlan(outputSize: CGSize(width: 4800, height: 3200), pixelSize: 2400, proxyScale: 0.25)
-                == .init(scale: 0.5, maximumScale: 1, useProxy: true, rebuildProxy: true))
+                == .init(scale: 0.625, maximumScale: 1, useProxy: true, rebuildProxy: true))
+        // ...but not past the point where the original serves instead.
+        #expect(EditRenderer.previewPlan(outputSize: CGSize(width: 4800, height: 3200), pixelSize: 3300, proxyScale: 0.25)
+                == .init(scale: 3300.0 / 4800, maximumScale: 1, useProxy: true, rebuildProxy: true))
+        // Growing a crop 5% at a time rebuilds the proxy once, not every step.
+        var proxy = 0.25, rebuilds = 0
+        for step in 0..<6 {
+            let plan = EditRenderer.previewPlan(outputSize: CGSize(width: 6000 - 250 * step, height: 4000),
+                                                pixelSize: 1500, proxyScale: proxy)
+            if plan.rebuildProxy { proxy = plan.scale; rebuilds += 1 }
+        }
+        #expect(rebuilds == 1, "\(rebuilds) rebuilds")
         // Enlarged past Metal's limit: capped.
         let huge = EditRenderer.fullResolutionPlan(outputSize: CGSize(width: 32768, height: 1000))
         #expect(huge.scale == 0.5 && huge.maximumScale == 0.5)
         #expect(EditRenderer.proxyScale(sourceSize: size, longEdge: 3000) == 0.5)
         #expect(EditRenderer.proxyScale(sourceSize: CGSize(width: 3200, height: 2000), longEdge: 3000) == nil)
+        // An original past the texture limit (shown at half its size) caps
+        // every render at the pixels it has.
+        let wide = EditRenderer.fullResolutionPlan(outputSize: CGSize(width: 32768, height: 1000), sourceScale: 0.5)
+        #expect(wide.scale == 0.5)
+        #expect(EditRenderer.fullResolutionPlan(outputSize: CGSize(width: 4000, height: 1000), sourceScale: 0.5).scale == 0.5)
+        #expect(EditRenderer.previewPlan(outputSize: CGSize(width: 32768, height: 1000), pixelSize: 16000, proxyScale: nil,
+                                         sourceScale: 0.5) == .init(scale: 0.5, maximumScale: 0.5, useProxy: false,
+                                                                    rebuildProxy: false))
+        #expect(EditRenderer.proxyScale(sourceSize: CGSize(width: 32768, height: 1000), sourceScale: 0.5, longEdge: 14000) == nil)
     }
 
     // MARK: - Sources
@@ -198,7 +221,7 @@ import Metal
     @Test func hdrSourceKeepsItsHighlightsThroughColourOperations() async throws {
         let doc = document(try Fixtures.gainMapHEIC())
         try await renderer.prepare(doc)
-        #expect(doc.source?.isHDR == true && doc.source?.texture.pixelFormat == .rgba16Float)
+        #expect(doc.source?.isHDR == true && doc.source?.texture?.pixelFormat == .rgba16Float)
         doc.apply(.colors(hue: 0, saturation: 0.1, lightness: 0, temperature: 0.1, tint: 0))
         doc.apply(.curves(ToneCurves(master: [CurvePoint(x: 0, y: 0), CurvePoint(x: 0.5, y: 0.55), CurvePoint(x: 1, y: 1)])))
         let texture = await preview(doc, 1000)
@@ -223,7 +246,7 @@ import Metal
     func sixteenBitTIFFIsKeptInHalfFloat() async throws {
         let doc = document(RawRendererTests.folder.appendingPathComponent("HSB_6548.tif"))
         try await renderer.prepare(doc, proxyPixelSize: 1000)
-        #expect(doc.source?.texture.pixelFormat == .rgba16Float)
+        #expect(doc.source?.texture?.pixelFormat == .rgba16Float)
         #expect(doc.sourceSize.map { max($0.width, $0.height) } == 6032)
         doc.apply(.levels(Levels(master: LevelsChannel(inputBlack: 0.02, inputWhite: 0.98, gamma: 1.1,
                                                        outputBlack: 0, outputWhite: 1))))
@@ -241,8 +264,8 @@ import Metal
         let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
         let image8 = try await renderer.renderForExport(doc.snapshot(), colorSpace: srgb, bitsPerComponent: 8)
         #expect(image8.width == 64 && image8.height == 32 && image8.bitsPerComponent == 8)
-        // Within a few levels: the original is stored as 8-bit Display P3, and
-        // sRGB primaries land between its steps.
+        // Exact to a level: an sRGB original is kept in sRGB, so sRGB
+        // primaries come back as they went in.
         #expect(near8(rgba8(image8, x: 0, y: 0), [0, 255, 0, 255]))      // green top-left
         #expect(near8(rgba8(image8, x: 63, y: 31), [0, 0, 255, 255]))    // blue bottom-right
 
@@ -259,7 +282,7 @@ import Metal
     }
 
     func near8(_ a: [UInt8], _ b: [UInt8]) -> Bool {
-        zip(a, b).allSatisfy { abs(Int($0) - Int($1)) <= 4 }
+        zip(a, b).allSatisfy { abs(Int($0) - Int($1)) <= 1 }
     }
 
     /// A pixel of `image` drawn into an 8-bit sRGB bitmap, top row first.

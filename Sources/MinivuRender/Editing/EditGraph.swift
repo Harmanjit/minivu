@@ -91,8 +91,9 @@ public enum EditGraph {
     static func pixelRect(_ rect: CGRect, width: Int, height: Int) -> (x: Int, y: Int, width: Int, height: Int) {
         let r = rect.standardized
         func span(_ lo: CGFloat, _ hi: CGFloat, _ length: Int) -> (Int, Int) {
-            let start = min(max(Int((lo * CGFloat(length)).rounded()), 0), length - 1)
-            let end = min(max(Int((hi * CGFloat(length)).rounded()), start + 1), length)
+            // Clamped before scaling, so a far-out edge can't overflow `Int`.
+            let start = min(Int((min(max(lo, 0), 1) * CGFloat(length)).rounded()), length - 1)
+            let end = min(max(Int((min(max(hi, 0), 1) * CGFloat(length)).rounded()), start + 1), length)
             return (start, end - start)
         }
         let (x, w) = span(r.minX, r.maxX, width)
@@ -175,22 +176,37 @@ public enum EditGraph {
             // The origin in working pixels, the size from the full-resolution
             // crop so preview and saved file agree; nudged inward if rounding
             // would reach past the edge.
-            let wx = min(max(Int((rect.standardized.minX * w).rounded()), 0), max(Int(w) - outW, 0))
-            let wy = min(max(Int((rect.standardized.minY * h).rounded()), 0), max(Int(h) - outH, 0))
+            let unit = { (v: CGFloat) in min(max(v, 0), 1) }
+            let wx = min(Int((unit(rect.standardized.minX) * w).rounded()), max(Int(w) - outW, 0))
+            let wy = min(Int((unit(rect.standardized.minY) * h).rounded()), max(Int(h) - outH, 0))
             let bottom = Int(h) - wy - outH
             let region = CGRect(x: wx, y: bottom, width: outW, height: outH)
             return image.cropped(to: region)
                 .transformed(by: CGAffineTransform(translationX: -CGFloat(wx), y: -CGFloat(bottom)))
 
-        case .rotate(let degrees, _):
+        case .rotate(let degrees, let autoCrop):
             // Turn about the centre and place that centre in the middle of the
             // output; the crop keeps either the bounding box (transparent
             // corners, which Core Image's clear surround provides) or the
             // inscribed rectangle. Screen clockwise is negative with y up.
             let angle = -degrees * .pi / 180
-            let t = CGAffineTransform(translationX: -w / 2, y: -h / 2)
+            var t = CGAffineTransform(translationX: -w / 2, y: -h / 2)
                 .concatenating(CGAffineTransform(rotationAngle: angle))
-                .concatenating(CGAffineTransform(translationX: CGFloat(outW) / 2, y: CGFloat(outH) / 2))
+            if autoCrop {
+                // The output size comes from the full-resolution rectangle,
+                // rounded down there but to the nearest pixel at a working
+                // scale, where it can reach up to half a pixel past this
+                // image's own inscribed rectangle and show transparent
+                // corners. Zoom in by that much (at most a pixel's worth);
+                // at scale 1 the factor is 1.
+                let s = abs(sin(angle)), c = abs(cos(angle))
+                let inner = largestInscribedRectangle(width: Double(w), height: Double(h), sine: s, cosine: c)
+                let zoom = max(Double(outW) / inner.width, Double(outH) / inner.height)
+                if zoom.isFinite, zoom > 1 + 1e-6 {
+                    t = t.concatenating(CGAffineTransform(scaleX: zoom, y: zoom))
+                }
+            }
+            t = t.concatenating(CGAffineTransform(translationX: CGFloat(outW) / 2, y: CGFloat(outH) / 2))
             return image.transformed(by: t).cropped(to: CGRect(x: 0, y: 0, width: outW, height: outH))
 
         case .sharpen(let amount, let radius):

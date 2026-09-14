@@ -110,8 +110,9 @@ import MinivuCore
     // MARK: - Sizes
 
     /// The oriented full-resolution size of the original, once
-    /// `EditRenderer.prepare` has decoded it. (Capped at Metal's 16384 px
-    /// texture limit: a larger original is edited at that size.)
+    /// `EditRenderer.prepare` has decoded it. An original larger than Metal's
+    /// 16384 px texture limit reports its own size too: it is shown at the
+    /// limit while editing and saved at this size.
     public internal(set) var sourceSize: CGSize? {
         didSet { if sourceSize != oldValue { onChange?() } }
     }

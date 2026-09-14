@@ -9,8 +9,8 @@ import CoreGraphics
 ///     MINIVU_BENCH_DIR=~/latent/TestAssets swift test -c release --filter EditBenchmark
 ///
 /// M4, release build (2026-09-14):
-///     prepare HSB_6548.jpg 6032x4032 (proxy 3024x2021): first 145.7 ms, again 137.4 ms
-///     preview 3024 px lighting median 4.7 ms, colors 4.1, curves 4.1, levels 4.0
+///     prepare HSB_6548.jpg 6032x4032 (proxy 3024x2021): first 118.8 ms, again 103.7 ms
+///     preview 3024 px lighting median 4.1 ms, colors 4.3-4.5, curves 3.8-6.1, levels 3.9-4.5
 ///     full-resolution resize lanczos3 75% 30.1 ms, 150% 94.4 ms; lanczos8 50% 41.6 ms
 ///     export 5 ops -> 5311x3444 8-bit sRGB: first 54.5 ms, median 38.4 ms
 /// A debug build is the same except where Swift itself is the work: curves

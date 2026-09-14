@@ -11,19 +11,28 @@ import MinivuCore
 /// `@unchecked Sendable` because Metal textures and `CIImage` are safe to
 /// use from any thread and nothing here changes after init.
 final class EditSource: @unchecked Sendable {
-    /// Keeps the pixels alive; `image` reads them.
-    let texture: MTLTexture
-    /// Extent at the origin, Core Image's y-up orientation, upright.
+    /// Keeps the pixels alive; `image` reads them. Nil only for an export's
+    /// source that is larger than a texture may be, which Core Image reads
+    /// from the CGImage in tiles instead.
+    let texture: MTLTexture?
+    /// Extent at the origin, Core Image's y-up orientation, upright, with
+    /// `EditGraph.workingLength` of `size` at `scale` for its dimensions.
     let image: CIImage
-    /// Pixel size (oriented, at most 16384 on the long edge).
+    /// The original's full oriented pixel size, which every operation's
+    /// lengths refer to.
     let size: CGSize
+    /// `image`'s size over `size`: 1, or less for an original larger than
+    /// Metal's 16384 px texture limit, which is edited on screen at that
+    /// limit but still saved at its own size (see `renderForExport`).
+    let scale: Double
     let isHDR: Bool
     let contentHeadroom: Float
 
-    init(texture: MTLTexture, image: CIImage, size: CGSize, isHDR: Bool, contentHeadroom: Float) {
+    init(texture: MTLTexture?, image: CIImage, size: CGSize, scale: Double = 1, isHDR: Bool, contentHeadroom: Float) {
         self.texture = texture
         self.image = image
         self.size = size
+        self.scale = scale
         self.isHDR = isHDR
         self.contentHeadroom = contentHeadroom
     }
@@ -47,9 +56,11 @@ final class EditProxy: @unchecked Sendable {
 /// for zooming in, and final pixels for saving (DESIGN.md 4.7).
 ///
 /// **The original** is decoded once per document at full resolution into a
-/// GPU texture (8-bit sRGB-encoded for ordinary photos, which halves the
-/// memory of a half-float copy, and half float for 16-bit, wide-gamut and
-/// HDR sources) and wrapped as a `CIImage`.
+/// GPU texture and wrapped as a `CIImage`: 8-bit in the file's own colour
+/// space for opaque sRGB and Display P3 photos (half the memory of a
+/// half-float copy, and no conversion, so an edit that changes no colour
+/// saves the same values back), half float for everything else (see
+/// `upload`).
 ///
 /// **The proxy** is made from it once with Lanczos, at about the screen's
 /// long edge, and rendered into a texture of its own, so a slider render
@@ -69,9 +80,9 @@ final class EditProxy: @unchecked Sendable {
 ///
 /// **Measured** on M4, release build, 6032 x 4032 JPEG (`EditBenchmark`):
 ///
-///     prepare (decode, upload, 3024 px proxy)      146 ms, 137 ms again
-///     preview at 3024 px, request to delivery      lighting 4.7 ms, colors 4.1,
-///       (warm medians, mip chain included)         curves 4.1, levels 4.0
+///     prepare (decode, upload, 3024 px proxy)      119 ms, 104 ms again
+///     preview at 3024 px, request to delivery      lighting 4.1 ms, colors 4.3-4.5,
+///       (warm medians, mip chain included)         curves 3.8-6.1, levels 3.9-4.5
 ///     full resolution, Lanczos 3 to 75%            30 ms (to 150%: 94 ms)
 ///     full resolution, Lanczos 8 to 50%            42 ms
 ///     export of 5 operations, 8-bit sRGB CGImage   54 ms first, 38 ms again
@@ -124,7 +135,7 @@ final class EditProxy: @unchecked Sendable {
         let gpu = self.gpu, context = self.context
         let work = Task.detached(priority: .userInitiated) { () throws -> (EditSource, EditProxy?) in
             let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu)
-            let scale = Self.proxyScale(sourceSize: source.size, longEdge: edge)
+            let scale = Self.proxyScale(sourceSize: source.size, sourceScale: source.scale, longEdge: edge)
             let proxy = try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
             return (source, proxy)
         }
@@ -177,16 +188,35 @@ final class EditProxy: @unchecked Sendable {
     /// resolution, converted to `colorSpace` with 8 or 16 bits per
     /// component, top row first. Values outside the colour space's range
     /// are clipped here, and only here.
+    ///
+    /// An HDR original saved into an SDR colour space (anything but the
+    /// PQ and HLG transfers) is tone mapped to SDR first with Core Image's
+    /// `CIToneMapHeadroom`, the same mapping ImageIO uses for a gain-map
+    /// photo's SDR rendition: clipping instead would flatten every highlight
+    /// above paper white, which is most of an iPhone photo's sky.
+    ///
+    /// An original larger than Metal's texture limit is decoded again here
+    /// at its own size, so saving never shrinks it.
     nonisolated public func renderForExport(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
                                             bitsPerComponent: Int) async throws -> CGImage {
         guard bitsPerComponent == 8 || bitsPerComponent == 16 else {
             throw EditRenderError.unsupportedBitDepth(bitsPerComponent)
         }
-        let source = try snapshot.source
-            ?? Self.loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
-                               settings: snapshot.settings, gpu: gpu)
-        let image = EditGraph.image(source: source.image, sourceSize: source.size,
-                                    operations: snapshot.operations, scale: 1)
+        let source: EditSource
+        if let prepared = snapshot.source, prepared.scale >= 1 {
+            source = prepared
+        } else {
+            source = try Self.loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
+                                         settings: snapshot.settings, gpu: gpu, forExport: true)
+        }
+        var image = EditGraph.image(source: Self.workingImage(source: source, proxy: nil, scale: 1),
+                                    sourceSize: source.size, operations: snapshot.operations, scale: 1)
+        if source.isHDR && !CGColorSpaceUsesITUR_2100TF(colorSpace) {
+            image = image.applyingFilter("CIToneMapHeadroom", parameters: [
+                "inputSourceHeadroom": max(source.contentHeadroom, 1),
+                "inputTargetHeadroom": 1,
+            ])
+        }
         let format: CIFormat = bitsPerComponent == 16 ? .RGBA16 : .RGBA8
         // Core Image renders in tiles as needed, so an upscaled result larger
         // than a texture still exports.
@@ -225,8 +255,9 @@ final class EditProxy: @unchecked Sendable {
         let outputSize = EditGraph.outputSize(source: source.size, operations: operations)
         let proxy = document.proxy
         let plan = full
-            ? Self.fullResolutionPlan(outputSize: outputSize)
-            : Self.previewPlan(outputSize: outputSize, pixelSize: request.pixelSize ?? 1, proxyScale: proxy?.scale)
+            ? Self.fullResolutionPlan(outputSize: outputSize, sourceScale: source.scale)
+            : Self.previewPlan(outputSize: outputSize, pixelSize: request.pixelSize ?? 1, proxyScale: proxy?.scale,
+                               sourceScale: source.scale)
         let gpu = self.gpu, context = self.context
 
         let result = await Task.detached(priority: full ? .utility : .userInitiated) { () -> (ImageTexture, EditProxy?)? in
@@ -284,14 +315,16 @@ final class EditProxy: @unchecked Sendable {
         var rebuildProxy: Bool
     }
 
-    /// The largest scale at which an output of `outputSize` fits a texture.
-    nonisolated static func maximumScale(outputSize: CGSize) -> Double {
+    /// The largest scale at which an output of `outputSize` fits a texture
+    /// and the original has the pixels for (`EditSource.scale`).
+    nonisolated static func maximumScale(outputSize: CGSize, sourceScale: Double = 1) -> Double {
         let long = max(outputSize.width, outputSize.height)
-        return long > 0 ? min(1, Double(maximumDimension) / Double(long)) : 1
+        let fits = long > 0 ? min(1, Double(maximumDimension) / Double(long)) : 1
+        return min(fits, sourceScale)
     }
 
-    nonisolated static func fullResolutionPlan(outputSize: CGSize) -> Plan {
-        let maximum = maximumScale(outputSize: outputSize)
+    nonisolated static func fullResolutionPlan(outputSize: CGSize, sourceScale: Double = 1) -> Plan {
+        let maximum = maximumScale(outputSize: outputSize, sourceScale: sourceScale)
         return Plan(scale: maximum, maximumScale: maximum, useProxy: false, rebuildProxy: false)
     }
 
@@ -301,11 +334,15 @@ final class EditProxy: @unchecked Sendable {
     ///   little to be worth its memory;
     /// - otherwise the proxy, when it has enough pixels (3% slack), resampled
     ///   down first when it has more than one and a half times too many;
-    /// - otherwise a new, larger proxy at the scale needed. Proxies only
-    ///   grow, so going back and forth between a crop and the whole image
-    ///   doesn't rebuild one each time.
-    nonisolated static func previewPlan(outputSize: CGSize, pixelSize: Int, proxyScale: Double?) -> Plan {
-        let maximum = maximumScale(outputSize: outputSize)
+    /// - otherwise a new, larger proxy, a quarter larger than needed. Proxies
+    ///   only grow, so going back and forth between a crop and the whole
+    ///   image doesn't rebuild one each time, and the extra quarter means a
+    ///   crop being dragged smaller rebuilds one every 25% of growth rather
+    ///   than on nearly every frame (each rebuild is a full-resolution
+    ///   Lanczos pass, 50 to 100 ms for 24 MP).
+    nonisolated static func previewPlan(outputSize: CGSize, pixelSize: Int, proxyScale: Double?,
+                                        sourceScale: Double = 1) -> Plan {
+        let maximum = maximumScale(outputSize: outputSize, sourceScale: sourceScale)
         let long = Double(max(outputSize.width, outputSize.height))
         let wanted = long > 0 ? min(maximum, Double(pixelSize) / long) : maximum
         if wanted >= 0.75 * maximum {
@@ -315,16 +352,17 @@ final class EditProxy: @unchecked Sendable {
             let scale = proxyScale <= wanted * 1.5 ? proxyScale : wanted
             return Plan(scale: scale, maximumScale: maximum, useProxy: true, rebuildProxy: false)
         }
-        return Plan(scale: wanted, maximumScale: maximum, useProxy: true, rebuildProxy: true)
+        let grown = wanted * 1.25 < 0.75 * maximum ? wanted * 1.25 : wanted
+        return Plan(scale: grown, maximumScale: maximum, useProxy: true, rebuildProxy: true)
     }
 
     /// The scale of the proxy `prepare` makes, or nil when the original is
     /// small enough to serve itself (see `previewPlan`).
-    nonisolated static func proxyScale(sourceSize: CGSize, longEdge: Int) -> Double? {
+    nonisolated static func proxyScale(sourceSize: CGSize, sourceScale: Double = 1, longEdge: Int) -> Double? {
         let long = Double(max(sourceSize.width, sourceSize.height))
         guard long > 0 else { return nil }
         let scale = Double(max(longEdge, 1)) / long
-        return scale < 0.75 ? scale : nil
+        return scale < 0.75 * sourceScale ? scale : nil
     }
 
     /// The largest connected display's long edge in pixels, which is the
@@ -344,11 +382,11 @@ final class EditProxy: @unchecked Sendable {
     // MARK: - Pixels
 
     /// The image a render's graph starts from: the proxy if it is exactly at
-    /// `scale`, the original at scale 1, otherwise whichever is the smallest
-    /// that is still large enough, resampled with Lanczos.
+    /// `scale`, the original at its own scale, otherwise whichever is the
+    /// smallest that is still large enough, resampled with Lanczos.
     nonisolated static func workingImage(source: EditSource, proxy: EditProxy?, scale: Double) -> CIImage {
         if let proxy, abs(proxy.scale - scale) < 1e-9 { return proxy.image }
-        if scale >= 1 { return source.image }
+        if abs(source.scale - scale) < 1e-9 { return source.image }
         if let proxy, proxy.scale > scale {
             return lanczos(proxy.image, to: source.size, scale: scale)
         }
@@ -427,14 +465,51 @@ final class EditProxy: @unchecked Sendable {
 
     /// The original, decoded at full resolution and uploaded. Synchronous
     /// and slow (a quarter of a second for 24 MP): background only.
+    ///
+    /// An original larger than a texture may be is uploaded at the texture
+    /// limit (`EditSource.scale` below 1) for editing on screen. `forExport`
+    /// decodes it at its own size instead and leaves it to Core Image to
+    /// read in tiles, so a saved file keeps every pixel.
     nonisolated static func loadSource(url: URL, page: Int, kind: ImageKind?, settings: DisplaySettings,
-                                       gpu: GPU) throws -> EditSource {
+                                       gpu: GPU, forExport: Bool = false) throws -> EditSource {
         if kind == .raw, let raw = try loadRaw(url: url, settings: settings, gpu: gpu) {
             return raw
         }
-        let decoded = try ImageDecoder.decode(url, maxPixelSize: maximumDimension, page: page,
+        let decoded = try ImageDecoder.decode(url, maxPixelSize: forExport ? nil : maximumDimension, page: page,
                                               allowHDR: settings.showHDR)
-        return try upload(decoded, gpu: gpu)
+        let drawn = orientedSize(decoded)
+        if forExport && max(drawn.width, drawn.height) > CGFloat(maximumDimension) {
+            return try tiledSource(decoded)
+        }
+        // The size edited is what was decoded, except for a raster larger than
+        // a texture, which the decoder may have shrunk towards the limit: its
+        // own size then, so saving it doesn't shrink it. (Not a vector, whose
+        // "full resolution" is the render; nor a raster whose metadata merely
+        // claims a few more pixels than decode, as some RAW files do.)
+        let isVector = kind == .pdf || kind == .svg
+        let claimed = max(decoded.imageSize.width, decoded.imageSize.height)
+        let full = !isVector && claimed > CGFloat(maximumDimension) && claimed > max(drawn.width, drawn.height)
+            ? decoded.imageSize : drawn
+        return try upload(decoded, fullSize: full, gpu: gpu)
+    }
+
+    nonisolated static func orientedSize(_ decoded: DecodedImage) -> CGSize {
+        decoded.orientation.swapsAxes
+            ? CGSize(width: decoded.image.height, height: decoded.image.width)
+            : CGSize(width: decoded.image.width, height: decoded.image.height)
+    }
+
+    /// An export's source too large for a texture: the CGImage itself, which
+    /// Core Image converts to the working space and reads in tiles.
+    nonisolated static func tiledSource(_ decoded: DecodedImage) throws -> EditSource {
+        var image = CIImage(cgImage: decoded.image)
+        let size = orientedSize(decoded)
+        if decoded.orientation != .up {
+            image = image.oriented(decoded.orientation)
+            image = image.transformed(by: CGAffineTransform(translationX: -image.extent.minX, y: -image.extent.minY))
+        }
+        return EditSource(texture: nil, image: image, size: size, isHDR: decoded.isHDR,
+                          contentHeadroom: decoded.contentHeadroom)
     }
 
     /// A RAW file by `ImageLoader`'s rules, at full size: the embedded
@@ -475,23 +550,125 @@ final class EditProxy: @unchecked Sendable {
                           isHDR: texture.isHDR, contentHeadroom: texture.contentHeadroom)
     }
 
-    /// Draws a decoded image into GPU-shared memory, as `TextureUploader`
-    /// does (one colour conversion by ColorSync, no copy to the GPU), but
-    /// without the private mipmapped copy the canvas needs: the original is
-    /// only ever read by Core Image at full size, so the mip chain would be a
-    /// third more memory for nothing. Rows are stored bottom first, Core
-    /// Image's orientation.
-    nonisolated static func upload(_ decoded: DecodedImage, gpu: GPU) throws -> EditSource {
-        let cgImage = decoded.image
-        let oriented = decoded.orientation.swapsAxes
-            ? CGSize(width: cgImage.height, height: cgImage.width)
-            : CGSize(width: cgImage.width, height: cgImage.height)
-        let longest = max(oriented.width, oriented.height)
-        let fit = longest > CGFloat(maximumDimension) ? CGFloat(maximumDimension) / longest : 1
-        let width = max(1, Int((oriented.width * fit).rounded()))
-        let height = max(1, Int((oriented.height * fit).rounded()))
+    /// How an original's pixels are stored on the GPU.
+    enum Storage: Equatable {
+        /// 8 bits per channel in the image's own colour space (sRGB or
+        /// Display P3, which share the sRGB transfer curve), in an `_srgb`
+        /// texture. Drawing into the same space is a copy, not a conversion,
+        /// and Core Image converts to the working space in floating point on
+        /// the GPU, so an 8-bit photo saved back to its own space comes out
+        /// with the values it went in with. (Converting sRGB to 8-bit
+        /// Display P3 on the way in, as the viewer does, measured up to 9
+        /// levels off on the way back out.)
+        case eightBit(CGColorSpace)
+        /// Half float in the working space, extended linear Display P3: HDR,
+        /// 16-bit, wide-gamut and other colour spaces, and anything with
+        /// transparency.
+        case halfFloat
+    }
 
-        let deep = decoded.isHDR || decoded.needsDeepStorage
+    /// The storage for `decoded`, before looking at its alpha values.
+    ///
+    /// Transparency needs half float because Core Graphics premultiplies an
+    /// 8-bit bitmap in encoded values, while an `_srgb` texture decodes each
+    /// channel on its own: a half-transparent white (0.5 encoded, 0.5 alpha)
+    /// would read as linear 0.21 with alpha 0.5, a 43% grey. In a linear
+    /// float bitmap premultiplying is exact.
+    nonisolated static func storage(for decoded: DecodedImage) -> Storage {
+        let image = decoded.image
+        guard !decoded.isHDR, !decoded.needsDeepStorage, image.bitsPerComponent == 8,
+              let space = image.colorSpace, space.model == .rgb, let name = space.name as String? else {
+            return .halfFloat
+        }
+        for candidate in [CGColorSpace.sRGB, CGColorSpace.displayP3] where name == candidate as String {
+            return CGColorSpace(name: candidate).map(Storage.eightBit) ?? .halfFloat
+        }
+        return .halfFloat
+    }
+
+    /// Draws a decoded image into GPU-shared memory, as `TextureUploader`
+    /// does (no copy to the GPU), but without the private mipmapped copy the
+    /// canvas needs: the original is only ever read by Core Image at full
+    /// size, so the mip chain would be a third more memory for nothing. Rows
+    /// are stored bottom first, Core Image's orientation.
+    ///
+    /// - Parameter fullSize: the original's oriented size, when the decoded
+    ///   image is smaller than it. Above Metal's texture limit the pixels
+    ///   are drawn at the limit and the source's `scale` says so.
+    nonisolated static func upload(_ decoded: DecodedImage, fullSize: CGSize? = nil, gpu: GPU) throws -> EditSource {
+        let full = fullSize ?? orientedSize(decoded)
+        let fullWidth = max(1, Int(full.width.rounded())), fullHeight = max(1, Int(full.height.rounded()))
+        let longest = max(fullWidth, fullHeight)
+        let scale = longest > maximumDimension ? Double(maximumDimension) / Double(longest) : 1
+        let width = min(EditGraph.workingLength(fullWidth, scale: scale), maximumDimension)
+        let height = min(EditGraph.workingLength(fullHeight, scale: scale), maximumDimension)
+
+        var storage = storage(for: decoded)
+        var pixels = try draw(decoded, width: width, height: height, storage: storage, gpu: gpu)
+        if case .eightBit = storage, decoded.image.hasAlphaChannel, pixels.hasTransparency() {
+            storage = .halfFloat
+            pixels = try draw(decoded, width: width, height: height, storage: storage, gpu: gpu)
+        }
+
+        let format: MTLPixelFormat
+        let space: CGColorSpace
+        switch storage {
+        case .eightBit(let encoded):
+            // An sRGB texture decodes to linear values when sampled, so Core
+            // Image is told the pixels are the linear form of their space.
+            format = .bgra8Unorm_srgb
+            space = CGColorSpace(name: (encoded.name as String?) == (CGColorSpace.displayP3 as String) ? CGColorSpace.linearDisplayP3
+                                                                              : CGColorSpace.linearSRGB)!
+        case .halfFloat:
+            format = .rgba16Float
+            space = workingSpace
+        }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height,
+                                                                  mipmapped: false)
+        descriptor.storageMode = .shared
+        descriptor.usage = .shaderRead
+        guard let texture = pixels.buffer.makeTexture(descriptor: descriptor, offset: 0,
+                                                      bytesPerRow: pixels.bytesPerRow) else {
+            throw GPUError.allocationFailed("an edit source texture")
+        }
+        guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: space]) else {
+            throw GPUError.allocationFailed("an edit source image")
+        }
+        return EditSource(texture: texture, image: image, size: CGSize(width: fullWidth, height: fullHeight),
+                          scale: scale, isHDR: decoded.isHDR, contentHeadroom: decoded.contentHeadroom)
+    }
+
+    /// Page-aligned GPU-shared memory with a decoded image drawn into it.
+    struct DrawnPixels {
+        let buffer: MTLBuffer
+        let bytesPerRow: Int
+        let width: Int
+        let height: Int
+        let isEightBit: Bool
+
+        /// True if any 8-bit pixel isn't fully opaque. Many opaque files
+        /// (HEIC photos among them) still decode with an alpha channel, so
+        /// the channel alone doesn't decide; one pass over the alpha bytes
+        /// (a few milliseconds for 24 MP) does.
+        func hasTransparency() -> Bool {
+            guard isEightBit else { return false }
+            let bytes = buffer.contents().assumingMemoryBound(to: UInt8.self)
+            for y in 0..<height {
+                let row = bytes + y * bytesPerRow
+                var x = 3   // BGRA: alpha is the fourth byte
+                let end = width * 4
+                while x < end {
+                    if row[x] != 255 { return true }
+                    x += 4
+                }
+            }
+            return false
+        }
+    }
+
+    nonisolated static func draw(_ decoded: DecodedImage, width: Int, height: Int, storage: Storage,
+                                 gpu: GPU) throws -> DrawnPixels {
+        let deep = storage == .halfFloat
         let format: MTLPixelFormat = deep ? .rgba16Float : .bgra8Unorm_srgb
         let bytesPerPixel = deep ? 8 : 4
         let alignment = gpu.device.minimumLinearTextureAlignment(for: format)
@@ -507,12 +684,13 @@ final class EditProxy: @unchecked Sendable {
 
         let drawSpace: CGColorSpace
         let bitmapInfo: UInt32
-        if deep {
+        switch storage {
+        case .halfFloat:
             drawSpace = workingSpace
             bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.floatComponents.rawValue
                 | CGBitmapInfo.byteOrder16Little.rawValue
-        } else {
-            drawSpace = CGColorSpace(name: CGColorSpace.displayP3)!
+        case .eightBit(let space):
+            drawSpace = space
             bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         }
         guard let bitmap = CGContext(data: memory, width: width, height: height, bitsPerComponent: deep ? 16 : 8,
@@ -521,32 +699,30 @@ final class EditProxy: @unchecked Sendable {
         }
         if decoded.isHDR { bitmap.setEDRTargetHeadroom(max(decoded.contentHeadroom, 1)) }
         bitmap.interpolationQuality = .high
-        // A bitmap context's first row of memory is its top (highest y). An
-        // upright drawing would therefore store the image top row first;
-        // drawing it upside down stores the bottom row first instead.
+        // Replace, don't composite: the memory is freshly allocated, not
+        // cleared, and drawing a transparent pixel over it with the usual
+        // source-over would mix in whatever bytes were there before.
+        bitmap.setBlendMode(.copy)
+        // A bitmap context's first row of memory is its top (highest y), so
+        // its user space is the image's top-left coordinates with y down, the
+        // space the orientation transform works in. Drawing the image upside
+        // down in it stores the bottom row first, as Core Image reads it.
         bitmap.concatenate(decoded.orientation.transform(width: CGFloat(width), height: CGFloat(height)))
         let drawSize = decoded.orientation.swapsAxes
             ? CGSize(width: height, height: width) : CGSize(width: width, height: height)
         bitmap.translateBy(x: 0, y: drawSize.height)
         bitmap.scaleBy(x: 1, y: -1)
-        bitmap.draw(cgImage, in: CGRect(origin: .zero, size: drawSize))
+        bitmap.draw(decoded.image, in: CGRect(origin: .zero, size: drawSize))
+        return DrawnPixels(buffer: buffer, bytesPerRow: bytesPerRow, width: width, height: height, isEightBit: !deep)
+    }
+}
 
-        let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width, height: height,
-                                                                  mipmapped: false)
-        descriptor.storageMode = .shared
-        descriptor.usage = .shaderRead
-        guard let texture = buffer.makeTexture(descriptor: descriptor, offset: 0, bytesPerRow: bytesPerRow) else {
-            throw GPUError.allocationFailed("an edit source texture")
+private extension CGImage {
+    var hasAlphaChannel: Bool {
+        switch alphaInfo {
+        case .none, .noneSkipFirst, .noneSkipLast: false
+        default: true
         }
-        // An sRGB texture decodes to linear values when sampled, so Core
-        // Image is told the pixels are linear; half floats are already in
-        // the working space.
-        let space = deep ? workingSpace : CGColorSpace(name: CGColorSpace.linearDisplayP3)!
-        guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: space]) else {
-            throw GPUError.allocationFailed("an edit source image")
-        }
-        return EditSource(texture: texture, image: image, size: CGSize(width: width, height: height),
-                          isHDR: decoded.isHDR, contentHeadroom: decoded.contentHeadroom)
     }
 }
 
