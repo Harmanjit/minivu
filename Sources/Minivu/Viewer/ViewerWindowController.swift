@@ -74,6 +74,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let controlBar = ViewerControlBar()
     let toolsPanel = ViewerToolsPanel()
     private let infoHost = NSHostingView(rootView: InfoPanelView(url: nil))
+    /// The histogram and colour count, above the info panel on the right.
+    let histogramPanel = HistogramPanelController()
 
     // Editing (ViewerEditing.swift).
     /// The edit of the image on screen; nil until the user first edits it.
@@ -169,7 +171,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         flyouts.add(panel(filmstrip, edge: .top), edge: .top, thickness: FilmstripView.height)
         flyouts.add(panel(controlBar, edge: .bottom), edge: .bottom, thickness: ViewerControlBar.height)
         flyouts.add(panel(toolsPanel, edge: .left), edge: .left, thickness: ViewerToolsPanel.width)
-        flyouts.add(panel(infoHost, edge: .right), edge: .right, thickness: Self.infoPanelWidth)
+        flyouts.add(panel(histogramPanel.makePanel(with: infoHost, width: Self.infoPanelWidth), edge: .right),
+                    edge: .right, thickness: Self.infoPanelWidth)
         flyouts.onPointerMoved = { [weak self] in self?.pointerMoved() }
         flyouts.onVisibilityChange = { [weak self] edge, visible in self?.panelVisibilityChanged(edge, visible) }
 
@@ -572,7 +575,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         structureRead = Self.mayHavePagesOrFrames(entry) ? nil : entry
         filmstrip.setCurrent(model.index)
         // The info panel reads metadata only while it can be seen.
-        if infoHost.superview?.isHidden == false { infoHost.rootView = InfoPanelView(url: entry.url) }
+        if !infoHost.isHiddenOrHasHiddenAncestor { infoHost.rootView = InfoPanelView(url: entry.url) }
+        histogramPanel.setEntry(entry)
         stopAnimation()
         readExposure(for: entry)
         readStructure(of: entry)
@@ -876,6 +880,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         exitViewer(nil)
     }
 
+    func canvasDidChangeImage(_ canvas: ImageCanvasView) {
+        histogramPanel.show(canvas.image, interval: player?.isPlaying == true
+            ? HistogramPanelController.animationInterval : HistogramPanelController.minimumInterval)
+    }
+
     // MARK: - Keyboard
 
     private func handleKey(_ event: NSEvent) -> Bool {
@@ -1030,6 +1039,23 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         pinsChanged()
     }
 
+    /// The histogram sits at the top of the info panel, so this pins or
+    /// unpins that panel.
+    @objc func toggleHistogram(_ sender: Any?) {
+        toggleInfoPanel(sender)
+    }
+
+    /// Counts the colours of the image on screen, opening the panel that
+    /// shows the answer if it isn't out.
+    @objc func countColors(_ sender: Any?) {
+        guard model.current != nil else { return }
+        if !flyouts.isOpen(.right) {
+            flyouts.setPinned(true, edge: .right)
+            pinsChanged()
+        }
+        histogramPanel.countColors()
+    }
+
     /// Debug only, for the snapshot harness (`MINIVU_ACTIONS=debugShowAllPanels:`):
     /// pins every panel and the HUD open so one picture shows them all. No
     /// menu item or key sends it, and it changes nothing but what's shown.
@@ -1058,9 +1084,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .toggleFullScreenViewer:
             menuItem.state = isFullScreen ? .on : .off
             return true
-        case ViewerControlBar.toggleInfoAction:
+        case ViewerControlBar.toggleInfoAction, .toggleHistogram:
             menuItem.state = flyouts.isPinned(.right) ? .on : .off
             return true
+        case .countColors: return model.current != nil
         case ViewerControlBar.toggleToolsAction:
             menuItem.state = flyouts.isPinned(.left) ? .on : .off
             return true
@@ -1077,6 +1104,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             filmstrip.setActive(visible)
         case .right:
             if visible { infoHost.rootView = InfoPanelView(url: model.current?.url) }
+            histogramPanel.setActive(visible)
             updateChrome()
         case .bottom, .left:
             break
@@ -1140,6 +1168,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         stopAnimation()
         summaryTask?.cancel()
         infoTask?.cancel()
+        histogramPanel.stop()
         cursorWork?.cancel()
         backgroundSubscription = nil
         hud.cancelFade()

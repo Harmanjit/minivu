@@ -15,6 +15,14 @@ protocol ImageCanvasViewDelegate: AnyObject {
     /// for `drawablePixelSize` is enough; otherwise load full resolution.
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView)
     func canvasDidDoubleClick(_ canvas: ImageCanvasView)
+    /// The texture on the canvas changed: another image, a sharper copy, an
+    /// edit preview, or none. (The viewer's histogram follows it.)
+    func canvasDidChangeImage(_ canvas: ImageCanvasView)
+    /// The user zoomed or panned: a click, the wheel, a pinch, a drag or a
+    /// zoom command. Not called for a new image, a resize or `applyView`, so
+    /// the compare window can copy one pane's view to the others without
+    /// them echoing it back.
+    func canvasDidChangeViewInteractively(_ canvas: ImageCanvasView)
 }
 
 extension ImageCanvasViewDelegate {
@@ -22,6 +30,8 @@ extension ImageCanvasViewDelegate {
     func canvasDidChangeZoom(_ canvas: ImageCanvasView) {}
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {}
     func canvasDidDoubleClick(_ canvas: ImageCanvasView) {}
+    func canvasDidChangeImage(_ canvas: ImageCanvasView) {}
+    func canvasDidChangeViewInteractively(_ canvas: ImageCanvasView) {}
 }
 
 /// The image canvas (DESIGN.md 4.4): an NSView backed by a CAMetalLayer.
@@ -152,7 +162,8 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// Shows `texture`. `preserveView` keeps zoom and pan (a sharper texture
     /// of the same image arrived); otherwise the new image is fitted.
     func setImage(_ texture: ImageTexture?, preserveView: Bool) {
-        if texture !== image { askedForFullResolution = false }
+        let changed = texture !== image
+        if changed { askedForFullResolution = false }
         image = texture
         if !preserveView {
             // A double-click must not restore another image's zoom and pan.
@@ -165,6 +176,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         }
         updateDynamicRange()
         viewDidChange(zoomChanged: !preserveView)
+        if changed { delegate?.canvasDidChangeImage(self) }
     }
 
     // MARK: - Zoom
@@ -173,6 +185,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         guard image != nil else { return }
         applyFit()
         viewDidChange(zoomChanged: true)
+        delegate?.canvasDidChangeViewInteractively(self)
     }
 
     /// Actual size, keeping the image point under `viewPoint` (or the view
@@ -183,6 +196,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
             .clamped(imageSize: image.imageSize, viewSize: drawablePixelSize)
         zoomMode = .actualSize
         viewDidChange(zoomChanged: true)
+        delegate?.canvasDidChangeViewInteractively(self)
     }
 
     func toggleFitActual(at viewPoint: CGPoint?) {
@@ -205,6 +219,24 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         guard zoomed != transform else { return }   // already at a limit
         transform = zoomed
         zoomMode = abs(transform.zoom - 1) < 1e-6 ? .actualSize : .custom
+        viewDidChange(zoomChanged: true)
+        delegate?.canvasDidChangeViewInteractively(self)
+    }
+
+    /// Shows the image with a zoom and pan decided elsewhere (the compare
+    /// window's synchronised zoom), clamped to this view. `.fit` ignores
+    /// `transform` and fits, following the window from then on. Does not
+    /// report `canvasDidChangeViewInteractively`.
+    func applyView(_ transform: ViewportTransform, mode: ZoomMode) {
+        guard let image else { return }
+        let old = (self.transform, zoomMode)
+        if mode == .fit {
+            applyFit()
+        } else {
+            self.transform = transform.clamped(imageSize: image.imageSize, viewSize: drawablePixelSize)
+            zoomMode = mode
+        }
+        guard self.transform != old.0 || zoomMode != old.1 else { return }
         viewDidChange(zoomChanged: true)
     }
 
@@ -488,6 +520,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
                 zoomMode = before.mode
                 viewBeforeClick = nil
                 viewDidChange(zoomChanged: true)
+                delegate?.canvasDidChangeViewInteractively(self)
             }
             delegate?.canvasDidDoubleClick(self)
             return
@@ -583,6 +616,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         transform = moved
         setNeedsRedraw()
         onViewChange?()
+        delegate?.canvasDidChangeViewInteractively(self)
     }
 
     // MARK: - Magnifier

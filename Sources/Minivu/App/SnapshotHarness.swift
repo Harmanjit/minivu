@@ -15,6 +15,9 @@ import MinivuCore
 ///     MINIVU_SNAPSHOT_DELAY=2                 seconds to wait before capturing (default 1.5)
 ///     MINIVU_SNAPSHOT_WINDOW=settings         capture the Settings window instead
 ///     MINIVU_VIEWER=~/Pictures/Trip/a.jpg     open the viewer on this file, without the browser
+///     MINIVU_COMPARE=~/Pictures/Trip/a.jpg,b.NEF
+///                                             open the compare window on these files; a bare
+///                                             name is in the first file's folder
 ///
 /// The picture is made inside the app by asking views to render into a
 /// bitmap, not by reading the screen, which is why no permission is
@@ -32,6 +35,7 @@ enum SnapshotHarness {
         var delay: Double = 1.5
         var capturesSettings = false
         var viewer: URL?
+        var compare: [URL] = []
 
         /// nil unless MINIVU_SNAPSHOT is set.
         init?(environment: [String: String]) {
@@ -48,6 +52,20 @@ enum SnapshotHarness {
             capturesSettings = environment["MINIVU_SNAPSHOT_WINDOW"]?.lowercased() == "settings"
             if let path = environment["MINIVU_VIEWER"], !path.isEmpty {
                 viewer = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+            }
+            compare = environment["MINIVU_COMPARE"].map(Self.parseFiles) ?? []
+        }
+
+        /// "/a/x.jpg, y.jpg" to [/a/x.jpg, /a/y.jpg].
+        static func parseFiles(_ text: String) -> [URL] {
+            var folder: URL?
+            return text.split(separator: ",").compactMap { item in
+                let path = (item.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
+                guard !path.isEmpty else { return nil }
+                if !path.contains("/"), let folder { return folder.appendingPathComponent(path) }
+                let url = URL(fileURLWithPath: path)
+                if folder == nil { folder = url.deletingLastPathComponent() }
+                return url
             }
         }
 
@@ -88,6 +106,7 @@ enum SnapshotHarness {
         if let url = config.open { app.open([url]) }
         if config.capturesSettings { app.showSettings(nil) }
         if let file = config.viewer { await openViewer(on: file) }
+        if !config.compare.isEmpty { await openCompare(on: config.compare) }
         await pause(0.2)   // let the windows order in and lay out
 
         if let size = config.windowSize {
@@ -136,6 +155,20 @@ enum SnapshotHarness {
         }
         ViewerWindowController.show(images: images, index: index, fullScreen: Preferences.shared.openViewerFullScreen,
                                     onClose: { _ in })
+    }
+
+    /// Opens the compare window on `files`, with their folder as the images
+    /// ← and → step through.
+    private static func openCompare(on files: [URL]) async {
+        guard let folder = files.first?.deletingLastPathComponent() else { return }
+        let order = Preferences.shared.sortOrder
+        let images = await Task.detached {
+            FolderListing.sorted((try? FolderListing.contents(of: folder).images) ?? [], by: order)
+        }.value
+        let entries = files.compactMap { file in
+            images.first { $0.url.standardizedFileURL == file.standardizedFileURL } ?? FolderEntry(url: file)
+        }
+        CompareWindowController.show(entries: entries, allImages: images)
     }
 
     private static func targetWindow(_ config: Configuration, app: AppDelegate) -> NSWindow? {
