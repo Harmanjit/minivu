@@ -194,14 +194,12 @@ final class ViewerContainerView: NSView {
         if window.styleMask.contains(.titled) {
             return max(0, bounds.height - window.contentLayoutRect.maxY)
         }
-        return window.screen?.safeAreaInsets.top ?? 0
+        return Displays.provider.display(of: window)?.safeAreaTop ?? 0
     }
 
     /// The part of the view the image and panels use.
     var contentArea: CGRect {
-        var area = bounds
-        area.size.height = max(0, area.height - topInset)
-        return area
+        DisplayPlacement.pictureArea(in: bounds, safeAreaTop: topInset, flipped: isFlipped)
     }
 
     override func setFrameSize(_ newSize: NSSize) {

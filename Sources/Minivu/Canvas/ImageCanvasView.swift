@@ -362,8 +362,9 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// nothing polls. Without EDR on the layer it is 1 whatever the screen
     /// says: the compositor would clip anything brighter.
     private var displayHeadroom: Float {
-        guard metalLayer?.wantsExtendedDynamicRangeContent == true, let screen = window?.screen else { return 1 }
-        return max(1, Float(screen.maximumExtendedDynamicRangeColorComponentValue))
+        guard metalLayer?.wantsExtendedDynamicRangeContent == true, let window,
+              let headroom = Displays.provider.headroom(of: window) else { return 1 }
+        return max(1, Float(headroom.current))
     }
 
     /// EDR on while an HDR image is shown on a screen that can show some of
@@ -372,7 +373,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// the backlight and costs power for content that never needs it.
     private func updateDynamicRange() {
         guard let layer = metalLayer else { return }
-        let potential = window?.screen?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1
+        let potential = window.flatMap(Displays.provider.headroom(of:))?.potential ?? 1
         CanvasRenderer.setExtendedDynamicRange(
             CanvasRenderer.wantsExtendedDynamicRange(for: image, potentialHeadroom: potential), on: layer)
     }
@@ -416,6 +417,12 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         backingChanged()
     }
 
+    /// Whether EDR is on for the layer, for tests.
+    var isExtendedDynamicRange: Bool { metalLayer?.wantsExtendedDynamicRangeContent ?? false }
+
+    /// The layer's colour space is extended linear Display P3 on every
+    /// display, and the compositor converts it for whichever one the window
+    /// is on, so only EDR, scale and size need following here.
     @objc private func screenParametersChanged() {
         // New screen, resolution or EDR headroom. When EDR content first
         // appears the system raises the headroom over a second or two and

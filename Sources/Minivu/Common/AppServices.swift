@@ -32,19 +32,34 @@ enum AppServices {
             Task { await BlockingWork.run(qos: .utility) { store?.removeAll() } }
         })
         updateThumbnailColorSpace()
-        // Also posted for every step of an EDR headroom change; setting the
-        // same colour space again costs nothing.
-        observers.append(NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { updateThumbnailColorSpace() }
-        })
+        // A display's settings changing, a window moving to another display,
+        // or the browser appearing may put the browser on a display with
+        // another colour space. The first is also posted for every step of
+        // an EDR headroom change; setting the same colour space again costs
+        // nothing.
+        for name in [NSApplication.didChangeScreenParametersNotification, NSWindow.didChangeScreenNotification,
+                     NSWindow.didBecomeMainNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { updateThumbnailColorSpace() }
+            })
+        }
     }
 
-    /// Thumbnails are drawn in the main screen's colour space, so Core
-    /// Animation shows them without converting each one on the main thread.
-    /// On another screen they are still correct, just converted as before.
+    /// Thumbnails are drawn in the colour space of the browser's display, so
+    /// Core Animation shows them without converting each one on the main
+    /// thread. The browser's grid draws nearly all of them; the viewer's
+    /// filmstrip on another display is still correct, just converted as
+    /// before. Following the key window instead would empty the thumbnail
+    /// memory cache each time the user switched between the displays.
     static func updateThumbnailColorSpace() {
-        let screen = NSScreen.main ?? NSScreen.screens.first
-        thumbnails.displayColorSpace = screen?.colorSpace?.cgColorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
+        thumbnails.displayColorSpace = thumbnailColorSpace(browser: Displays.browserWindow(),
+                                                           provider: Displays.provider)
+    }
+
+    /// The browser's display's colour space; the main display's without a
+    /// browser, and sRGB when a display doesn't say.
+    static func thumbnailColorSpace(browser: NSWindow?, provider: ScreenProviding) -> CGColorSpace {
+        let display = browser.flatMap(provider.display(of:)) ?? provider.mainDisplay
+        return display?.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
     }
 }

@@ -38,7 +38,7 @@ final class SlideshowView: NSView, SnapshotProviding {
         wantsLayer = true
         // Frames are presented by hand; AppKit must never ask the layer to draw.
         layerContentsRedrawPolicy = .never
-        NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged),
+        NotificationCenter.default.addObserver(self, selector: #selector(screenChanged),
                                                name: NSApplication.didChangeScreenParametersNotification, object: nil)
     }
 
@@ -105,13 +105,14 @@ final class SlideshowView: NSView, SnapshotProviding {
     /// How far above SDR white the screen can show now; 1 without EDR on the
     /// layer, when the compositor would clip anything brighter.
     var displayHeadroom: Float {
-        guard metalLayer?.wantsExtendedDynamicRangeContent == true, let screen = window?.screen else { return 1 }
-        return max(1, Float(screen.maximumExtendedDynamicRangeColorComponentValue))
+        guard metalLayer?.wantsExtendedDynamicRangeContent == true, let window,
+              let headroom = Displays.provider.headroom(of: window) else { return 1 }
+        return max(1, Float(headroom.current))
     }
 
     /// What the screen could reach with EDR on.
     var potentialHeadroom: CGFloat {
-        window?.screen?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1
+        window.flatMap(Displays.provider.headroom(of:))?.potential ?? 1
     }
 
     func setExtendedDynamicRange(_ enabled: Bool) {
@@ -154,9 +155,10 @@ final class SlideshowView: NSView, SnapshotProviding {
     }
 
     /// A new resolution, or EDR headroom rising as the display brightens for
-    /// an HDR slide. Another app's EDR posts this too: when nothing this
-    /// view draws for has changed, the frame on screen is still right.
-    @objc private func screenParametersChanged() {
+    /// an HDR slide; or (from the controller) the window moved to another
+    /// display. Another app's EDR posts this too: when nothing this view
+    /// draws for has changed, the frame on screen is still right.
+    @objc func screenChanged() {
         if !needsRedraw, !isAnimating, metalLayer?.drawableSize == drawablePixelSize,
            lastFrameHeadroom == displayHeadroom {
             return
