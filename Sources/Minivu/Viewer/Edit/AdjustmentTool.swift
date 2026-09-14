@@ -128,12 +128,10 @@ extension EditToolState {
 /// operation is committed to the document and the moved one is the
 /// preview, so both show on screen. Moving back to the first section swaps
 /// them (an undo and an apply, which leaves no redo behind). Apply commits
-/// the live one after the staged one, so a Colors change with both sections
-/// is **two undo steps** ("Undo RGB Adjust", then "Undo Colors"): the
-/// document has no compound step, and two honest steps beat a preview that
-/// shows only half the change. Cancel undoes the staged operation, which
-/// leaves it available to Redo, the one trace a cancelled two-section
-/// change leaves.
+/// the live one into the staged one's step, so a Colors change with both
+/// sections is **one undo step**, "Undo Colors", as it was one visit to
+/// the tool. Cancel undoes the staged operation, which leaves it available
+/// to Redo, the one trace a cancelled two-section change leaves.
 @Observable final class AdjustmentToolState: EditToolState {
     let kind: AdjustmentKind
     let sections: [AdjustmentSection]
@@ -191,7 +189,12 @@ extension EditToolState {
 
     func apply() {
         if let live {
-            document.apply(operation(for: live))   // an identity commits nothing and clears the preview
+            // An identity commits nothing and clears the preview.
+            if let staged, document.operations.last == staged.operation {
+                document.apply(operation(for: live), after: staged.operation, title: kind.title)
+            } else {
+                document.apply(operation(for: live))
+            }
         } else {
             document.preview = nil
         }

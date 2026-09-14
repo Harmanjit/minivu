@@ -36,10 +36,17 @@ import MinivuCore
     /// state, the saved state or the source size.
     public var onChange: (() -> Void)?
 
-    /// Every operation ever committed and not dropped by a later commit,
+    /// One undo step: usually one operation, or several a tool committed
+    /// together (see `apply(_:after:title:)`).
+    private struct Step {
+        var operations: [EditOperation]
+        var title: String
+    }
+
+    /// Every step ever committed and not dropped by a later commit,
     /// including undone ones (which redo brings back).
-    private var history: [EditOperation] = []
-    /// `operations` is `history[..<cursor]`.
+    private var history: [Step] = []
+    /// `operations` is the operations of `history[..<cursor]`.
     private var cursor = 0
     /// Undo stops here (see `maximumUndoSteps`).
     private var undoFloor = 0
@@ -68,9 +75,25 @@ import MinivuCore
             return
         }
         history.removeSubrange(cursor...)
-        history.append(op)
+        history.append(Step(operations: [op], title: op.title))
         cursor = history.count
         undoFloor = max(undoFloor, cursor - Self.maximumUndoSteps)
+        operationsChanged()
+    }
+
+    /// Commits `op` into the last step, which must be exactly `previous`
+    /// alone, making the two one undo step called `title`; otherwise the
+    /// same as `apply(op)`. In one change, so no render sees the state in
+    /// between.
+    ///
+    /// For a tool that had to commit part of its change early to show it
+    /// (Colors stages one section while the other is the preview): the user
+    /// made one change, and one Undo should take it back.
+    public func apply(_ op: EditOperation, after previous: EditOperation, title: String) {
+        guard !op.isIdentity, canUndo, cursor == history.count,
+              history[cursor - 1].operations == [previous] else { return apply(op) }
+        if preview != nil { previewWithoutNotifying(nil) }
+        history[cursor - 1] = Step(operations: [previous, op], title: title)
         operationsChanged()
     }
 
@@ -155,7 +178,7 @@ import MinivuCore
     var lastDelivered: (revision: Int, full: Bool)?
 
     private func operationsChanged() {
-        operations = Array(history[..<cursor])
+        operations = history[..<cursor].flatMap(\.operations)
         revision += 1
         onChange?()
     }

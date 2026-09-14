@@ -64,6 +64,30 @@ import CoreGraphics
         #expect(doc.preview == nil && doc.operations == [Self.brighter] && changes == 4)
     }
 
+    /// Two operations as one step: one change notification, one undo, and
+    /// only onto a last step that is exactly the operation named.
+    @Test func applyAfterJoinsTheLastStep() {
+        let doc = document()
+        let red = EditOperation.rgbAdjust(red: 0.1, green: 0, blue: 0)
+        doc.apply(.grayscale)
+        doc.apply(Self.brighter)
+        doc.preview = red
+        var changes = 0
+        doc.onChange = { changes += 1 }
+        doc.apply(red, after: Self.brighter, title: "Colors")
+        #expect(changes == 1 && doc.preview == nil)
+        #expect(doc.operations == [.grayscale, Self.brighter, red] && doc.undoTitle == "Colors")
+        doc.undo()
+        #expect(doc.operations == [.grayscale] && doc.redoTitle == "Colors")
+
+        // Not the last step (or nothing to join): an ordinary commit.
+        doc.apply(red, after: Self.brighter, title: "Colors")
+        #expect(doc.operations == [.grayscale, red] && doc.undoTitle == "RGB Adjust" && !doc.canRedo)
+        let empty = document()
+        empty.apply(red, after: Self.brighter, title: "Colors")
+        #expect(empty.operations == [red] && empty.undoTitle == "RGB Adjust")
+    }
+
     @Test func undoIsCappedAtFiftyStepsButOlderOperationsStay() {
         let doc = document()
         for i in 0..<60 { doc.apply(.blur(radius: Double(i + 1))) }
