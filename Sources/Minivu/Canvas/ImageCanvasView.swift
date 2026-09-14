@@ -507,7 +507,9 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         NSObject.cancelPreviousPerformRequests(withTarget: self, selector: #selector(holdDelayElapsed), object: nil)
     }
 
-    private func pan(byPoints delta: CGSize) {
+    /// Moves the content by `delta` view points (content follows the pointer).
+    /// Also used by the viewer's arrow keys when zoomed in.
+    func pan(byPoints delta: CGSize) {
         guard let image else { return }
         let pixels = CGSize(width: delta.width * backingScale, height: delta.height * backingScale)
         let moved = transform.panned(by: pixels).clamped(imageSize: image.imageSize, viewSize: drawablePixelSize)

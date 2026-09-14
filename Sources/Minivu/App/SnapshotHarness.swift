@@ -1,6 +1,7 @@
 import AppKit
 import ImageIO
 import UniformTypeIdentifiers
+import MinivuCore
 
 /// Saves a picture of a window and quits, so developers and agents can see
 /// the UI without granting screen-recording permission.
@@ -11,6 +12,7 @@ import UniformTypeIdentifiers
 ///     MINIVU_ACTIONS="openInViewer:;zoomIn:"  sent down the responder chain, 0.4 s apart
 ///     MINIVU_SNAPSHOT_DELAY=2                 seconds to wait before capturing (default 1.5)
 ///     MINIVU_SNAPSHOT_WINDOW=settings         capture the Settings window instead
+///     MINIVU_VIEWER=~/Pictures/Trip/a.jpg     open the viewer on this file, without the browser
 ///
 /// The picture is made inside the app by asking views to render into a
 /// bitmap, not by reading the screen, which is why no permission is
@@ -27,6 +29,7 @@ enum SnapshotHarness {
         var actions: [String] = []
         var delay: Double = 1.5
         var capturesSettings = false
+        var viewer: URL?
 
         /// nil unless MINIVU_SNAPSHOT is set.
         init?(environment: [String: String]) {
@@ -41,6 +44,9 @@ enum SnapshotHarness {
                 delay = seconds
             }
             capturesSettings = environment["MINIVU_SNAPSHOT_WINDOW"]?.lowercased() == "settings"
+            if let path = environment["MINIVU_VIEWER"], !path.isEmpty {
+                viewer = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+            }
         }
 
         /// "1400x900" (either case of x) to a size; nil if malformed.
@@ -79,13 +85,19 @@ enum SnapshotHarness {
     private static func run(_ config: Configuration, app: AppDelegate) async {
         if let url = config.open { app.open([url]) }
         if config.capturesSettings { app.showSettings(nil) }
+        if let file = config.viewer { await openViewer(on: file) }
         await pause(0.2)   // let the windows order in and lay out
 
         if let size = config.windowSize {
             targetWindow(config, app: app)?.setContentSize(size)
         }
         for action in config.actions {
-            let sent = NSApp.sendAction(NSSelectorFromString(action), to: nil, from: nil)
+            let selector = NSSelectorFromString(action)
+            // With another app holding focus minivu can't activate, so there
+            // is no key window for AppKit to start from; walk the captured
+            // window's own responder chain instead.
+            let sent = NSApp.sendAction(selector, to: nil, from: nil)
+                || targetWindow(config, app: app)?.firstResponder?.tryToPerform(selector, with: nil) == true
             if !sent { report("no responder handled \(action)") }
             await pause(0.4)
         }
@@ -101,6 +113,22 @@ enum SnapshotHarness {
         }
         report("wrote \(config.output.path) (\(image.width)x\(image.height) px)")
         NSApp.terminate(nil)
+    }
+
+    /// Lists the file's folder the way the browser would and opens the viewer
+    /// on it, so the viewer can be pictured on its own.
+    private static func openViewer(on file: URL) async {
+        let folder = file.deletingLastPathComponent()
+        let order = Preferences.shared.sortOrder
+        let images = await Task.detached {
+            FolderListing.sorted((try? FolderListing.contents(of: folder).images) ?? [], by: order)
+        }.value
+        guard let index = images.firstIndex(where: { $0.url.standardizedFileURL == file.standardizedFileURL }) else {
+            report("\(file.path) is not an image in its folder")
+            return
+        }
+        ViewerWindowController.show(images: images, index: index, fullScreen: Preferences.shared.openViewerFullScreen,
+                                    onClose: { _ in })
     }
 
     private static func targetWindow(_ config: Configuration, app: AppDelegate) -> NSWindow? {
