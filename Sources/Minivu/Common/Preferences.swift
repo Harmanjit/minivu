@@ -108,6 +108,12 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(rawDecoding.rawValue, forKey: Keys.rawDecoding); displaySettingsChanged() }
     }
 
+    /// Save (⌘S) asks before writing over an original. Turned off by the
+    /// confirmation's "Don't ask again"; here so Settings can turn it back on.
+    @Published var confirmOverwriteOnSave: Bool {
+        didSet { defaults.set(confirmOverwriteOnSave, forKey: Keys.confirmOverwriteOnSave) }
+    }
+
     /// The decoding settings the image loader follows.
     var displaySettings: DisplaySettings {
         DisplaySettings(rawDecoding: rawDecoding, showHDR: showHDR, hdrRaw: hdrRaw,
@@ -132,6 +138,7 @@ final class Preferences: ObservableObject {
         hdrRaw = d.bool(forKey: Keys.hdrRaw)
         hdrRawAmount = d.object(forKey: Keys.hdrRawAmount) as? Double ?? 1
         rawDecoding = RawDecoding(rawValue: d.string(forKey: Keys.rawDecoding) ?? "") ?? .embeddedPreview
+        confirmOverwriteOnSave = d.object(forKey: Keys.confirmOverwriteOnSave) as? Bool ?? true
         // Before anything loads: the app delegate reads the theme at launch,
         // well ahead of the first image.
         ImageLoader.shared.settings = displaySettings
@@ -163,5 +170,6 @@ final class Preferences: ObservableObject {
         static let hdrRaw = "hdrRaw"
         static let hdrRawAmount = "hdrRawAmount"
         static let rawDecoding = "rawDecoding"
+        static let confirmOverwriteOnSave = "confirmOverwriteOnSave"
     }
 }

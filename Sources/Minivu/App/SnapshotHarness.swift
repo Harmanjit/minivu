@@ -10,6 +10,8 @@ import MinivuCore
 ///     MINIVU_OPEN=~/Pictures/Trip             opened as if from Finder
 ///     MINIVU_WINDOW_SIZE=1400x900             content size in points
 ///     MINIVU_ACTIONS="openInViewer:;zoomIn:"  sent down the responder chain, 0.4 s apart
+///                                             (then to an open sheet and its delegate);
+///                                             a sheet is captured over its window
 ///     MINIVU_SNAPSHOT_DELAY=2                 seconds to wait before capturing (default 1.5)
 ///     MINIVU_SNAPSHOT_WINDOW=settings         capture the Settings window instead
 ///     MINIVU_VIEWER=~/Pictures/Trip/a.jpg     open the viewer on this file, without the browser
@@ -96,8 +98,10 @@ enum SnapshotHarness {
             // With another app holding focus minivu can't activate, so there
             // is no key window for AppKit to start from; walk the captured
             // window's own responder chain instead.
+            let target = targetWindow(config, app: app)
             let sent = NSApp.sendAction(selector, to: nil, from: nil)
-                || targetWindow(config, app: app)?.firstResponder?.tryToPerform(selector, with: nil) == true
+                || target?.firstResponder?.tryToPerform(selector, with: nil) == true
+                || target?.attachedSheet.map { send(selector, toSheet: $0) } == true
             if !sent { report("no responder handled \(action)") }
             await pause(0.4)
         }
@@ -112,8 +116,8 @@ enum SnapshotHarness {
             exit(1)
         }
         report("wrote \(config.output.path) (\(image.width)x\(image.height) px)")
-        // A sheet left open would hold up quitting.
-        if let sheet = window.attachedSheet { window.endSheet(sheet) }
+        // A sheet still up (the picture was of it) would hold up terminating.
+        if NSApp.windows.contains(where: { $0.attachedSheet != nil }) { exit(0) }
         NSApp.terminate(nil)
     }
 
@@ -136,10 +140,20 @@ enum SnapshotHarness {
     private static func targetWindow(_ config: Configuration, app: AppDelegate) -> NSWindow? {
         if config.capturesSettings { return app.settingsWindow }
         // Launched from a terminal the app may not become active, so there
-        // may be no key window; the frontmost visible one is next best.
+        // may be no key window; the frontmost visible one is next best. A
+        // key sheet is pictured on its window (see `capture`).
         let window = NSApp.keyWindow ?? NSApp.orderedWindows.first { $0.isVisible }
-        // A sheet is a window of its own; `capture` draws it onto its parent.
         return window?.sheetParent ?? window
+    }
+
+    /// A sheet (Save As, the comment editor) isn't in its window's responder
+    /// chain, and a save panel's controller is only its delegate: try the
+    /// sheet's own chain, then the delegate.
+    private static func send(_ selector: Selector, toSheet sheet: NSWindow) -> Bool {
+        if sheet.firstResponder?.tryToPerform(selector, with: nil) == true { return true }
+        guard let delegate = sheet.delegate as? NSObject, delegate.responds(to: selector) else { return false }
+        delegate.perform(selector, with: nil)
+        return true
     }
 
     private static func pause(_ seconds: Double) async {
@@ -183,12 +197,43 @@ enum SnapshotHarness {
             root.layer?.render(in: context)
             compositeProviders(in: root, context: context)
         }
-        // A sheet (Resize, an alert) on top, where it hangs from the title bar.
-        if let sheet = window.attachedSheet, let image = capture(sheet) {
-            let frame = sheet.frame.offsetBy(dx: -window.frame.minX, dy: -window.frame.minY)
-            context.draw(image, in: frame)
+        if let sheet = window.attachedSheet, sheet.isVisible {
+            drawSheet(sheet, over: window, in: context)
         }
         return context.makeImage()
+    }
+
+    /// A sheet is a window of its own; it is drawn where it sits over its
+    /// parent, clipped to the rounded shape sheets have.
+    ///
+    /// The system save panel is drawn by another process (its content is an
+    /// `NSRemoteView`), which no bitmap render reaches. Only its accessory
+    /// view lives in minivu, so that is drawn instead, in the panel's frame
+    /// above where the button row would be.
+    private static func drawSheet(_ sheet: NSWindow, over window: NSWindow, in context: CGContext) {
+        guard let content = sheet.contentView else { return }
+        let root = content.superview ?? content
+        root.layoutSubtreeIfNeeded()
+        root.displayIfNeeded()
+        context.saveGState()
+        context.translateBy(x: sheet.frame.minX - window.frame.minX, y: sheet.frame.minY - window.frame.minY)
+        context.addPath(CGPath(roundedRect: root.bounds, cornerWidth: 12, cornerHeight: 12, transform: nil))
+        context.clip()
+        sheet.effectiveAppearance.performAsCurrentDrawingAppearance {
+            fillBackdrops(of: sheet, root: root, in: context)
+            root.layer?.render(in: context)
+            if let accessory = (sheet as? NSSavePanel)?.accessoryView,
+               let rep = accessory.bitmapImageRepForCachingDisplay(in: accessory.bounds) {
+                report("the save panel is drawn out of process; picturing only its accessory view")
+                accessory.cacheDisplay(in: accessory.bounds, to: rep)
+                if let image = rep.cgImage {
+                    let size = accessory.bounds.size
+                    context.draw(image, in: CGRect(x: (root.bounds.width - size.width) / 2, y: 52,
+                                                   width: size.width, height: size.height))
+                }
+            }
+        }
+        context.restoreGState()
     }
 
     /// Paints what a bitmap render leaves empty: the window background, and

@@ -62,6 +62,11 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Open in Viewer", .openInViewer, Key.down)
         menu.add("Close Window", #selector(NSWindow.performClose(_:)), "w")
+        // The viewer saves the image it edits; the browser converts its
+        // selection with Save As. Revert has no shortcut, as in every Mac app.
+        menu.add("Save", .saveImage, "s")
+        menu.add("Save As…", .saveImageAs, "s", [.command, .shift])
+        menu.add("Revert to Saved", .revertToSaved)
         menu.addItem(.separator())
         menu.add("Reveal in Finder", .revealInFinder, "r", [.command, .option])
         menu.add("Move to Trash", .moveToTrash, Key.backspace)
@@ -120,6 +125,8 @@ enum MainMenu {
         menu.add("Zoom In", .zoomIn, "=")
         menu.add("Zoom Out", .zoomOut, "-")
         menu.addItem(.separator())
+        addEditingItems(to: menu)
+        menu.addItem(.separator())
         // A bare P as a real equivalent would be taken from text fields.
         viewKeys.add(menu.add("Play/Pause Animation", .togglePlayback), key: "p")
         menu.addItem(.separator())
@@ -133,6 +140,44 @@ enum MainMenu {
         }
         menu.add("Rating", nil).submenu = rating
         return menu
+    }
+
+    /// Rotate, flip, the edit tools and the comment. The browser rotates,
+    /// flips and comments its selection losslessly; the viewer does all of
+    /// it to the image it shows.
+    ///
+    /// Shortcuts follow Preview where it has one (⌘L, ⌘R, ⌘K Crop, ⌥⌘C
+    /// Adjust Color) and Photoshop's letters otherwise (Image Size ⌥⌘I,
+    /// Levels L and Curves M, with Shift because ⌘L rotates and ⌘M
+    /// minimizes). The full table is in DESIGN.md, section 5.
+    private static func addEditingItems(to menu: NSMenu) {
+        menu.add("Rotate Left", .rotateLeft, "l")
+        menu.add("Rotate Right", .rotateRight, "r")
+        menu.add("Flip Horizontal", .flipHorizontal)
+        menu.add("Flip Vertical", .flipVertical)
+        menu.addItem(.separator())
+        menu.add("Resize/Resample…", .resizeImage, "i", [.command, .option])
+        menu.add("Crop…", .cropImage, "k")
+        menu.add("Straighten…", .straightenImage)
+        menu.addItem(.separator())
+
+        let adjust = NSMenu(title: "Adjust")
+        adjust.add("Lighting…", .adjustLighting, "l", [.command, .option])
+        adjust.add("Colors…", .adjustColors, "c", [.command, .option])
+        adjust.add("Curves…", .adjustCurves, "m", [.command, .shift])
+        adjust.add("Levels…", .adjustLevels, "l", [.command, .shift])
+        adjust.addItem(.separator())
+        adjust.add("Sharpen…", .sharpenImage)
+        adjust.add("Blur…", .blurImage)
+        menu.add("Adjust", nil).submenu = adjust
+
+        let effects = NSMenu(title: "Effects")
+        effects.add("Grayscale", .applyGrayscale)
+        effects.add("Sepia", .applySepia)
+        effects.add("Negative", .applyNegative)
+        menu.add("Effects", nil).submenu = effects
+        menu.addItem(.separator())
+        menu.add("Edit Comment…", .editComment)
     }
 
     private static func goMenu(_ viewKeys: DisplayOnlyShortcuts) -> NSMenu {
