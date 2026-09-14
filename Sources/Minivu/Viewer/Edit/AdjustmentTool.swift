@@ -108,6 +108,13 @@ protocol EditToolState: AnyObject {
     func apply()
     func cancel()
     func reset()
+    /// True while the tool itself needs Return and Esc (typing text on the
+    /// canvas), so the viewer doesn't apply or cancel the tool on them.
+    var capturesKeyboard: Bool { get }
+}
+
+extension EditToolState {
+    var capturesKeyboard: Bool { false }
 }
 
 /// The state of a slider inspector, and how it shows on the document.

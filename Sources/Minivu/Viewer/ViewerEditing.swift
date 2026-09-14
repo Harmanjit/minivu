@@ -11,6 +11,9 @@ enum OpenEditTool {
     case crop(CropToolState)
     /// Rotate & Flip or Color Effects: buttons that apply at once, no state.
     case immediate(title: String)
+    /// A tool added in its own file (Phase 6 effects, drawing, retouching):
+    /// any state, shown through `presentTool(_:inspector:overlay:)`.
+    case custom(any EditToolState)
 
     var state: EditToolState? {
         switch self {
@@ -18,6 +21,7 @@ enum OpenEditTool {
         case .curves(let s): s
         case .levels(let s): s
         case .crop(let s): s
+        case .custom(let s): s
         case .immediate: nil
         }
     }
@@ -273,6 +277,10 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
              .blurImage, .applyGrayscale, .applySepia, .applyNegative,
              ViewerToolsPanel.showRotateFlipAction, ViewerToolsPanel.showColorEffectsAction:
             return canEditCurrent
+        // Phase 6 tools: enabled once their file implements the action.
+        case .addDropShadow, .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,
+             .drawAnnotations, .cloneStamp, .healingBrush, .removeRedEye:
+            return canEditCurrent && action.map { responds(to: $0) } == true
         case .editComment:
             guard !isClosing, let entry = model.current else { return false }
             return ["jpg", "jpeg", "jpe"].contains(entry.url.pathExtension.lowercased())
@@ -467,7 +475,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     ///
     /// `replacing` is for a tool whose inspector shows at once: the panel
     /// stays pinned for it rather than unpinning and sliding back.
-    private func beginOpeningTool(replacing: Bool = false) -> EditSession? {
+    func beginOpeningTool(replacing: Bool = false) -> EditSession? {
         guard let session = editSessionForCurrent() else {
             NSSound.beep()
             return nil
@@ -477,7 +485,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         return session
     }
 
-    private func inspectorActions() -> InspectorActions {
+    func inspectorActions() -> InspectorActions {
         InspectorActions(back: { [weak self] in self?.closeTool() },
                          reset: { [weak self] in self?.activeTool?.state?.reset() },
                          cancel: { [weak self] in self?.closeTool() },
@@ -497,7 +505,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
 
     /// Shows a tool's inspector in the tools panel, pinned open and widened,
     /// with the canvas beside it and the wheel zooming.
-    private func present(_ tool: OpenEditTool, inspector: some View) {
+    func present(_ tool: OpenEditTool, inspector: some View) {
         activeTool = tool
         let host = NSHostingView(rootView: inspector)
         host.sizingOptions = []
@@ -509,6 +517,19 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         }
         canvas.scrollingKeepsImage = true
         pinsChanged()
+    }
+
+    /// Opens a tool defined in its own file: its inspector in the tools
+    /// panel and, optionally, a view over the canvas for pointer work (a
+    /// brush, a lens centre, drawn objects). The overlay sits above the
+    /// canvas and below the HUD and panels, exactly as the crop overlay does,
+    /// and `onViewChange` runs whenever zoom or pan moves the image under it.
+    /// Call after `beginOpeningTool` succeeded.
+    func presentTool(_ state: any EditToolState, inspector: some View, overlay: NSView? = nil,
+                     onViewChange: (() -> Void)? = nil) {
+        present(.custom(state), inspector: inspector)
+        container.canvasOverlay = overlay
+        canvas.onViewChange = onViewChange
     }
 
     /// Closes the open tool: its changes committed with `applying`, dropped
@@ -540,7 +561,8 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     /// Return applies the open tool and Esc cancels it, before the viewer's
     /// own meanings for those keys (full screen, close).
     func handleToolKey(_ event: NSEvent) -> Bool {
-        guard activeTool != nil, event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+        guard let tool = activeTool, tool.state?.capturesKeyboard != true,
+              event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
               let scalar = event.charactersIgnoringModifiers?.unicodeScalars.first else { return false }
         switch Int(scalar.value) {
         case NSCarriageReturnCharacter, NSEnterCharacter:

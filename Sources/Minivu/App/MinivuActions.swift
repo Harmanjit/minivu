@@ -87,6 +87,20 @@ import AppKit
     @objc optional func compareSelected(_ sender: Any?)
     @objc optional func toggleHistogram(_ sender: Any?)
     @objc optional func countColors(_ sender: Any?)
+
+    // MARK: Effects, drawing and retouching (Phase 6)
+    @objc optional func addDropShadow(_ sender: Any?)
+    @objc optional func addFrame(_ sender: Any?)
+    @objc optional func applyBumpMap(_ sender: Any?)
+    @objc optional func applySketch(_ sender: Any?)
+    @objc optional func applyOilPaint(_ sender: Any?)
+    @objc optional func applyLens(_ sender: Any?)
+    /// Opens the drawing tool. Sender tag picks the starting object kind
+    /// (see `AnnotationToolKind`); 0 is the selection arrow.
+    @objc optional func drawAnnotations(_ sender: Any?)
+    @objc optional func cloneStamp(_ sender: Any?)
+    @objc optional func healingBrush(_ sender: Any?)
+    @objc optional func removeRedEye(_ sender: Any?)
 }
 
 /// Tags on the View > Sort By direction items. Zero is left out on purpose:
@@ -153,4 +167,14 @@ extension Selector {
     static let compareSelected = #selector(MinivuActions.compareSelected(_:))
     static let toggleHistogram = #selector(MinivuActions.toggleHistogram(_:))
     static let countColors = #selector(MinivuActions.countColors(_:))
+    static let addDropShadow = #selector(MinivuActions.addDropShadow(_:))
+    static let addFrame = #selector(MinivuActions.addFrame(_:))
+    static let applyBumpMap = #selector(MinivuActions.applyBumpMap(_:))
+    static let applySketch = #selector(MinivuActions.applySketch(_:))
+    static let applyOilPaint = #selector(MinivuActions.applyOilPaint(_:))
+    static let applyLens = #selector(MinivuActions.applyLens(_:))
+    static let drawAnnotations = #selector(MinivuActions.drawAnnotations(_:))
+    static let cloneStamp = #selector(MinivuActions.cloneStamp(_:))
+    static let healingBrush = #selector(MinivuActions.healingBrush(_:))
+    static let removeRedEye = #selector(MinivuActions.removeRedEye(_:))
 }

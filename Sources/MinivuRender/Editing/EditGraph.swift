@@ -80,6 +80,8 @@ public enum EditGraph {
         case .crop(let rect):
             let r = pixelRect(rect, width: size.width, height: size.height)
             return Size(width: r.width, height: r.height)
+        case .dropShadow, .frame:
+            return EffectsGraph.fullSize(after: op, from: size)
         default:
             return size
         }
@@ -262,6 +264,18 @@ public enum EditGraph {
             // Core Image's tone mixes towards a warm monochrome without
             // clamping (an HDR 2.0 grey measured 2.0, 1.98, 1.84).
             return image.applyingFilter("CISepiaTone", parameters: [kCIInputIntensityKey: min(max(intensity, 0), 1)])
+
+        case .dropShadow, .frame, .bumpMap, .sketch, .oilPaint, .lens:
+            return EffectsGraph.apply(op, to: image, outputWidth: outW, outputHeight: outH, scale: scale)
+
+        case .annotations(let objects):
+            return AnnotationGraph.apply(objects, to: image, fullSize: size, scale: scale)
+
+        case .retouch(let strokes):
+            return RetouchGraph.apply(strokes, to: image, fullSize: size, scale: scale)
+
+        case .redEye(let spots):
+            return RetouchGraph.removeRedEye(spots, in: image, fullSize: size, scale: scale)
 
         case .negative:
             // Inverted on the encoded scale, as a film negative looks: middle

@@ -47,18 +47,20 @@ final class ViewerToolsPanel: NSView {
         ]),
         Group(title: "Effects", tools: [
             Tool(title: "Color Effects", symbol: "camera.filters", action: showColorEffectsAction),
-            Tool(title: "Artistic", symbol: "paintbrush.pointed", action: nil),
-            Tool(title: "Lens", symbol: "circle.dashed", action: nil),
+            Tool(title: "Drop Shadow", symbol: "shadow", action: .addDropShadow),
+            Tool(title: "Frame", symbol: "photo.artframe", action: .addFrame),
+            Tool(title: "Bump Map", symbol: "mountain.2", action: .applyBumpMap),
+            Tool(title: "Sketch", symbol: "pencil.and.scribble", action: .applySketch),
+            Tool(title: "Oil Painting", symbol: "paintbrush.pointed", action: .applyOilPaint),
+            Tool(title: "Lens", symbol: "circle.dashed", action: .applyLens),
         ]),
         Group(title: "Draw", tools: [
-            Tool(title: "Text", symbol: "textformat", action: nil),
-            Tool(title: "Lines & Arrows", symbol: "arrow.up.right", action: nil),
-            Tool(title: "Callouts", symbol: "text.bubble", action: nil),
+            Tool(title: "Text & Shapes", symbol: "pencil.tip.crop.circle", action: .drawAnnotations),
         ]),
         Group(title: "Retouch", tools: [
-            Tool(title: "Clone", symbol: "square.on.square", action: nil),
-            Tool(title: "Heal", symbol: "bandage", action: nil),
-            Tool(title: "Red-Eye", symbol: "eye", action: nil),
+            Tool(title: "Clone Stamp", symbol: "square.on.square", action: .cloneStamp),
+            Tool(title: "Healing Brush", symbol: "bandage", action: .healingBrush),
+            Tool(title: "Red-Eye", symbol: "eye", action: .removeRedEye),
         ]),
     ]
 

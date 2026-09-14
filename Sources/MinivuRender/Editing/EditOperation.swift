@@ -161,6 +161,21 @@ public enum EditOperation: Codable, Hashable, Sendable {
     case sepia(intensity: Double)
     case negative
 
+    // Phase 6. Each payload type and its rendering live with their feature:
+    // Effects.swift (EffectsGraph), Annotations.swift (AnnotationGraph),
+    // Retouch.swift (RetouchGraph).
+    case dropShadow(DropShadow)
+    case frame(FrameStyle)
+    case bumpMap(BumpMap)
+    case sketch(Sketch)
+    case oilPaint(OilPaint)
+    case lens(LensEffect)
+    /// Vector objects (text, lines, arrows, shapes, callouts) drawn on top.
+    case annotations([Annotation])
+    /// Clone stamp and healing brush strokes, in the order painted.
+    case retouch([RetouchStroke])
+    case redEye([RedEyeSpot])
+
     /// For the Edit menu's "Undo Crop" and the history list.
     public var title: String {
         switch self {
@@ -184,6 +199,16 @@ public enum EditOperation: Codable, Hashable, Sendable {
         case .grayscale: "Grayscale"
         case .sepia: "Sepia"
         case .negative: "Negative"
+        case .dropShadow: "Drop Shadow"
+        case .frame: "Frame"
+        case .bumpMap: "Bump Map"
+        case .sketch: "Sketch"
+        case .oilPaint: "Oil Painting"
+        case .lens: "Lens"
+        case .annotations: "Drawing"
+        case .retouch(let strokes):
+            strokes.allSatisfy { $0.mode == .clone } ? "Clone Stamp" : "Healing Brush"
+        case .redEye: "Red-Eye Removal"
         }
     }
 
@@ -229,6 +254,15 @@ public enum EditOperation: Codable, Hashable, Sendable {
             return false
         case .sepia(let intensity):
             return !(intensity > 0)
+        case .dropShadow(let v): return v.isIdentity
+        case .frame(let v): return v.isIdentity
+        case .bumpMap(let v): return v.isIdentity
+        case .sketch(let v): return v.isIdentity
+        case .oilPaint(let v): return v.isIdentity
+        case .lens(let v): return v.isIdentity
+        case .annotations(let objects): return objects.isEmpty
+        case .retouch(let strokes): return strokes.allSatisfy(\.isIdentity)
+        case .redEye(let spots): return spots.isEmpty
         }
     }
 
@@ -236,7 +270,8 @@ public enum EditOperation: Codable, Hashable, Sendable {
     /// canvas needs to know to keep zoom and crop overlays meaningful.
     public var changesGeometry: Bool {
         switch self {
-        case .resize, .rotate90, .rotate, .flip, .crop: true
+        // A shadow and an outer frame add margins around the image.
+        case .resize, .rotate90, .rotate, .flip, .crop, .dropShadow, .frame: true
         default: false
         }
     }
