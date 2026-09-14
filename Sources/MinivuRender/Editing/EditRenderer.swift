@@ -52,6 +52,42 @@ final class EditProxy: @unchecked Sendable {
     }
 }
 
+/// The committed operations up to and including a downsizing resize,
+/// rendered once into a texture of the resized size, that later renders
+/// start from instead of the original.
+///
+/// The graph has one scale, and after a resize to fewer pixels than the
+/// screen shows, that scale is 1: every slider frame would otherwise read
+/// the whole 24 MP original and resample it again (18-20 ms a frame on M4,
+/// four times a normal 3024 px preview) only to work on 1600 px. Starting
+/// from the stage costs the operations after the resize and nothing else,
+/// and gives the same pixels (the resample kernel's output is a half-float
+/// intermediate either way). Saving never uses it.
+final class EditStage: @unchecked Sendable {
+    let source: EditSource
+    /// The operations it holds, and the scale it was rendered at.
+    let operations: [EditOperation]
+    let scale: Double
+    /// Full-resolution size after `operations`.
+    let size: CGSize
+    let texture: MTLTexture
+    let image: CIImage
+
+    init(source: EditSource, operations: [EditOperation], scale: Double, size: CGSize, texture: MTLTexture,
+         image: CIImage) {
+        self.source = source
+        self.operations = operations
+        self.scale = scale
+        self.size = size
+        self.texture = texture
+        self.image = image
+    }
+
+    func matches(source: EditSource, operations prefix: ArraySlice<EditOperation>, scale: Double) -> Bool {
+        self.source === source && abs(self.scale - scale) < 1e-9 && self.operations[...] == prefix
+    }
+}
+
 /// Renders edit documents: screen previews while editing, full resolution
 /// for zooming in, and final pixels for saving (DESIGN.md 4.7).
 ///
@@ -76,7 +112,10 @@ final class EditProxy: @unchecked Sendable {
 /// them. A finished render is delivered only if nothing newer is already on
 /// screen: a full-resolution render of an older state never replaces a
 /// preview of the current one, and a preview never replaces a
-/// full-resolution render of the same state.
+/// full-resolution render of the same state. Nor is one delivered that the
+/// document has moved away from, rather than along (a preview cancelled or
+/// applied, an undo), while a render of the newer state is on its way: it
+/// would show the dropped state for a frame (see `isOvertaken`).
 ///
 /// **Measured** on M4, release build, 6032 x 4032 JPEG (`EditBenchmark`):
 ///
@@ -168,7 +207,10 @@ final class EditProxy: @unchecked Sendable {
         document.proxy = nil
         document.previewLane.pending = nil
         document.fullLane.pending = nil
+        document.previewLane.stage = nil
+        document.fullLane.stage = nil
         document.lastDelivered = nil
+        document.deliveredOperations = nil
         context.clearCaches()
     }
 
@@ -218,22 +260,54 @@ final class EditProxy: @unchecked Sendable {
         }
     }
 
+    /// Final pixels for saving an HDR photo with its highlights: the
+    /// committed operations at full resolution, as half floats in extended
+    /// linear Display P3 with the original's content headroom set, which is
+    /// what ImageIO needs to write a gain map (`ImageEncoder.write(gainMap:)`).
+    /// Values above the headroom are clipped by the gain map, as the canvas
+    /// showed them. The original is decoded for HDR whatever the viewer's HDR
+    /// setting (a setting for the screen, not for the file); nil when it has
+    /// no HDR form to decode.
+    nonisolated public func renderHDRForExport(_ snapshot: EditDocument.Snapshot) async throws -> CGImage? {
+        let gpu = self.gpu, context = self.context
+        return try await BlockingWork.run(qos: Task.currentPriority >= .userInitiated ? .userInitiated : .utility) {
+            var settings = snapshot.settings
+            settings.showHDR = true
+            let source = try Self.exportSource(snapshot, settings: settings, requireHDR: true, gpu: gpu)
+            guard source.isHDR, source.contentHeadroom > 1 else { return nil }
+            let image = EditGraph.image(source: Self.workingImage(source: source, proxy: nil, scale: 1),
+                                        sourceSize: source.size, operations: snapshot.operations, scale: 1)
+            guard let rendered = context.createCGImage(image, from: image.extent, format: .RGBAh,
+                                                       colorSpace: Self.workingSpace, deferred: false),
+                  let withHeadroom = CGImageCreateCopyWithContentHeadroom(source.contentHeadroom, rendered) else {
+                throw EditRenderError.renderFailed
+            }
+            return withHeadroom
+        }
+    }
+
+    /// The original an export renders from: the document's own when it has
+    /// every pixel (and, with `requireHDR`, is HDR), otherwise decoded again
+    /// with `settings`.
+    nonisolated private static func exportSource(_ snapshot: EditDocument.Snapshot, settings: DisplaySettings,
+                                                 requireHDR: Bool = false, gpu: GPU) throws -> EditSource {
+        if let prepared = snapshot.source, prepared.scale >= 1, prepared.isHDR || !requireHDR {
+            return prepared
+        }
+        // Re-reading the file is only safe if it is still the file the
+        // operations were made on. After a Save over the original it
+        // isn't: the edits are already in it, and applying them again
+        // would write them twice.
+        if let expected = snapshot.sourceSignature, FileSignature.read(snapshot.url) != expected {
+            throw EditRenderError.sourceChanged(snapshot.url)
+        }
+        return try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
+                              settings: settings, gpu: gpu, forExport: true)
+    }
+
     nonisolated private static func exportImage(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
                                                 bitsPerComponent: Int, context: CIContext, gpu: GPU) throws -> CGImage {
-        let source: EditSource
-        if let prepared = snapshot.source, prepared.scale >= 1 {
-            source = prepared
-        } else {
-            // Re-reading the file is only safe if it is still the file the
-            // operations were made on. After a Save over the original it
-            // isn't: the edits are already in it, and applying them again
-            // would write them twice.
-            if let expected = snapshot.sourceSignature, FileSignature.read(snapshot.url) != expected {
-                throw EditRenderError.sourceChanged(snapshot.url)
-            }
-            source = try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
-                                    settings: snapshot.settings, gpu: gpu, forExport: true)
-        }
+        let source = try exportSource(snapshot, settings: snapshot.settings, gpu: gpu)
         var image = EditGraph.image(source: workingImage(source: source, proxy: nil, scale: 1),
                                     sourceSize: source.size, operations: snapshot.operations, scale: 1)
         if source.isHDR && !CGColorSpaceUsesITUR_2100TF(colorSpace) {
@@ -277,6 +351,10 @@ final class EditProxy: @unchecked Sendable {
         guard let source = document.source else { return }
         let operations = document.renderedOperations
         let revision = document.revision
+        let committed = document.operations, preview = document.preview
+        let lane = full ? document.fullLane : document.previewLane
+        lane.runningRevision = revision
+        defer { lane.runningRevision = nil }
         let outputSize = EditGraph.outputSize(source: source.size, operations: operations)
         let proxy = document.proxy
         let plan = full
@@ -284,35 +362,75 @@ final class EditProxy: @unchecked Sendable {
             : Self.previewPlan(outputSize: outputSize, pixelSize: request.pixelSize ?? 1, proxyScale: proxy?.scale,
                                sourceScale: source.scale)
         let gpu = self.gpu, context = self.context
+        let stageLength = Self.stageLength(operations: operations, committed: committed.count, sourceSize: source.size)
+        let stage = stageLength.flatMap { length in
+            lane.stage.flatMap { $0.matches(source: source, operations: operations.prefix(length), scale: plan.scale) ? $0 : nil }
+        }
 
         // `renderTexture` waits for the GPU: on GCD, not the cooperative pool.
-        let result = await BlockingWork.run(qos: full ? .utility : .userInitiated) { () -> (ImageTexture, EditProxy?)? in
+        let result = await BlockingWork.run(qos: full ? .utility : .userInitiated) {
+            () -> (ImageTexture, EditProxy?, EditStage?)? in
             do {
                 var workingProxy = proxy
-                if plan.rebuildProxy {
-                    workingProxy = try Self.makeProxy(source, scale: plan.scale, context: context, gpu: gpu)
-                }
-                let working = Self.workingImage(source: source, proxy: plan.useProxy ? workingProxy : nil,
+                var newStage: EditStage?
+                let image: CIImage
+                if let stage {
+                    image = EditGraph.image(source: stage.image, sourceSize: stage.size,
+                                            operations: Array(operations[stage.operations.count...]), scale: plan.scale)
+                } else {
+                    if plan.rebuildProxy {
+                        workingProxy = try Self.makeProxy(source, scale: plan.scale, context: context, gpu: gpu)
+                    }
+                    let working = Self.workingImage(source: source, proxy: plan.useProxy ? workingProxy : nil,
+                                                    scale: plan.scale)
+                    if let stageLength {
+                        let prefix = Array(operations.prefix(stageLength))
+                        let size = EditGraph.outputSize(source: source.size, operations: prefix)
+                        let staged = EditGraph.image(source: working, sourceSize: source.size, operations: prefix,
+                                                     scale: plan.scale)
+                        let (texture, stagedImage) = try Self.renderIntermediate(staged, context: context, gpu: gpu,
+                                                                                 label: "an edit stage")
+                        newStage = EditStage(source: source, operations: prefix, scale: plan.scale, size: size,
+                                             texture: texture, image: stagedImage)
+                        image = EditGraph.image(source: stagedImage, sourceSize: size,
+                                                operations: Array(operations[stageLength...]), scale: plan.scale)
+                    } else {
+                        image = EditGraph.image(source: working, sourceSize: source.size, operations: operations,
                                                 scale: plan.scale)
-                let image = EditGraph.image(source: working, sourceSize: source.size, operations: operations,
-                                            scale: plan.scale)
+                    }
+                }
                 let texture = try Self.renderTexture(image, context: context, gpu: gpu)
                 let output = ImageTexture(texture: texture, imageSize: outputSize,
                                           isFullResolution: plan.scale >= plan.maximumScale,
                                           isHDR: source.isHDR, contentHeadroom: source.contentHeadroom)
-                return (output, plan.rebuildProxy ? workingProxy : nil)
+                return (output, plan.rebuildProxy && stage == nil ? workingProxy : nil, newStage)
             } catch {
                 return nil
             }
         }
 
         // Released, or prepared again from scratch, while rendering.
-        guard let (texture, newProxy) = result, document.source === source else { return }
+        guard let (texture, newProxy, newStage) = result, document.source === source else { return }
         if let newProxy, newProxy.scale > (document.proxy?.scale ?? 0) {
             document.proxy = newProxy
         }
+        // A render without a stage to use (none fits its operations, or it
+        // made one) drops the lane's old one, whose memory nothing needs.
+        if stage == nil { lane.stage = newStage }
         guard Self.shouldDeliver(revision: revision, full: full, after: document.lastDelivered) else { return }
+        if revision != document.revision,
+           Self.isOvertaken(committed: committed, preview: preview,
+                            by: document.operations, preview: document.preview) {
+            // A render of the current state is waiting or running: show that.
+            let other = full ? document.previewLane : document.fullLane
+            // (The other lane's render takes the document's state when it
+            // starts, which is at least the current one.)
+            let newerComing = lane.pending != nil || other.pending != nil
+                || (other.isRunning && (other.runningRevision ?? .max) > revision)
+            if newerComing { return }
+        }
         document.lastDelivered = (revision, full)
+        document.deliveredOperations = operations
         request.completion(texture)
     }
 
@@ -325,7 +443,35 @@ final class EditProxy: @unchecked Sendable {
         return revision > last.revision || (revision == last.revision && (full || !last.full))
     }
 
+    /// Whether a render of one state, finished after the document changed,
+    /// shows something the user has left behind rather than a step on the
+    /// way: true unless the committed operations are the same and a preview
+    /// of the same kind is still live (a slider still moving, whose
+    /// in-between frames are what keeps a drag responsive). A preview
+    /// cancelled or applied, a section switched, an undo: all overtaken.
+    nonisolated static func isOvertaken(committed: [EditOperation], preview: EditOperation?,
+                                        by currentCommitted: [EditOperation], preview currentPreview: EditOperation?) -> Bool {
+        guard let preview, let currentPreview else { return true }
+        return committed != currentCommitted || preview.title != currentPreview.title
+    }
+
     // MARK: - Plans
+
+    /// How many of `operations` a render can take from an `EditStage`: those
+    /// up to the last committed resize to fewer pixels than it was given,
+    /// when at least one operation follows it (with none, the stage would
+    /// be the output, rendered twice). Nil when there is no such resize.
+    nonisolated static func stageLength(operations: [EditOperation], committed: Int, sourceSize: CGSize) -> Int? {
+        var size = EditGraph.Size(width: Int(sourceSize.width.rounded()), height: Int(sourceSize.height.rounded()))
+        var length: Int?
+        for (index, op) in operations.prefix(committed).enumerated() where !op.isIdentity {
+            let next = EditGraph.fullSize(after: op, from: size)
+            if case .resize = op, next.width * next.height < size.width * size.height { length = index + 1 }
+            size = next
+        }
+        guard let length, length < operations.count else { return nil }
+        return length
+    }
 
     /// Which image a render starts from and at what scale.
     struct Plan: Equatable {
@@ -433,29 +579,36 @@ final class EditProxy: @unchecked Sendable {
 
     nonisolated static func makeProxy(_ source: EditSource, scale: Double, context: CIContext, gpu: GPU) throws -> EditProxy {
         let image = lanczos(source.image, to: source.size, scale: scale)
-        let width = Int(image.extent.width), height = Int(image.extent.height)
+        let (texture, proxyImage) = try renderIntermediate(image, context: context, gpu: gpu, label: "an edit proxy")
+        return EditProxy(texture: texture, image: proxyImage, scale: scale)
+    }
+
+    /// Renders `image` (extent at the origin, whole pixels) into a half-float
+    /// texture of its size and wraps that as a `CIImage` with the same
+    /// extent, for later renders to start from.
+    nonisolated static func renderIntermediate(_ image: CIImage, context: CIContext, gpu: GPU,
+                                               label: String) throws -> (MTLTexture, CIImage) {
+        let width = max(1, Int(image.extent.width.rounded())), height = max(1, Int(image.extent.height.rounded()))
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: width,
                                                                   height: height, mipmapped: false)
         descriptor.storageMode = .private
         descriptor.usage = [.shaderRead, .shaderWrite, .renderTarget]
-        guard let texture = gpu.device.makeTexture(descriptor: descriptor),
-              let commands = gpu.queue.makeCommandBuffer() else {
-            throw GPUError.allocationFailed("an edit proxy")
+        guard let texture = gpu.device.makeTexture(descriptor: descriptor) else {
+            throw GPUError.allocationFailed(label)
         }
-        let destination = CIRenderDestination(mtlTexture: texture, commandBuffer: commands)
+        // No command buffer of ours: Core Image submits its own, which a
+        // stage's resample kernel needs when the render is split into tiles
+        // (see `renderTexture`).
+        let destination = CIRenderDestination(mtlTexture: texture, commandBuffer: nil)
         destination.colorSpace = workingSpace
         // Not flipped: `CIImage(mtlTexture:)` reads row 0 as the bottom, so
-        // writing it that way keeps the proxy upright in Core Image.
+        // writing it that way keeps the image upright in Core Image.
         destination.isFlipped = false
-        let task = try context.startTask(toRender: image, to: destination)
-        commands.commit()
-        commands.waitUntilCompleted()
-        _ = try task.waitUntilCompleted()
-        if let error = commands.error { throw error }
-        guard let proxyImage = CIImage(mtlTexture: texture, options: [.colorSpace: workingSpace]) else {
-            throw GPUError.allocationFailed("an edit proxy image")
+        _ = try context.startTask(toRender: image, to: destination).waitUntilCompleted()
+        guard let wrapped = CIImage(mtlTexture: texture, options: [.colorSpace: workingSpace]) else {
+            throw GPUError.allocationFailed(label)
         }
-        return EditProxy(texture: texture, image: proxyImage, scale: scale)
+        return (texture, wrapped)
     }
 
     /// Renders `image` (extent at the origin) into a new mipmapped half-float

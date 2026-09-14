@@ -312,7 +312,7 @@ private func close(_ a: CGRect, _ b: CGRect, _ tolerance: CGFloat = 0.01) -> Boo
     }
 
     /// Both colour sections show at once: the one not being moved is staged
-    /// as a committed step. Apply leaves two steps; Cancel takes both back.
+    /// as a committed step. Apply leaves one step; Cancel takes both back.
     @Test func colorsStagesTheOtherSection() {
         let doc = document()
         doc.apply(.grayscale)   // earlier work, which the tool must never undo
@@ -341,7 +341,26 @@ private func close(_ a: CGRect, _ b: CGRect, _ tolerance: CGFloat = 0.01) -> Boo
         again.apply()
         #expect(doc.operations == [.grayscale, colors, rgb])
         #expect(doc.preview == nil)
-        #expect(doc.undoTitle == "RGB Adjust")
+        #expect(doc.undoTitle == "Colors", "one visit to the tool, one step")
+        doc.undo()
+        #expect(doc.operations == [.grayscale] && doc.redoTitle == "Colors")
+        doc.redo()
+        #expect(doc.operations == [.grayscale, colors, rgb])
+
+        // Only one section changed: its own step, as before.
+        doc.undo()
+        let single = AdjustmentToolState(kind: .colors, document: doc)
+        single.setValue(-0.25, section: 1, slider: 0)
+        single.apply()
+        #expect(doc.operations == [.grayscale, rgb] && doc.undoTitle == "RGB Adjust" && !doc.canRedo)
+        // Both moved, then the live section back to zero: the staged one alone.
+        doc.undo()
+        let back = AdjustmentToolState(kind: .colors, document: doc)
+        back.setValue(0.5, section: 0, slider: 1)
+        back.setValue(-0.25, section: 1, slider: 0)
+        back.setValue(0, section: 1, slider: 0)
+        back.apply()
+        #expect(doc.operations == [.grayscale, colors] && doc.undoTitle == "Colors")
     }
 
     @Test func gammaSliderMovesInLogScale() throws {

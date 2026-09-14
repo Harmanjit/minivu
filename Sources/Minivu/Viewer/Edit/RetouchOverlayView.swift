@@ -211,23 +211,23 @@ final class RetouchBrushOverlayView: RetouchOverlayView {
         guard let context = NSGraphicsContext.current?.cgContext, shownSize != nil else { return }
         let radius = brushRadius
 
-        if let stroke = state.liveStroke {
-            // The stroke so far, translucent, until the render shows the result.
-            let path = CGMutablePath()
+        // The stroke so far, and finished ones whose render isn't on screen
+        // yet, translucent, until a render shows the result.
+        for stroke in state.strokesNotYetRendered() + (state.liveStroke.map { [$0] } ?? []) {
             let points = stroke.points.compactMap { viewPoint($0) }
-            if let first = points.first {
-                path.move(to: first)
-                points.dropFirst().forEach { path.addLine(to: $0) }
-                if points.count == 1 { path.addLine(to: first) }
-                context.saveGState()
-                context.setLineCap(.round)
-                context.setLineJoin(.round)
-                context.setLineWidth(2 * radius)
-                context.addPath(path)
-                context.setStrokeColor(NSColor.white.withAlphaComponent(0.28).cgColor)
-                context.strokePath()
-                context.restoreGState()
-            }
+            guard let first = points.first else { continue }
+            let path = CGMutablePath()
+            path.move(to: first)
+            points.dropFirst().forEach { path.addLine(to: $0) }
+            if points.count == 1 { path.addLine(to: first) }
+            context.saveGState()
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.setLineWidth(2 * viewLength(shortSideFraction: stroke.radius))
+            context.addPath(path)
+            context.setStrokeColor(NSColor.white.withAlphaComponent(0.28).cgColor)
+            context.strokePath()
+            context.restoreGState()
         }
 
         if let source = sourceViewPoint() {

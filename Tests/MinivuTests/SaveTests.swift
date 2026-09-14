@@ -1,6 +1,8 @@
 import Testing
 import AppKit
 import ImageIO
+import CoreImage
+import UniformTypeIdentifiers
 import MinivuCore
 import MinivuRender
 @testable import Minivu
@@ -85,6 +87,22 @@ import MinivuRender
             == "The edited image is saved over the file as JPEG at quality 30. This can’t be undone.")
         #expect(SavePolicy.overwriteDetail(.defaults(for: .png))
             == "The edited image is saved over the file as PNG. This can’t be undone.")
+        #expect(SavePolicy.overwriteDetail(ExportOptions(format: .heic, quality: 0.9), hdr: .gainMap)
+            == "The edited image is saved over the file as HEIC at quality 90, in HDR with a new gain map. This can’t be undone.")
+        #expect(SavePolicy.overwriteDetail(ExportOptions(format: .heic, quality: 0.9), hdr: .toneMapped)
+            == "The edited image is saved over the file as HEIC at quality 90, in SDR: minivu can’t write this kind "
+            + "of HDR file, so its highlights are tone mapped. This can’t be undone.")
+    }
+
+    /// Gain-map photos stay HDR where ImageIO writes gain maps; other HDR
+    /// forms are tone mapped, and the confirmation says so.
+    @Test func hdrOriginalsSavedInPlace() {
+        #expect(SavePolicy.inPlaceHDR(format: .jpeg, isHDR: false, hasGainMap: false) == .none)
+        #expect(SavePolicy.inPlaceHDR(format: .jpeg, isHDR: true, hasGainMap: true) == .gainMap)
+        #expect(SavePolicy.inPlaceHDR(format: .heic, isHDR: true, hasGainMap: true) == .gainMap)
+        #expect(SavePolicy.inPlaceHDR(format: .heic, isHDR: true, hasGainMap: false) == .toneMapped, "PQ or HLG")
+        #expect(SavePolicy.inPlaceHDR(format: .png, isHDR: true, hasGainMap: false) == .toneMapped)
+        #expect(SavePolicy.inPlaceHDR(format: .tiff, isHDR: true, hasGainMap: true) == .toneMapped)
     }
 
     @Test func errorMessages() {
@@ -460,6 +478,89 @@ import MinivuRender
         let bmp = try await source.image(for: ExportOptions(format: .bmp, colorProfile: .displayP3))
         #expect(bmp.bitsPerComponent == 8 && bmp.colorSpace?.name == CGColorSpace.sRGB)
         #expect(source.cachedImage(for: ExportOptions(format: .gif)) === bmp)
+    }
+
+    /// An HDR test photo: a ramp from black on the left to 4x SDR white on
+    /// the right, with its content headroom, written by ImageIO as an SDR
+    /// base and an ISO gain map.
+    func gainMapPhoto(_ url: URL, type: UTType) throws {
+        let width = 96, height = 32
+        let space = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
+        let context = try #require(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 16, bytesPerRow: 0, space: space,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.floatComponents.rawValue
+                | CGBitmapInfo.byteOrder16Little.rawValue))
+        for x in 0..<width {
+            let v = CGFloat(x) / CGFloat(width - 1) * 4
+            context.setFillColor(CGColor(colorSpace: space, components: [v, v, v, 1])!)
+            context.fill(CGRect(x: x, y: 0, width: 1, height: height))
+        }
+        let ramp = try #require(context.makeImage())
+        let image = try #require(CGImageCreateCopyWithContentHeadroom(4, ramp))
+        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, [kCGImageDestinationEncodeRequest: kCGImageDestinationEncodeToISOGainmap] as CFDictionary)
+        try #require(CGImageDestinationFinalize(destination))
+    }
+
+    /// Red channel at `fx` across the middle row, decoded for HDR.
+    func hdrValue(_ url: URL, at fx: Double) throws -> (value: Float, headroom: Float) {
+        let decoded = try ImageDecoder.decode(url, maxPixelSize: nil, page: 0, allowHDR: true)
+        let space = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
+        var pixel = [Float](repeating: 0, count: 4)
+        let image = CIImage(cgImage: decoded.image)
+        let x = (Double(decoded.image.width) - 1) * fx
+        CIContext().render(image, toBitmap: &pixel, rowBytes: 16,
+                           bounds: CGRect(x: x.rounded(), y: Double(decoded.image.height / 2), width: 1, height: 1),
+                           format: .RGBAf, colorSpace: space)
+        return (pixel[0], decoded.isHDR ? decoded.contentHeadroom : 1)
+    }
+
+    /// The same ramp as an HEIC with Apple's own gain map, as an iPhone
+    /// stores HDR (Core Image writes that kind).
+    func appleGainMapHEIC(_ url: URL) throws {
+        let space = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
+        let ramp = CIImage(color: CIColor(red: 0, green: 0, blue: 0, colorSpace: space)!)
+            .cropped(to: CGRect(x: 0, y: 0, width: 96, height: 32))
+            .applyingFilter("CILinearGradient", parameters: [
+                "inputPoint0": CIVector(x: 0, y: 0), "inputPoint1": CIVector(x: 96, y: 0),
+                "inputColor0": CIColor(red: 0, green: 0, blue: 0, colorSpace: space)!,
+                "inputColor1": CIColor(red: 4, green: 4, blue: 4, colorSpace: space)!,
+            ]).cropped(to: CGRect(x: 0, y: 0, width: 96, height: 32))
+        let sdr = ramp.applyingFilter("CIToneMapHeadroom", parameters: ["inputSourceHeadroom": 4, "inputTargetHeadroom": 1])
+        let data = try #require(CIContext().heifRepresentation(of: sdr, format: .RGBA8,
+                                                               colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
+                                                               options: [.hdrImage: ramp]))
+        try data.write(to: url)
+    }
+
+    /// Save of an edited gain-map JPEG or HEIC keeps it HDR: a new gain map
+    /// that brings the edited highlights back.
+    @Test(arguments: ["iso.jpg", "iso.heic", "apple.heic"])
+    func savingAGainMapPhotoKeepsItHDR(name: String) async throws {
+        let t = try ScratchFolder()
+        let url = t.url.appendingPathComponent(name)
+        switch name {
+        case "iso.jpg": try gainMapPhoto(url, type: .jpeg)
+        case "iso.heic": try gainMapPhoto(url, type: .heic)
+        default: try appleGainMapHEIC(url)
+        }
+        #expect(SavePolicy.hasGainMap(url))
+        #expect(try hdrValue(url, at: 0.95).value > 2)
+        let format = try #require(SavePolicy.inPlaceFormat(for: url, info: ImageDecoder.info(for: url)))
+
+        let document = EditDocument(entry: try #require(FolderEntry(url: url)))
+        document.apply(.flip(horizontal: true))
+        let options = SavePolicy.inPlaceOptions(remembered: .defaults(for: format), sourceBitDepth: 8)
+        try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
+                                             options: options, to: url, renderer: .shared, gainMap: true)
+
+        #expect(SavePolicy.hasGainMap(url))
+        #expect(try size(url) == (96, 32))
+        let bright = try hdrValue(url, at: 0.05), dark = try hdrValue(url, at: 0.95)
+        #expect(bright.headroom > 2, "headroom \(bright.headroom)")
+        #expect(bright.value > 2, "the flipped highlights, above SDR white: \(bright.value)")
+        #expect(dark.value < 0.5)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path) == [url.lastPathComponent])
     }
 
     @Test func saveWritesTheEditOverTheOriginal() async throws {

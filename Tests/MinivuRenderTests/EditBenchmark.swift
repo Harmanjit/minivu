@@ -13,6 +13,9 @@ import CoreGraphics
 ///     preview 3024 px lighting median 4.1 ms, colors 4.3-4.5, curves 3.8-6.1, levels 3.9-4.5
 ///     full-resolution resize lanczos3 75% 30.1 ms, 150% 94.4 ms; lanczos8 50% 41.6 ms
 ///     export 5 ops -> 5311x3444 8-bit sRGB: first 54.5 ms, median 38.4 ms
+/// Lighting previews after a resize (M4, debug build, 2026-09-14): to 1600 px
+/// median 18.4 ms and to 3000 px 19.8 ms while every frame resampled the
+/// original; 1.4-2.4 ms and 3.4-5.5 ms starting from an EditStage.
 /// A debug build is the same except where Swift itself is the work: curves
 /// 8.3 ms, because its table is built in Swift for every render.
 @MainActor @Suite(.serialized) struct EditBenchmark {
@@ -80,6 +83,23 @@ import CoreGraphics
                 times.append(milliseconds(d))
             }
             print(String(format: "full-resolution resize %@: first %.1f ms, median %.1f ms", label as NSString, times[0], median(times)))
+        }
+
+        // Slider previews after a downsizing resize (to 1600 px, which a
+        // 3024 px preview shows at full size), request to delivery.
+        for (label, target) in [("to 1600 px", (1600, 1070)), ("to 3000 px", (3000, 2005))] {
+            doc.apply(.resize(width: target.0, height: target.1, filter: .lanczos3))
+            var times: [Double] = []
+            for i in 0..<24 {
+                doc.preview = .lighting(brightness: 0.02 + Double(i % 8) / 40, contrast: 0.1, gamma: 1, shadows: 0.2,
+                                        highlights: 0)
+                let d = await clock.measure { _ = await preview(renderer, doc, 3024) }
+                if i >= 4 { times.append(milliseconds(d)) }
+            }
+            print(String(format: "preview 3024 px lighting after resize %@: first %.1f ms, median %.1f ms  max %.1f ms",
+                         label as NSString, times[0], median(times), times.max()!))
+            doc.preview = nil
+            doc.undo()
         }
 
         // Export of a five-operation stack to an 8-bit sRGB CGImage.

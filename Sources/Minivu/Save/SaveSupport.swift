@@ -78,15 +78,48 @@ nonisolated enum SavePolicy {
         return image.colorSpace
     }
 
+    /// What Save does with an HDR original.
+    enum InPlaceHDR: Equatable {
+        /// Not HDR.
+        case none
+        /// Written with a new gain map: the file stays HDR.
+        case gainMap
+        /// Tone mapped to SDR: an HDR form minivu can't write (PQ or HLG,
+        /// or a gain map in a format ImageIO won't put one in).
+        case toneMapped
+    }
+
+    static func inPlaceHDR(format: ExportFormat, isHDR: Bool, hasGainMap: Bool) -> InPlaceHDR {
+        guard isHDR else { return .none }
+        return hasGainMap && ImageEncoder.canWriteGainMap(format) ? .gainMap : .toneMapped
+    }
+
+    /// Whether the file's primary image has a gain map (Apple's, or ISO
+    /// 21496-1 as Ultra HDR and newer iPhones write). Reads the header.
+    static func hasGainMap(_ url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
+              CGImageSourceGetCount(source) > 0 else { return false }
+        let index = CGImageSourceGetPrimaryImageIndex(source)
+        return [kCGImageAuxiliaryDataTypeISOGainMap, kCGImageAuxiliaryDataTypeHDRGainMap].contains {
+            CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, index, $0) != nil
+        }
+    }
+
     /// The confirmation's explanation. The quality is named because it is
     /// the one last chosen in Save As, which may have been a small copy for
     /// the web: overwriting a photo at quality 30 should not be a surprise.
-    static func overwriteDetail(_ options: ExportOptions) -> String {
+    /// So is an HDR photo losing its highlights.
+    static func overwriteDetail(_ options: ExportOptions, hdr: InPlaceHDR = .none) -> String {
         let format = options.format
         let encoding = format.supportsQuality
             ? "\(format.title) at quality \(Int((options.quality * 100).rounded()))"
             : format.title
-        return "The edited image is saved over the file as \(encoding). This can’t be undone."
+        let range = switch hdr {
+        case .none: ""
+        case .gainMap: ", in HDR with a new gain map"
+        case .toneMapped: ", in SDR: minivu can’t write this kind of HDR file, so its highlights are tone mapped"
+        }
+        return "The edited image is saved over the file as \(encoding)\(range). This can’t be undone."
     }
 
     /// Save's options: the ones remembered for the format, in the original's

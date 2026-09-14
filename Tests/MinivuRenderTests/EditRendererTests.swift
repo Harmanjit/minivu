@@ -152,6 +152,49 @@ import Metal
         #expect(shown.last! > 0.7)
     }
 
+    /// A preview cancelled while its render runs never reaches the screen:
+    /// the render of the state without it is already on its way.
+    @Test func aCancelledPreviewIsNeverShown() async throws {
+        let doc = document(quadrantFile(width: 1600, height: 800))
+        try await renderer.prepare(doc, proxyPixelSize: 400)
+        var shown: [Float] = []
+        func record(_ texture: ImageTexture) { shown.append(F.pixels(texture.texture).at(0.1, 0.1).x) }
+
+        for full in [true, false] {
+            shown = []
+            doc.preview = .rgbAdjust(red: -1, green: 0, blue: 0)
+            if full {
+                renderer.renderFullResolution(doc) { record($0) }
+            } else {
+                renderer.renderPreview(doc, pixelSize: 400) { record($0) }
+            }
+            // Once it has taken its snapshot of the document, and before it
+            // can deliver (that needs the main actor, which this holds):
+            let lane = full ? doc.fullLane : doc.previewLane
+            while lane.runningRevision == nil { await Task.yield() }
+            doc.preview = nil
+            renderer.renderPreview(doc, pixelSize: 400) { record($0) }
+            await waitUntilIdle(doc)
+            #expect(!shown.isEmpty)
+            #expect(shown.allSatisfy { $0 > 0.7 }, "full \(full): \(shown)")
+        }
+    }
+
+    @Test func overtakenStates() {
+        let brighter = EditOperation.lighting(brightness: 0.2, contrast: 0, gamma: 1, shadows: 0, highlights: 0)
+        let darker = EditOperation.lighting(brightness: -0.2, contrast: 0, gamma: 1, shadows: 0, highlights: 0)
+        let red = EditOperation.rgbAdjust(red: 0.3, green: 0, blue: 0)
+        func overtaken(_ c: [EditOperation], _ p: EditOperation?, by c2: [EditOperation], _ p2: EditOperation?) -> Bool {
+            EditRenderer.isOvertaken(committed: c, preview: p, by: c2, preview: p2)
+        }
+        #expect(!overtaken([], brighter, by: [], darker), "a slider still moving")
+        #expect(overtaken([], brighter, by: [], nil), "cancelled")
+        #expect(overtaken([], brighter, by: [darker], nil), "applied at another value")
+        #expect(overtaken([brighter], red, by: [brighter, red], .grayscale), "another tool since")
+        #expect(overtaken([.grayscale], nil, by: [], nil), "undone")
+        #expect(overtaken([], brighter, by: [], red), "a Colors section switched")
+    }
+
     @Test func deliveryOrder() {
         func ok(_ revision: Int, _ full: Bool, after last: (Int, Bool)?) -> Bool {
             EditRenderer.shouldDeliver(revision: revision, full: full, after: last.map { (revision: $0.0, full: $0.1) })
@@ -162,6 +205,72 @@ import Metal
         #expect(ok(2, false, after: (2, false)))       // a larger preview of the same state
         #expect(!ok(1, true, after: (2, false)))       // full resolution of an older state
         #expect(!ok(2, false, after: (2, true)))       // blurrier, same state
+    }
+
+    // MARK: - Stages
+
+    /// After a downsizing resize, slider renders start from the resized
+    /// image rendered once, and show the same pixels as a render from the
+    /// original.
+    @Test func rendersAfterADownsizingResizeStartFromAStage() async throws {
+        let doc = document(quadrantFile(width: 1600, height: 800))
+        try await renderer.prepare(doc, proxyPixelSize: 800)
+        doc.apply(.rotate(degrees: 3, autoCrop: true))
+        doc.apply(.resize(width: 400, height: 190, filter: .lanczos3))
+        doc.apply(.blur(radius: 3))
+        let lighting = { (b: Double) in EditOperation.lighting(brightness: b, contrast: 0.2, gamma: 1, shadows: 0, highlights: 0) }
+
+        doc.preview = lighting(0.1)
+        _ = await preview(doc, 1000)
+        let stage = try #require(doc.previewLane.stage)
+        #expect(stage.operations.count == 2 && stage.size == CGSize(width: 400, height: 190))
+        #expect(stage.texture.width == 400 && stage.texture.height == 190)
+
+        doc.preview = lighting(0.3)
+        let staged = await preview(doc, 1000)
+        #expect(doc.previewLane.stage === stage, "the same stage for the next frame")
+
+        let source = try #require(doc.source)
+        let direct = EditGraph.image(source: source.image, sourceSize: source.size,
+                                     operations: doc.renderedOperations, scale: 1)
+        let expected = F.pixels(try EditRenderer.renderTexture(direct, context: renderer.context, gpu: renderer.gpu))
+        let got = F.pixels(staged.texture)
+        #expect(got.width == expected.width && got.height == expected.height)
+        var worst: Float = 0
+        for y in 0..<got.height {
+            for x in 0..<got.width {
+                let a = got[x, y], b = expected[x, y]
+                for c in 0..<4 { worst = max(worst, abs(a[c] - b[c])) }
+            }
+        }
+        #expect(worst < 2e-3, "largest difference \(worst)")
+
+        // Undoing the resize drops the stage with the next render.
+        doc.preview = nil
+        doc.undo()
+        doc.undo()
+        _ = await preview(doc, 1000)
+        #expect(doc.previewLane.stage == nil)
+    }
+
+    @Test func stageLengths() {
+        let size = CGSize(width: 6000, height: 4000)
+        let smaller = EditOperation.resize(width: 1500, height: 1000, filter: .lanczos3)
+        let larger = EditOperation.resize(width: 9000, height: 6000, filter: .lanczos3)
+        func length(_ ops: [EditOperation], committed: Int? = nil) -> Int? {
+            EditRenderer.stageLength(operations: ops, committed: committed ?? ops.count, sourceSize: size)
+        }
+        #expect(length([smaller, .grayscale]) == 1)
+        #expect(length([.grayscale, smaller, .grayscale], committed: 2) == 2, "a preview after it")
+        #expect(length([smaller]) == nil, "nothing after it")
+        #expect(length([.grayscale, smaller], committed: 1) == nil, "the resize is only a preview")
+        #expect(length([larger, .grayscale]) == nil, "more pixels, not fewer")
+        #expect(length([.crop(CGRect(x: 0, y: 0, width: 0.1, height: 0.1)), larger, .grayscale]) == nil)
+        let smallest = EditOperation.resize(width: 750, height: 500, filter: .box)
+        #expect(length([smaller, .blur(radius: 2), smallest, .grayscale]) == 3, "the last one")
+        #expect(length([smaller, .blur(radius: 2), larger, .grayscale]) == 1, "the last one that shrinks")
+        #expect(length([smaller, smaller, .grayscale]) == 1, "the same size again shrinks nothing")
+        #expect(length([.grayscale]) == nil)
     }
 
     // MARK: - Plans

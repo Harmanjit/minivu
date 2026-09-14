@@ -74,6 +74,27 @@ final class TemporaryFolder {
         }
     }
 
+    /// A folder that exists but can't be read (the sandbox's EPERM, or
+    /// EACCES here) is told apart from one that's unreadable for another
+    /// reason, so the browser can say how to give access.
+    @Test func permissionRefusalIsItsOwnError() throws {
+        let t = try TemporaryFolder()
+        let locked = try t.folder("Locked")
+        try FileManager.default.setAttributes([.posixPermissions: 0o311], ofItemAtPath: locked.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        #expect {
+            try FolderListing.contents(of: locked)
+        } throws: { error in
+            if case FolderListingError.notPermitted(let url) = error { return url == locked }
+            return false
+        }
+        #expect(FolderListing.isPermissionError(NSError(domain: NSPOSIXErrorDomain, code: Int(EPERM))))
+        #expect(!FolderListing.isPermissionError(NSError(domain: NSPOSIXErrorDomain, code: Int(ENOENT))))
+        let wrapped = NSError(domain: NSCocoaErrorDomain, code: NSFileReadUnknownError,
+                              userInfo: [NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(EACCES))])
+        #expect(FolderListing.isPermissionError(wrapped))
+    }
+
     @Test func subfoldersAreFinderSorted() throws {
         let t = try makeMixedFolder()
         #expect(FolderListing.subfolders(of: t.url).map(\.lastPathComponent) == ["fake.jpg", "Sub 2", "Sub 10"])

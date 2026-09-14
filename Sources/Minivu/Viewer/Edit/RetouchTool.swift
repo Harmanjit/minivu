@@ -60,6 +60,10 @@ nonisolated enum RetouchSource: Equatable, Sendable {
     private(set) var needsSourceHint = false
     /// The stroke being dragged, not yet on the document.
     @ObservationIgnored private(set) var liveStroke: RetouchStroke?
+    /// Strokes finished whose render may not be on screen yet: the overlay
+    /// goes on drawing them as it drew the live stroke until one is, or a
+    /// stroke would vanish at mouse-up for the 20-40 ms its render takes.
+    @ObservationIgnored private var strokesAwaitingRender: [RetouchStroke] = []
 
     /// For the overlay, which isn't SwiftUI: strokes, the source or the
     /// brush changed.
@@ -179,6 +183,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         liveStroke = nil
         if !stroke.isIdentity {
             strokes.append(stroke)
+            strokesAwaitingRender.append(stroke)
             sourcesBefore.append(liveSourceBefore)
             source = .aligned(stroke.sourceOffset)
             redoStack.removeAll()
@@ -196,6 +201,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
     @discardableResult
     func undoStroke() -> Bool {
         guard let stroke = strokes.popLast() else { return false }
+        strokesAwaitingRender.removeAll { $0 == stroke }
         let before = sourcesBefore.popLast() ?? .unset
         redoStack.append((stroke, before))
         source = before
@@ -213,6 +219,21 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         updatePreview()
         onChange?()
         return true
+    }
+
+    /// Finished strokes that no render on screen shows yet, for the overlay
+    /// to draw; forgets those that one does.
+    func strokesNotYetRendered() -> [RetouchStroke] {
+        guard !strokesAwaitingRender.isEmpty else { return [] }
+        strokesAwaitingRender = Self.unrendered(strokesAwaitingRender, shown: document.deliveredOperations)
+        return strokesAwaitingRender
+    }
+
+    /// `strokes` less those in the retouch step that `operations` (what is
+    /// on screen) ends with.
+    nonisolated static func unrendered(_ strokes: [RetouchStroke], shown operations: [EditOperation]?) -> [RetouchStroke] {
+        guard case .retouch(let shown)? = operations?.last else { return strokes }
+        return strokes.filter { !shown.contains($0) }
     }
 
     /// Points from `last` (excluded) towards `point`, evenly spaced at most
@@ -237,6 +258,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
 
     func apply() {
         liveStroke = nil
+        strokesAwaitingRender = []
         if strokes.isEmpty {
             document.preview = nil
         } else {
@@ -246,6 +268,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
 
     func cancel() {
         liveStroke = nil
+        strokesAwaitingRender = []
         document.preview = nil
     }
 
@@ -258,6 +281,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         sourcesBefore = []
         redoStack = []
         liveStroke = nil
+        strokesAwaitingRender = []
         updatePreview()
         onChange?()
     }

@@ -403,6 +403,17 @@ final class FolderCheckLog: @unchecked Sendable {
         #expect(!model.canGoToEnclosingFolder)
         #expect(!BrowserModel.canOpenFolder(locked))
         #expect(BrowserModel.canOpenFolder(inside))
+
+        // Gone up anyway (the menu validated before the check was back):
+        // the grid says why, and how to give access.
+        model.goToEnclosingFolder()
+        await model.work?.value
+        guard case .failed(let message) = model.state else {
+            Issue.record("expected a failed listing, got \(model.state)")
+            return
+        }
+        #expect(message.contains("permission to open “Locked”"))
+        #expect(message.contains("File > Open Folder…"))
     }
 
     /// The preview pane's wheel: next and previous image, folders skipped.

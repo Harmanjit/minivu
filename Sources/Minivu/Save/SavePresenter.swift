@@ -89,8 +89,9 @@ enum SavePresenter {
         let url = entry.url
         Task { [weak window] in
             // Reading the header is disk work: never on the main thread.
-            let (info, sourceSpace) = await BlockingWork.run {
-                (ImageDecoder.info(for: url), SavePolicy.sourceColorSpace(of: url))
+            let (info, sourceSpace, hasGainMap) = await BlockingWork.run {
+                let info = ImageDecoder.info(for: url)
+                return (info, SavePolicy.sourceColorSpace(of: url), info?.isHDR == true && SavePolicy.hasGainMap(url))
             }
             guard let window else { return completion(false) }
             guard let format = SavePolicy.inPlaceFormat(for: url, info: info), let info else {
@@ -101,21 +102,22 @@ enum SavePresenter {
             guard document.isDirty else { return completion(true) }
             let options = SavePolicy.inPlaceOptions(remembered: store.options(for: format),
                                                     sourceBitDepth: info.bitDepth)
-            confirmOverwrite(of: entry, options: options, on: window, preferences: preferences) { confirmed in
+            let hdr = SavePolicy.inPlaceHDR(format: format, isHDR: info.isHDR, hasGainMap: hasGainMap)
+            confirmOverwrite(of: entry, options: options, hdr: hdr, on: window, preferences: preferences) { confirmed in
                 guard confirmed else { return completion(false) }
                 guard canReplace() else {
                     presentSaveAs(entry: entry, document: document, on: window, store: store) { completion($0 != nil) }
                     return
                 }
                 let space = SavePolicy.renderColorSpace(source: sourceSpace, isHDR: info.isHDR, preferWideGamut: false)
-                writeInPlace(entry: entry, document: document, options: options, colorSpace: space, on: window,
-                             completion: completion)
+                writeInPlace(entry: entry, document: document, options: options, colorSpace: space,
+                             gainMap: hdr == .gainMap, on: window, completion: completion)
             }
         }
     }
 
     private static func writeInPlace(entry: FolderEntry, document: EditDocument, options: ExportOptions,
-                                     colorSpace: CGColorSpace, on window: NSWindow,
+                                     colorSpace: CGColorSpace, gainMap: Bool, on window: NSWindow,
                                      completion: @escaping (Bool) -> Void) {
         let snapshot = document.snapshot()
         let savedOperations = snapshot.operations
@@ -123,7 +125,8 @@ enum SavePresenter {
         let url = entry.url
         let progress = SaveProgress(on: window, title: "Saving “\(entry.name)”…")
         let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
-            try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer)
+            try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer,
+                                   gainMap: gainMap)
         }
         Task { [weak window] in
             do {
@@ -154,8 +157,21 @@ enum SavePresenter {
     /// The Save write: the committed operations rendered at full resolution
     /// and written over `url`. The metadata is read from the original while
     /// the new file is written beside it, before it replaces it.
+    ///
+    /// With `gainMap` (a gain-map original, `SavePolicy.InPlaceHDR.gainMap`)
+    /// the render keeps the highlights and ImageIO writes a new SDR base and
+    /// gain map, so the file stays HDR; if the original no longer decodes as
+    /// HDR, the ordinary SDR write follows.
     nonisolated static func writeInPlace(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
-                                         options: ExportOptions, to url: URL, renderer: EditRenderer) async throws {
+                                         options: ExportOptions, to url: URL, renderer: EditRenderer,
+                                         gainMap: Bool = false) async throws {
+        if gainMap, ImageEncoder.canWriteGainMap(options.format),
+           let hdr = try await renderer.renderHDRForExport(snapshot) {
+            try await BlockingWork.run {
+                try ImageEncoder.write(hdr, to: url, options: options, metadataSource: url, gainMap: true)
+            }
+            return
+        }
         let bits = options.format.supports16Bit && options.sixteenBit ? 16 : 8
         let image = try await renderer.renderForExport(snapshot, colorSpace: colorSpace, bitsPerComponent: bits)
         // Encoding and the file write block: on GCD (BlockingWork).
@@ -163,12 +179,13 @@ enum SavePresenter {
     }
 
     /// "Replace the original?", unless the user ticked "Don't ask again" once.
-    private static func confirmOverwrite(of entry: FolderEntry, options: ExportOptions, on window: NSWindow,
-                                         preferences: Preferences, then: @escaping (Bool) -> Void) {
+    private static func confirmOverwrite(of entry: FolderEntry, options: ExportOptions, hdr: SavePolicy.InPlaceHDR,
+                                         on window: NSWindow, preferences: Preferences,
+                                         then: @escaping (Bool) -> Void) {
         guard preferences.confirmOverwriteOnSave else { return then(true) }
         let alert = NSAlert()
         alert.messageText = "Replace the original “\(entry.name)”?"
-        alert.informativeText = SavePolicy.overwriteDetail(options)
+        alert.informativeText = SavePolicy.overwriteDetail(options, hdr: hdr)
         let replace = alert.addButton(withTitle: "Replace")
         replace.hasDestructiveAction = true
         alert.addButton(withTitle: "Cancel")
