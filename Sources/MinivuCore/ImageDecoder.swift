@@ -307,18 +307,22 @@ public enum ImageDecoder {
     /// a real RAW render is needed.
     public static func decodeRawPreview(_ url: URL, maxPixelSize: Int? = nil) throws -> DecodedImage? {
         guard let source = makeSource(url) else { throw DecodeError.unreadable(url) }
-        guard let info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
+        guard var info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
         let longest = Int(max(info.pixelSize.width, info.pixelSize.height))
         // Neither "from image" option: only an image already in the file
         // may be returned, scaled down if it is larger than asked.
-        let options: [CFString: Any] = [
+        var options: [CFString: Any] = [
             kCGImageSourceShouldCacheImmediately: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: min(maxPixelSize ?? longest, longest),
         ]
+        // A camera newer than the RAW engine has no size ImageIO can read,
+        // only its preview. Then the preview is the image, decoded whole so
+        // every texture of the file agrees on its size.
+        if longest > 0 { options[kCGImageSourceThumbnailMaxPixelSize] = min(maxPixelSize ?? longest, longest) }
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
         else { return nil }
-        let full = isFullSizePreview(longEdge: max(image.width, image.height), imageLongEdge: longest)
+        if longest == 0 { info.pixelSize = CGSize(width: image.width, height: image.height) }
+        let full = longest == 0 || isFullSizePreview(longEdge: max(image.width, image.height), imageLongEdge: longest)
         return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: false)
     }
 

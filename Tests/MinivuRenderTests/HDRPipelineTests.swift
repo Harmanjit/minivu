@@ -3,6 +3,7 @@ import Foundation
 import CoreGraphics
 import CoreImage
 import Metal
+import QuartzCore
 @testable import MinivuRender
 @testable import MinivuCore
 
@@ -126,6 +127,36 @@ import Metal
 
         loader.settings.showHDR = false   // no change: the cache stays
         #expect(loader.cache.usedBytes > 0)
+    }
+}
+
+/// When the canvas asks the display for EDR, which raises the backlight.
+@Suite struct ExtendedDynamicRangeTests {
+    func texture(isHDR: Bool, headroom: Float) -> ImageTexture {
+        let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba16Float, width: 1, height: 1, mipmapped: false)
+        return ImageTexture(texture: GPU.shared.device.makeTexture(descriptor: d)!, imageSize: CGSize(width: 1, height: 1),
+                            isFullResolution: true, isHDR: isHDR, contentHeadroom: headroom)
+    }
+
+    @Test func onlyForHDRContentOnAScreenThatCanShowIt() {
+        #expect(CanvasRenderer.wantsExtendedDynamicRange(for: texture(isHDR: true, headroom: 4), potentialHeadroom: 16))
+        #expect(CanvasRenderer.wantsExtendedDynamicRange(for: texture(isHDR: true, headroom: 4), potentialHeadroom: 2))
+        // An SDR screen: EDR could only cost power.
+        #expect(!CanvasRenderer.wantsExtendedDynamicRange(for: texture(isHDR: true, headroom: 4), potentialHeadroom: 1))
+        // SDR, deep (16-bit, wide gamut) or an HDR RAW that never passed white.
+        #expect(!CanvasRenderer.wantsExtendedDynamicRange(for: texture(isHDR: false, headroom: 1), potentialHeadroom: 16))
+        #expect(!CanvasRenderer.wantsExtendedDynamicRange(for: texture(isHDR: true, headroom: 1), potentialHeadroom: 16))
+        #expect(!CanvasRenderer.wantsExtendedDynamicRange(for: nil, potentialHeadroom: 16))
+    }
+
+    @Test func turningItOnAndOffReachesTheLayer() {
+        let layer = CAMetalLayer()
+        CanvasRenderer.configure(layer)
+        #expect(!layer.wantsExtendedDynamicRangeContent)
+        CanvasRenderer.setExtendedDynamicRange(true, on: layer)
+        #expect(layer.wantsExtendedDynamicRangeContent)
+        CanvasRenderer.setExtendedDynamicRange(false, on: layer)
+        #expect(!layer.wantsExtendedDynamicRangeContent)
     }
 }
 

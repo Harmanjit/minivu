@@ -34,9 +34,10 @@ import MinivuCore
 
 /// How RAW files are shown.
 public enum RawDecoding: String, Sendable, CaseIterable {
-    /// The JPEG the camera embedded, when it is large enough: fast, and the
-    /// camera's own colour rendering. Zooming in on a camera whose preview is
-    /// smaller than the sensor image still renders the RAW data.
+    /// The JPEG the camera embedded, wherever it is large enough for what is
+    /// shown: fast, and the camera's own colour rendering. Where it is too
+    /// small (zoomed in, or a camera's 1616 px preview on a large screen)
+    /// the RAW data is rendered instead.
     case embeddedPreview
     /// Always render the sensor data with Apple's RAW engine, at the size
     /// shown: slower, but the same rendering at every zoom.
@@ -376,49 +377,75 @@ public struct DisplaySettings: Sendable, Equatable {
             if stop.isSet || Task.isCancelled { throw CancellationError() }
         }
         try checkStop()
-        if ImageFormats.kind(of: url) == .raw {
-            switch rawPlan(pixelSize: pixelSize, settings: settings) {
-            case .render(let hdr):
-                if let texture = try? RawRenderer.render(url: url, maxPixelSize: pixelSize, hdr: hdr,
-                                                         headroom: settings.rawHeadroom) {
-                    return texture
-                }
-                // A camera Core Image's RAW engine doesn't know: ImageIO below.
-            case .previewOrRender:
-                if let preview = try ImageDecoder.decodeRawPreview(url), preview.isFullResolution {
-                    try checkStop()
-                    return try TextureUploader.upload(preview)
-                }
-                try checkStop()
-                if let texture = try? RawRenderer.render(url: url, maxPixelSize: nil, hdr: false, headroom: 1) {
-                    return texture
-                }
-            case .imageIO:
-                break
-            }
-            try checkStop()
+        if ImageFormats.kind(of: url) == .raw,
+           let texture = try loadRaw(url: url, pixelSize: pixelSize, settings: settings, checkStop: checkStop) {
+            return texture
         }
         let decoded = try ImageDecoder.decode(url, maxPixelSize: pixelSize, page: page, allowHDR: settings.showHDR)
         try checkStop()
         return try TextureUploader.upload(decoded)
     }
 
+    /// A RAW file's texture, as `settings` say; nil leaves it to ImageIO's
+    /// decode (a file with no embedded preview whose render failed).
+    ///
+    /// ImageIO's decode doesn't come first because of what it does when the
+    /// embedded preview is smaller than asked (many cameras store 1616 px):
+    /// a screen request gets that small preview, so the canvas keeps asking
+    /// for pixels that never come, and a full-resolution request renders
+    /// the RAW on the CPU (0.5-1.2 s for 24 MP).
+    nonisolated private static func loadRaw(url: URL, pixelSize: Int?, settings: DisplaySettings,
+                                            checkStop: () throws -> Void) throws -> ImageTexture? {
+        let plan = rawPlan(settings: settings)
+        var preview: DecodedImage?
+        if plan == .previewOrRender {
+            preview = try? ImageDecoder.decodeRawPreview(url, maxPixelSize: pixelSize)
+            if let preview, previewCovers(preview, pixelSize: pixelSize) {
+                try checkStop()
+                return try TextureUploader.upload(preview)
+            }
+            try checkStop()
+        }
+        do {
+            return try RawRenderer.render(url: url, maxPixelSize: pixelSize, hdr: plan == .render(hdr: true),
+                                          headroom: settings.rawHeadroom)
+        } catch DecodeError.noImage {
+            // Core Image's RAW engine doesn't know this camera, and ImageIO
+            // renders RAW files with the same engine: the embedded preview is
+            // the most this file will show.
+            try checkStop()
+            if preview == nil { preview = try? ImageDecoder.decodeRawPreview(url, maxPixelSize: pixelSize) }
+            guard var preview else { return nil }
+            // Smaller than asked for, so it is all there is. Saying so stops
+            // the canvas asking again and again.
+            if !previewCovers(preview, pixelSize: pixelSize) { preview.isFullResolution = true }
+            return try TextureUploader.upload(preview)
+        } catch {
+            return nil   // a GPU failure: ImageIO's decode may still manage
+        }
+    }
+
     /// How a RAW file is loaded.
     enum RawPlan: Equatable {
         /// `RawRenderer` at the requested size.
         case render(hdr: Bool)
-        /// Full resolution: the embedded preview if the camera stored one at
-        /// sensor size (140-260 ms with the upload, for 24 MP), otherwise a
-        /// real render.
+        /// The embedded preview when it covers the request (at full
+        /// resolution: the camera stored one at sensor size, 140-260 ms with
+        /// the upload for 24 MP), otherwise a render at the requested size.
         case previewOrRender
-        /// A screen-sized ImageIO decode, which uses the embedded preview when
-        /// it covers the request.
-        case imageIO
     }
 
-    nonisolated static func rawPlan(pixelSize: Int?, settings: DisplaySettings) -> RawPlan {
-        if settings.alwaysRendersRaw { return .render(hdr: settings.rendersHDRRaw) }
-        return pixelSize == nil ? .previewOrRender : .imageIO
+    nonisolated static func rawPlan(settings: DisplaySettings) -> RawPlan {
+        settings.alwaysRendersRaw ? .render(hdr: settings.rendersHDRRaw) : .previewOrRender
+    }
+
+    /// Whether an embedded preview decoded for `pixelSize` (nil: full
+    /// resolution) is as good as a render: the whole image, or at least the
+    /// requested size, with the usual 3% slack.
+    nonisolated static func previewCovers(_ preview: DecodedImage, pixelSize: Int?) -> Bool {
+        if preview.isFullResolution { return true }
+        guard let pixelSize else { return false }
+        return Double(max(preview.image.width, preview.image.height)) >= Double(pixelSize) * 0.97
     }
 
     private func finish(jobID: Int, result: Result<ImageTexture, Error>) {

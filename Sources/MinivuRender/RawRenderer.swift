@@ -19,6 +19,14 @@ import MinivuCore
 /// dynamic range 210-265 ms, half size 130-145 ms. The embedded full-size
 /// preview decodes and uploads in 140-260 ms and has the camera's own
 /// colours, which is why it stays the default.
+///
+/// Memory is the cost. The engine's working buffers take the process
+/// footprint up by about 1.6 GB for one full-size render and 0.8 GB for a
+/// screen-sized one (3.5 GB and 1.1 GB with three at once), and Core Image
+/// keeps them for about five seconds after the last render before letting
+/// go (`clearCaches` doesn't release them sooner). Renders still
+/// run concurrently: the loader caps decodes at three, and making the photo
+/// the user flipped to wait behind two neighbours would cost half a second.
 public enum RawRenderer {
     /// Apple's RAW engine at full extended dynamic range puts highlights up
     /// to about 2x SDR white (measured peaks of 2.05, 2.13 and 2.52 on the

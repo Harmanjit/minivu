@@ -138,7 +138,7 @@ private struct ViewerSettings: View {
                 Toggle("Display HDR photos in HDR", isOn: $prefs.showHDR)
             } footer: {
                 Text("Highlights brighter than white show on HDR screens: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Other screens show HDR photos tone mapped.")
-                    .foregroundStyle(.secondary)
+                    .paragraphFooter()
             }
             Section {
                 Picker("RAW files", selection: $prefs.rawDecoding) {
@@ -147,8 +147,8 @@ private struct ViewerSettings: View {
                 Toggle("Render RAW files with extended dynamic range", isOn: $prefs.hdrRaw)
                     .disabled(!prefs.showHDR)
             } footer: {
-                Text("The embedded preview is the JPEG the camera saved with the photo. It shows at once, and if it is smaller than the photo, zooming in renders the RAW data. Extended dynamic range always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen.")
-                    .foregroundStyle(.secondary)
+                Text("The embedded preview is the JPEG the camera saved with the photo. It shows at once; where it is too small for the screen or the zoom, the RAW data is rendered instead. Extended dynamic range always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen.")
+                    .paragraphFooter()
             }
         }
         .settingsForm()
@@ -300,5 +300,15 @@ private extension View {
         formStyle(.grouped)
             .scrollDisabled(true)
             .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// A footer of several lines. A grouped form lines footers up on the
+    /// trailing edge, which for a paragraph leaves a ragged left margin; this
+    /// starts it where the rows' labels start instead.
+    func paragraphFooter() -> some View {
+        foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
     }
 }

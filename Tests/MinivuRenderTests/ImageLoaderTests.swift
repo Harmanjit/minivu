@@ -212,21 +212,25 @@ import CoreGraphics
     // MARK: - Settings and RAW
 
     @Test func rawPlanFollowsTheSettings() {
-        let preview = DisplaySettings()
-        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: preview) == .imageIO)
-        #expect(ImageLoader.rawPlan(pixelSize: nil, settings: preview) == .previewOrRender)
-
-        let raw = DisplaySettings(rawDecoding: .fullRaw)
-        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: raw) == .render(hdr: false))
-        #expect(ImageLoader.rawPlan(pixelSize: nil, settings: raw) == .render(hdr: false))
-
+        #expect(ImageLoader.rawPlan(settings: DisplaySettings()) == .previewOrRender)
+        #expect(ImageLoader.rawPlan(settings: DisplaySettings(rawDecoding: .fullRaw)) == .render(hdr: false))
         // HDR RAW needs a render whatever the decoding choice, and HDR on.
-        let hdr = DisplaySettings(hdrRaw: true)
-        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: hdr) == .render(hdr: true))
-        let hdrOff = DisplaySettings(showHDR: false, hdrRaw: true)
-        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: hdrOff) == .imageIO)
-        let noAmount = DisplaySettings(hdrRaw: true, hdrRawAmount: 0)
-        #expect(ImageLoader.rawPlan(pixelSize: nil, settings: noAmount) == .previewOrRender)
+        #expect(ImageLoader.rawPlan(settings: DisplaySettings(hdrRaw: true)) == .render(hdr: true))
+        #expect(ImageLoader.rawPlan(settings: DisplaySettings(showHDR: false, hdrRaw: true)) == .previewOrRender)
+        #expect(ImageLoader.rawPlan(settings: DisplaySettings(hdrRaw: true, hdrRawAmount: 0)) == .previewOrRender)
+    }
+
+    @Test func aPreviewCoversWhatItHoldsWithThreePercentSlack() {
+        func preview(longEdge: Int, full: Bool) -> DecodedImage {
+            let image = Fixtures.quadrants(width: longEdge, height: longEdge / 2)
+            return DecodedImage(image: image, orientation: .up, imageSize: CGSize(width: 6016, height: 3008),
+                                isFullResolution: full, isHDR: false, contentHeadroom: 1, needsDeepStorage: false)
+        }
+        #expect(ImageLoader.previewCovers(preview(longEdge: 6000, full: true), pixelSize: nil))
+        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), pixelSize: nil))
+        #expect(ImageLoader.previewCovers(preview(longEdge: 1512, full: false), pixelSize: 1512))
+        #expect(ImageLoader.previewCovers(preview(longEdge: 1620, full: false), pixelSize: 1670))
+        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), pixelSize: 3008))
     }
 
     @Test func rawHeadroomScalesWithTheAmount() {
@@ -288,5 +292,60 @@ import CoreGraphics
         }.get()
         #expect(hdr.isFullResolution)
         #expect(hdr.texture.pixelFormat == .rgba16Float)   // only RawRenderer makes these for a RAW
+    }
+
+    func loadFull(_ loader: ImageLoader, _ entry: FolderEntry) async -> Result<ImageTexture, Error> {
+        await withCheckedContinuation { done in
+            loader.loadFullResolution(entry) { done.resume(returning: $0) }
+        }
+    }
+
+    /// A camera that embeds only a 1620 px preview: it is used where it is
+    /// big enough, and the RAW data is rendered where it isn't. ImageIO's
+    /// decode would hand a 2800 px screen request the 1620 px preview, and
+    /// the canvas would ask for more forever.
+    @Test(.enabled(if: hasAssets))
+    func smallEmbeddedPreviewIsRenderedWhereItFallsShort() async throws {
+        let loader = makeLoader()
+        let url = try Fixtures.smallPreviewNEF(from: Self.assets.appendingPathComponent("HSB_2639.NEF"))
+        defer { try? FileManager.default.removeItem(at: url) }   // 34 MB
+        let entry = try #require(FolderEntry(url: url))
+
+        let small = try await load(loader, entry, pixelSize: 1512).get()
+        #expect(max(small.texture.width, small.texture.height) == 1512)
+        #expect(!small.isFullResolution)
+
+        let screen = try await load(loader, entry, pixelSize: 2800).get()
+        #expect(max(screen.texture.width, screen.texture.height) >= 2800)
+        #expect(screen.imageSize == CGSize(width: 6016, height: 4016))
+        #expect(!screen.isFullResolution)
+        #expect(!CanvasInteraction.needsHigherResolution(isFullResolution: screen.isFullResolution,
+                                                          currentZoom: 2800.0 / 6016,
+                                                          imageLongEdge: 6016, textureLongEdge: screen.textureSize.width))
+
+        let full = try await loadFull(loader, entry).get()
+        #expect(full.isFullResolution)
+        #expect(full.texture.width == 6016 && full.texture.height == 4016)
+        #expect(loader.decodeCount == 3)
+    }
+
+    /// A camera the RAW engine doesn't know: its preview is all there is,
+    /// at every size, and saying so ends the canvas's requests for more.
+    @Test(.enabled(if: hasAssets))
+    func unknownCameraShowsItsPreviewAsTheWholeImage() async throws {
+        let url = try Fixtures.smallPreviewNEF(from: Self.assets.appendingPathComponent("HSB_2639.NEF"),
+                                               unknownCamera: true)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let entry = try #require(FolderEntry(url: url))
+        for settings in [DisplaySettings(), DisplaySettings(rawDecoding: .fullRaw)] {
+            let loader = makeLoader()
+            loader.settings = settings
+            let screen = try await load(loader, entry, pixelSize: 2800).get()
+            #expect(screen.textureSize == CGSize(width: 1620, height: 1080))
+            #expect(screen.imageSize == screen.textureSize)
+            #expect(screen.isFullResolution)
+            let full = try await loadFull(loader, entry).get()
+            #expect(full === screen)   // a cache hit
+        }
     }
 }
