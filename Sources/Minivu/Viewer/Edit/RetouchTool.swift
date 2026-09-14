@@ -88,7 +88,6 @@ nonisolated enum RetouchSource: Equatable, Sendable {
 
     var title: String { mode == .clone ? "Clone Stamp" : "Healing Brush" }
     var hasPendingChanges: Bool { !strokes.isEmpty }
-    var canRedoStroke: Bool { !redoStack.isEmpty }
 
     // MARK: - Brush
 

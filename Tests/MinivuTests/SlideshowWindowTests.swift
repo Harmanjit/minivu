@@ -148,6 +148,7 @@ extension AppWindowTests {
             }
         }
 
+        #if DEBUG
         @Test func freezesATransitionForSnapshots() async throws {
             try await withSettings({ $0.interval = 60 }) {
                 let folder = try ScratchFolder()
@@ -168,6 +169,7 @@ extension AppWindowTests {
                 #expect(view.snapshotImage() != nil)
             }
         }
+        #endif
 
         /// Volume and Play Music changed in Settings while a show plays reach
         /// its music at once.

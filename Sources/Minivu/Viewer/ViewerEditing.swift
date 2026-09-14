@@ -629,6 +629,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
 
     // MARK: - Snapshot harness (debug only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness (`MINIVU_ACTIONS=debugEditLighting:`):
     /// opens Lighting with brightness and contrast moved, as a drag would.
     /// No menu item or key sends it.
@@ -658,4 +659,5 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         state.setCurves(.sCurve)
         state.selectedIndex = 2
     }
+    #endif
 }

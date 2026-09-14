@@ -6,6 +6,7 @@ extension AppDelegate {
         showSettings(pane: .editors)
     }
 
+    #if DEBUG
     /// Debug only, for the snapshot harness: shows Settings > Editors with
     /// Preview and TextEdit in the list. The list stops being saved first,
     /// so the sample never reaches the user's settings.
@@ -27,4 +28,5 @@ extension AppDelegate {
         })
         showSettings(pane: .editors)
     }
+    #endif
 }

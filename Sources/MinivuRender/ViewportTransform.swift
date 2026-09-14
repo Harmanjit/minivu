@@ -67,12 +67,6 @@ public struct ViewportTransform: Equatable, Sendable {
         return CGRect(x: origin.x, y: origin.y, width: imageSize.width * zoom, height: imageSize.height * zoom)
     }
 
-    /// The part of the image currently visible (may extend past the edges).
-    public func visibleImageRect(viewSize: CGSize) -> CGRect {
-        let tl = imagePoint(forScreenPoint: .zero, viewSize: viewSize)
-        return CGRect(x: tl.x, y: tl.y, width: viewSize.width / zoom, height: viewSize.height / zoom)
-    }
-
     /// The affine map the shader uses: screen pixel -> normalised texture
     /// coordinate (0...1 across the image). Column-major 3x2, as Metal's
     /// `float3x2`: uv = M * (x, y, 1).
@@ -114,10 +108,5 @@ public struct ViewportTransform: Equatable, Sendable {
         }
         return ViewportTransform(zoom: z, center: CGPoint(x: axis(center.x, halfW, imageSize.width),
                                                           y: axis(center.y, halfH, imageSize.height)))
-    }
-
-    /// True when the whole image is visible.
-    public func showsWholeImage(imageSize: CGSize, viewSize: CGSize) -> Bool {
-        zoom <= Self.fitZoom(imageSize: imageSize, viewSize: viewSize) + 1e-6
     }
 }

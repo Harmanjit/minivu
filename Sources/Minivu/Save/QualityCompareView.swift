@@ -116,7 +116,6 @@ struct CompareTile {
     static let debounce: Duration = .milliseconds(100)
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var task: Task<Void, Never>?
-    @ObservationIgnored private var lastOptions: ExportOptions?
 
     init(save: SaveAsModel) {
         self.save = save

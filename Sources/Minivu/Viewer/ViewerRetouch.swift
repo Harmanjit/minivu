@@ -95,6 +95,7 @@ extension ViewerWindowController {
 
     // MARK: - Snapshot harness (debug only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness (`MINIVU_ACTIONS=debugRetouchClone:`):
     /// opens the clone stamp and paints the strokes in `MINIVU_DEBUG_STROKES`
     /// (see `debugPaint`). No menu item or key sends it.
@@ -163,4 +164,5 @@ extension ViewerWindowController {
             if environment["MINIVU_DEBUG_APPLY"] == "1" { self.closeTool(applying: true) }
         }
     }
+    #endif
 }

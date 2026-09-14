@@ -32,6 +32,9 @@ APP="build/minivu.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/minivu "$APP/Contents/MacOS/minivu"
+# Local symbols are for the debugger; without them the binary is half the
+# size (11.7 MB to 5.9 MB). Crash reports still name the global symbols.
+strip -x "$APP/Contents/MacOS/minivu"
 # Both resource bundles, found in Contents/Resources by Bundle.minivuRender
 # and Bundle.minivuHelp. Without the second, Help shows "Page Unavailable".
 cp -R .build/release/minivu_MinivuRender.bundle "$APP/Contents/Resources/"

@@ -188,10 +188,15 @@ enum ResizeSheet {
         sheet.isReleasedWhenClosed = false
         sheet.title = "Resize"
         var finished = false
-        func finish(_ op: EditOperation?) {
-            guard !finished else { return }
+        // The sheet's view holds these buttons' actions, so they hold the
+        // sheet and its parent weakly: a strong hold was a cycle that kept
+        // the sheet, the viewer's window and (through `completion`) the edit
+        // session with its full-resolution textures alive after the sheet
+        // ended, one set per use.
+        let finish = { [weak window, weak sheet] (op: EditOperation?) in
+            guard !finished, let sheet else { return }
             finished = true
-            window.endSheet(sheet)
+            window?.endSheet(sheet)
             completion(op)
         }
         let host = NSHostingView(rootView: ResizeSheetView(state: state, onCancel: { finish(nil) },

@@ -97,6 +97,7 @@ final class MontageSheetController: NSObject, NSWindowDelegate {
 
     // MARK: - Debug (snapshot harness only)
 
+    #if DEBUG
     /// Debug only, for the snapshot harness: switches to the scattered layout.
     @objc func debugMontageScattered(_ sender: Any?) {
         model.remembersChoices = false
@@ -127,6 +128,7 @@ final class MontageSheetController: NSObject, NSWindowDelegate {
         setsDesktopPicture = false
         create()
     }
+    #endif
 }
 
 struct MontageSheetView: View {

@@ -13,6 +13,7 @@ extension AppDelegate {
         HelpWindowController.show(page: .shortcuts)
     }
 
+    #if DEBUG
     /// Debug only, for the snapshot harness: Help searching for
     /// MINIVU_DEBUG_HELP_SEARCH (default "rename") on MINIVU_DEBUG_HELP_PAGE
     /// (a page's raw value, default Browser).
@@ -22,6 +23,7 @@ extension AppDelegate {
         HelpWindowController.show(page: page)
         HelpWindowController.shared?.model.query = environment["MINIVU_DEBUG_HELP_SEARCH"] ?? "rename"
     }
+    #endif
 }
 
 /// The Help window: bundled pages in a sidebar with search, rendered

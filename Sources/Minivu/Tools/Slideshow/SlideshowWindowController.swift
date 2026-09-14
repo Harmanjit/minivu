@@ -766,6 +766,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
     /// Whether image `index` has decoded ahead and is ready to show.
     func hasDecoded(_ index: Int) -> Bool { ready[index] != nil }
 
+    #if DEBUG
     /// Debug only, for the snapshot harness: holds a transition from the
     /// slide on screen to the next part way, with the control bar up, so a
     /// picture shows what a transition looks like. Sent with
@@ -784,6 +785,7 @@ final class SlideshowWindowController: NSWindowController, NSWindowDelegate, NSM
         controlBar.setShown(true, animated: false)
         applyDebugFreeze()
     }
+    #endif
 
     private func applyDebugFreeze() {
         guard let freeze = debugFreeze, let shown, transition?.frozenProgress == nil else { return }

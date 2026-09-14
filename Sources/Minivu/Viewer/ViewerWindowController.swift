@@ -1159,6 +1159,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         histogramPanel.countColors()
     }
 
+    #if DEBUG
     /// Debug only, for the snapshot harness (`MINIVU_ACTIONS=debugShowAllPanels:`):
     /// pins every panel and the HUD open so one picture shows them all. No
     /// menu item or key sends it, and it changes nothing but what's shown.
@@ -1169,6 +1170,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         hud.setPinned(true)
         pinsChanged()
     }
+    #endif
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         model.wrapAround = Preferences.shared.wrapAround

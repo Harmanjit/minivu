@@ -54,8 +54,9 @@ enum ExternalEditorsMenu {
     }
 }
 
-/// A weak reference, so the list of menus doesn't keep closed menu bars alive.
+/// A weak reference that can sit in an array, so the list of menus doesn't
+/// keep closed menu bars alive.
 final class Weak<Value: AnyObject> {
     weak var value: Value?
-    init(_ value: Value) { self.value = value }
+    init(_ value: Value?) { self.value = value }
 }
