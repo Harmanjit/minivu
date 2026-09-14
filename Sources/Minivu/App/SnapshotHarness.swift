@@ -92,7 +92,12 @@ enum SnapshotHarness {
             targetWindow(config, app: app)?.setContentSize(size)
         }
         for action in config.actions {
-            let sent = NSApp.sendAction(NSSelectorFromString(action), to: nil, from: nil)
+            let selector = NSSelectorFromString(action)
+            // With another app holding focus minivu can't activate, so there
+            // is no key window for AppKit to start from; walk the captured
+            // window's own responder chain instead.
+            let sent = NSApp.sendAction(selector, to: nil, from: nil)
+                || targetWindow(config, app: app)?.firstResponder?.tryToPerform(selector, with: nil) == true
             if !sent { report("no responder handled \(action)") }
             await pause(0.4)
         }

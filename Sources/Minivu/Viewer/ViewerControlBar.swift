@@ -62,8 +62,13 @@ final class ViewerControlBar: NSView {
         stack.alignment = .centerY
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
+        // Centred when there is room; pinned to the leading edge when there
+        // isn't, rather than squeezing the buttons (two required constraints
+        // that can't both hold would make AppKit break one at random).
+        let centered = stack.centerXAnchor.constraint(equalTo: centerXAnchor)
+        centered.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            centered,
             stack.centerYAnchor.constraint(equalTo: centerYAnchor),
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 8),
         ])

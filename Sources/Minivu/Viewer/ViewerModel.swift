@@ -47,8 +47,8 @@ nonisolated struct ViewerModel: Equatable {
     @discardableResult mutating func first() -> Bool { move(to: 0) }
     @discardableResult mutating func last() -> Bool { move(to: count - 1) }
 
-    /// One step at a time, wrapping only when allowed. Offsets beyond one
-    /// (not sent today) clamp at the ends rather than wrapping twice.
+    /// Moves by `offset` (the keys and the wheel send ±1). Past either end it
+    /// wraps round when allowed and stops at the end otherwise.
     @discardableResult
     mutating func move(by offset: Int) -> Bool {
         guard offset != 0, !images.isEmpty else { return false }
@@ -131,9 +131,22 @@ nonisolated enum ViewerKeyCommand: Equatable {
     case toggleFullScreen, close
     case zoomIn, zoomOut, actualSize, fit
     case toggleHUD, toggleFilmstrip
+    /// 0 to 5 stars. Ratings arrive in a later phase; the keys are taken now
+    /// so a press is quietly ignored instead of beeping.
+    case rating(Int)
 
     /// The fraction of the view one arrow press pans.
     static let panFraction: CGFloat = 0.1
+
+    /// Whether a held key repeats the command. Flipping, panning and zooming
+    /// do; a held Return would swap windows back and forth, and a held F or
+    /// I make their panel flicker.
+    var repeats: Bool {
+        switch self {
+        case .next, .previous, .pan, .zoomIn, .zoomOut: true
+        default: false
+        }
+    }
 
     /// - Parameters:
     ///   - characters: `charactersIgnoringModifiers` of the key event.
@@ -166,7 +179,7 @@ nonisolated enum ViewerKeyCommand: Equatable {
         case "*": return .fit
         case "i": return .toggleHUD
         case "f": return .toggleFilmstrip
-        // 0-5 will set ratings (a later phase); nothing else is ours.
+        case "0", "1", "2", "3", "4", "5": return .rating(Int(characters)!)
         default: return nil
         }
     }

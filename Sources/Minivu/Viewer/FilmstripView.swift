@@ -68,7 +68,14 @@ final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewD
         self.images = images
         currentIndex = current
         needsReload = true
-        if isActive { catchUp(animated: false) }
+        if isActive {
+            catchUp(animated: false)
+        } else {
+            // Down to no items now (the count is zero until shown). Left with
+            // the old ones, the next layout could ask for an item of a list
+            // that has since changed.
+            collectionView.reloadData()
+        }
     }
 
     func setCurrent(_ index: Int) {
@@ -140,7 +147,9 @@ final class FilmstripView: NSView, NSCollectionViewDataSource, NSCollectionViewD
                         itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
         let item = collectionView.makeItem(withIdentifier: FilmstripItem.identifier, for: indexPath)
         if let item = item as? FilmstripItem, images.indices.contains(indexPath.item) {
-            item.show(images[indexPath.item])
+            // A window resize lays out the hidden strip too; its cells wait
+            // for `catchUp` before asking for thumbnails.
+            item.show(images[indexPath.item], loadsThumbnail: isActive)
             item.isCurrent = indexPath.item == currentIndex
         }
         return item
@@ -217,13 +226,14 @@ private final class FilmstripItem: NSCollectionViewItem {
         CATransaction.commit()
     }
 
-    func show(_ entry: FolderEntry) {
-        guard entry != self.entry else { return reloadThumbnailIfNeeded() }
-        cancelThumbnail()
-        self.entry = entry
-        view.toolTip = entry.name
-        setImage(nil)
-        reloadThumbnailIfNeeded()
+    func show(_ entry: FolderEntry, loadsThumbnail: Bool) {
+        if entry != self.entry {
+            cancelThumbnail()
+            self.entry = entry
+            view.toolTip = entry.name
+            setImage(nil)
+        }
+        if loadsThumbnail { reloadThumbnailIfNeeded() }
     }
 
     /// Asks for the thumbnail unless it's showing or already on its way.

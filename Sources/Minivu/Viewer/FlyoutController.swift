@@ -20,13 +20,48 @@ nonisolated enum FlyoutGeometry {
     /// The edge the pointer is touching, or nil. In a corner, the nearer edge
     /// wins, and top and bottom beat the sides on a tie: the filmstrip and
     /// the controls are the panels people reach for most.
-    static func edge(at point: CGPoint, in area: CGRect, threshold: CGFloat = triggerDistance) -> FlyoutEdge? {
-        guard area.insetBy(dx: -threshold, dy: -threshold).contains(point) else { return nil }
+    ///
+    /// `reach` is where the pointer may be beyond `area` and still count as
+    /// touching its nearest edge. In full screen on a notched display the
+    /// pointer comes to rest at the top of the screen, above the camera
+    /// strip, and a quick flick upwards never reports a point inside the
+    /// thin band below it; the whole strip must open the filmstrip. In a
+    /// window it is left nil, so the title bar stays the title bar.
+    static func edge(at point: CGPoint, in area: CGRect, reach: CGRect? = nil,
+                     threshold: CGFloat = triggerDistance) -> FlyoutEdge? {
+        let bounds = (reach ?? area).union(area.insetBy(dx: -threshold, dy: -threshold))
+        guard contains(bounds, point) else { return nil }
+        let x = min(max(point.x, area.minX), area.maxX)
+        let y = min(max(point.y, area.minY), area.maxY)
         let distances: [(FlyoutEdge, CGFloat)] = [
-            (.top, area.maxY - point.y), (.bottom, point.y - area.minY),
-            (.left, point.x - area.minX), (.right, area.maxX - point.x),
+            (.top, area.maxY - y), (.bottom, y - area.minY),
+            (.left, x - area.minX), (.right, area.maxX - x),
         ]
         return distances.filter { $0.1 <= threshold }.min { $0.1 < $1.1 }?.0
+    }
+
+    /// Where the pointer keeps an open panel open: its frame, stretched out
+    /// to `reach` on its own edge, so moving from the filmstrip up into the
+    /// camera strip doesn't close it and open it again.
+    static func hoverFrame(for edge: FlyoutEdge, thickness: CGFloat, in area: CGRect, reach: CGRect?,
+                           pinnedThickness: [FlyoutEdge: CGFloat] = [:]) -> CGRect {
+        var frame = openFrame(for: edge, thickness: thickness, in: area, pinnedThickness: pinnedThickness)
+        guard let reach else { return frame }
+        switch edge {
+        case .top: frame.size.height = max(frame.height, reach.maxY - frame.minY)
+        case .bottom: frame = CGRect(x: frame.minX, y: min(frame.minY, reach.minY), width: frame.width,
+                                     height: frame.maxY - min(frame.minY, reach.minY))
+        case .left: frame = CGRect(x: min(frame.minX, reach.minX), y: frame.minY,
+                                   width: frame.maxX - min(frame.minX, reach.minX), height: frame.height)
+        case .right: frame.size.width = max(frame.width, reach.maxX - frame.minX)
+        }
+        return frame
+    }
+
+    /// `CGRect.contains` leaves out the max edges, where a pointer resting
+    /// against the top or right of the screen is.
+    static func contains(_ rect: CGRect, _ point: CGPoint) -> Bool {
+        point.x >= rect.minX && point.x <= rect.maxX && point.y >= rect.minY && point.y <= rect.maxY
     }
 
     /// The panel's frame while showing. Top and bottom panels span the full
@@ -121,6 +156,9 @@ final class FlyoutController: NSResponder {
     private var panels: [FlyoutEdge: Panel] = [:]
     /// Where panels live; the container sets it on every layout.
     private(set) var area: CGRect = .zero
+    /// Beyond `area`, where the pointer still reaches an edge (see
+    /// `FlyoutGeometry.edge`). Full screen only.
+    private(set) var reach: CGRect?
 
     /// Every pointer movement over the container, for hiding the cursor.
     var onPointerMoved: (() -> Void)?
@@ -160,9 +198,10 @@ final class FlyoutController: NSResponder {
     /// Container layout also runs for unrelated reasons (the HUD's text
     /// changing size), and setting frames then would cut a slide short, so
     /// an unchanged area leaves the panels alone.
-    func layout(in area: CGRect) {
-        guard area != self.area else { return }
+    func layout(in area: CGRect, reach: CGRect? = nil) {
+        guard area != self.area || reach != self.reach else { return }
         self.area = area
+        self.reach = reach
         for (edge, panel) in panels {
             panel.view.frame = frame(for: edge, open: panel.isOpen)
         }
@@ -170,11 +209,15 @@ final class FlyoutController: NSResponder {
 
     private func frame(for edge: FlyoutEdge, open: Bool) -> CGRect {
         guard let panel = panels[edge] else { return .zero }
-        var pinned: [FlyoutEdge: CGFloat] = [:]
-        for (other, state) in panels where state.isPinned && state.isOpen { pinned[other] = state.thickness }
         return open
-            ? FlyoutGeometry.openFrame(for: edge, thickness: panel.thickness, in: area, pinnedThickness: pinned)
-            : FlyoutGeometry.closedFrame(for: edge, thickness: panel.thickness, in: area, pinnedThickness: pinned)
+            ? FlyoutGeometry.openFrame(for: edge, thickness: panel.thickness, in: area, pinnedThickness: pinnedThickness)
+            : FlyoutGeometry.closedFrame(for: edge, thickness: panel.thickness, in: area, pinnedThickness: pinnedThickness)
+    }
+
+    private var pinnedThickness: [FlyoutEdge: CGFloat] {
+        var pinned: [FlyoutEdge: CGFloat] = [:]
+        for (edge, state) in panels where state.isPinned && state.isOpen { pinned[edge] = state.thickness }
+        return pinned
     }
 
     // MARK: - Showing and hiding
@@ -272,11 +315,16 @@ final class FlyoutController: NSResponder {
     func pointerMoved(to point: CGPoint) {
         // Measured against where panels are going, not where an animation has
         // them this instant, so a panel sliding in doesn't close itself.
-        let inside = panels.filter { $0.value.isOpen && frame(for: $0.key, open: true).contains(point) }.keys
+        let pinned = pinnedThickness
+        let inside = panels.filter { edge, panel in
+            panel.isOpen && FlyoutGeometry.contains(
+                FlyoutGeometry.hoverFrame(for: edge, thickness: panel.thickness, in: area, reach: reach,
+                                          pinnedThickness: pinned), point)
+        }.keys
         for (edge, panel) in panels where panel.isOpen && !panel.isPinned && !inside.contains(edge) {
             setOpen(false, edge: edge, animated: true)
         }
-        guard inside.isEmpty, let edge = FlyoutGeometry.edge(at: point, in: area),
+        guard inside.isEmpty, let edge = FlyoutGeometry.edge(at: point, in: area, reach: reach),
               panels[edge]?.isOpen == false else { return }
         setOpen(true, edge: edge, animated: true)
     }

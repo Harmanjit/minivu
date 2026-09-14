@@ -188,9 +188,21 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(command("f") == .toggleFilmstrip)
     }
 
-    /// Ratings are a later phase, and shortcuts belong to the menu.
+    @Test func onlyMovementAndZoomRepeat() {
+        #expect(ViewerKeyCommand.next.repeats && ViewerKeyCommand.pan(x: 0, y: 1).repeats)
+        #expect(ViewerKeyCommand.zoomIn.repeats)
+        #expect(!ViewerKeyCommand.toggleFullScreen.repeats && !ViewerKeyCommand.toggleFilmstrip.repeats)
+        #expect(!ViewerKeyCommand.close.repeats && !ViewerKeyCommand.last.repeats)
+    }
+
+    /// Ratings are a later phase, but their keys are taken so they don't beep.
+    @Test func ratingKeysAreReserved() {
+        for digit in 0...5 { #expect(command("\(digit)") == .rating(digit)) }
+        #expect(command("6") == nil)
+    }
+
+    /// Shortcuts belong to the menu.
     @Test func leavesOtherKeysAlone() {
-        for digit in 0...5 { #expect(command("\(digit)") == nil) }
         #expect(command("w", .command) == nil)
         #expect(command("=", .command) == nil)
         #expect(command(key(NSRightArrowFunctionKey), .option) == nil)
@@ -231,6 +243,30 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         let frame = FlyoutGeometry.openFrame(for: .right, thickness: 320, in: area,
                                              pinnedThickness: [.top: 96, .bottom: 48])
         #expect(frame == CGRect(x: 680, y: 68, width: 320, height: 456))
+    }
+
+    /// Full screen on a notched display: the pointer rests at the top of the
+    /// screen, above the panel area, and that must still reach the filmstrip.
+    @Test func reachBeyondTheAreaCountsAsTheNearestEdge() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 652)   // 32 pt camera strip above `area`
+        #expect(FlyoutGeometry.edge(at: CGPoint(x: 500, y: 652), in: area, reach: screen) == .top)
+        #expect(FlyoutGeometry.edge(at: CGPoint(x: 500, y: 640), in: area, reach: screen) == .top)
+        #expect(FlyoutGeometry.edge(at: CGPoint(x: 0, y: 300), in: area, reach: screen) == .left)
+        #expect(FlyoutGeometry.edge(at: CGPoint(x: 1000, y: 300), in: area, reach: screen) == .right)
+        #expect(FlyoutGeometry.edge(at: CGPoint(x: 500, y: 300), in: area, reach: screen) == nil)
+        // Without a reach (a window's title bar), the same point is nothing.
+        #expect(FlyoutGeometry.edge(at: CGPoint(x: 500, y: 652), in: area) == nil)
+    }
+
+    @Test func hoverFramesStretchToTheReach() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 652)
+        #expect(FlyoutGeometry.hoverFrame(for: .top, thickness: 96, in: area, reach: screen)
+                == CGRect(x: 0, y: 524, width: 1000, height: 128))
+        #expect(FlyoutGeometry.hoverFrame(for: .bottom, thickness: 48, in: area, reach: screen)
+                == CGRect(x: 0, y: 0, width: 1000, height: 68))
+        #expect(FlyoutGeometry.hoverFrame(for: .left, thickness: 220, in: area, reach: nil)
+                == FlyoutGeometry.openFrame(for: .left, thickness: 220, in: area))
+        #expect(FlyoutGeometry.contains(screen, CGPoint(x: 1000, y: 652)))
     }
 
     @Test func closedFramesSitJustPastTheEdge() {
@@ -295,6 +331,34 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         #expect(!window.isVisible)
     }
 
+    /// A browser with nothing left to show closes the viewer that is open,
+    /// and hears about it with no image to select.
+    @Test func showingNothingClosesAnOpenViewer() {
+        var closed: [String] = []
+        ViewerWindowController.show(images: entries(2), index: 0, fullScreen: false) { closed.append("old:\($0?.name ?? "nil")") }
+        #expect(ViewerWindowController.current != nil)
+        ViewerWindowController.show(images: [], index: 0, fullScreen: false) { closed.append("new:\($0?.name ?? "nil")") }
+        #expect(ViewerWindowController.current == nil)
+        #expect(closed == ["new:nil"])
+    }
+
+    /// Nothing (a display link, a work item, a panel callback) keeps a closed
+    /// viewer, its canvas or its windows alive.
+    @Test func closedViewerIsFreed() {
+        weak var viewer: ViewerWindowController?
+        weak var window: NSWindow?
+        autoreleasepool {
+            ViewerWindowController.show(images: entries(3), index: 1, fullScreen: false) { _ in }
+            viewer = ViewerWindowController.current
+            window = viewer?.window
+            viewer?.nextImage(nil)
+            viewer?.toggleInfoPanel(nil)
+            viewer?.exitViewer(nil)
+        }
+        #expect(viewer == nil)
+        #expect(window == nil)
+    }
+
     /// ⌘W on the borderless window asks the delegate, as a titled one would.
     @Test func borderlessWindowPerformsClose() {
         final class Delegate: NSObject, NSWindowDelegate {
@@ -350,6 +414,20 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
         flyouts.pointerMoved(to: CGPoint(x: 1, y: 300))
         #expect(!flyouts.isOpen(.top))
         #expect(flyouts.isOpen(.left))
+    }
+
+    /// Full screen with a camera strip above the panel area: the strip opens
+    /// the filmstrip, and moving between the strip and the panel keeps it.
+    @Test func reachAboveTheAreaOpensAndKeepsTheTopPanel() {
+        flyouts.layout(in: CGRect(x: 0, y: 0, width: 1000, height: 568),
+                       reach: CGRect(x: 0, y: 0, width: 1000, height: 600))
+        flyouts.pointerMoved(to: CGPoint(x: 500, y: 600))
+        #expect(flyouts.isOpen(.top))
+        flyouts.pointerMoved(to: CGPoint(x: 500, y: 500))
+        flyouts.pointerMoved(to: CGPoint(x: 500, y: 590))
+        #expect(flyouts.isOpen(.top))
+        flyouts.pointerMoved(to: CGPoint(x: 500, y: 300))
+        #expect(!flyouts.isOpen(.top))
     }
 
     @Test func pinnedPanelsStayWhenThePointerLeavesOrTheImageIsPressed() {

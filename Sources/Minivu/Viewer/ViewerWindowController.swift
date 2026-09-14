@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import MinivuCore
 import MinivuRender
@@ -30,7 +31,14 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     static func show(images: [FolderEntry], index: Int, fullScreen: Bool,
                      onClose: @escaping (FolderEntry?) -> Void) {
         guard !images.isEmpty else {
-            onClose(nil)
+            // Nothing to show. A viewer already open closes too, or the
+            // caller would think it had gone while it stays on screen.
+            if let viewer = current {
+                viewer.onClose = onClose
+                viewer.closeViewer(reportsCurrent: false)
+            } else {
+                onClose(nil)
+            }
             return
         }
         if let viewer = current {
@@ -49,6 +57,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     static let cursorHideDelay: TimeInterval = 2
     static let frameAutosaveName = "ViewerWindow"
     static let infoPanelWidth: CGFloat = 320
+    static let hudMargin: CGFloat = 16
 
     private var model: ViewerModel
     private var onClose: (FolderEntry?) -> Void
@@ -57,6 +66,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let container: ViewerContainerView
     private let hud = ViewerHUD()
     private var hudTop: NSLayoutConstraint?
+    private var hudLeading: NSLayoutConstraint?
     private let errorLabel = NSTextField(labelWithString: "")
     private let flyouts: FlyoutController
     private let filmstrip = FilmstripView()
@@ -75,6 +85,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private var sharpenHandle: LoadHandle?
     private var placeholderWork: DispatchWorkItem?
     private var cursorWork: DispatchWorkItem?
+    /// When the pointer last moved, in system uptime.
+    private var lastPointerMove: TimeInterval = 0
+    private var backgroundSubscription: AnyCancellable?
     private var summaryTask: Task<Void, Never>?
     /// The image whose pixels are on the canvas. It lags `model.current`
     /// while a decode is on its way.
@@ -127,18 +140,30 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         flyouts.add(panel(controlBar, edge: .bottom), edge: .bottom, thickness: ViewerControlBar.height)
         flyouts.add(panel(ViewerToolsPanel(), edge: .left), edge: .left, thickness: ViewerToolsPanel.width)
         flyouts.add(panel(infoHost, edge: .right), edge: .right, thickness: Self.infoPanelWidth)
-        flyouts.onPointerMoved = { [weak self] in self?.scheduleCursorHide() }
+        flyouts.onPointerMoved = { [weak self] in self?.pointerMoved() }
         flyouts.onVisibilityChange = { [weak self] edge, visible in self?.panelVisibilityChanged(edge, visible) }
 
-        let hudTop = hud.topAnchor.constraint(equalTo: container.topAnchor, constant: 16)
+        let hudTop = hud.topAnchor.constraint(equalTo: container.topAnchor, constant: Self.hudMargin)
+        let hudLeading = hud.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: Self.hudMargin)
         self.hudTop = hudTop
+        self.hudLeading = hudLeading
         NSLayoutConstraint.activate([
             errorLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
             errorLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             errorLabel.widthAnchor.constraint(lessThanOrEqualTo: container.widthAnchor, constant: -40),
-            hud.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            hudLeading,
             hudTop,
         ])
+
+        // The surround can change in Settings while the viewer is open; the
+        // window's own colour (title bar, camera strip) must follow the canvas.
+        backgroundSubscription = Preferences.shared.$viewerBackground
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] background in
+                guard let self, let window = self.window else { return }
+                self.applyBackground(background, to: window)
+            }
     }
 
     private func panel(_ content: NSView, edge: FlyoutEdge) -> FlyoutPanelView {
@@ -152,12 +177,28 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         return panel
     }
 
-    /// The HUD sits below the title bar or camera housing; panels share the
-    /// canvas's area.
+    /// The HUD sits below the title bar or camera housing, and beside any
+    /// panel pinned open, which would otherwise cover it; panels share the
+    /// canvas's area. In full screen the rest of the screen still reaches
+    /// the panels' edges (see `FlyoutGeometry.edge`).
     private func layoutOverlays(in area: CGRect) {
-        let top = container.bounds.height - area.maxY + 16
+        let top = container.bounds.height - area.maxY + Self.hudMargin
+            + (flyouts.isPinned(.top) ? FilmstripView.height : 0)
+        let leading = Self.hudMargin + (flyouts.isPinned(.left) ? ViewerToolsPanel.width : 0)
         if hudTop?.constant != top { hudTop?.constant = top }
-        flyouts.layout(in: area)
+        if hudLeading?.constant != leading { hudLeading?.constant = leading }
+        flyouts.layout(in: area, reach: isFullScreen ? container.bounds : nil)
+    }
+
+    /// A panel was pinned or unpinned: the HUD moves with it.
+    private func pinsChanged() {
+        container.needsLayout = true
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = FlyoutController.animationDuration
+            context.allowsImplicitAnimation = true
+            container.layoutSubtreeIfNeeded()
+        }
+        updateChrome()
     }
 
     // MARK: - Showing and retargeting
@@ -190,7 +231,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         previous?.contentView = NSView()
         target.contentView = container
-        applyBackground(to: target)
+        applyBackground(Preferences.shared.viewerBackground, to: target)
         window = target
         target.delegate = self
         container.layoutSubtreeIfNeeded()
@@ -198,10 +239,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         target.makeFirstResponder(canvas)
         previous?.orderOut(nil)
 
+        cursorWork?.cancel()
+        cursorWork = nil
         if fullScreen {
-            scheduleCursorHide()
+            pointerMoved()
         } else {
-            cursorWork?.cancel()
             restorePresentationOptions()
         }
         updateChrome()
@@ -260,8 +302,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// title bar strip (and a notched display's camera strip) match the
     /// canvas. Dark surrounds get dark window chrome whatever the app theme:
     /// light title text on a black title bar, not black on black.
-    private func applyBackground(to window: NSWindow) {
-        let level = Double(Preferences.shared.viewerBackground.linearLevel)
+    private func applyBackground(_ background: Preferences.ViewerBackground, to window: NSWindow) {
+        let level = Double(background.linearLevel)
         let srgb = level <= 0.0031308 ? 12.92 * level : 1.055 * pow(level, 1 / 2.4) - 0.055
         window.backgroundColor = NSColor(srgbRed: srgb, green: srgb, blue: srgb, alpha: 1)
         window.appearance = isFullScreen || srgb < 0.5 ? NSAppearance(named: .darkAqua) : nil
@@ -293,18 +335,32 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     // MARK: - Pointer
 
-    /// Restarted by every pointer movement: a single delayed work item rather
-    /// than a repeating timer, so a still pointer costs nothing.
-    private func scheduleCursorHide() {
-        cursorWork?.cancel()
-        guard isFullScreen else { return }
+    /// A movement only notes the time. Pointer events arrive over a hundred
+    /// times a second, and a work item made and cancelled for each would
+    /// pile up in the main queue; one pending item is enough.
+    private func pointerMoved() {
+        lastPointerMove = ProcessInfo.processInfo.systemUptime
+        guard isFullScreen, cursorWork == nil else { return }
+        scheduleCursorHide(after: Self.cursorHideDelay)
+    }
+
+    /// A single delayed work item, not a repeating timer: when it comes due
+    /// it checks how long the pointer has really been still, and if it moved
+    /// in the meantime, waits out the rest. A still pointer costs nothing.
+    private func scheduleCursorHide(after delay: TimeInterval) {
         let work = DispatchWorkItem { [weak self] in
-            guard let self, self.isFullScreen, !self.flyouts.hasTransientPanelOpen,
-                  self.window?.isKeyWindow == true else { return }
-            NSCursor.setHiddenUntilMouseMoves(true)
+            guard let self else { return }
+            self.cursorWork = nil
+            guard self.isFullScreen else { return }
+            let still = ProcessInfo.processInfo.systemUptime - self.lastPointerMove
+            if still < Self.cursorHideDelay {
+                self.scheduleCursorHide(after: Self.cursorHideDelay - still)
+            } else if !self.flyouts.hasTransientPanelOpen, self.window?.isKeyWindow == true {
+                NSCursor.setHiddenUntilMouseMoves(true)
+            }
         }
         cursorWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.cursorHideDelay, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     /// A press on the image (not in a panel) belongs to the canvas: clicks,
@@ -487,6 +543,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard let command = ViewerKeyCommand.command(characters: event.charactersIgnoringModifiers ?? "",
                                                      modifiers: event.modifierFlags, zoomedIn: zoomedIn)
         else { return false }
+        // Swallowed rather than passed on, which would beep.
+        if event.isARepeat, !command.repeats { return true }
         switch command {
         case .next: nextImage(nil)
         case .previous: previousImage(nil)
@@ -504,7 +562,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .actualSize: actualSize(nil)
         case .fit: fitToWindow(nil)
         case .toggleHUD: hud.setPinned(!hud.isPinned)
-        case .toggleFilmstrip: flyouts.togglePinned(.top)
+        case .toggleFilmstrip:
+            flyouts.togglePinned(.top)
+            pinsChanged()
+        case .rating: break   // phase 5; taken so the key doesn't beep
         }
         return true
     }
@@ -588,7 +649,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// The control bar's info button: pins the info panel open, or unpins it.
     @objc func toggleInfoPanel(_ sender: Any?) {
         flyouts.togglePinned(.right)
-        updateChrome()
+        pinsChanged()
     }
 
     /// Debug only, for the snapshot harness (`MINIVU_ACTIONS=debugShowAllPanels:`):
@@ -599,7 +660,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             flyouts.setPinned(true, edge: edge, animated: false)
         }
         hud.setPinned(true)
-        updateChrome()
+        pinsChanged()
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -655,19 +716,25 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// Esc, ⌘W, the close button or a double-click: stop all work, put the
     /// menu bar back, and tell the browser which image to select.
-    private func closeViewer() {
+    /// `reportsCurrent` is false when the browser has nothing left to show,
+    /// so there is no image for it to select.
+    private func closeViewer(reportsCurrent: Bool = true) {
         guard !isClosing else { return }
         isClosing = true
+        // Clearing the canvas below reports a zoom change; nothing should
+        // update (or schedule a HUD fade) on the way out.
+        canvas.delegate = nil
         cancelLoads()
         summaryTask?.cancel()
         cursorWork?.cancel()
+        backgroundSubscription = nil
         hud.cancelFade()
         filmstrip.setActive(false)
         AppServices.images.prefetch([], pixelSize: 0)
         restorePresentationOptions()
         NotificationCenter.default.removeObserver(self)
 
-        let entry = model.current
+        let entry = reportsCurrent ? model.current : nil
         canvas.setImage(nil, preserveView: false)
         for window in [fullScreenWindow, windowedWindow].compactMap({ $0 }) {
             window.delegate = nil

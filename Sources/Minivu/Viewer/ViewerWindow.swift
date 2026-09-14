@@ -45,7 +45,8 @@ final class ViewerWindow: NSWindow {
         case .windowed:
             titlebarAppearsTransparent = true
             titleVisibility = .visible
-            minSize = NSSize(width: 480, height: 320)
+            // Wide enough for the control bar's full row of buttons.
+            minSize = NSSize(width: 640, height: 400)
             // The green button (and ⌃⌘F) mean minivu's own full screen, see
             // `toggleFullScreen`; this keeps macOS from offering its own.
             collectionBehavior = [.fullScreenNone]
