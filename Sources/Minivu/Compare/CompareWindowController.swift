@@ -262,7 +262,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         trashing.insert(entry.url)
         Task { [weak self] in
             do {
-                _ = try await NSWorkspace.shared.recycle([entry.url])
+                _ = try await FileWriteQueue.shared.trash([entry.url])
                 self?.didTrash(entry)
             } catch {
                 guard let self else { return }

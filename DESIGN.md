@@ -268,6 +268,11 @@ at 100/200/400%, re-encoding only the region on screen as the slider moves.
 Every write to an image file (Save, Save As, a comment, a lossless rotate)
 goes through one serial queue, so ⌘S, an edit and ⌘S again land in that
 order, and a document is marked saved only by the last write of its file.
+Moving a file away (Move to Trash, a rename, a move or its undo) waits
+for the writes queued for it, or for files inside a folder being moved, so
+a save asked for just before lands first instead of putting the file back
+at its old path. Move to Trash of an image with unsaved edits in the viewer
+(from the viewer, or the browser trashing that image) asks as moving on does.
 After an in-place save the file holds the edits, so a document is never
 decoded again from it (that would apply them twice); reloading means a new
 document, and undo history starts over after a save. As a safety net each

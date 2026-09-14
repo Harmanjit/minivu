@@ -1060,14 +1060,24 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     /// Moves the image to the Trash, then shows the next one (or the previous,
-    /// if it was last), or closes the viewer when none are left.
+    /// if it was last), or closes the viewer when none are left. Unsaved
+    /// edits are asked about first, as moving on asks, since they would go
+    /// with it.
     @objc func moveToTrash(_ sender: Any?) {
         guard let entry = model.current, !trashing.contains(entry.url) else { return }
+        resolveUnsavedEdits { [weak self] in
+            guard let self, !self.isClosing, !self.trashing.contains(entry.url) else { return }
+            self.trash(entry)
+        }
+    }
+
+    private func trash(_ entry: FolderEntry) {
         trashing.insert(entry.url)
         Task { [weak self] in
             do {
-                // The Finder does the move, off the main thread.
-                _ = try await NSWorkspace.shared.recycle([entry.url])
+                // The Finder does the move, off the main thread, after any
+                // save of the file still in the write queue.
+                _ = try await FileWriteQueue.shared.trash([entry.url])
                 self?.didTrash(entry)
             } catch {
                 self?.trashing.remove(entry.url)

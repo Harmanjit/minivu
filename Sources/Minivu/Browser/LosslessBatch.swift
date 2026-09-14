@@ -139,7 +139,7 @@ nonisolated enum LosslessBatch {
                  done: @escaping (LosslessBatch.Outcome) -> Void) {
         // The work never throws, and only the orientation changes, so no
         // save under way is superseded by it.
-        let job = FileWriteQueue.shared.enqueue {
+        let job = FileWriteQueue.shared.enqueue(touching: urls) {
             await LosslessBatch.run(kind, on: urls, skipped: skipped)
         }
         Task {

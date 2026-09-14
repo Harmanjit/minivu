@@ -41,7 +41,7 @@ import MinivuCore
         isSaving = true
         defer { isSaving = false }
         let text = self.text, url = self.url
-        _ = try await FileWriteQueue.shared.enqueue {
+        _ = try await FileWriteQueue.shared.enqueue(touching: [url]) {
             try await BlockingWork.run {
                 try JPEGComment.write(text, to: url)
             }

@@ -253,6 +253,16 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         }
     }
 
+    /// For Move to Trash in the browser: runs `proceed` once unsaved edits
+    /// of an image among `urls` (or inside a folder among them) are dealt
+    /// with, as moving on deals with them. Edits of any other image stay.
+    func resolveUnsavedEdits(before urls: [URL], then proceed: @escaping () -> Void) {
+        guard hasUnsavedEdits, let edited = editSession?.document.entry.url,
+              FileWriteQueue.path(FileWriteQueue.key(edited), isIn: urls) else { return proceed() }
+        window?.makeKeyAndOrderFront(nil)
+        resolveUnsavedEdits(then: proceed)
+    }
+
     /// Edits on screen that no file has: committed ones not saved, or a
     /// tool's unapplied changes.
     var hasUnsavedEdits: Bool {

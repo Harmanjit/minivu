@@ -286,11 +286,17 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
     @objc func moveToTrash(_ sender: Any?) {
         let urls = model.selectedEntries.map(\.url)
         guard !urls.isEmpty else { return }
+        guard let viewer = ViewerWindowController.current else { return trash(urls) }
+        viewer.resolveUnsavedEdits(before: urls) { [weak self] in self?.trash(urls) }
+    }
+
+    /// Queued saves of the files land first (`FileWriteQueue.trash`).
+    private func trash(_ urls: [URL]) {
         let next = model.selectionAfterRemoving(Set(urls))
         let folder = model.folder
         Task { [weak self] in
             do {
-                let moved = try await NSWorkspace.shared.recycle(urls)
+                let moved = try await FileWriteQueue.shared.trash(urls)
                 // Entries are matched by name: if the user moved to another
                 // folder meanwhile, its namesakes must stay.
                 guard let self, self.model.folder == folder else { return }

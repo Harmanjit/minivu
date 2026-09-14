@@ -75,6 +75,8 @@ extension BrowserWindowController {
         let oldName = url.lastPathComponent
         let done = undoRegistration("Rename") { $0.performRename(renamed, to: oldName) }
         Task {
+            // A save still queued would put the file back under its old name.
+            await FileWriteQueue.shared.waitForWrites(to: [url])
             let result = await BlockingWork.run {
                 Result { try FileOperations.rename(url, to: name) }
             }
@@ -176,6 +178,9 @@ extension BrowserWindowController {
         let next = move ? model.selectionAfterRemoving(Set(files)) : nil
         let resolver = transferConflictResolver, trash = transferTrash
         transferWork = Task {
+            // Saves still queued land first: behind a move they'd bring the
+            // file back, and Replace would trash an item still being written.
+            await FileWriteQueue.shared.waitForWrites(to: files + [destination])
             let outcome = await FileTransfer.run(request, window: window, resolver: resolver, trash: trash)
             isTransferring = false
             Self.invalidateCaches(outcome.transfers, outcome.trashed)
@@ -245,6 +250,7 @@ extension BrowserWindowController {
         let done = undoRegistration(record.actionName) { $0.redoTransfer(record) }
         let pairs = record.pairs, trashed = record.trashed, isMove = record.isMove, trash = transferTrash
         Task {
+            await FileWriteQueue.shared.waitForWrites(to: pairs.map(\.to))
             let (undone, restored) = await BlockingWork.run {
                 let undone = pairs.reversed().filter { pair in
                     if isMove { return Self.moveFile(pair.to, exactlyTo: pair.from) }
@@ -270,6 +276,7 @@ extension BrowserWindowController {
         let done = undoRegistration(record.actionName) { $0.undoTransfer(record) }
         let pairs = record.pairs, trashed = record.trashed, isMove = record.isMove, trash = transferTrash
         Task {
+            await FileWriteQueue.shared.waitForWrites(to: pairs.map(\.from) + trashed.map(\.from))
             let (redone, retrashed) = await BlockingWork.run {
                 let retrashed = trashed.compactMap { item -> FileOperations.Transfer? in
                     guard case .success(let place?) = trash(item.from) else { return nil }
@@ -294,7 +301,7 @@ extension BrowserWindowController {
     func trashItems(_ urls: [URL], actionName: String) {
         let done = undoRegistration(actionName) { $0.recreateFolders(urls, actionName: actionName) }
         Task {
-            let trashed = (try? await NSWorkspace.shared.recycle(urls)).map { Array($0.keys) } ?? []
+            let trashed = (try? await FileWriteQueue.shared.trash(urls)).map { Array($0.keys) } ?? []
             trashed.forEach(BrowserModel.invalidateCaches)
             done(!trashed.isEmpty)
             model.removeEntries(Set(trashed))
