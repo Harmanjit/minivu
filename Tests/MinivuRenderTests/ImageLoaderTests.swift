@@ -258,6 +258,55 @@ import CoreGraphics
         #expect(hit === fresh)
     }
 
+    // MARK: - RAW render limits
+
+    /// Files named like RAWs but holding no image: every load of one goes
+    /// to the RAW engine (under `.fullRaw`), fails there quickly, and
+    /// reports an error, which is all the scheduling tests need.
+    func makeFakeRaw() -> FolderEntry {
+        let url = Fixtures.directory.appendingPathComponent("fake-\(UUID()).nef")
+        try? Data("not a raw file".utf8).write(to: url)
+        return FolderEntry(url: url)!
+    }
+
+    @Test func rawRendersTakeOneSlotOfTheirOwn() async {
+        let loader = makeLoader()
+        loader.settings = DisplaySettings(rawDecoding: .fullRaw)
+        for raw in (0..<3).map({ _ in makeFakeRaw() }) {
+            loader.load(raw, pixelSize: 100) { _ in }
+        }
+        #expect(loader.rawRenderCount == 1)   // the other two wait
+        // Ordinary decodes don't wait behind them, and leave the renders their slot.
+        loader.load(makeEntry(), pixelSize: 100) { _ in }
+        loader.load(makeEntry(), pixelSize: 100) { _ in }
+        #expect(loader.decodeCount == 3)
+        #expect(loader.rawRenderCount == 1)
+        await loader.waitUntilIdle()
+        #expect(loader.rawRenderCount == 3)
+        #expect(loader.peakConcurrentRawRenders == 1)
+    }
+
+    /// Only the nearest RAW file is prefetched as a render; the other
+    /// neighbours still decode.
+    @Test func rawRenderPrefetchIsForTheNearestRawFileOnly() async {
+        for allowed in [true, false] {
+            let loader = makeLoader()
+            loader.settings = DisplaySettings(rawDecoding: .fullRaw)
+            loader.prefetchesRawRenders = allowed
+            loader.prefetch([makeFakeRaw(), makeEntry(), makeFakeRaw()], pixelSize: 100)
+            #expect(loader.rawRenderCount == (allowed ? 1 : 0))
+            await loader.waitUntilIdle()
+            #expect(loader.rawRenderCount == (allowed ? 1 : 0))
+            #expect(loader.decodeCount == (allowed ? 2 : 1))
+        }
+    }
+
+    @Test func rawRenderPrefetchNeedsMoreThanEightGigabytes() {
+        #expect(!ImageLoader.allowsRawRenderPrefetch(physicalMemory: 8 << 30))
+        #expect(!ImageLoader.allowsRawRenderPrefetch(physicalMemory: 4 << 30))
+        #expect(ImageLoader.allowsRawRenderPrefetch(physicalMemory: 16 << 30))
+    }
+
     nonisolated static let assets = URL(fileURLWithPath: "/Users/harman/latent/TestAssets")
     nonisolated static let hasAssets = FileManager.default.fileExists(atPath: assets.path)
 
@@ -327,6 +376,33 @@ import CoreGraphics
         #expect(full.isFullResolution)
         #expect(full.texture.width == 6016 && full.texture.height == 4016)
         #expect(loader.decodeCount == 3)
+        #expect(loader.rawRenderCount == 2)
+    }
+
+    /// A neighbour whose embedded preview is too small is prefetched as a
+    /// render only where renders may be prefetched. Where not, its preview
+    /// isn't decoded again at every prefetch just to fall short again.
+    @Test(.enabled(if: hasAssets))
+    func smallPreviewNeighboursRenderOnlyWhereAllowed() async throws {
+        let url = try Fixtures.smallPreviewNEF(from: Self.assets.appendingPathComponent("HSB_2639.NEF"))
+        defer { try? FileManager.default.removeItem(at: url) }
+        let entry = try #require(FolderEntry(url: url))
+        let loader = makeLoader()
+        loader.prefetchesRawRenders = false
+        loader.prefetch([entry], pixelSize: 2800)
+        await loader.waitUntilIdle()
+        #expect(loader.decodeCount == 1 && loader.rawRenderCount == 0)
+        #expect(loader.cache.anyTexture(url: url, modified: entry.modified, page: 0) == nil)
+        loader.prefetch([entry], pixelSize: 2800)
+        await loader.waitUntilIdle()
+        #expect(loader.decodeCount == 1)
+
+        loader.prefetchesRawRenders = true
+        loader.prefetch([entry], pixelSize: 2800)
+        await loader.waitUntilIdle()
+        #expect(loader.decodeCount == 2 && loader.rawRenderCount == 1)   // straight to the render
+        let texture = try #require(loader.cache.anyTexture(url: url, modified: entry.modified, page: 0))
+        #expect(max(texture.texture.width, texture.texture.height) >= 2800)
     }
 
     /// A camera the RAW engine doesn't know: its preview is all there is,

@@ -14,10 +14,11 @@ final class ViewerControlBar: NSView {
 
     /// Toggles the right-hand info panel; implemented by the viewer.
     static let toggleInfoAction = #selector(ViewerWindowController.toggleInfoPanel(_:))
-    /// Pages and playback are the viewer's own too: no menu sends them.
-    static let previousPageAction = #selector(ViewerWindowController.previousPage(_:))
-    static let nextPageAction = #selector(ViewerWindowController.nextPage(_:))
-    static let togglePlaybackAction = #selector(ViewerWindowController.togglePlayback(_:))
+    /// Pages and playback: only the viewer implements them; the Go and Image
+    /// menus send the same actions.
+    static let previousPageAction = Selector.previousPage
+    static let nextPageAction = Selector.nextPage
+    static let togglePlaybackAction = Selector.togglePlayback
 
     private let previousButton = ViewerControlBar.button("chevron.left", "Previous Image (←)", .previousImage)
     private let nextButton = ViewerControlBar.button("chevron.right", "Next Image (→)", .nextImage)

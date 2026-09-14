@@ -59,6 +59,60 @@ import UniformTypeIdentifiers
         #expect(service.cachedImage(for: entry, pixelSize: 100) === large)
     }
 
+    /// Thumbnails reach the memory cache as Core Animation wants them (8-bit
+    /// BGRA, premultiplied, in the service's colour space), whether decoded
+    /// or read from disk, while the disk keeps the compact JPEG.
+    @Test func thumbnailsAreDisplayReady() async throws {
+        let store = try ThumbnailStore.inMemory()
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+        let context = try #require(CGContext(data: nil, width: 400, height: 300, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.setFillColor(CGColor(srgbRed: 1, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
+        let url = TestImages.write(try #require(context.makeImage()), to: folder.url.appendingPathComponent("red.jpg"))
+        let entry = try #require(FolderEntry(url: url))
+
+        let service = ThumbnailService(store: store)
+        #expect(service.displayColorSpace == CGColorSpace(name: CGColorSpace.sRGB))
+        service.displayColorSpace = p3
+        let decoded = try #require(await thumbnail(service, entry))
+        let fromDisk = ThumbnailService(store: store)
+        fromDisk.displayColorSpace = p3
+        let stored = try #require(await thumbnail(fromDisk, entry))
+        #expect(stored !== decoded)
+
+        for image in [decoded, stored] {
+            #expect(image.colorSpace == p3)
+            #expect(image.bitsPerComponent == 8 && image.bitsPerPixel == 32)
+            #expect(image.alphaInfo == .premultipliedFirst && image.byteOrderInfo == .order32Little)
+            // sRGB red as Display P3 is about (234, 51, 35); the bytes are B, G, R, A.
+            let data = try #require(image.dataProvider?.data) as Data
+            let i = (image.height / 2) * image.bytesPerRow + (image.width / 2) * 4
+            let bgra = [Int(data[i]), Int(data[i + 1]), Int(data[i + 2]), Int(data[i + 3])]
+            #expect(zip(bgra, [35, 51, 234, 255]).allSatisfy { abs($0 - $1) <= 4 }, "\(bgra)")
+        }
+        let onDisk = try #require(store.image(for: url, modified: entry.modified, fileSize: entry.fileSize, tier: 256))
+        #expect(onDisk.utType as String? == UTType.jpeg.identifier)
+    }
+
+    /// Another colour space empties the memory cache, and thumbnails are
+    /// drawn again for it; setting the same one again changes nothing.
+    @Test func changingTheColourSpaceRedrawsThumbnails() async throws {
+        let service = ThumbnailService(store: nil)
+        let entry = imageEntry("colour.jpg")
+        let first = try #require(await thumbnail(service, entry))
+        service.displayColorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        #expect(service.cachedImage(for: entry, pixelSize: 256) === first)
+
+        let p3 = try #require(CGColorSpace(name: CGColorSpace.displayP3))
+        service.displayColorSpace = p3
+        #expect(service.cachedImage(for: entry, pixelSize: 256) == nil)
+        let redrawn = try #require(await thumbnail(service, entry))
+        #expect(redrawn !== first && redrawn.colorSpace == p3)
+        #expect(service.cachedImage(for: entry, pixelSize: 256) === redrawn)
+    }
+
     @Test func directoriesAndUnreadableFilesGiveNil() async throws {
         let service = ThumbnailService(store: nil)
         let directory = try #require(FolderEntry(url: try folder.folder("sub")))

@@ -3,6 +3,7 @@ import AppKit
 import ImageIO
 import MinivuCore
 @testable import Minivu
+import MinivuRender
 
 /// A folder of `count` made-up entries, a.jpg, b.jpg, ... (no files needed).
 private func entries(_ count: Int) -> [FolderEntry] {
@@ -429,203 +430,306 @@ private func names(_ list: [FolderEntry]) -> [String] { list.map(\.name) }
     }
 }
 
-/// The viewer's lifecycle in a real (windowed) window: close reports the
-/// image showing, and one viewer is ever alive.
-@MainActor @Suite(.serialized) struct ViewerLifecycleTests {
-    init() { _ = NSApplication.shared }
+extension AppWindowTests {
+    /// The viewer's lifecycle in a real (windowed) window: close reports the
+    /// image showing, and one viewer is ever alive.
+    @MainActor @Suite(.serialized) struct ViewerLifecycleTests {
+        init() { _ = NSApplication.shared }
 
-    @Test func emptyFolderClosesAtOnce() {
-        var closed: [FolderEntry?] = []
-        ViewerWindowController.show(images: [], index: 0, fullScreen: false) { closed.append($0) }
-        #expect(closed.count == 1 && closed[0] == nil)
-        #expect(ViewerWindowController.current == nil)
-    }
-
-    @Test func escapeClosesWithTheCurrentImageAndRetargetingReusesTheViewer() throws {
-        let list = entries(4)
-        var closedWith: [String?] = []
-        ViewerWindowController.show(images: list, index: 1, fullScreen: false) { closedWith.append($0?.name) }
-        let viewer = try #require(ViewerWindowController.current)
-        #expect(viewer.window?.title == "b.jpg")
-        #expect(viewer.window?.subtitle == "2 of 4")
-        #expect(!viewer.isFullScreen)
-
-        // Showing again moves the same viewer; the new close handler wins.
-        ViewerWindowController.show(images: list, index: 3, fullScreen: false) { closedWith.append("new:\($0?.name ?? "")") }
-        #expect(ViewerWindowController.current === viewer)
-        #expect(viewer.window?.title == "d.jpg")
-
-        viewer.previousImage(nil)
-        let window = try #require(viewer.window)
-        let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-                                                   windowNumber: window.windowNumber, context: nil,
-                                                   characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
-                                                   isARepeat: false, keyCode: 53))
-        window.contentView?.keyDown(with: escape)
-        #expect(closedWith == ["new:c.jpg"])
-        #expect(ViewerWindowController.current == nil)
-        #expect(!window.isVisible)
-    }
-
-    /// A browser with nothing left to show closes the viewer that is open,
-    /// and hears about it with no image to select.
-    @Test func showingNothingClosesAnOpenViewer() {
-        var closed: [String] = []
-        ViewerWindowController.show(images: entries(2), index: 0, fullScreen: false) { closed.append("old:\($0?.name ?? "nil")") }
-        #expect(ViewerWindowController.current != nil)
-        ViewerWindowController.show(images: [], index: 0, fullScreen: false) { closed.append("new:\($0?.name ?? "nil")") }
-        #expect(ViewerWindowController.current == nil)
-        #expect(closed == ["new:nil"])
-    }
-
-    func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
-        let end = Date().addingTimeInterval(timeout)
-        while !condition(), Date() < end {
-            try? await Task.sleep(for: .milliseconds(10))
+        @Test func emptyFolderClosesAtOnce() {
+            var closed: [FolderEntry?] = []
+            ViewerWindowController.show(images: [], index: 0, fullScreen: false) { closed.append($0) }
+            #expect(closed.count == 1 && closed[0] == nil)
+            #expect(ViewerWindowController.current == nil)
         }
-    }
 
-    /// A real three-page PDF: its page count arrives from a background read,
-    /// the option keys turn pages and Page Down carries on to the next file.
-    @Test func documentPagesTurnWithTheKeys() async throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-pages-\(UUID())")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let pdf = folder.appendingPathComponent("a.pdf")
-        var box = CGRect(x: 0, y: 0, width: 120, height: 160)
-        let context = try #require(CGContext(pdf as CFURL, mediaBox: &box, nil))
-        for _ in 0..<3 {
-            context.beginPDFPage(nil)
-            context.endPDFPage()
-        }
-        context.closePDF()
-        let other = folder.appendingPathComponent("b.pdf")
-        try FileManager.default.copyItem(at: pdf, to: other)
-        let list = try [pdf, other].map { try #require(FolderEntry(url: $0)) }
+        @Test func escapeClosesWithTheCurrentImageAndRetargetingReusesTheViewer() throws {
+            let list = entries(4)
+            var closedWith: [String?] = []
+            ViewerWindowController.show(images: list, index: 1, fullScreen: false) { closedWith.append($0?.name) }
+            let viewer = try #require(ViewerWindowController.current)
+            #expect(viewer.window?.title == "b.jpg")
+            #expect(viewer.window?.subtitle == "2 of 4")
+            #expect(!viewer.isFullScreen)
 
-        ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
-        let viewer = try #require(ViewerWindowController.current)
-        defer { viewer.exitViewer(nil) }
-        await waitUntil { viewer.pageState.count == 3 }
-        #expect(viewer.pageState == (0, 3))
+            // Showing again moves the same viewer; the new close handler wins.
+            ViewerWindowController.show(images: list, index: 3, fullScreen: false) { closedWith.append("new:\($0?.name ?? "")") }
+            #expect(ViewerWindowController.current === viewer)
+            #expect(viewer.window?.title == "d.jpg")
 
-        func press(_ key: Int, _ modifiers: NSEvent.ModifierFlags = []) throws {
+            viewer.previousImage(nil)
             let window = try #require(viewer.window)
-            let characters = String(Character(UnicodeScalar(key)!))
-            let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
-                                                      timestamp: 0, windowNumber: window.windowNumber, context: nil,
-                                                      characters: characters, charactersIgnoringModifiers: characters,
-                                                      isARepeat: false, keyCode: 0))
-            window.contentView?.keyDown(with: event)
+            let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                                                       windowNumber: window.windowNumber, context: nil,
+                                                       characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+                                                       isARepeat: false, keyCode: 53))
+            window.contentView?.keyDown(with: escape)
+            #expect(closedWith == ["new:c.jpg"])
+            #expect(ViewerWindowController.current == nil)
+            #expect(!window.isVisible)
         }
-        try press(NSRightArrowFunctionKey, .option)
-        #expect(viewer.pageState == (1, 3))
-        #expect(viewer.window?.title == "a.pdf")
-        try press(NSPageDownFunctionKey)
-        #expect(viewer.pageState == (2, 3))
-        try press(NSRightArrowFunctionKey, .option)   // the last page: stays
-        #expect(viewer.pageState == (2, 3))
-        try press(NSPageDownFunctionKey)               // on to the next file, page 1
-        #expect(viewer.window?.title == "b.pdf")
-        #expect(viewer.pageState.page == 0)
-        viewer.previousImage(nil)
-        #expect(viewer.pageState == (0, 1))            // not read again yet
-    }
 
-    /// An animated GIF plays by itself onto the canvas, P pauses it, and
-    /// moving to another image or closing stops it.
-    @Test func animationsPlayAndPause() async throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-gif-\(UUID())")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let url = folder.appendingPathComponent("a.gif")
-        let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, 3, nil))
-        // Loops forever, so it is still playing whenever the test looks.
-        CGImageDestinationSetProperties(destination, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]]
-            as CFDictionary)
-        for level in [0.0, 0.5, 1.0] {
-            let ctx = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
-                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-            ctx.setFillColor(gray: level, alpha: 1)
-            ctx.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
-            let props = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.05]]
-            CGImageDestinationAddImage(destination, try #require(ctx.makeImage()), props as CFDictionary)
+        /// A browser with nothing left to show closes the viewer that is open,
+        /// and hears about it with no image to select.
+        @Test func showingNothingClosesAnOpenViewer() {
+            var closed: [String] = []
+            ViewerWindowController.show(images: entries(2), index: 0, fullScreen: false) { closed.append("old:\($0?.name ?? "nil")") }
+            #expect(ViewerWindowController.current != nil)
+            ViewerWindowController.show(images: [], index: 0, fullScreen: false) { closed.append("new:\($0?.name ?? "nil")") }
+            #expect(ViewerWindowController.current == nil)
+            #expect(closed == ["new:nil"])
         }
-        #expect(CGImageDestinationFinalize(destination))
-        let still = folder.appendingPathComponent("b.png")
-        let stillDestination = try #require(CGImageDestinationCreateWithURL(still as CFURL, "public.png" as CFString, 1, nil))
-        let stillContext = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
-                                                  space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
-        CGImageDestinationAddImage(stillDestination, try #require(stillContext.makeImage()), nil)
-        #expect(CGImageDestinationFinalize(stillDestination))
-        let entries = try [url, still].map { try #require(FolderEntry(url: $0)) }
 
-        ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
-        let viewer = try #require(ViewerWindowController.current)
-        defer { viewer.exitViewer(nil) }
-        await waitUntil { (viewer.animationPlayer?.frameCount ?? 0) > 0 }
-        let player = try #require(viewer.animationPlayer)
-        #expect(player.frameCount == 3 && player.isPlaying)
-        #expect(viewer.pageState.count == 1)   // frames aren't pages
-
-        // Frames reach the canvas: one texture per frame, where the still
-        // decode is just one. A test run's window is usually not on screen,
-        // which suspends the clock; let it play as if it were.
-        player.isSuspended = false
-        var textures: Set<ObjectIdentifier> = []
-        await waitUntil {
-            if let texture = viewer.canvasTexture { textures.insert(ObjectIdentifier(texture)) }
-            return textures.count >= 3
+        func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+            let end = Date().addingTimeInterval(timeout)
+            while !condition(), Date() < end {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
         }
-        #expect(textures.count >= 3)
 
-        viewer.togglePlayback(nil)
-        #expect(!player.isPlaying)
-        viewer.togglePlayback(nil)
-        #expect(player.isPlaying)
+        /// A real three-page PDF: its page count arrives from a background read,
+        /// the option keys turn pages and Page Down carries on to the next file.
+        @Test func documentPagesTurnWithTheKeys() async throws {
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-pages-\(UUID())")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: folder) }
+            let pdf = folder.appendingPathComponent("a.pdf")
+            var box = CGRect(x: 0, y: 0, width: 120, height: 160)
+            let context = try #require(CGContext(pdf as CFURL, mediaBox: &box, nil))
+            for _ in 0..<3 {
+                context.beginPDFPage(nil)
+                context.endPDFPage()
+            }
+            context.closePDF()
+            let other = folder.appendingPathComponent("b.pdf")
+            try FileManager.default.copyItem(at: pdf, to: other)
+            let list = try [pdf, other].map { try #require(FolderEntry(url: $0)) }
 
-        // On to the still: the animation stops for good.
-        viewer.nextImage(nil)
-        #expect(!player.isPlaying && viewer.animationPlayer == nil)
-        let frame = player.currentFrame
-        try await Task.sleep(for: .milliseconds(150))
-        #expect(player.currentFrame == frame)
-        #expect(viewer.animationPlayer == nil)   // a still, so nothing started
-    }
+            ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+            let viewer = try #require(ViewerWindowController.current)
+            defer { viewer.exitViewer(nil) }
+            await waitUntil { viewer.pageState.count == 3 }
+            #expect(viewer.pageState == (0, 3))
+            // The Go and Image menus' page and playback items follow along.
+            func enabled(_ action: Selector) -> Bool {
+                viewer.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: ""))
+            }
+            #expect(enabled(.nextPage) && !enabled(.previousPage) && !enabled(.togglePlayback))
 
-    /// Nothing (a display link, a work item, a panel callback) keeps a closed
-    /// viewer, its canvas or its windows alive.
-    @Test func closedViewerIsFreed() {
-        weak var viewer: ViewerWindowController?
-        weak var window: NSWindow?
-        autoreleasepool {
-            ViewerWindowController.show(images: entries(3), index: 1, fullScreen: false) { _ in }
-            viewer = ViewerWindowController.current
-            window = viewer?.window
-            viewer?.nextImage(nil)
-            viewer?.toggleInfoPanel(nil)
-            viewer?.exitViewer(nil)
+            func press(_ key: Int, _ modifiers: NSEvent.ModifierFlags = []) throws {
+                let window = try #require(viewer.window)
+                let characters = String(Character(UnicodeScalar(key)!))
+                let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers,
+                                                          timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                                          characters: characters, charactersIgnoringModifiers: characters,
+                                                          isARepeat: false, keyCode: 0))
+                window.contentView?.keyDown(with: event)
+            }
+            try press(NSRightArrowFunctionKey, .option)
+            #expect(viewer.pageState == (1, 3))
+            #expect(viewer.window?.title == "a.pdf")
+            try press(NSPageDownFunctionKey)
+            #expect(viewer.pageState == (2, 3))
+            try press(NSRightArrowFunctionKey, .option)   // the last page: stays
+            #expect(viewer.pageState == (2, 3))
+            try press(NSPageDownFunctionKey)               // on to the next file, page 1
+            #expect(viewer.window?.title == "b.pdf")
+            #expect(viewer.pageState.page == 0)
+            viewer.previousImage(nil)
+            #expect(viewer.pageState == (0, 1))            // not read again yet
         }
-        #expect(viewer == nil)
-        #expect(window == nil)
-    }
 
-    /// ⌘W on the borderless window asks the delegate, as a titled one would.
-    @Test func borderlessWindowPerformsClose() {
-        final class Delegate: NSObject, NSWindowDelegate {
-            var asked = false
-            func windowShouldClose(_ sender: NSWindow) -> Bool { asked = true; return false }
+        /// An animated GIF plays by itself onto the canvas, P pauses it, and
+        /// moving to another image or closing stops it.
+        @Test func animationsPlayAndPause() async throws {
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("minivu-viewer-gif-\(UUID())")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: folder) }
+            let url = folder.appendingPathComponent("a.gif")
+            let destination = try #require(CGImageDestinationCreateWithURL(url as CFURL, "com.compuserve.gif" as CFString, 3, nil))
+            // Loops forever, so it is still playing whenever the test looks.
+            CGImageDestinationSetProperties(destination, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]]
+                as CFDictionary)
+            for level in [0.0, 0.5, 1.0] {
+                let ctx = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
+                                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+                ctx.setFillColor(gray: level, alpha: 1)
+                ctx.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
+                let props = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.05]]
+                CGImageDestinationAddImage(destination, try #require(ctx.makeImage()), props as CFDictionary)
+            }
+            #expect(CGImageDestinationFinalize(destination))
+            let still = folder.appendingPathComponent("b.png")
+            let stillDestination = try #require(CGImageDestinationCreateWithURL(still as CFURL, "public.png" as CFString, 1, nil))
+            let stillContext = try #require(CGContext(data: nil, width: 20, height: 20, bitsPerComponent: 8, bytesPerRow: 0,
+                                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            CGImageDestinationAddImage(stillDestination, try #require(stillContext.makeImage()), nil)
+            #expect(CGImageDestinationFinalize(stillDestination))
+            let entries = try [url, still].map { try #require(FolderEntry(url: $0)) }
+
+            ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
+            let viewer = try #require(ViewerWindowController.current)
+            defer { viewer.exitViewer(nil) }
+            await waitUntil { (viewer.animationPlayer?.frameCount ?? 0) > 0 }
+            let player = try #require(viewer.animationPlayer)
+            #expect(player.frameCount == 3 && player.isPlaying)
+            #expect(viewer.pageState.count == 1)   // frames aren't pages
+            #expect(viewer.validateMenuItem(NSMenuItem(title: "", action: .togglePlayback, keyEquivalent: "")))
+
+            // Frames reach the canvas: one texture per frame, where the still
+            // decode is just one. A test run's window is usually not on screen,
+            // which suspends the clock; let it play as if it were.
+            player.isSuspended = false
+            var textures: Set<ObjectIdentifier> = []
+            await waitUntil {
+                if let texture = viewer.canvasTexture { textures.insert(ObjectIdentifier(texture)) }
+                return textures.count >= 3
+            }
+            #expect(textures.count >= 3)
+
+            viewer.togglePlayback(nil)
+            #expect(!player.isPlaying)
+            viewer.togglePlayback(nil)
+            #expect(player.isPlaying)
+
+            // On to the still: the animation stops for good.
+            viewer.nextImage(nil)
+            #expect(!player.isPlaying && viewer.animationPlayer == nil)
+            let frame = player.currentFrame
+            try await Task.sleep(for: .milliseconds(150))
+            #expect(player.currentFrame == frame)
+            #expect(viewer.animationPlayer == nil)   // a still, so nothing started
         }
-        let window = ViewerWindow(style: .fullScreen, frame: NSRect(x: 0, y: 0, width: 200, height: 100))
-        let delegate = Delegate()
-        window.delegate = delegate
-        #expect(window.canBecomeKey && window.canBecomeMain)
-        window.performClose(nil)
-        #expect(delegate.asked)
-        let item = NSMenuItem(title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        #expect(window.validateMenuItem(item))
+
+        /// The magnifier is held while the next photo arrives. The canvas asks
+        /// for full resolution from inside `setImage`, once per texture; the
+        /// viewer must already count the new photo as displayed, or that one
+        /// request is dropped and the magnifier (and any zoom) stays blurry.
+        @Test func magnifierOverTheNextPhotoLoadsItsFullResolution() async throws {
+            // Larger than the small window's canvas, and different sizes so
+            // each texture says which photo it is. Small enough to encode
+            // quickly: this runs on the main actor, which other suites'
+            // timing tests share.
+            let folder = try ScratchFolder()
+            let list = try [folder.jpeg("a.jpg", width: 2400, height: 1600), folder.jpeg("b.jpg", width: 2000, height: 1500)]
+                .map { try #require(FolderEntry(url: $0)) }
+
+            ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+            let viewer = try #require(ViewerWindowController.current)
+            defer { viewer.exitViewer(nil) }
+            let window = try #require(viewer.window)
+            window.setContentSize(NSSize(width: 480, height: 320))
+            await waitUntil { viewer.canvasTexture?.imageSize.width == 2400 }
+            try #require(viewer.canvasTexture != nil)
+
+            // Press and hold: a drag that hasn't moved once the hold delay is up.
+            let canvas = viewer.canvasView
+            let point = canvas.convert(NSPoint(x: canvas.bounds.midX, y: canvas.bounds.midY), to: nil)
+            let start = ProcessInfo.processInfo.systemUptime
+            func mouse(_ type: NSEvent.EventType, at time: TimeInterval) throws -> NSEvent {
+                try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: time,
+                                                windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+                                                clickCount: 1, pressure: 1))
+            }
+            canvas.mouseDown(with: try mouse(.leftMouseDown, at: start))
+            canvas.mouseDragged(with: try mouse(.leftMouseDragged, at: start + 0.3))
+            let release = try mouse(.leftMouseUp, at: start + 0.4)
+            defer { canvas.mouseUp(with: release) }
+            await waitUntil { viewer.canvasTexture?.isFullResolution == true }
+            #expect(viewer.canvasTexture?.isFullResolution == true)
+
+            // Whatever a prefetch at the old window size made of the next photo
+            // goes, so it arrives screen-sized: smaller than the image, which
+            // the magnifier needs.
+            AppServices.images.invalidate(list[1].url)
+            viewer.nextImage(nil)
+            var firstOfNext: ImageTexture?
+            await waitUntil {
+                if firstOfNext == nil, let texture = viewer.canvasTexture, texture.imageSize.width == 2000 {
+                    firstOfNext = texture
+                }
+                return firstOfNext != nil
+            }
+            #expect(firstOfNext?.isFullResolution == false)
+            await waitUntil { viewer.canvasTexture?.isFullResolution == true }
+            #expect(viewer.canvasTexture?.isFullResolution == true)
+            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 2000, height: 1500))
+        }
+
+        /// A display setting changed (the loader has dropped its textures): the
+        /// photo on screen decodes again with its zoom and pan kept, and the
+        /// neighbours are prefetched again.
+        @Test func displaySettingsChangeReloadsThePhotoKeepingTheView() async throws {
+            let folder = try ScratchFolder()
+            let list = try [folder.jpeg("a.jpg", width: 2400, height: 1600), folder.jpeg("b.jpg", width: 2400, height: 1600)]
+                .map { try #require(FolderEntry(url: $0)) }
+            ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+            let viewer = try #require(ViewerWindowController.current)
+            defer { viewer.exitViewer(nil) }
+            try #require(viewer.window).setContentSize(NSSize(width: 480, height: 320))
+            let cache = AppServices.images.cache
+            func neighbourCached() -> Bool {
+                cache.anyTexture(url: list[1].url, modified: list[1].modified, page: 0) != nil
+            }
+            await waitUntil { viewer.canvasTexture != nil && neighbourCached() }
+            try #require(neighbourCached())
+
+            let canvas = viewer.canvasView
+            viewer.zoomIn(nil)
+            viewer.zoomIn(nil)
+            canvas.pan(byPoints: CGSize(width: 40, height: 25))
+            await waitUntil { viewer.canvasTexture?.isFullResolution == true }   // the zoom asked for it
+            let view = (canvas.transform, canvas.zoomMode)
+            #expect(view.1 != .fit)
+            let old = try #require(viewer.canvasTexture)
+
+            // What Preferences does, for these two files only: the rest of the
+            // app's cache is left alone for the tests running alongside.
+            AppServices.images.invalidate(list[0].url)
+            AppServices.images.invalidate(list[1].url)
+            NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
+            await waitUntil { viewer.canvasTexture.map { $0 !== old } ?? false }
+            #expect(viewer.canvasTexture !== old)
+            #expect(canvas.transform == view.0)
+            #expect(canvas.zoomMode == view.1)
+            await waitUntil(neighbourCached)
+            #expect(neighbourCached())
+        }
+
+        /// Nothing (a display link, a work item, a panel callback) keeps a closed
+        /// viewer, its canvas or its windows alive.
+        @Test func closedViewerIsFreed() {
+            weak var viewer: ViewerWindowController?
+            weak var window: NSWindow?
+            autoreleasepool {
+                ViewerWindowController.show(images: entries(3), index: 1, fullScreen: false) { _ in }
+                viewer = ViewerWindowController.current
+                window = viewer?.window
+                viewer?.nextImage(nil)
+                viewer?.toggleInfoPanel(nil)
+                viewer?.exitViewer(nil)
+            }
+            #expect(viewer == nil)
+            #expect(window == nil)
+        }
+
+        /// ⌘W on the borderless window asks the delegate, as a titled one would.
+        @Test func borderlessWindowPerformsClose() {
+            final class Delegate: NSObject, NSWindowDelegate {
+                var asked = false
+                func windowShouldClose(_ sender: NSWindow) -> Bool { asked = true; return false }
+            }
+            let window = ViewerWindow(style: .fullScreen, frame: NSRect(x: 0, y: 0, width: 200, height: 100))
+            let delegate = Delegate()
+            window.delegate = delegate
+            #expect(window.canBecomeKey && window.canBecomeMain)
+            window.performClose(nil)
+            #expect(delegate.asked)
+            let item = NSMenuItem(title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+            #expect(window.validateMenuItem(item))
+        }
     }
 }
 

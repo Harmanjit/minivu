@@ -37,6 +37,17 @@ public final class ThumbnailRequest: @unchecked Sendable {
 /// **Sizes.** Thumbnails are made at fixed tiers (256 and 512 px) instead of
 /// the exact cell size, so dragging the thumbnail size slider reuses what
 /// is cached rather than re-decoding the folder at every step.
+///
+/// **Display-ready pixels.** Core Animation converts a layer's image to the
+/// display's format and colour space on the main thread, as the layer
+/// commits, and an image read from the store also has its pixels decoded
+/// then. Measured on M4 (`ThumbnailCommitBenchmark`), 48 new thumbnails
+/// took 8 ms of the main thread to commit as decoded and 33 ms as read from
+/// the store. So every thumbnail is redrawn on the worker (about 0.05 ms at
+/// 512 px) before it is cached in memory, into exactly what the display
+/// wants (`displayColorSpace`, 8-bit BGRA, premultiplied), and the same 48
+/// commit in 0.3 ms. The disk cache keeps the compact JPEG or PNG made
+/// from the decoded thumbnail.
 public final class ThumbnailService: @unchecked Sendable {
     public static let tiers = [256, 512]
 
@@ -62,6 +73,10 @@ public final class ThumbnailService: @unchecked Sendable {
     private var runningWorkers = 0
     /// Tests set this to queue several requests before any work starts.
     private var suspended = false
+    private var colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+    /// Bumped when `colorSpace` changes, and part of the memory cache key,
+    /// so a thumbnail drawn for the old space is never handed out.
+    private var colorGeneration = 0
     private var nextSequence: UInt64 = 0
     /// Bumped by `invalidate`, and part of the memory cache key, so old
     /// entries for a path stop matching without having to find them.
@@ -101,14 +116,32 @@ public final class ThumbnailService: @unchecked Sendable {
 
     // MARK: - Public API
 
+    /// The colour space thumbnails are drawn in: the screen's, which the app
+    /// sets at launch and whenever the screens change. Setting a different
+    /// one empties the memory cache (the disk cache is independent of it);
+    /// setting the same one again does nothing, which matters because the
+    /// screens "change" every time EDR headroom moves.
+    public var displayColorSpace: CGColorSpace {
+        get { lock.withLock { colorSpace } }
+        set {
+            lock.withLock {
+                guard newValue != colorSpace else { return }
+                colorSpace = newValue
+                colorGeneration += 1
+                memory.removeAllObjects()
+            }
+        }
+    }
+
     /// A thumbnail already in memory, for drawing a cell synchronously
     /// without a placeholder flash. A larger tier also satisfies the
     /// request (the cell scales it down).
     public func cachedImage(for entry: FolderEntry, pixelSize: Int) -> CGImage? {
         let wanted = Self.tier(forPixelSize: pixelSize)
-        let generation = self.generation(for: entry.url.path)
+        let (generation, colorGeneration) = lock.withLock { (generations[entry.url.path] ?? 0, self.colorGeneration) }
         for tier in Self.tiers where tier >= wanted {
-            if let image = memory.object(forKey: cacheKey(entry, tier: tier, generation: generation)) {
+            let key = memoryKey(cacheKey(entry, tier: tier, generation: generation), colorGeneration: colorGeneration)
+            if let image = memory.object(forKey: key) {
                 return image
             }
         }
@@ -247,30 +280,36 @@ public final class ThumbnailService: @unchecked Sendable {
     }
 
     /// Memory, then disk, then decode. A decoded thumbnail is written to
-    /// both caches.
+    /// both caches: display-ready in memory, compactly encoded on disk.
     private func produce(_ job: Job) -> CGImage? {
         lock.lock()
         let entry = job.entry
         let path = entry.url.path
         let generation = generations[path] ?? 0
         let diskIsStale = pendingDiskDeletes.contains(path)
+        let space = colorSpace, colorGeneration = self.colorGeneration
         lock.unlock()
 
         let key = cacheKey(entry, tier: job.key.tier, generation: generation)
-        if let image = memory.object(forKey: key) { return image }
+        let imageKey = memoryKey(key, colorGeneration: colorGeneration)
+        if let image = memory.object(forKey: imageKey) { return image }
 
-        if !diskIsStale, let image = store?.image(for: entry.url, modified: entry.modified,
-                                                  fileSize: entry.fileSize, tier: job.key.tier) {
-            memory.setObject(image, forKey: key, cost: Self.cost(of: image))
+        if !diskIsStale, let stored = store?.image(for: entry.url, modified: entry.modified,
+                                                   fileSize: entry.fileSize, tier: job.key.tier) {
+            let image = Self.displayReady(stored, in: space)
+            cacheInMemory(image, forKey: imageKey, colorGeneration: colorGeneration)
             return image
         }
-        guard let image = ImageDecoder.thumbnail(for: entry.url, maxPixelSize: job.key.tier) else {
+        guard let decoded = ImageDecoder.thumbnail(for: entry.url, maxPixelSize: job.key.tier) else {
             lock.withLock { _ = failures.insert(key) }
             return nil
         }
-        memory.setObject(image, forKey: key, cost: Self.cost(of: image))
+        let image = Self.displayReady(decoded, in: space)
+        cacheInMemory(image, forKey: imageKey, colorGeneration: colorGeneration)
 
-        if let store, let data = ThumbnailStore.encode(image) {
+        // Encoded from the decode, not the display copy: an opaque photo
+        // stays a JPEG rather than becoming a PNG for its alpha channel.
+        if let store, let data = ThumbnailStore.encode(decoded) {
             diskLock.withLock {
                 // Invalidated while decoding: this picture may be of the old file.
                 guard lock.withLock({ generations[path] ?? 0 }) == generation else { return }
@@ -295,18 +334,53 @@ public final class ThumbnailService: @unchecked Sendable {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Display-ready images
 
-    private func generation(for path: String) -> Int {
-        lock.lock(); defer { lock.unlock() }
-        return generations[path] ?? 0
+    /// Bitmap layout Core Animation composites without converting.
+    static let displayBitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+
+    /// `image` redrawn at its own size as 8-bit BGRA, premultiplied, in
+    /// `space`; ColorSync converts from the image's own profile. Returns
+    /// `image` itself when it already is, or when `space` can't back such a
+    /// bitmap (Core Animation then converts it as before).
+    static func displayReady(_ image: CGImage, in space: CGColorSpace) -> CGImage {
+        if image.bitsPerComponent == 8, image.bitsPerPixel == 32, image.bitmapInfo.rawValue == displayBitmapInfo,
+           image.colorSpace == space {
+            return image
+        }
+        guard let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8,
+                                      bytesPerRow: 0, space: space, bitmapInfo: displayBitmapInfo)
+        else { return image }
+        // The same size, so there is nothing to filter.
+        context.interpolationQuality = .none
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        return context.makeImage() ?? image
     }
+
+    /// Caches unless the display colour space changed while the image was
+    /// being drawn: under the lock, so a change can't slip in between the
+    /// check and the insert and leave the old space's pixels cached.
+    private func cacheInMemory(_ image: CGImage, forKey key: NSString, colorGeneration: Int) {
+        lock.withLock {
+            guard colorGeneration == self.colorGeneration else { return }
+            memory.setObject(image, forKey: key, cost: Self.cost(of: image))
+        }
+    }
+
+    // MARK: - Helpers
 
     /// The modification date and size are part of the key, so an edited
     /// file (new date) misses the cache without anyone invalidating it.
     private func cacheKey(_ entry: FolderEntry, tier: Int, generation: Int) -> NSString {
         "\(tier)|\(generation)|\(entry.modified.timeIntervalSinceReferenceDate)|\(entry.fileSize)|\(entry.url.path)"
             as NSString
+    }
+
+    /// Memory cache key: the file's key plus the display colour space it
+    /// was drawn for. (Failures don't depend on the colour space, so they
+    /// use the file's key alone.)
+    private func memoryKey(_ key: NSString, colorGeneration: Int) -> NSString {
+        "\(colorGeneration)|\(key)" as NSString
     }
 
     /// Bytes of decoded pixels, which is what memory pressure is about.

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import ImageIO
 import MinivuCore
 @testable import Minivu
 
@@ -20,6 +21,21 @@ final class ScratchFolder {
     func file(_ name: String, bytes: Int = 1, in folder: URL? = nil) throws -> URL {
         let file = (folder ?? url).appendingPathComponent(name)
         try Data(count: bytes).write(to: file)
+        return file
+    }
+
+    /// A real JPEG of one flat colour, cheap to encode at any size.
+    @discardableResult
+    func jpeg(_ name: String, width: Int, height: Int) throws -> URL {
+        let file = url.appendingPathComponent(name)
+        let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                             bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+        context.setFillColor(red: 0.8, green: 0.3, blue: 0.1, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        let destination = try #require(CGImageDestinationCreateWithURL(file as CFURL, "public.jpeg" as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
+        try #require(CGImageDestinationFinalize(destination))
         return file
     }
 

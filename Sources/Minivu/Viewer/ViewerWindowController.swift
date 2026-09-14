@@ -170,6 +170,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // minimised, hidden, behind another window or on another Space.
         NotificationCenter.default.addObserver(self, selector: #selector(occlusionChanged(_:)),
                                                name: NSWindow.didChangeOcclusionStateNotification, object: nil)
+        // Show HDR, HDR RAW and RAW decoding change what the photo on screen
+        // should look like. `closeViewer` removes both observers.
+        NotificationCenter.default.addObserver(self, selector: #selector(displaySettingsChanged(_:)),
+                                               name: .minivuDisplaySettingsChanged, object: nil)
 
         // The surround can change in Settings while the viewer is open; the
         // window's own colour (title bar, camera strip) must follow the canvas.
@@ -412,14 +416,17 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Shows the model's image and page: from the cache within this event if
     /// possible, otherwise as soon as it is decoded. On its own for a page
     /// turn, which is still the same file.
-    private func loadCurrentPage() {
+    ///
+    /// `reloading` is for the page already on screen, decoded again: it
+    /// keeps its zoom and pan if the new texture is of the same size.
+    private func loadCurrentPage(reloading: Bool = false) {
         guard let shown = current else { return }
         cancelLoads()
         let pixelSize = canvasPixelSize
         let entry = shown.entry
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified,
                                                               page: shown.page, minimumLongEdge: pixelSize) {
-            display(texture, of: shown, preserveView: false)
+            display(texture, of: shown, preserveView: reloading && keepsView(for: texture, of: shown))
         } else {
             schedulePlaceholder(for: shown)
             loadHandle = AppServices.images.load(entry, page: shown.page, pixelSize: pixelSize) { [weak self] result in
@@ -458,25 +465,53 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         placeholderWork?.cancel()
         switch result {
         case .success(let texture):
-            // Replacing a stand-in of the same page keeps any zoom the user
-            // started on it.
-            display(texture, of: shown, preserveView: displayed == shown)
+            // Replacing a stand-in of the same page, or the page decoded
+            // under old display settings, keeps any zoom the user set.
+            display(texture, of: shown, preserveView: keepsView(for: texture, of: shown))
         case .failure(let error):
             guard !(error is CancellationError) else { return }
-            canvas.setImage(nil, preserveView: false)
             displayed = shown
+            canvas.setImage(nil, preserveView: false)
             errorLabel.stringValue = "minivu can’t display “\(entry.name)”."
             errorLabel.isHidden = false
             updateChrome()
         }
     }
 
+    /// `displayed` is set before the canvas gets the texture: the canvas may
+    /// ask for a sharper one from inside `setImage` (the magnifier is up, or
+    /// the texture is smaller than the fitted view), and it asks only once
+    /// per texture, so a request that found the old image still "displayed"
+    /// would be lost for good.
     private func display(_ texture: ImageTexture, of shown: Shown, preserveView: Bool, prefetch: Bool = true) {
         errorLabel.isHidden = true
-        canvas.setImage(texture, preserveView: preserveView)
         displayed = shown
+        canvas.setImage(texture, preserveView: preserveView)
         updateChrome()
         if prefetch { prefetchAhead() }
+    }
+
+    /// Whether a new texture can take over the view of the one on the canvas:
+    /// only for the same page and image size, or the zoom and pan would land
+    /// somewhere else in the picture.
+    private func keepsView(for texture: ImageTexture, of shown: Shown) -> Bool {
+        displayed == shown && canvas.image?.imageSize == texture.imageSize
+    }
+
+    /// Show HDR, HDR RAW or RAW decoding changed. The loader has already
+    /// emptied its cache, since textures made under the old settings look
+    /// wrong, so the page decodes again. It stays on screen meanwhile (the
+    /// placeholder only stands in for a different page), and the
+    /// neighbours are prefetched again once the new texture is up.
+    @objc private func displaySettingsChanged(_ notification: Notification) {
+        guard !isClosing, let shown = current else { return }
+        if player != nil, displayed == shown {
+            // An animation's frames come from its player, which decodes
+            // them in SDR whatever the settings; only the neighbours change.
+            prefetchAhead()
+            return
+        }
+        loadCurrentPage(reloading: true)
     }
 
     /// The next page of a document, then the neighbouring images.
@@ -705,23 +740,28 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return
         }
         sharpenHandle?.cancel()
+        sharpenHandle = nil
         let deliver: (Result<ImageTexture, Error>) -> Void = { [weak self] result in
             guard let self, case .success(let texture) = result, self.current == shown else { return }
             self.canvas.setImage(texture, preserveView: true)
             self.updateChrome()
         }
         let image = canvas.image
+        let handle: LoadHandle
         if Self.wantsScreenSizedSharpening(fitted: canvas.zoomMode == .fit, kind: shown.entry.kind,
                                            imageLongEdge: image.map { max($0.imageSize.width, $0.imageSize.height) } ?? 0,
                                            textureLongEdge: image.map { max($0.textureSize.width, $0.textureSize.height) } ?? 0,
                                            canvasLongEdge: canvasPixelSize) {
             // The window outgrew the texture, or a stand-in is up: a
             // screen-sized decode is enough, and joins one already running.
-            sharpenHandle = AppServices.images.load(shown.entry, page: shown.page, pixelSize: canvasPixelSize,
-                                                    update: deliver)
+            handle = AppServices.images.load(shown.entry, page: shown.page, pixelSize: canvasPixelSize, update: deliver)
         } else {
-            sharpenHandle = AppServices.images.loadFullResolution(shown.entry, page: shown.page, update: deliver)
+            handle = AppServices.images.loadFullResolution(shown.entry, page: shown.page, update: deliver)
         }
+        // A cache hit is delivered inside the call above, and the texture it
+        // hands the canvas may ask for more at once (a screen-sized one under
+        // the magnifier). That request's handle is the one to keep.
+        if sharpenHandle == nil { sharpenHandle = handle }
     }
 
     /// Whether a screen-sized load can sharpen the canvas, or it takes full
@@ -811,9 +851,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         showCurrent()
     }
 
-    /// Pages of a PDF or multi-page TIFF. Not in MinivuActions: only the
-    /// viewer has pages, and the control bar and the snapshot harness
-    /// (`MINIVU_ACTIONS=nextPage:`) reach these through the responder chain.
+    /// Pages of a PDF or multi-page TIFF, from the Go menu, the control bar
+    /// and the snapshot harness (`MINIVU_ACTIONS=nextPage:`). Only the viewer
+    /// has pages, so the menu items are disabled in the browser.
     @objc func nextPage(_ sender: Any?) { turnPage { $0.nextPage() } }
     @objc func previousPage(_ sender: Any?) { turnPage { $0.previousPage() } }
 
@@ -906,6 +946,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .previousImage: return model.canGoPrevious
         case .firstImage: return model.index > 0
         case .lastImage: return model.index < model.count - 1
+        case .nextPage: return model.canGoNextPage
+        case .previousPage: return model.canGoPreviousPage
+        case .togglePlayback: return player != nil
         case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
         case .revealInFinder: return model.current != nil
         case .moveToTrash: return model.current.map { !trashing.contains($0.url) } ?? false
@@ -958,6 +1001,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var animationPlayer: AnimationPlayer? { player }
     /// The texture on the canvas, for tests.
     var canvasTexture: ImageTexture? { canvas.image }
+    /// The canvas itself, so tests can press on it.
+    var canvasView: ImageCanvasView { canvas }
 
     /// Esc, ⌘W, the close button or a double-click: stop all work, put the
     /// menu bar back, and tell the browser which image to select.

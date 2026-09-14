@@ -134,6 +134,14 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         themeSubscription = Preferences.shared.$theme
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.updateCanvasBackground() }
+        NotificationCenter.default.addObserver(self, selector: #selector(displaySettingsChanged(_:)),
+                                               name: .minivuDisplaySettingsChanged, object: nil)
+    }
+
+    /// The pane lives as long as its browser window; nothing else removes
+    /// the observer.
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: - Divider
@@ -264,24 +272,41 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             if shownEntry == entry { prefetch(neighbours) }
             return
         }
+        load(entry, neighbours: neighbours, reloading: false)
+    }
+
+    /// Show HDR, HDR RAW or RAW decoding changed, and the loader has emptied
+    /// its cache: the photo on screen decodes again. A hidden pane has
+    /// nothing to redo; it loads afresh when shown.
+    @objc private func displaySettingsChanged(_ notification: Notification) {
+        guard isViewLoaded, isVisible, case .image(let entry, let neighbours) = content else { return }
+        load(entry, neighbours: neighbours, reloading: true)
+    }
+
+    /// Shows `entry` from the cache at once if it is there (decoded by the
+    /// viewer, or a prefetch), otherwise once the selection has settled and
+    /// the decode is done.
+    ///
+    /// `reloading` is the photo already on screen decoded again: there is no
+    /// selection to wait for, it stays up until the new texture arrives, and
+    /// the zoom is kept when the size is unchanged.
+    private func load(_ entry: FolderEntry, neighbours: [FolderEntry], reloading: Bool) {
         cancelLoads()
         targetEntry = entry
         let pixelSize = previewPixelSize
-        // Already decoded (by the viewer, or a prefetch): show it now.
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified, page: 0,
                                                               minimumLongEdge: pixelSize) {
-            display(texture, for: entry, neighbours: neighbours)
+            display(texture, for: entry, neighbours: neighbours, keepingView: reloading)
             return
         }
-        pendingLoad = Task { [weak self] in
-            try? await Task.sleep(for: Self.debounce)
-            guard !Task.isCancelled, let self, self.targetEntry == entry else { return }
+        let start = { [weak self] in
+            guard let self, self.targetEntry == entry else { return }
             self.loadHandle = AppServices.images.load(entry, pixelSize: pixelSize) { [weak self] result in
                 guard let self, self.targetEntry == entry else { return }
                 self.loadHandle = nil
                 switch result {
                 case .success(let texture):
-                    self.display(texture, for: entry, neighbours: neighbours)
+                    self.display(texture, for: entry, neighbours: neighbours, keepingView: reloading)
                 case .failure(let error):
                     guard !(error is CancellationError) else { return }
                     self.shownEntry = nil
@@ -289,11 +314,24 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
                 }
             }
         }
+        guard !reloading else { return start() }
+        pendingLoad = Task {
+            try? await Task.sleep(for: Self.debounce)
+            guard !Task.isCancelled else { return }
+            start()
+        }
     }
 
-    private func display(_ texture: ImageTexture, for entry: FolderEntry, neighbours: [FolderEntry]) {
-        canvas?.setImage(texture, preserveView: false)
+    /// `shownEntry` changes before the canvas gets the texture: the canvas
+    /// may ask for a sharper one from inside `setImage` (the magnifier is
+    /// up), once per texture, and that request must be for this photo, not
+    /// the one it replaces. `keepingView` keeps the zoom and pan of the same
+    /// photo when the new texture is of the same image size.
+    private func display(_ texture: ImageTexture, for entry: FolderEntry, neighbours: [FolderEntry],
+                         keepingView: Bool = false) {
+        let preserveView = keepingView && shownEntry == entry && canvas?.image?.imageSize == texture.imageSize
         shownEntry = entry
+        canvas?.setImage(texture, preserveView: preserveView)
         prefetch(neighbours)
     }
 
@@ -361,6 +399,9 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         return SIMD3(linear(srgb.redComponent), linear(srgb.greenComponent), linear(srgb.blueComponent))
     }
 
+    /// The canvas, once made, for tests.
+    var canvasView: ImageCanvasView? { canvas }
+
     /// A screen-sized decode only helps a fitted canvas whose texture is
     /// smaller than the canvas (3% slack, as the loader snaps sizes).
     nonisolated static func wantsScreenSizedRefine(fitted: Bool, textureEdge: Int, canvasEdge: Int) -> Bool {
@@ -390,18 +431,23 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {
         guard let entry = shownEntry else { return }
         refineHandle?.cancel()
+        refineHandle = nil
         let deliver: (Result<ImageTexture, Error>) -> Void = { [weak self] result in
             guard let self, self.shownEntry == entry, case .success(let texture) = result else { return }
             self.refineHandle = nil
             self.canvas?.setImage(texture, preserveView: true)
         }
         let textureEdge = canvas.image.map { Int(max($0.textureSize.width, $0.textureSize.height)) } ?? 0
+        let handle: LoadHandle
         if Self.wantsScreenSizedRefine(fitted: canvas.zoomMode == .fit, textureEdge: textureEdge,
                                        canvasEdge: previewPixelSize) {
-            refineHandle = AppServices.images.load(entry, pixelSize: previewPixelSize, update: deliver)
+            handle = AppServices.images.load(entry, pixelSize: previewPixelSize, update: deliver)
         } else {
-            refineHandle = AppServices.images.loadFullResolution(entry, update: deliver)
+            handle = AppServices.images.loadFullResolution(entry, update: deliver)
         }
+        // A cache hit is delivered inside the call above, and its texture may
+        // ask for more straight away; keep that request's handle instead.
+        if refineHandle == nil { refineHandle = handle }
     }
 }
 

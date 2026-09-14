@@ -209,6 +209,67 @@ import MinivuCore
     }
 }
 
+extension AppWindowTests {
+    /// The preview pane with real photos, which go through the app's shared
+    /// image loader.
+    @MainActor @Suite struct PreviewReloadTests {
+        func waitUntil(timeout: Double = 5, _ condition: () -> Bool) async {
+            let end = Date().addingTimeInterval(timeout)
+            while !condition(), Date() < end {
+                try? await Task.sleep(for: .milliseconds(10))
+            }
+        }
+
+        /// A display setting changed (the loader has dropped its textures): the
+        /// photo in the pane decodes again with its zoom kept, and its
+        /// neighbours are prefetched again.
+        @Test func displaySettingsChangeReloadsThePhoto() async throws {
+            _ = NSApplication.shared
+            let folder = try ScratchFolder()
+            let photos = try [folder.jpeg("a.jpg", width: 1800, height: 1200), folder.jpeg("b.jpg", width: 1800, height: 1200)]
+                .map { try #require(FolderEntry(url: $0)) }
+            let preview = PreviewPaneController()
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 640),
+                                  styleMask: [.titled], backing: .buffered, defer: false)
+            window.contentViewController = preview
+            window.setContentSize(NSSize(width: 320, height: 640))
+            window.contentView?.layoutSubtreeIfNeeded()
+            preview.show(.image(photos[0], neighbours: [photos[1]]))
+            let cache = AppServices.images.cache
+            func neighbourCached() -> Bool {
+                cache.anyTexture(url: photos[1].url, modified: photos[1].modified, page: 0) != nil
+            }
+            await waitUntil { preview.canvasView?.image != nil && neighbourCached() }
+            let canvas = try #require(preview.canvasView)
+            try #require(canvas.image != nil && neighbourCached())
+
+            canvas.zoom(by: 2.5, at: nil)
+            await waitUntil { canvas.image?.isFullResolution == true }   // the zoom asked for it
+            let view = (canvas.transform, canvas.zoomMode)
+            #expect(view.1 != .fit)
+            let old = try #require(canvas.image)
+
+            // What Preferences does, for these two files only.
+            AppServices.images.invalidate(photos[0].url)
+            AppServices.images.invalidate(photos[1].url)
+            NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
+            await waitUntil { canvas.image.map { $0 !== old } ?? false }
+            #expect(canvas.image !== old)
+            #expect(canvas.transform == view.0 && canvas.zoomMode == view.1)
+            await waitUntil(neighbourCached)
+            #expect(neighbourCached())
+
+            // Hidden, the pane does nothing until it is shown again.
+            preview.isVisible = false
+            let hidden = canvas.image
+            AppServices.images.invalidate(photos[0].url)
+            NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(canvas.image === hidden)
+        }
+    }
+}
+
 @Suite struct SidebarDiffTests {
     func urls(_ names: String...) -> [URL] {
         names.map { URL(fileURLWithPath: "/Photos/\($0)", isDirectory: true) }

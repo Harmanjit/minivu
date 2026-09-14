@@ -21,8 +21,10 @@ enum MainMenu {
 
     static func make() -> NSMenu {
         let bar = NSMenu(title: "Main Menu")
-        let viewKeys = DisplayOnlyShortcuts()
-        let menus = [appMenu(), fileMenu(), editMenu(), viewMenu(), imageMenu(), goMenu(viewKeys), windowMenu(), helpMenu()]
+        // One per menu: each shows only its own shortcuts while it is open.
+        let imageKeys = DisplayOnlyShortcuts(), goKeys = DisplayOnlyShortcuts()
+        let menus = [appMenu(), fileMenu(), editMenu(), viewMenu(), imageMenu(imageKeys), goMenu(goKeys),
+                     windowMenu(), helpMenu()]
         for menu in menus {
             let item = NSMenuItem(title: menu.title, action: nil, keyEquivalent: "")
             item.submenu = menu
@@ -110,12 +112,16 @@ enum MainMenu {
         return menu
     }
 
-    private static func imageMenu() -> NSMenu {
+    private static func imageMenu(_ viewKeys: DisplayOnlyShortcuts) -> NSMenu {
         let menu = NSMenu(title: "Image")
+        menu.delegate = viewKeys
         menu.add("Fit to Window", .fitToWindow, "9")
         menu.add("Actual Size", .actualSize, "0")
         menu.add("Zoom In", .zoomIn, "=")
         menu.add("Zoom Out", .zoomOut, "-")
+        menu.addItem(.separator())
+        // A bare P as a real equivalent would be taken from text fields.
+        viewKeys.add(menu.add("Play/Pause Animation", .togglePlayback), key: "p")
         menu.addItem(.separator())
 
         // The viewer also takes bare 0-5 (FastStone's keys). Those can't be
@@ -136,6 +142,10 @@ enum MainMenu {
         viewKeys.add(menu.add("Previous Image", .previousImage), key: Key.left)
         viewKeys.add(menu.add("First Image", .firstImage), key: Key.home)
         viewKeys.add(menu.add("Last Image", .lastImage), key: Key.end)
+        menu.addItem(.separator())
+        // Option-arrows move the insertion point by words in a text field.
+        viewKeys.add(menu.add("Next Page", .nextPage), key: Key.right, modifiers: .option)
+        viewKeys.add(menu.add("Previous Page", .previousPage), key: Key.left, modifiers: .option)
         menu.addItem(.separator())
         menu.add("Enclosing Folder", .goToEnclosingFolder, Key.up)
         menu.add("Back", .goBack, "[")
@@ -185,16 +195,18 @@ enum MainMenu {
 /// `nextImage:` whenever a controller up the chain implements it, and a
 /// rename field inside the browser would never see its arrow keys. Instead
 /// each item has its equivalent only while its menu is on screen, where it
-/// is just a label.
+/// is just a label. The viewer's P (play/pause) and Option-arrows (pages) are
+/// shown the same way: a menu equivalent would take them from text fields.
 ///
 /// Tried and rejected: AppKit does not call `menuNeedsUpdate` while
 /// searching for a key equivalent (so it can't hide them there), and it
 /// searches the items even when `menuHasKeyEquivalent` returns false.
 final class DisplayOnlyShortcuts: NSObject, NSMenuDelegate {
-    private var shortcuts: [(item: NSMenuItem, key: String)] = []
+    private var shortcuts: [(item: NSMenuItem, key: String, modifiers: NSEvent.ModifierFlags)] = []
 
-    func add(_ item: NSMenuItem, key: String) {
-        shortcuts.append((item, key))
+    func add(_ item: NSMenuItem, key: String, modifiers: NSEvent.ModifierFlags = []) {
+        shortcuts.append((item, key, modifiers))
+        item.keyEquivalentModifierMask = []
     }
 
     /// Called before the menu is drawn; the place AppKit documents for
@@ -214,9 +226,9 @@ final class DisplayOnlyShortcuts: NSObject, NSMenuDelegate {
     }
 
     func showShortcuts(_ visible: Bool) {
-        for (item, key) in shortcuts {
+        for (item, key, modifiers) in shortcuts {
             item.keyEquivalent = visible ? key : ""
-            item.keyEquivalentModifierMask = []
+            item.keyEquivalentModifierMask = visible ? modifiers : []
         }
     }
 }

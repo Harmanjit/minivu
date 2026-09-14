@@ -59,7 +59,7 @@ import MinivuCore
             .openFolder, .addFolderToSidebar, .revealInFinder, .moveToTrash, .openInViewer, .fitToWindow,
             .actualSize, .zoomIn, .zoomOut, .nextImage, .previousImage, .firstImage, .lastImage,
             .goToEnclosingFolder, .goBack, .goForward, .sortBy, .toggleSortDirection, .toggleHiddenFiles,
-            .togglePreviewPane, .setRating,
+            .togglePreviewPane, .setRating, .nextPage, .previousPage, .togglePlayback,
         ]
         for selector in expected {
             #expect(inMenu.contains(selector), "\(selector) missing")
@@ -92,6 +92,48 @@ import MinivuCore
         #expect(next.keyEquivalentModifierMask.isEmpty)
         viewKeys.showShortcuts(false)
         #expect(next.keyEquivalent.isEmpty)
+    }
+
+    /// The viewer's page and playback keys are in the menus, shown with
+    /// their modifiers only while the menu is open, each by its own menu.
+    @Test func pageAndPlaybackShortcutsAreDisplayOnly() throws {
+        let nextPage = try item("Next Page"), previousPage = try item("Previous Page")
+        let play = try item("Play/Pause Animation")
+        #expect(nextPage.action == .nextPage && previousPage.action == .previousPage)
+        #expect(play.action == .togglePlayback)
+        #expect(nextPage.menu?.title == "Go" && play.menu?.title == "Image")
+        for item in [nextPage, previousPage, play] {
+            #expect(item.keyEquivalent.isEmpty)
+        }
+
+        let goKeys = try #require(nextPage.menu?.delegate as? DisplayOnlyShortcuts)
+        let imageKeys = try #require(play.menu?.delegate as? DisplayOnlyShortcuts)
+        #expect(goKeys !== imageKeys)
+        goKeys.showShortcuts(true)
+        #expect(nextPage.keyEquivalent == MainMenu.Key.right && nextPage.keyEquivalentModifierMask == .option)
+        #expect(previousPage.keyEquivalent == MainMenu.Key.left && previousPage.keyEquivalentModifierMask == .option)
+        #expect(try item("Next Image").keyEquivalentModifierMask.isEmpty)
+        #expect(play.keyEquivalent.isEmpty)   // the Image menu isn't open
+        goKeys.showShortcuts(false)
+        #expect(nextPage.keyEquivalent.isEmpty && nextPage.keyEquivalentModifierMask.isEmpty)
+
+        imageKeys.showShortcuts(true)
+        #expect(play.keyEquivalent == "p" && play.keyEquivalentModifierMask.isEmpty)
+        imageKeys.showShortcuts(false)
+        #expect(play.keyEquivalent.isEmpty)
+    }
+
+    /// With the menus closed, a bare P and Option-arrows reach the focused
+    /// view (the viewer, or a text field) rather than the menu.
+    @Test func pageAndPlaybackKeysReachViews() throws {
+        let recorder = Recorder()
+        for title in ["Next Page", "Previous Page", "Play/Pause Animation"] {
+            try item(title).target = recorder
+        }
+        #expect(!bar.performKeyEquivalent(with: keyPress(124, .maskAlternate)))   // ⌥→
+        #expect(!bar.performKeyEquivalent(with: keyPress(123, .maskAlternate)))   // ⌥←
+        #expect(!bar.performKeyEquivalent(with: keyPress(35)))                    // P
+        #expect(recorder.calls.isEmpty)
     }
 
     /// Drives AppKit's real key-equivalent search. While the Go menu shows
@@ -160,5 +202,8 @@ import MinivuCore
         @objc func moveToTrash(_ sender: Any?) { calls.append("moveToTrash:") }
         @objc func openInViewer(_ sender: Any?) { calls.append("openInViewer:") }
         @objc func goToEnclosingFolder(_ sender: Any?) { calls.append("goToEnclosingFolder:") }
+        @objc func nextPage(_ sender: Any?) { calls.append("nextPage:") }
+        @objc func previousPage(_ sender: Any?) { calls.append("previousPage:") }
+        @objc func togglePlayback(_ sender: Any?) { calls.append("togglePlayback:") }
     }
 }

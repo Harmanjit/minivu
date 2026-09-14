@@ -86,9 +86,15 @@ One image goes from file to screen like this:
 1. **Open** a `CGImageSource` with caching off.
 2. **Decode at the size needed.** `CGImageSourceCreateThumbnailAtIndex` with
    a max pixel size decodes JPEGs using the codec's own downscaling (DCT
-   scaling), which is several times faster than a full decode. RAW files
-   use the camera's embedded preview for this step. EXIF orientation is
-   applied here.
+   scaling), which is several times faster than a full decode. EXIF
+   orientation is applied here. RAW files use the camera's embedded
+   preview when it covers the size needed; when it doesn't (many cameras
+   store 1616 px, or the user zooms past it) the sensor data is rendered
+   on the GPU by Apple's RAW engine (`CIRAWFilter` through a Core Image
+   context on our Metal queue) straight into the mipmapped texture, and
+   steps 3 to 5 don't apply. The "RAW files" setting (Embedded preview /
+   Render RAW data) can render every time, and "extended dynamic range"
+   RAW always renders, since embedded previews are SDR.
 3. **Convert colour once.** The CGImage is drawn into a bitmap whose memory
    we allocated page-aligned, in the working colour space (4.3). ColorSync
    does the conversion, honouring any embedded ICC profile.
@@ -136,9 +142,18 @@ One image goes from file to screen like this:
 - `TextureCache` holds decoded textures with a byte budget (default: 1/8 of
   RAM, at most 1.5 GB) and evicts least recently used.
 - Thumbnails: an in-memory `NSCache` plus an on-disk SQLite cache in the
-  app's Caches folder, keyed by path, size and modification date.
+  app's Caches folder, keyed by path, size and modification date. In
+  memory they are redrawn on the worker as 8-bit BGRA in the screen's
+  colour space, so Core Animation has nothing to convert on the main
+  thread; on disk they stay JPEG or PNG.
 - Images above 16384 px on a side (Metal's texture limit on M1) are shown
   downscaled to fit the limit.
+- RAW renders: one at a time, in a slot of their own beside the three
+  decode slots, because the RAW engine adds about 1.6 GB of footprint per
+  full-resolution 24 MP render (0.8 GB screen-sized) and holds it for about
+  five seconds. Only the nearest RAW neighbour is prefetched as a render,
+  and on Macs with 8 GB of RAM or less none is (embedded previews still
+  are).
 
 ### 4.6 Catalog
 
@@ -220,8 +235,11 @@ press and hold shows the magnifier; drag pans; the wheel is configurable
 (next/previous image, or zoom). Pinch zooms.
 
 **Keyboard (viewer):** ← → / Space / Backspace next and previous, Home and
-End first and last, Return toggles full screen, Esc back to the browser,
-`+` `-` zoom, `/` actual size, `*` fit, 0–5 rating, ⌘Z / ⇧⌘Z undo and redo.
+End first and last, ⌥→ ⌥← and ⌥Page Down ⌥Page Up next and previous page
+of a document, Page Down and Page Up a page first and then the next or
+previous image at either end, P plays and pauses an animation, Return
+toggles full screen, Esc back to the browser, `+` `-` zoom, `/` actual
+size, `*` fit, 0–5 rating, ⌘Z / ⇧⌘Z undo and redo.
 
 **Themes:** Light, Gray, Dark, or follow the system.
 

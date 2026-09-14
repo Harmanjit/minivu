@@ -28,6 +28,11 @@ import AppKit
     @objc optional func previousImage(_ sender: Any?)
     @objc optional func firstImage(_ sender: Any?)
     @objc optional func lastImage(_ sender: Any?)
+    /// Pages of a PDF or multi-page TIFF; only the viewer has pages.
+    @objc optional func nextPage(_ sender: Any?)
+    @objc optional func previousPage(_ sender: Any?)
+    /// Plays or pauses an animated image in the viewer.
+    @objc optional func togglePlayback(_ sender: Any?)
     @objc optional func goToEnclosingFolder(_ sender: Any?)
     @objc optional func goBack(_ sender: Any?)
     @objc optional func goForward(_ sender: Any?)
@@ -65,6 +70,9 @@ extension Selector {
     static let previousImage = #selector(MinivuActions.previousImage(_:))
     static let firstImage = #selector(MinivuActions.firstImage(_:))
     static let lastImage = #selector(MinivuActions.lastImage(_:))
+    static let nextPage = #selector(MinivuActions.nextPage(_:))
+    static let previousPage = #selector(MinivuActions.previousPage(_:))
+    static let togglePlayback = #selector(MinivuActions.togglePlayback(_:))
     static let goToEnclosingFolder = #selector(MinivuActions.goToEnclosingFolder(_:))
     static let goBack = #selector(MinivuActions.goBack(_:))
     static let goForward = #selector(MinivuActions.goForward(_:))

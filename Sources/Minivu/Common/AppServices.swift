@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import MinivuCore
 import MinivuRender
 
@@ -19,8 +19,9 @@ enum AppServices {
 
     private static var observers: [NSObjectProtocol] = []
 
-    /// Call once at launch: trims the disk cache in the background and
-    /// listens for "Clear Thumbnail Cache" from Settings.
+    /// Call once at launch: trims the disk cache in the background, listens
+    /// for "Clear Thumbnail Cache" from Settings, and keeps thumbnails drawn
+    /// in the screen's colour space.
     static func start() {
         let store = thumbnailStore
         let limit = thumbnailCacheLimit
@@ -31,5 +32,20 @@ enum AppServices {
             forName: .minivuClearThumbnailCache, object: nil, queue: .main) { _ in
             Task.detached(priority: .utility) { store?.removeAll() }
         })
+        updateThumbnailColorSpace()
+        // Also posted for every step of an EDR headroom change; setting the
+        // same colour space again costs nothing.
+        observers.append(NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { updateThumbnailColorSpace() }
+        })
+    }
+
+    /// Thumbnails are drawn in the main screen's colour space, so Core
+    /// Animation shows them without converting each one on the main thread.
+    /// On another screen they are still correct, just converted as before.
+    static func updateThumbnailColorSpace() {
+        let screen = NSScreen.main ?? NSScreen.screens.first
+        thumbnails.displayColorSpace = screen?.colorSpace?.cgColorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
     }
 }
