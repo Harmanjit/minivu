@@ -1,45 +1,283 @@
 import AppKit
+import Combine
 import AgateCore
 import AgateRender
 import os
 
-let log = Logger(subsystem: "com.agate.viewer", category: "app")
+/// The app's log. `nonisolated` because `Logger` is thread-safe and
+/// background work (the GPU warm-up below, decoders) logs too.
+nonisolated let log = Logger(subsystem: "com.agate.viewer", category: "app")
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var browserWindow: NSWindow?
+extension Notification.Name {
+    /// Posted after a folder is added to the sidebar's favourites.
+    nonisolated static let agateFavoritesChanged = Notification.Name("AgateFavoritesChanged")
+}
+
+/// Starts the app, owns the browser window and handles the commands that
+/// don't belong to any window: opening folders, Settings and the theme.
+///
+/// It sits at the very end of the responder chain, so its `AgateActions`
+/// run only when no window controller implements them first.
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, AgateActions {
+    private var browser: BrowserWindowController?
+    private var settings: PreferencesWindowController?
+    private var themeSubscription: AnyCancellable?
+    /// Files opened before the browser exists (a launch by double-clicking
+    /// an image in Finder delivers them before `didFinishLaunching`).
+    private var pendingOpens: [URL] = []
+    /// The folder panel on screen, so a second ⌘O brings it forward
+    /// instead of stacking another panel.
+    private var folderPanel: NSOpenPanel?
+
+    /// UserDefaults key for the folder the browser showed last. The browser
+    /// writes it; launch reads it.
+    nonisolated static let lastFolderKey = "lastFolder"
+
+    // MARK: - Launch
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Before launch finishes, so the menu exists when the first
+        // open-file event arrives. Agate has one browser, not tabs.
+        MainMenu.install()
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.mainMenu = MainMenu.make()
-        let start = ContinuousClock.now
-        _ = GPU.shared
-        log.info("Metal ready in \(ContinuousClock.now - start, privacy: .public)")
-        if ProcessInfo.processInfo.environment["AGATE_TRACE"] != nil { FileHandle.standardError.write(Data("Metal ready in \(ContinuousClock.now - start)\n".utf8)) }
+        // `$theme` publishes its current value on subscription, so this also
+        // applies the saved theme before the first window appears.
+        themeSubscription = Preferences.shared.$theme
+            .removeDuplicates()
+            .sink { ThemeColors.apply($0) }
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
-                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
-                              backing: .buffered, defer: false)
-        window.title = "Agate"
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-        browserWindow = window
+        warmUpGPU()
+
+        // Resolving the bookmarks restores access to the sidebar folders,
+        // which the last folder may be inside.
+        _ = BookmarkStore.shared
+
+        let browser = BrowserWindowController()
+        self.browser = browser
+        let requested = pendingOpens + Self.paths(fromArguments: Array(CommandLine.arguments.dropFirst()))
+        pendingOpens = []
+        // Shown first so a refusal can appear as a sheet on it. If nothing
+        // requested could be opened, the browser still needs a folder.
+        browser.showWindow(nil)
         NSApp.activate()
+        if requested.isEmpty || !open(requested) {
+            browser.open(folder: Self.startFolder())
+        }
+
+        SnapshotHarness.startIfRequested(app: self)
+    }
+
+    /// Compiles the shaders on a background thread so the window appears
+    /// without waiting for Metal. If the canvas asks for `GPU.shared` first,
+    /// it just waits for this same one-time setup.
+    private func warmUpGPU() {
+        Task.detached(priority: .userInitiated) {
+            let start = ContinuousClock.now
+            _ = GPU.shared
+            let elapsed = ContinuousClock.now - start
+            log.info("Metal ready in \(elapsed, privacy: .public)")
+            if ProcessInfo.processInfo.environment["AGATE_TRACE"] != nil {
+                FileHandle.standardError.write(Data("Metal ready in \(elapsed)\n".utf8))
+            }
+        }
+    }
+
+    /// The last visited folder if it can still be read, else Pictures.
+    static func startFolder(defaults: UserDefaults = .standard) -> URL {
+        if let path = defaults.string(forKey: lastFolderKey) {
+            let url = URL(fileURLWithPath: path, isDirectory: true)
+            if isReadableFolder(url), VolumePolicy.isAllowed(url) { return url }
+        }
+        return BookmarkStore.picturesFolder
+    }
+
+    /// Whether the folder can be listed right now. Opening the directory is
+    /// the honest test: under the sandbox a folder can exist and still be
+    /// off limits, which `fileExists` would not reveal. One `open` call
+    /// takes microseconds, so this is fine on the main thread at launch.
+    static func isReadableFolder(_ url: URL) -> Bool {
+        let fd = Darwin.open(url.path, O_RDONLY | O_DIRECTORY)
+        guard fd >= 0 else { return false }
+        Darwin.close(fd)
+        return true
+    }
+
+    /// Existing paths given on the command line (`open Agate.app --args
+    /// ~/Photos`), without the program name. An argument starting with "-"
+    /// is a defaults override that takes the next argument as its value
+    /// (`-lastFolder /tmp`), so both are skipped.
+    static func paths(fromArguments arguments: [String]) -> [URL] {
+        var remaining = arguments[...]
+        var paths: [URL] = []
+        while let argument = remaining.popFirst() {
+            if argument.hasPrefix("-") {
+                _ = remaining.popFirst()
+            } else if FileManager.default.fileExists(atPath: argument) {
+                paths.append(URL(fileURLWithPath: argument))
+            }
+        }
+        return paths
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    // MARK: - Opening files and folders
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard browser != nil else {
+            pendingOpens += urls
+            return
+        }
+        open(urls)
+    }
+
+    /// What opening one URL means.
+    enum OpenTarget: Equatable {
+        case folder, file
+        /// Gone, or unreadable.
+        case missing
+        /// On a volume `VolumePolicy` refuses.
+        case external
+
+        init(_ url: URL) {
+            guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey]) else {
+                self = .missing
+                return
+            }
+            guard VolumePolicy.isAllowed(url) else {
+                self = .external
+                return
+            }
+            self = values.isDirectory == true ? .folder : .file
+        }
+    }
+
+    /// Opens folders and files from Finder, the Dock, the command line or
+    /// the snapshot harness, and explains any it refuses. The browser shows
+    /// one folder at a time, so of several items only the last allowed one
+    /// is opened (opening each in turn would start and cancel a folder load
+    /// per item). Returns whether anything was opened.
+    @discardableResult
+    func open(_ urls: [URL]) -> Bool {
+        guard let browser else { return false }
+        let targets = urls.map { ($0, OpenTarget($0)) }
+        let external = targets.filter { $0.1 == .external }.map(\.0)
+        let missing = targets.filter { $0.1 == .missing }.map(\.0)
+        if !external.isEmpty {
+            explain(external, "Agate only works with files on this Mac’s internal storage. Copy the photos "
+                + "from the external drive, memory card or network share to a folder on this Mac first.")
+        }
+        if !missing.isEmpty {
+            explain(missing, "The item may have been moved or deleted, or Agate may not have permission to read it.")
+        }
+        guard let (url, target) = targets.last(where: { $0.1 == .folder || $0.1 == .file }) else { return false }
+        if target == .folder {
+            browser.open(folder: url)
+        } else {
+            browser.open(file: url)
+        }
+        return true
+    }
+
+    private func explain(_ urls: [URL], _ reason: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        let names = urls.map { "“\($0.lastPathComponent)”" }.formatted(.list(type: .and))
+        alert.messageText = "Agate can’t open \(names)"
+        alert.informativeText = reason
+        if let window = browser?.window, window.isVisible {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
+    }
+
+    // MARK: - AgateActions
+
+    /// Chooses a folder, adds it to the sidebar and shows it.
+    @objc func openFolder(_ sender: Any?) {
+        chooseFolder(prompt: "Open") { [weak self] url in
+            if BookmarkStore.shared.add(url) {
+                NotificationCenter.default.post(name: .agateFavoritesChanged, object: nil)
+            }
+            self?.browser?.open(folder: url)
+        }
+    }
+
+    @objc func addFolderToSidebar(_ sender: Any?) {
+        chooseFolder(prompt: "Add") { url in
+            if BookmarkStore.shared.add(url) {
+                NotificationCenter.default.post(name: .agateFavoritesChanged, object: nil)
+            }
+        }
+    }
+
+    /// Runs an open panel for one folder, as a sheet on the browser.
+    ///
+    /// The bookmark must be made from the URL the panel returns: that URL
+    /// carries the sandbox permission the user just granted.
+    private func chooseFolder(prompt: String, then handle: @escaping (URL) -> Void) {
+        if let folderPanel {
+            folderPanel.makeKeyAndOrderFront(nil)
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = prompt
+        // The panel holds its delegate weakly; the completion handler below
+        // keeps it alive exactly as long as the panel is up.
+        let delegate = InternalVolumesOnly()
+        panel.delegate = delegate
+        folderPanel = panel
+        let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            withExtendedLifetime(delegate) {}
+            self?.folderPanel = nil
+            guard response == .OK, let url = panel.url else { return }
+            handle(url)
+        }
+        if let window = browser?.window, window.isVisible {
+            panel.beginSheetModal(for: window, completionHandler: finish)
+        } else {
+            panel.begin(completionHandler: finish)
+        }
+    }
+
+    // MARK: - Settings and theme
+
+    /// App menu > Settings…. One window, created on first use.
+    @objc func showSettings(_ sender: Any?) {
+        let controller = settings ?? PreferencesWindowController()
+        settings = controller
+        controller.showWindow(sender)
+    }
+
+    /// The Settings window, once it has been opened.
+    var settingsWindow: NSWindow? { settings?.window }
+
+    /// View > Theme. The menu item's tag is the index in `Theme.allCases`.
+    @objc func selectTheme(_ sender: Any?) {
+        guard let item = sender as? NSMenuItem, Preferences.Theme.allCases.indices.contains(item.tag) else { return }
+        Preferences.shared.theme = Preferences.Theme.allCases[item.tag]
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(selectTheme(_:)) {
+            let current = Preferences.Theme.allCases.firstIndex(of: Preferences.shared.theme)
+            menuItem.state = menuItem.tag == current ? .on : .off
+        }
+        return true
+    }
 }
 
-enum MainMenu {
-    static func make() -> NSMenu {
-        let main = NSMenu()
-        let appItem = NSMenuItem()
-        main.addItem(appItem)
-        let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About Agate", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
-                        keyEquivalent: "")
-        appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide Agate", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit Agate", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        appItem.submenu = appMenu
-        return main
+/// Greys out anything on an external volume in the open panel, so the user
+/// can't pick a folder Agate would then refuse (VolumePolicy).
+final class InternalVolumesOnly: NSObject, NSOpenSavePanelDelegate {
+    func panel(_ sender: Any, shouldEnable url: URL) -> Bool {
+        VolumePolicy.isAllowed(url)
     }
 }

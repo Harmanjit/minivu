@@ -39,6 +39,13 @@ let package = Package(
             dependencies: ["AgateCore"],
             path: "Tests/AgateCoreTests"
         ),
+        // The app's own logic (menus, launch, snapshot harness). SwiftPM
+        // lets tests import an executable target.
+        .testTarget(
+            name: "AgateTests",
+            dependencies: ["Agate"],
+            path: "Tests/AgateTests"
+        ),
         .testTarget(
             name: "AgateRenderTests",
             dependencies: ["AgateRender", "AgateCore"],
