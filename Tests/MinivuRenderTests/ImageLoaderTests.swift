@@ -48,6 +48,67 @@ import CoreGraphics
         #expect(loader.decodeCount == 2)
     }
 
+    func load(_ loader: ImageLoader, _ entry: FolderEntry, fitting: CGSize) async -> Result<ImageTexture, Error> {
+        await withCheckedContinuation { done in
+            loader.load(entry, fitting: fitting) { done.resume(returning: $0) }
+        }
+    }
+
+    @Test func fittedLoadsDecodeTheSizeShownAtFit() async throws {
+        let loader = makeLoader(), entry = makeEntry()   // 400 x 200
+        // Unknown size: the decode fits it. 400 x 25 shows it 50 px wide,
+        // exactly 1/8, where the long edge alone would ask for full size.
+        let small = try await load(loader, entry, fitting: CGSize(width: 400, height: 25)).get()
+        #expect(small.texture.width == 50)
+        var hit: ImageTexture?
+        loader.load(entry, fitting: CGSize(width: 400, height: 25)) { hit = try? $0.get() }
+        #expect(hit === small)
+        // A taller view fits it larger: a bigger decode, snapped to 1/2.
+        let grown = try await load(loader, entry, fitting: CGSize(width: 400, height: 90)).get()
+        #expect(grown.texture.width == 200)
+        #expect(loader.decodeCount == 2)
+        // A view smaller than that is covered by the bigger texture.
+        hit = nil
+        loader.load(entry, fitting: CGSize(width: 1000, height: 60)) { hit = try? $0.get() }
+        #expect(hit === grown)
+        #expect(loader.decodeCount == 2)
+    }
+
+    @Test func turningTheViewRefitsAPortraitImage() async throws {
+        let loader = makeLoader(), entry = makeEntry(width: 200, height: 400)
+        let wide = try await load(loader, entry, fitting: CGSize(width: 400, height: 100)).get()
+        #expect(wide.texture.height == 100)   // 1/4
+        // The same view turned tall fits it 200 px high: a larger decode.
+        let tall = try await load(loader, entry, fitting: CGSize(width: 100, height: 400)).get()
+        #expect(tall.texture.height == 200)
+        #expect(loader.decodeCount == 2)
+    }
+
+    @Test func aLoadJoinsAFittedPrefetch() async throws {
+        let loader = makeLoader(), entry = makeEntry()
+        loader.prefetch(pages: [(entry, 0)], fitting: CGSize(width: 400, height: 25))
+        let texture = try await load(loader, entry, fitting: CGSize(width: 400, height: 25)).get()
+        #expect(texture.texture.width == 50)
+        #expect(loader.decodeCount == 1)
+    }
+
+    @Test func jobsCoverRequestsByFittedSize() {
+        let image = CGSize(width: 6032, height: 4032)
+        func size(_ w: CGFloat, _ h: CGFloat) -> CGSize { CGSize(width: w, height: h) }
+        // Unknown image: only a view as large on both axes is sure to cover.
+        #expect(ImageLoader.covers(size(3420, 2048), size(3420, 2000), imageSize: nil))
+        #expect(!ImageLoader.covers(size(3420, 2048), size(2048, 3420), imageSize: nil))
+        // Known: compared by the long edges they fit it to (3064 and 3064).
+        #expect(ImageLoader.covers(size(3420, 2048), size(2048 * 1.5, 3000), imageSize: image))
+        #expect(ImageLoader.covers(size(3016, 3016), size(3420, 2048), imageSize: image))   // 3016 >= 0.97 * 3064
+        #expect(!ImageLoader.covers(size(3016, 3016), size(3420, 2214), imageSize: image))
+        // Both beyond the image: each decodes it whole.
+        #expect(ImageLoader.covers(size(6500, 6500), size(9000, 9000), imageSize: image))
+        #expect(ImageLoader.covers(nil, nil, imageSize: image))
+        #expect(!ImageLoader.covers(nil, size(100, 100), imageSize: image))
+        #expect(!ImageLoader.covers(size(9000, 9000), nil, imageSize: image))
+    }
+
     @Test func cancelSuppressesUpdate() async {
         let loader = makeLoader(), entry = makeEntry()
         var called = false
@@ -226,11 +287,15 @@ import CoreGraphics
             return DecodedImage(image: image, orientation: .up, imageSize: CGSize(width: 6016, height: 3008),
                                 isFullResolution: full, isHDR: false, contentHeadroom: 1, needsDeepStorage: false)
         }
-        #expect(ImageLoader.previewCovers(preview(longEdge: 6000, full: true), pixelSize: nil))
-        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), pixelSize: nil))
-        #expect(ImageLoader.previewCovers(preview(longEdge: 1512, full: false), pixelSize: 1512))
-        #expect(ImageLoader.previewCovers(preview(longEdge: 1620, full: false), pixelSize: 1670))
-        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), pixelSize: 3008))
+        func square(_ edge: CGFloat) -> CGSize { CGSize(width: edge, height: edge) }
+        #expect(ImageLoader.previewCovers(preview(longEdge: 6000, full: true), target: nil))
+        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), target: nil))
+        #expect(ImageLoader.previewCovers(preview(longEdge: 1512, full: false), target: square(1512)))
+        #expect(ImageLoader.previewCovers(preview(longEdge: 1620, full: false), target: square(1670)))
+        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), target: square(3008)))
+        // The 2:1 image fitted into a wide, short view needs only 1600 px.
+        #expect(ImageLoader.previewCovers(preview(longEdge: 1620, full: false), target: CGSize(width: 3200, height: 800)))
+        #expect(!ImageLoader.previewCovers(preview(longEdge: 1620, full: false), target: CGSize(width: 3400, height: 1700)))
     }
 
     @Test func rawHeadroomScalesWithTheAmount() {

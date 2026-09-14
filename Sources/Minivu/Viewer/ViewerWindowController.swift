@@ -476,14 +476,21 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     // MARK: - Loading
 
-    /// Long edge of the canvas in pixels: the size to decode for.
+    /// Long edge of the canvas in pixels.
     var canvasPixelSize: Int {
+        let size = canvasFitSize
+        return Int(max(size.width, size.height))
+    }
+
+    /// The canvas in pixels, or before it has a size a square of the
+    /// screen's long edge: screen-sized decodes are for the image fitted
+    /// into it, which for most photos is less than the long edge.
+    var canvasFitSize: CGSize {
         let size = canvas.drawablePixelSize
-        let edge = Int(max(size.width, size.height))
-        if edge > 0 { return edge }
+        if size.width >= 1, size.height >= 1 { return size }
         let provider = Displays.provider
-        guard let display = window.flatMap(provider.display(of:)) ?? provider.mainDisplay else { return 2560 }
-        return display.pixelLongEdge
+        let edge = (window.flatMap(provider.display(of:)) ?? provider.mainDisplay)?.pixelLongEdge ?? 2560
+        return CGSize(width: edge, height: edge)
     }
 
     /// Shows `model.current` after a move to another image.
@@ -502,14 +509,14 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func loadCurrentPage(reloading: Bool = false) {
         guard let shown = current else { return }
         cancelLoads()
-        let pixelSize = canvasPixelSize
+        let fitSize = canvasFitSize
         let entry = shown.entry
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified,
-                                                              page: shown.page, minimumLongEdge: pixelSize) {
+                                                              page: shown.page, fitting: fitSize) {
             display(texture, of: shown, preserveView: reloading && keepsView(for: texture, of: shown))
         } else {
             schedulePlaceholder(for: shown)
-            loadHandle = AppServices.images.load(entry, page: shown.page, pixelSize: pixelSize) { [weak self] result in
+            loadHandle = AppServices.images.load(entry, page: shown.page, fitting: fitSize) { [weak self] result in
                 self?.loadFinished(result, shown: shown)
             }
         }
@@ -607,7 +614,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// The next page of a document, then the neighbouring images.
     private func prefetchAhead() {
-        AppServices.images.prefetch(pages: model.prefetchPages, pixelSize: canvasPixelSize)
+        AppServices.images.prefetch(pages: model.prefetchPages, fitting: canvasFitSize)
     }
 
     /// The navigation happened: update everything that says which image this is.
@@ -877,14 +884,18 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             self.updateChrome()
         }
         let image = canvas.image
+        let fitSize = canvasFitSize
         let handle: LoadHandle
         if Self.wantsScreenSizedSharpening(fitted: canvas.zoomMode == .fit, kind: shown.entry.kind,
                                            imageLongEdge: image.map { max($0.imageSize.width, $0.imageSize.height) } ?? 0,
                                            textureLongEdge: image.map { max($0.textureSize.width, $0.textureSize.height) } ?? 0,
-                                           canvasLongEdge: canvasPixelSize) {
-            // The window outgrew the texture, or a stand-in is up: a
-            // screen-sized decode is enough, and joins one already running.
-            handle = AppServices.images.load(shown.entry, page: shown.page, pixelSize: canvasPixelSize, update: deliver)
+                                           canvasLongEdge: ImageDecoder.fittedLongEdge(imageSize: image?.imageSize ?? .zero,
+                                                                                       in: fitSize)) {
+            // The window outgrew the texture (a fitted image's size, which
+            // grows too when a resize turns the window's long axis), or a
+            // stand-in is up: a screen-sized decode is enough, and joins one
+            // already running.
+            handle = AppServices.images.load(shown.entry, page: shown.page, fitting: fitSize, update: deliver)
         } else {
             handle = AppServices.images.loadFullResolution(shown.entry, page: shown.page, update: deliver)
         }

@@ -1,5 +1,6 @@
 import Foundation
 import Dispatch
+import MinivuCore
 
 /// Identifies one decoded texture of one image.
 ///
@@ -125,12 +126,23 @@ public final class TextureCache: @unchecked Sendable {
     /// image's own long edge lets a small image's only texture satisfy a
     /// large window.
     public func bestTexture(url: URL, modified: Date, page: Int, minimumLongEdge: Int) -> ImageTexture? {
+        bestTexture(url: url, modified: modified, page: page,
+                    fitting: CGSize(width: minimumLongEdge, height: minimumLongEdge))
+    }
+
+    /// The same for the image fitted into `viewSize` (drawable pixels): the
+    /// long edge needed is the one the image has there, worked out from each
+    /// texture's own image size, so a texture decoded for a larger view (or
+    /// for the view's long edge) still serves a smaller fit.
+    public func bestTexture(url: URL, modified: Date, page: Int, fitting viewSize: CGSize) -> ImageTexture? {
         lock.lock(); defer { lock.unlock() }
         var best: (key: TextureKey, entry: Entry)?
         for (key, entry) in entries where key.sameImage(url: url, modified: modified, page: page) {
             if key.fullResolution { best = (key, entry); break }
-            let imageLongEdge = Int(max(entry.texture.imageSize.width, entry.texture.imageSize.height))
-            let needed = Double(min(minimumLongEdge, imageLongEdge)) * 0.97
+            let imageSize = entry.texture.imageSize
+            let imageLongEdge = Int(max(imageSize.width, imageSize.height))
+            let fitted = ImageDecoder.fittedLongEdge(imageSize: imageSize, in: viewSize)
+            let needed = Double(min(fitted, imageLongEdge)) * 0.97
             guard Double(key.longEdge) >= needed else { continue }
             if best == nil || key.longEdge < best!.key.longEdge { best = (key, entry) }
         }
