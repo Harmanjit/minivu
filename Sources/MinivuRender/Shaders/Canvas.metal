@@ -36,6 +36,19 @@ vertex CanvasVertex canvasVertex(uint vid [[vertex_id]]) {
 // Rolls off values above `knee` so they approach the display headroom
 // instead of clipping. Hue is kept by scaling all channels by the same
 // factor, driven by the largest one.
+//
+// What the curve guarantees (HeadroomToneMap in CanvasRenderer.swift is a
+// line-for-line copy that the tests check):
+// - Content that fits the display (every SDR image: headroom 1) passes
+//   through untouched.
+// - Below the knee nothing changes. The knee is 3/4 of the display
+//   headroom, so on any screen with 1.33x headroom or more, SDR white and
+//   everything under it keep their exact values; only an SDR screen has to
+//   give up the top quarter of its range to fit the highlights in.
+// - Above it the curve is continuous, rises monotonically with a slope
+//   between 0 and 1 (it never brightens and never adds contrast), and
+//   reaches exactly the display headroom at the content headroom. Anything
+//   brighter than the content claims to be is held there.
 static float3 toneMapToHeadroom(float3 c, float displayHeadroom, float contentHeadroom) {
     float peak = max(c.r, max(c.g, c.b));
     if (contentHeadroom <= displayHeadroom || peak <= 0.0) { return c; }

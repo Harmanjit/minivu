@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import MinivuRender
 
 extension Notification.Name {
     /// Settings > Thumbnails > Clear Thumbnail Cache. The thumbnail cache
@@ -123,13 +124,31 @@ private struct ViewerSettings: View {
 
     var body: some View {
         Form {
-            Picker("Background", selection: $prefs.viewerBackground) {
-                ForEach(Preferences.ViewerBackground.allCases) { Text($0.title).tag($0) }
+            Section {
+                Picker("Background", selection: $prefs.viewerBackground) {
+                    ForEach(Preferences.ViewerBackground.allCases) { Text($0.title).tag($0) }
+                }
+                Toggle("Enlarge small images to fit", isOn: $prefs.enlargeSmallImages)
+                Toggle("Pixelated zoom above 200%", isOn: $prefs.pixelatedZoom)
+                Picker("Mouse wheel", selection: $prefs.wheelAction) {
+                    ForEach(Preferences.WheelAction.allCases) { Text($0.title).tag($0) }
+                }
             }
-            Toggle("Enlarge small images to fit", isOn: $prefs.enlargeSmallImages)
-            Toggle("Pixelated zoom above 200%", isOn: $prefs.pixelatedZoom)
-            Picker("Mouse wheel", selection: $prefs.wheelAction) {
-                ForEach(Preferences.WheelAction.allCases) { Text($0.title).tag($0) }
+            Section {
+                Toggle("Display HDR photos in HDR", isOn: $prefs.showHDR)
+            } footer: {
+                Text("Highlights brighter than white show on HDR screens: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Other screens show HDR photos tone mapped.")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Picker("RAW files", selection: $prefs.rawDecoding) {
+                    ForEach(RawDecoding.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Toggle("Render RAW files with extended dynamic range", isOn: $prefs.hdrRaw)
+                    .disabled(!prefs.showHDR)
+            } footer: {
+                Text("The embedded preview is the JPEG the camera saved with the photo. It shows at once, and if it is smaller than the photo, zooming in renders the RAW data. Extended dynamic range always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen.")
+                    .foregroundStyle(.secondary)
             }
         }
         .settingsForm()
@@ -243,6 +262,15 @@ private struct ThumbnailSettings: View {
             }
         }
         .settingsForm()
+    }
+}
+
+private extension RawDecoding {
+    var title: String {
+        switch self {
+        case .embeddedPreview: "Embedded preview (faster)"
+        case .fullRaw: "Render RAW data"
+        }
     }
 }
 

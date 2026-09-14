@@ -32,6 +32,51 @@ import MinivuCore
     }
 }
 
+/// How RAW files are shown.
+public enum RawDecoding: String, Sendable, CaseIterable {
+    /// The JPEG the camera embedded, when it is large enough: fast, and the
+    /// camera's own colour rendering. Zooming in on a camera whose preview is
+    /// smaller than the sensor image still renders the RAW data.
+    case embeddedPreview
+    /// Always render the sensor data with Apple's RAW engine, at the size
+    /// shown: slower, but the same rendering at every zoom.
+    case fullRaw
+}
+
+/// The user's choices that change what a file's texture looks like.
+///
+/// Textures made under other settings are wrong, so changing these empties
+/// the texture cache (see `ImageLoader.settings`).
+public struct DisplaySettings: Sendable, Equatable {
+    public var rawDecoding: RawDecoding
+    /// Decode HDR photos (gain maps, PQ, HLG) with their highlights. Off:
+    /// ImageIO tone maps them to SDR.
+    public var showHDR: Bool
+    /// Render RAW files with extended dynamic range. Needs `showHDR`, and
+    /// always renders the sensor data, since embedded previews are SDR.
+    public var hdrRaw: Bool
+    /// How much of the RAW engine's extended range to use, 0...1.
+    public var hdrRawAmount: Float
+
+    public init(rawDecoding: RawDecoding = .embeddedPreview, showHDR: Bool = true, hdrRaw: Bool = false,
+                hdrRawAmount: Float = 1) {
+        self.rawDecoding = rawDecoding
+        self.showHDR = showHDR
+        self.hdrRaw = hdrRaw
+        self.hdrRawAmount = hdrRawAmount
+    }
+
+    /// RAW files render with highlights above SDR white.
+    var rendersHDRRaw: Bool { showHDR && hdrRaw && hdrRawAmount > 0 }
+
+    /// Every RAW load goes through `RawRenderer`, at any size.
+    var alwaysRendersRaw: Bool { rawDecoding == .fullRaw || rendersHDRRaw }
+
+    /// The headroom to ask `RawRenderer` for: the amount scales the
+    /// engine's range exponentially, as exposure does.
+    var rawHeadroom: Float { pow(RawRenderer.maximumHeadroom, min(max(hdrRawAmount, 0), 1)) }
+}
+
 /// Gets images onto the GPU: cache first, otherwise decode and upload in the
 /// background (DESIGN.md 4.2).
 ///
@@ -61,6 +106,25 @@ import MinivuCore
 
     public let cache: TextureCache
 
+    /// How files become textures. The app sets this from its preferences.
+    ///
+    /// A change empties the texture cache and stops the decodes under way
+    /// from caching or being joined, as `invalidate` does for one file:
+    /// what they produce is right for the old settings only. Requests
+    /// already waiting on such a decode still get its result; whoever shows
+    /// images reloads them after a change.
+    public var settings = DisplaySettings() {
+        didSet {
+            guard settings != oldValue else { return }
+            cache.removeAll()
+            for job in jobs.values {
+                job.discardResult = true
+                job.wantedByPrefetch = false
+                dropIfUnwanted(job)
+            }
+        }
+    }
+
     /// Memory, not CPU, is the limit: see the type's documentation.
     static let maximumConcurrentDecodes = 3
     /// One slot stays free for what the user asks for.
@@ -85,6 +149,8 @@ import MinivuCore
         let page: Int
         /// Requested long edge in pixels; nil for full resolution.
         let pixelSize: Int?
+        /// The settings when the job was made, which its decode follows.
+        let settings: DisplaySettings
         var priority: TaskPriority
         /// Request order, for choosing which waiting job starts next.
         var sequence: Int
@@ -92,16 +158,18 @@ import MinivuCore
         var wantedByPrefetch = false
         var task: Task<Void, Never>?
         let stop = StopFlag()
-        /// The file changed on disk; don't cache what was read, and don't
-        /// let new requests join.
+        /// The file changed on disk, or the settings did; don't cache what
+        /// was read, and don't let new requests join.
         var discardResult = false
         var escalated = false
 
-        init(id: Int, entry: FolderEntry, page: Int, pixelSize: Int?, priority: TaskPriority, sequence: Int) {
+        init(id: Int, entry: FolderEntry, page: Int, pixelSize: Int?, settings: DisplaySettings,
+             priority: TaskPriority, sequence: Int) {
             self.id = id
             self.entry = entry
             self.page = page
             self.pixelSize = pixelSize
+            self.settings = settings
             self.priority = priority
             self.sequence = sequence
         }
@@ -129,9 +197,10 @@ import MinivuCore
     /// edge), for entry/page.
     ///
     /// Cache hit: `update` is called synchronously before returning. Otherwise
-    /// decode (ImageDecoder.decode with maxPixelSize) + upload
-    /// (TextureUploader.upload) off the main actor, then `update` on the main
-    /// actor. Never called after cancel().
+    /// decode (ImageDecoder.decode with maxPixelSize, or RawRenderer for RAW
+    /// files as `settings` say) + upload (TextureUploader.upload) off the
+    /// main actor, then `update` on the main actor. Never called after
+    /// cancel().
     @discardableResult
     public func load(_ entry: FolderEntry, page: Int = 0, pixelSize: Int,
                      update: @escaping (Result<ImageTexture, Error>) -> Void) -> LoadHandle {
@@ -240,7 +309,8 @@ import MinivuCore
 
     private func makeJob(_ entry: FolderEntry, page: Int, pixelSize: Int?, priority: TaskPriority) -> Job {
         let id = nextSequence()
-        let job = Job(id: id, entry: entry, page: page, pixelSize: pixelSize, priority: priority, sequence: id)
+        let job = Job(id: id, entry: entry, page: page, pixelSize: pixelSize, settings: settings,
+                      priority: priority, sequence: id)
         jobs[job.id] = job
         waiting.append(job.id)
         return job
@@ -287,22 +357,68 @@ import MinivuCore
         runningCount += 1
         decodeCount += 1
         let id = job.id, url = job.entry.url, page = job.page, size = job.pixelSize, stop = job.stop
+        let settings = job.settings
         job.task = Task.detached(priority: job.priority) { [weak self] in
-            let result = Result { try Self.decodeAndUpload(url: url, pixelSize: size, page: page, stop: stop) }
+            let result = Result {
+                try Self.decodeAndUpload(url: url, pixelSize: size, page: page, settings: settings, stop: stop)
+            }
             await self?.finish(jobID: id, result: result)
         }
     }
 
     /// The only part that leaves the main actor. The stop flag is checked
-    /// before and between the two steps: an ImageIO decode can't be
-    /// interrupted, but it needn't start, and the upload (a colour conversion
-    /// and a GPU copy) can be skipped.
-    nonisolated private static func decodeAndUpload(url: URL, pixelSize: Int?, page: Int,
+    /// before and between the steps: an ImageIO decode or a RAW render can't
+    /// be interrupted, but it needn't start, and the upload (a colour
+    /// conversion and a GPU copy) can be skipped.
+    nonisolated private static func decodeAndUpload(url: URL, pixelSize: Int?, page: Int, settings: DisplaySettings,
                                                     stop: StopFlag) throws -> ImageTexture {
-        if stop.isSet || Task.isCancelled { throw CancellationError() }
-        let decoded = try ImageDecoder.decode(url, maxPixelSize: pixelSize, page: page)
-        if stop.isSet || Task.isCancelled { throw CancellationError() }
+        func checkStop() throws {
+            if stop.isSet || Task.isCancelled { throw CancellationError() }
+        }
+        try checkStop()
+        if ImageFormats.kind(of: url) == .raw {
+            switch rawPlan(pixelSize: pixelSize, settings: settings) {
+            case .render(let hdr):
+                if let texture = try? RawRenderer.render(url: url, maxPixelSize: pixelSize, hdr: hdr,
+                                                         headroom: settings.rawHeadroom) {
+                    return texture
+                }
+                // A camera Core Image's RAW engine doesn't know: ImageIO below.
+            case .previewOrRender:
+                if let preview = try ImageDecoder.decodeRawPreview(url), preview.isFullResolution {
+                    try checkStop()
+                    return try TextureUploader.upload(preview)
+                }
+                try checkStop()
+                if let texture = try? RawRenderer.render(url: url, maxPixelSize: nil, hdr: false, headroom: 1) {
+                    return texture
+                }
+            case .imageIO:
+                break
+            }
+            try checkStop()
+        }
+        let decoded = try ImageDecoder.decode(url, maxPixelSize: pixelSize, page: page, allowHDR: settings.showHDR)
+        try checkStop()
         return try TextureUploader.upload(decoded)
+    }
+
+    /// How a RAW file is loaded.
+    enum RawPlan: Equatable {
+        /// `RawRenderer` at the requested size.
+        case render(hdr: Bool)
+        /// Full resolution: the embedded preview if the camera stored one at
+        /// sensor size (140-260 ms with the upload, for 24 MP), otherwise a
+        /// real render.
+        case previewOrRender
+        /// A screen-sized ImageIO decode, which uses the embedded preview when
+        /// it covers the request.
+        case imageIO
+    }
+
+    nonisolated static func rawPlan(pixelSize: Int?, settings: DisplaySettings) -> RawPlan {
+        if settings.alwaysRendersRaw { return .render(hdr: settings.rendersHDRRaw) }
+        return pixelSize == nil ? .previewOrRender : .imageIO
     }
 
     private func finish(jobID: Int, result: Result<ImageTexture, Error>) {

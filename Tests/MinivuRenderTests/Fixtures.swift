@@ -3,6 +3,7 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 import Metal
+import CoreImage
 @testable import MinivuRender
 
 /// Builds small test images on disk so tests need no checked-in assets.
@@ -38,6 +39,73 @@ enum Fixtures {
         CGImageDestinationAddImage(dest, image, [kCGImagePropertyOrientation: orientation.rawValue] as CFDictionary)
         precondition(CGImageDestinationFinalize(dest))
         return url
+    }
+
+    // MARK: - HDR
+
+    static let hdrWidth = 256, hdrHeight = 64
+
+    /// A grey ramp from 0 at the left to 4x SDR white at the right, in
+    /// extended linear sRGB: the HDR rendition both HDR fixtures carry.
+    static func hdrRamp() -> CIImage {
+        let space = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
+        let gradient = CIFilter(name: "CILinearGradient", parameters: [
+            "inputPoint0": CIVector(x: 0, y: 0),
+            "inputPoint1": CIVector(x: CGFloat(hdrWidth), y: 0),
+            "inputColor0": CIColor(red: 0, green: 0, blue: 0, colorSpace: space)!,
+            "inputColor1": CIColor(red: 4, green: 4, blue: 4, colorSpace: space)!,
+        ])!
+        return gradient.outputImage!.cropped(to: CGRect(x: 0, y: 0, width: hdrWidth, height: hdrHeight))
+    }
+
+    /// An HEIC with an SDR base image and a gain map that lifts it back to
+    /// the ramp, as an iPhone photo stores HDR. Decoded for HDR its content
+    /// headroom is about 3.94.
+    static func gainMapHEIC(name: String = "hdr-gainmap-\(UUID()).heic") throws -> URL {
+        let ramp = hdrRamp()
+        let sdr = ramp.applyingFilter("CIToneMapHeadroom", parameters: ["inputSourceHeadroom": 4, "inputTargetHeadroom": 1])
+        guard let data = CIContext().heifRepresentation(of: sdr, format: .RGBA8,
+                                                        colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
+                                                        options: [.hdrImage: ramp])
+        else { throw CocoaError(.fileWriteUnknown) }
+        let url = directory.appendingPathComponent(name)
+        try data.write(to: url)
+        return url
+    }
+
+    /// A 10-bit HEIC in the PQ transfer (BT.2100), as HDR video frames and
+    /// some cameras store HDR. Content headroom about 4.93.
+    static func pqHEIC(name: String = "hdr-pq-\(UUID()).heic") throws -> URL {
+        let url = directory.appendingPathComponent(name)
+        try CIContext().writeHEIF10Representation(of: hdrRamp(), to: url,
+                                                  colorSpace: CGColorSpace(name: CGColorSpace.itur_2100_PQ)!,
+                                                  options: [:])
+        return url
+    }
+
+    /// A CPU-readable copy of a (usually private) texture's top mip level.
+    static func readable(_ texture: MTLTexture) -> MTLTexture {
+        let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: texture.pixelFormat, width: texture.width,
+                                                         height: texture.height, mipmapped: false)
+        d.storageMode = .shared
+        let copy = GPU.shared.device.makeTexture(descriptor: d)!
+        let commands = GPU.shared.queue.makeCommandBuffer()!
+        let blit = commands.makeBlitCommandEncoder()!
+        blit.copy(from: texture, sourceSlice: 0, sourceLevel: 0, to: copy, destinationSlice: 0, destinationLevel: 0,
+                  sliceCount: 1, levelCount: 1)
+        blit.endEncoding()
+        commands.commit()
+        commands.waitUntilCompleted()
+        return copy
+    }
+
+    /// Draws `texture` at 100% into a half-float target the size of the image.
+    static func renderActualSize(_ texture: ImageTexture, displayHeadroom: Float) throws -> MTLTexture {
+        let size = texture.imageSize
+        let frame = CanvasFrame(image: texture,
+                                transform: ViewportTransform(zoom: 1, center: CGPoint(x: size.width / 2, y: size.height / 2)),
+                                background: SIMD3(0, 0, 0), displayHeadroom: displayHeadroom)
+        return try render(frame, width: Int(size.width), height: Int(size.height))
     }
 
     /// Renders `frame` into a readable half-float texture and returns it.

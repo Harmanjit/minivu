@@ -272,7 +272,12 @@ public enum ImageDecoder {
             let hdr = allowHDR && info.isHDR
 
             var options: [CFString: Any] = [kCGImageSourceShouldCacheImmediately: true]
-            if hdr { options[kCGImageSourceDecodeRequest] = kCGImageSourceDecodeToHDR }
+            if info.isHDR {
+                // Without a request ImageIO returns what the file stores: the
+                // SDR base of a gain-map photo, but a PQ or HLG file stays
+                // 10-bit HDR. Asking for SDR makes it tone map those too.
+                options[kCGImageSourceDecodeRequest] = hdr ? kCGImageSourceDecodeToHDR : kCGImageSourceDecodeToSDR
+            }
 
             options[kCGImageSourceCreateThumbnailWithTransform] = true
             options[kCGImageSourceThumbnailMaxPixelSize] = wantsFull
@@ -290,6 +295,39 @@ public enum ImageDecoder {
             let full = max(image.width, image.height) >= longest
             return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: hdr)
         }
+    }
+
+    /// The largest preview the camera embedded in a RAW file, oriented and
+    /// no larger than `maxPixelSize` (nil: as large as it is), or nil when
+    /// the file has none.
+    ///
+    /// Unlike `decode`, this never falls back to rendering the sensor data,
+    /// which ImageIO does on the CPU when the preview is smaller than asked.
+    /// Callers compare the result's size with the image's to decide whether
+    /// a real RAW render is needed.
+    public static func decodeRawPreview(_ url: URL, maxPixelSize: Int? = nil) throws -> DecodedImage? {
+        guard let source = makeSource(url) else { throw DecodeError.unreadable(url) }
+        guard let info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
+        let longest = Int(max(info.pixelSize.width, info.pixelSize.height))
+        // Neither "from image" option: only an image already in the file
+        // may be returned, scaled down if it is larger than asked.
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: min(maxPixelSize ?? longest, longest),
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
+        else { return nil }
+        let full = isFullSizePreview(longEdge: max(image.width, image.height), imageLongEdge: longest)
+        return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: false)
+    }
+
+    /// True when an embedded RAW preview is as good as the sensor image: at
+    /// least 97% of its long edge. Cameras often leave out a few edge pixels
+    /// the demosaic can't use, and a difference that small is invisible at
+    /// any zoom, so rendering the RAW for it would be wasted time.
+    public static func isFullSizePreview(longEdge: Int, imageLongEdge: Int) -> Bool {
+        Double(longEdge) >= Double(imageLongEdge) * 0.97
     }
 
     /// The decode size to ask ImageIO for, given what the screen needs.

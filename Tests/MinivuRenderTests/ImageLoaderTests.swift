@@ -208,4 +208,85 @@ import CoreGraphics
         }
         #expect(loader.decodeCount == entries.count)
     }
+
+    // MARK: - Settings and RAW
+
+    @Test func rawPlanFollowsTheSettings() {
+        let preview = DisplaySettings()
+        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: preview) == .imageIO)
+        #expect(ImageLoader.rawPlan(pixelSize: nil, settings: preview) == .previewOrRender)
+
+        let raw = DisplaySettings(rawDecoding: .fullRaw)
+        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: raw) == .render(hdr: false))
+        #expect(ImageLoader.rawPlan(pixelSize: nil, settings: raw) == .render(hdr: false))
+
+        // HDR RAW needs a render whatever the decoding choice, and HDR on.
+        let hdr = DisplaySettings(hdrRaw: true)
+        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: hdr) == .render(hdr: true))
+        let hdrOff = DisplaySettings(showHDR: false, hdrRaw: true)
+        #expect(ImageLoader.rawPlan(pixelSize: 1512, settings: hdrOff) == .imageIO)
+        let noAmount = DisplaySettings(hdrRaw: true, hdrRawAmount: 0)
+        #expect(ImageLoader.rawPlan(pixelSize: nil, settings: noAmount) == .previewOrRender)
+    }
+
+    @Test func rawHeadroomScalesWithTheAmount() {
+        #expect(DisplaySettings(hdrRawAmount: 1).rawHeadroom == RawRenderer.maximumHeadroom)
+        #expect(DisplaySettings(hdrRawAmount: 0).rawHeadroom == 1)
+        #expect(abs(DisplaySettings(hdrRawAmount: 0.5).rawHeadroom - 1.4142) < 1e-3)
+        #expect(DisplaySettings(hdrRawAmount: 7).rawHeadroom == RawRenderer.maximumHeadroom)
+    }
+
+    /// A decode running when the settings change still reaches its
+    /// requester, but isn't cached or joined: it was made the old way.
+    @Test func settingsChangeStopsInFlightResultsBeingReused() async throws {
+        let loader = makeLoader(), entry = makeEntry()
+        var first: Result<ImageTexture, Error>?
+        loader.load(entry, pixelSize: 100) { first = $0 }
+        loader.settings.rawDecoding = .fullRaw
+        var second: Result<ImageTexture, Error>?
+        loader.load(entry, pixelSize: 100) { second = $0 }
+        #expect(loader.decodeCount == 2)
+        await loader.waitUntilIdle()
+        _ = try #require(first).get()
+        let fresh = try #require(second).get()
+        var hit: ImageTexture?
+        loader.load(entry, pixelSize: 100) { hit = try? $0.get() }
+        #expect(hit === fresh)
+    }
+
+    nonisolated static let assets = URL(fileURLWithPath: "/Users/harman/latent/TestAssets")
+    nonisolated static let hasAssets = FileManager.default.fileExists(atPath: assets.path)
+
+    /// These Nikon files embed a full-size preview, so full resolution stays
+    /// on the fast ImageIO path and counts as full resolution.
+    @Test(.enabled(if: hasAssets))
+    func fullResolutionRawUsesAFullSizeEmbeddedPreview() async throws {
+        let loader = makeLoader()
+        let entry = try #require(FolderEntry(url: Self.assets.appendingPathComponent("HSB_2615.NEF")))
+        let full = try await withCheckedContinuation { done in
+            loader.loadFullResolution(entry) { done.resume(returning: $0) }
+        }.get()
+        #expect(full.isFullResolution)
+        #expect(full.imageSize == CGSize(width: 4016, height: 6016))
+        #expect(full.texture.width == 4016 && full.texture.height == 6016)
+        #expect(full.texture.pixelFormat == .bgra8Unorm_srgb)
+    }
+
+    @Test(.enabled(if: hasAssets))
+    func fullRawModeRendersScreenSizedAndHDRTextures() async throws {
+        let loader = makeLoader()
+        loader.settings = DisplaySettings(rawDecoding: .fullRaw)
+        let entry = try #require(FolderEntry(url: Self.assets.appendingPathComponent("HSB_2615.NEF")))
+        let screen = try await load(loader, entry, pixelSize: 1512).get()
+        #expect(max(screen.texture.width, screen.texture.height) == 1512)
+        #expect(screen.imageSize == CGSize(width: 4016, height: 6016))
+        #expect(!screen.isFullResolution)
+
+        loader.settings.hdrRaw = true
+        let hdr = try await withCheckedContinuation { done in
+            loader.loadFullResolution(entry) { done.resume(returning: $0) }
+        }.get()
+        #expect(hdr.isFullResolution)
+        #expect(hdr.texture.pixelFormat == .rgba16Float)   // only RawRenderer makes these for a RAW
+    }
 }
