@@ -191,6 +191,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
                 full \(texture.isFullResolution, privacy: .public) HDR \(texture.isHDR, privacy: .public) \
                 headroom \(texture.contentHeadroom, privacy: .public) EDR \(self.isExtendedDynamicRange, privacy: .public)
                 """)
+            HDRDiagnostics.canvasTexture(texture, canvas: self, layer: metalLayer)   // TEMPORARY (HDRDiagnostics)
         }
         viewDidChange(zoomChanged: !preserveView)
         if changed { delegate?.canvasDidChangeImage(self) }
@@ -438,7 +439,11 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         guard let drawable = layer.nextDrawable() else { return }
         needsRedraw = false
         let headroom = displayHeadroom
-        if headroom != lastFrameHeadroom { log.debug("Canvas frame for headroom \(headroom, privacy: .public)") }
+        if headroom != lastFrameHeadroom {
+            log.debug("Canvas frame for headroom \(headroom, privacy: .public)")
+            HDRDiagnostics.canvasFrame(canvas: self, image: image, headroom: headroom,   // TEMPORARY (HDRDiagnostics)
+                                       previous: lastFrameHeadroom, layer: layer, screen: window?.screen)
+        }
         lastFrameHeadroom = headroom
         renderer.draw(currentFrame(headroom: headroom), to: drawable,
                       presentsWithTransaction: layer.presentsWithTransaction)
@@ -485,6 +490,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         let potential = window.flatMap(Displays.provider.headroom(of:))?.potential ?? 1
         CanvasRenderer.setExtendedDynamicRange(
             CanvasRenderer.wantsExtendedDynamicRange(for: image, potentialHeadroom: potential), on: layer)
+        HDRDiagnostics.applyLayerExperiment(to: layer, contentHeadroom: image?.contentHeadroom)   // TEMPORARY (HDRDiagnostics)
         watchHeadroom()
     }
 
