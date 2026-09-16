@@ -124,10 +124,14 @@ One image goes from file to screen like this:
   code path gives real HDR on a MacBook Pro and a clean tone-mapped image on
   a MacBook Air. A frame drawn while the headroom is low stays tone mapped
   to it, and the system's headroom notification can come before the new
-  value is readable or not at all, so for two seconds after an HDR texture
+  value is readable or not at all. So for two seconds after an HDR texture
   arrives, EDR comes on, the canvas resizes or the screen changes (and
   while the headroom keeps moving) each display refresh compares the
-  headroom with the frame's and redraws if it moved.
+  headroom with the frame's and redraws if it moved; after that, as long as
+  the frame has less headroom than the image could use (its own content
+  headroom, or the screen's most), the check goes on four times a second,
+  so a rise nobody announces is caught however late it comes. A frame that
+  already shows everything the image has needs no checks.
 
 ### 4.4 The canvas
 
@@ -143,7 +147,10 @@ One image goes from file to screen like this:
   uses a second, more magnified transform.
 - Frames are drawn on a display link that pauses itself whenever nothing is
   dirty, except that with EDR on it keeps checking the headroom for two
-  seconds after the content, size or screen changed (see 4.3).
+  seconds after the content, size or screen changed, and a few times a
+  second while an HDR image is shown with less headroom than it could use
+  (see 4.3): the one exception to idle meaning idle, and only while EDR,
+  which costs far more, is on.
 
 ### 4.5 Memory
 
@@ -221,9 +228,14 @@ quarter-size proxy.
    tool just opened, or its change cancelled or undone) the canvas keeps the
    viewer's own texture, HDR included, rather than a render of the same
    picture; zooming in then renders full resolution from the decoded
-   original. RAW files, whose viewer texture may be the camera's preview,
-   and originals decoded at another size than the viewer's (vectors) show a
-   render from the start.
+   original. Edits all taken back put the viewer's texture back at the end
+   of the event, so a tool changing the document in several steps (one
+   Colors section taking over from another, one effect replacing another)
+   never flashes the unedited photo between them. RAW files, whose viewer
+   texture may be the camera's preview, originals decoded at another size
+   than the viewer's (vectors), and files changed on disk since the
+   original was decoded (the viewer would show the other version) show a
+   render instead.
 2. While a slider moves, the graph runs on the proxy and renders straight
    into a mipmapped texture the canvas shows. Target: under 16 ms per
    update for colour and tone operations on a 24 MP photo.

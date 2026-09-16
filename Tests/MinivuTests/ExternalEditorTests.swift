@@ -477,6 +477,62 @@ extension AppWindowTests {
             viewer.endEditSession()
         }
 
+        /// Every edit undone shows the image the edits were made on, which
+        /// tools, Redo and Save As go on working with, never the file as
+        /// another application left it: whether the edits were kept when the
+        /// change was seen, or nobody noticed it and the viewer's own copy of
+        /// the page is gone from its cache.
+        @Test func undoingEveryEditShowsTheImageTheEditsWereMadeOn() async throws {
+            let folder = try ScratchFolder()
+            let a = try folder.jpeg("a.jpg", width: 600, height: 400)
+            let b = try folder.jpeg("b.jpg", width: 600, height: 400)
+            let list = try [a, b].map { try #require(FolderEntry(url: $0)) }
+            ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            let savedQuestion = ViewerWindowController.askAboutExternalChange
+            defer { ViewerWindowController.askAboutExternalChange = savedQuestion }
+            ViewerWindowController.askAboutExternalChange = { _, _, reply in reply(.keepEdits) }
+            let original = CGSize(width: 600, height: 400), rotated = CGSize(width: 400, height: 600)
+
+            // Kept when the change was seen.
+            await waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == rotated }
+            let session = try #require(viewer.editSession)
+            try folder.jpeg("a.jpg", width: 200, height: 200)
+            ExternalEditWatcher.filesChanged([a])
+            #expect(session.externalChange == .kept)
+            viewer.undoEdit()
+            try await Task.sleep(for: .milliseconds(500))
+            #expect(viewer.canvasTexture?.imageSize == original, "undone, kept edits")
+            #expect(viewer.editSession === session)
+            viewer.openCrop()
+            await waitUntil { viewer.activeTool != nil }
+            if case .crop(let crop)? = viewer.activeTool {
+                #expect(crop.selection.bounds.size == viewer.canvasTexture?.imageSize, "the crop is over what shows")
+            } else {
+                Issue.record("Crop didn't open")
+            }
+            viewer.closeTool()
+            viewer.redoEdit()
+            await waitUntil { viewer.canvasTexture?.imageSize == rotated }
+            #expect(viewer.canvasTexture?.imageSize == rotated)
+            viewer.endEditSession()
+
+            // Nobody noticed, and the cache let the viewer's copy go.
+            viewer.nextImage(nil)
+            await waitUntil { viewer.displayed?.entry == list[1] && viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == rotated }
+            try folder.jpeg("b.jpg", width: 200, height: 200)
+            AppServices.images.cache.removeAll()
+            viewer.undoEdit()
+            try await Task.sleep(for: .milliseconds(500))
+            #expect(viewer.canvasTexture?.imageSize == original, "undone, change unnoticed")
+            viewer.endEditSession()
+        }
+
         @Test func browserOpensTheSelectionNotTheFolder() async throws {
             let t = try ScratchFolder()
             let first = try t.jpeg("a.jpg", width: 40, height: 20)

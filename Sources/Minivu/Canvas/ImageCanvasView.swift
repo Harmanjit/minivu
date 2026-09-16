@@ -42,8 +42,10 @@ extension ImageCanvasViewDelegate {
 /// in, one Metal frame out whenever something changed.
 ///
 /// Frames are drawn by a display link that runs only while a redraw is
-/// pending, or for a couple of seconds after HDR content changed (see
-/// `followHeadroom`). An idle canvas costs nothing: no timer, no frames.
+/// pending, for a couple of seconds after HDR content changed, and a few
+/// times a second while an HDR image is shown with less headroom than it
+/// could use (see `followHeadroom`). An idle canvas costs nothing: no
+/// timer, no frames.
 final class ImageCanvasView: NSView, SnapshotProviding {
     enum ZoomMode {
         /// Best fit; follows the window as it resizes.
@@ -102,6 +104,9 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// While set, every refresh until then compares the screen's headroom
     /// with the frame's (see `followHeadroom`).
     private var followHeadroomUntil: CFTimeInterval?
+    /// Whether the display link runs at `headroomCheckRate` rather than the
+    /// display's own rate.
+    private var refreshesSlowly = false
     private var preferencesObserver: AnyCancellable?
 
     private var press: CanvasInteraction.PressClassifier?
@@ -179,6 +184,14 @@ final class ImageCanvasView: NSView, SnapshotProviding {
             applyFit()
         }
         updateDynamicRange()
+        if changed, let texture {
+            // For HDR reports: `log stream --level debug --predicate 'subsystem == "com.minivu.app"'`.
+            log.debug("""
+                Canvas texture \(texture.texture.width, privacy: .public)x\(texture.texture.height, privacy: .public) \
+                full \(texture.isFullResolution, privacy: .public) HDR \(texture.isHDR, privacy: .public) \
+                headroom \(texture.contentHeadroom, privacy: .public) EDR \(self.isExtendedDynamicRange, privacy: .public)
+                """)
+        }
         viewDidChange(zoomChanged: !preserveView)
         if changed { delegate?.canvasDidChangeImage(self) }
     }
@@ -322,6 +335,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// Asks for one frame on the next display refresh.
     func setNeedsRedraw() {
         needsRedraw = true
+        refreshSlowly(false)
         displayLink?.isPaused = false
     }
 
@@ -334,50 +348,84 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     func displayRefreshed() {
         // Pause first: anything that changes during the draw unpauses again.
         displayLink?.isPaused = true
-        followHeadroom()
-        guard needsRedraw else { return }
-        drawFrame()
+        let headroom = screenHeadroom
+        if let headroom, let drawn = lastFrameHeadroom, drawn != headroom.current {
+            needsRedraw = true
+            followHeadroomUntil = CACurrentMediaTime() + Self.headroomSettleTime
+        }
+        if needsRedraw { drawFrame() }
+        followHeadroom(headroom)
     }
 
     /// Whether the display link is running, for tests: an idle canvas's isn't.
     var isRefreshing: Bool { displayLink.map { !$0.isPaused } ?? false }
 
-    /// How long frames follow the screen's headroom after HDR content
-    /// changed, or after the headroom last moved.
-    static let headroomSettleTime: CFTimeInterval = 2
+    /// Whether it runs only to check the headroom, a few times a second.
+    var isRefreshingSlowly: Bool { isRefreshing && refreshesSlowly }
+
+    /// How long frames follow the screen's headroom at the display's rate
+    /// after HDR content changed, or after the headroom last moved. Tests
+    /// shorten it.
+    static var headroomSettleTime: CFTimeInterval = 2
+
+    /// How often the headroom is checked while the frame on screen has less
+    /// of it than the image could use.
+    static let headroomCheckRate = CAFrameRateRange(minimum: 2, maximum: 8, preferred: 4)
 
     /// A frame is tone mapped for the headroom the screen has when it is
     /// drawn, so one drawn while the headroom is low shows HDR as SDR until
     /// the next frame. The system raises the headroom over a second or so
     /// after EDR comes on, and can lower and raise it again while content
     /// changes, posting `didChangeScreenParametersNotification`, but that
-    /// can arrive before the new value can be read, or not at all. So for
-    /// `headroomSettleTime` after an HDR texture arrives, EDR comes on, the
-    /// view is resized (a tools panel opening or closing) or the screen's
-    /// parameters change, and for as long as the headroom keeps moving, each
-    /// refresh compares it with the frame's and redraws when they differ.
-    /// Then the link stops.
-    private func followHeadroom() {
-        guard let until = followHeadroomUntil else { return }
-        let now = CACurrentMediaTime()
-        if let drawn = lastFrameHeadroom, drawn != displayHeadroom {
-            needsRedraw = true
-            followHeadroomUntil = now + Self.headroomSettleTime
-        } else if now >= until {
+    /// can arrive before the new value can be read, or not at all. So each
+    /// refresh (`displayRefreshed`) compares the screen's headroom with the
+    /// frame's and redraws when they differ, and the display link keeps
+    /// refreshing:
+    ///
+    /// - at the display's rate for `headroomSettleTime` after an HDR texture
+    ///   arrives, EDR comes on, the view is resized (a tools panel opening
+    ///   or closing), the screen's parameters change or the headroom moves;
+    /// - then, for as long as the frame has less headroom than the image
+    ///   could use (its own, or the screen's most), a few times a second, so
+    ///   a rise nobody announces is caught however late it comes;
+    /// - otherwise not at all: the frame shows all the image has.
+    private func followHeadroom(_ headroom: (current: Float, potential: Float)?) {
+        guard let headroom, let image, image.isHDR else {
             followHeadroomUntil = nil
+            refreshSlowly(false)
             return
         }
+        if let until = followHeadroomUntil {
+            if CACurrentMediaTime() < until {
+                refreshSlowly(false)
+                displayLink?.isPaused = false
+                return
+            }
+            followHeadroomUntil = nil
+        }
+        guard let drawn = lastFrameHeadroom, drawn < min(image.contentHeadroom, headroom.potential) else {
+            refreshSlowly(false)
+            return
+        }
+        refreshSlowly(true)
         displayLink?.isPaused = false
     }
 
-    /// Starts `followHeadroom`, while EDR is on.
+    /// Starts `followHeadroom` at the display's rate, while EDR is on.
     private func watchHeadroom() {
         guard metalLayer?.wantsExtendedDynamicRangeContent == true else {
             followHeadroomUntil = nil
             return
         }
         followHeadroomUntil = CACurrentMediaTime() + Self.headroomSettleTime
+        refreshSlowly(false)
         displayLink?.isPaused = false
+    }
+
+    private func refreshSlowly(_ slowly: Bool) {
+        guard slowly != refreshesSlowly else { return }
+        refreshesSlowly = slowly
+        displayLink?.preferredFrameRateRange = slowly ? Self.headroomCheckRate : .default
     }
 
     /// Draws one frame now. While the layer presents with transactions (live
@@ -390,6 +438,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         guard let drawable = layer.nextDrawable() else { return }
         needsRedraw = false
         let headroom = displayHeadroom
+        if headroom != lastFrameHeadroom { log.debug("Canvas frame for headroom \(headroom, privacy: .public)") }
         lastFrameHeadroom = headroom
         renderer.draw(currentFrame(headroom: headroom), to: drawable,
                       presentsWithTransaction: layer.presentsWithTransaction)
@@ -414,10 +463,14 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// `followHeadroom` catches the changes it misses). Without EDR on the
     /// layer it is 1 whatever the screen says: the compositor would clip
     /// anything brighter.
-    private var displayHeadroom: Float {
+    private var displayHeadroom: Float { screenHeadroom?.current ?? 1 }
+
+    /// The screen's headroom now and at most, both at least 1, while EDR is
+    /// on the layer; nil otherwise.
+    private var screenHeadroom: (current: Float, potential: Float)? {
         guard metalLayer?.wantsExtendedDynamicRangeContent == true, let window,
-              let headroom = Displays.provider.headroom(of: window) else { return 1 }
-        return max(1, Float(headroom.current))
+              let headroom = Displays.provider.headroom(of: window) else { return nil }
+        return (max(1, Float(headroom.current)), max(1, Float(headroom.potential)))
     }
 
     /// EDR on while an HDR image is shown on a screen that can show some of
@@ -465,6 +518,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         let link = displayLink(target: self, selector: #selector(displayLinkFired(_:)))
         link.add(to: .main, forMode: .common)
         displayLink = link
+        refreshesSlowly = false
         updateDynamicRange()
         backingChanged()
     }

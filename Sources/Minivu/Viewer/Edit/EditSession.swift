@@ -35,7 +35,9 @@ protocol EditCanvas: AnyObject {
 /// viewer shows it with. Not for RAW files, whose viewer texture can be the
 /// camera's preview rather than the render edits start from, nor when the
 /// viewer's texture isn't the size the original decodes at (a vector), since
-/// tools lay their overlays over the canvas in the document's pixels.
+/// tools lay their overlays over the canvas in the document's pixels, nor
+/// once the file has changed on disk since the original was decoded, since
+/// the viewer would decode the other version (see `restoreViewersTexture`).
 final class EditSession {
     let document: EditDocument
     private weak var canvas: EditCanvas?
@@ -65,6 +67,12 @@ final class EditSession {
     private(set) var isEnded = false
     /// The size of the viewer's texture when the session began.
     private let uneditedSize: CGSize?
+    /// Set once the file is found changed on disk since the original was
+    /// decoded (by minivu's own writes aside): from then on the viewer's
+    /// texture of the page never stands in for the document.
+    private var fileChanged = false
+    /// A `restoreViewersTexture` waits for the end of the event.
+    private var restoreScheduled = false
 
     /// True while an edited render is on screen. Meanwhile the viewer's own
     /// loads (a sharper decode, a settings reload) must not replace it.
@@ -125,21 +133,53 @@ final class EditSession {
     /// Puts the document as it now is on the canvas: a preview of its edits,
     /// or with none the viewer's own texture, back if an edit render replaced
     /// it.
+    ///
+    /// Putting the viewer's texture back waits for the end of the event:
+    /// tools change the document in several steps at once (a Colors section
+    /// committed as another takes over, an effect cancelled as the next one
+    /// opens, a drawing's re-edit cancelled and redone), and a step between
+    /// with nothing to show must not bring up the unedited photo until the
+    /// render of the next one arrives.
     private func showCurrentState() {
         guard showsViewersTexture else { return requestPreview() }
-        guard let geometry = displayedGeometry else { return }
+        guard displayedGeometry != nil, !restoreScheduled else { return }
+        restoreScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated { self?.restoreViewersTexture() }
+        }
+    }
+
+    /// The viewer's texture in place of the edit render, if the document
+    /// still has nothing to show and the file is still the one the original
+    /// was decoded from. The viewer may decode the page again for it (its
+    /// cache let it go, or dropped it for a change on disk), so after a
+    /// change it would show the other version, while tools, Redo and Save As
+    /// go on with this one: then the document is rendered instead.
+    private func restoreViewersTexture() {
+        restoreScheduled = false
+        guard !isEnded, let geometry = displayedGeometry, showsViewersTexture else { return }
+        guard fileIsUnchanged() else { return requestPreview() }
         displayedGeometry = nil
         canvas?.showUneditedImage(preserveView: geometry.isEmpty)
     }
 
     /// Whether the viewer's own texture shows the document as it is: no
     /// operation to render (committed or live), and a file the viewer decodes
-    /// as the editor does, at the size it does (see the type's documentation).
-    /// Before the original is decoded its size isn't known yet; the decode's
-    /// arrival asks again.
+    /// as the editor does, at the size it does, and hasn't changed since (see
+    /// the type's documentation). Before the original is decoded its size
+    /// isn't known yet; the decode's arrival asks again.
     private var showsViewersTexture: Bool {
         document.operations.isEmpty && (document.preview?.isIdentity ?? true) && document.entry.kind != .raw
+            && externalChange == .none && !fileChanged
             && (document.sourceSize == nil || document.sourceSize == uneditedSize)
+    }
+
+    /// Reads the file's date and size (a quick look at the disk, made only
+    /// when the viewer's texture is about to stand in for the document) and
+    /// remembers a change for good.
+    private func fileIsUnchanged() -> Bool {
+        if !fileChanged, !document.snapshot().fileIsUnchangedSinceEditing() { fileChanged = true }
+        return !fileChanged
     }
 
     /// A screen-sized render of the current state. `sharpening` when the
@@ -171,7 +211,7 @@ final class EditSession {
         preparation = nil
         start()
         guard hasDisplayedEdit else { return }
-        if showsViewersTexture { displayedGeometry = nil } else { requestPreview() }
+        if showsViewersTexture, fileIsUnchanged() { displayedGeometry = nil } else { requestPreview() }
     }
 
     /// Zoom and pan survive a render only when the picture's geometry is the

@@ -527,5 +527,77 @@ extension AppWindowTests {
                 #expect(!canvas.isExtendedDynamicRange && !canvas.isRefreshing)
             }
         }
+
+        /// A frame drawn for less headroom than the image can use (the
+        /// screen's headroom dipped, or is lower than the image's) keeps the
+        /// canvas checking the headroom a few times a second for as long as
+        /// that lasts, so a rise nobody announces is caught however late it
+        /// comes. A frame that shows the image whole needs nothing more, and
+        /// the canvas goes idle.
+        @Test func canvasCatchesAnUnannouncedRiseHoweverLateItComes() async throws {
+            let xdr = display(2, x: 0, potentialHeadroom: 16)
+            let settleTime = ImageCanvasView.headroomSettleTime
+            ImageCanvasView.headroomSettleTime = 0.05
+            defer { ImageCanvasView.headroomSettleTime = settleTime }
+            try await withDisplays([xdr], choice: .browserDisplay) { setup in
+                let (window, canvas) = canvasWindow(on: xdr)
+                defer {
+                    window.contentView = nil
+                    window.close()
+                }
+                @MainActor func headroom(_ value: CGFloat) { setup.screens.displays[0].headroom = value }
+                @MainActor func refresh() { for _ in 0..<3 { canvas.displayRefreshed() } }
+                /// Past the settle time, refreshing as the display link would.
+                @MainActor func wait(_ milliseconds: Int = 150) async throws {
+                    try await Task.sleep(for: .milliseconds(milliseconds))
+                    refresh()
+                }
+
+                // Headroom 4 on a screen at 8: shown whole, so idle once settled.
+                headroom(8)
+                canvas.setImage(try hdrTexture(), preserveView: false)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 8)
+                try await wait()
+                #expect(!canvas.isRefreshing)
+
+                // A dip, announced; the rise, long after the settle time, isn't.
+                headroom(1)
+                setup.screens.postChange()
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 1)
+                try await wait(400)
+                #expect(canvas.isRefreshing && canvas.isRefreshingSlowly, "a frame below the image's headroom is followed")
+                #expect(canvas.lastFrameHeadroom == 1, "nothing is redrawn while the headroom stays")
+                headroom(8)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 8)
+                try await wait()
+                #expect(!canvas.isRefreshing)
+
+                // A screen that stays below the image's headroom is followed,
+                // slowly, through a partial rise; a redraw asked for meanwhile
+                // (a pan) runs at the display's own rate.
+                headroom(2)
+                setup.screens.postChange()
+                refresh()
+                try await wait()
+                #expect(canvas.lastFrameHeadroom == 2 && canvas.isRefreshingSlowly)
+                headroom(3)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 3)
+                try await wait()
+                #expect(canvas.isRefreshingSlowly)
+                canvas.setNeedsRedraw()
+                #expect(canvas.isRefreshing && !canvas.isRefreshingSlowly)
+                try await wait()
+                #expect(canvas.isRefreshingSlowly)
+
+                // The image gone, nothing is followed.
+                canvas.setImage(nil, preserveView: false)
+                try await wait()
+                #expect(!canvas.isRefreshing)
+            }
+        }
     }
 }
