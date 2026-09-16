@@ -43,6 +43,13 @@ the original until you save.
 - **Help:** Help > minivu Help is bundled in the app, with search and a
   Keyboard Shortcuts page generated from the menus.
 
+## Documentation
+
+The [wiki](https://github.com/Harmanjit/minivu/wiki) is the full reference:
+installing, every window and tool, settings, shortcuts, architecture,
+limitations and troubleshooting. Its source is in `docs/wiki`. The app also
+carries a shorter version in **Help > minivu Help** (⌘?).
+
 ## Requirements
 
 - A Mac with Apple Silicon (M1 or later).

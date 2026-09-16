@@ -1,0 +1,17 @@
+**minivu**
+
+- [Home](Home)
+- [Motivation](Motivation)
+- [Installation](Installation)
+- [Getting Started](Getting-Started)
+- [Browser](Browser)
+- [Viewer](Viewer)
+- [Editing](Editing)
+- [Tools](Tools)
+- [Settings](Settings)
+- [Keyboard Shortcuts](Keyboard-Shortcuts)
+- [Architecture](Architecture)
+- [Security and Privacy](Security-and-Privacy)
+- [Accessibility](Accessibility)
+- [Limitations](Limitations)
+- [Troubleshooting](Troubleshooting)
