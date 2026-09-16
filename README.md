@@ -45,6 +45,14 @@ the original until you save.
 - **Help:** Help > minivu Help is bundled in the app, with search and a
   Keyboard Shortcuts page generated from the menus.
 
+## Status
+
+Version 0.9 is a review release: every planned feature is in, and people
+are trying it before 1.0. Download the app from
+[Releases](https://github.com/Harmanjit/minivu/releases), or build it
+yourself (below). If something goes wrong, please
+[report it](#reporting-problems).
+
 ## Documentation
 
 The [wiki](https://github.com/Harmanjit/minivu/wiki) is the full reference:
@@ -105,6 +113,15 @@ Decode benchmark on a folder of your own:
 ```bash
 MINIVU_BENCH_DIR=~/Pictures/some-folder swift test -c release --filter DecodeBenchmark
 ```
+
+## Reporting problems
+
+Open an [issue](https://github.com/Harmanjit/minivu/issues/new/choose) and
+choose **Bug report**. The most useful details are what you did, what you
+expected, the Mac and macOS version, the version from **minivu > About
+minivu**, and the kind of file involved (format and, for RAW, the camera).
+Please attach the file if you can share it; minivu itself never sends
+anything anywhere.
 
 ## Privacy
 

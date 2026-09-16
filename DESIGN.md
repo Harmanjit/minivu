@@ -838,7 +838,7 @@ shows display-only shortcuts on the bar it is given, so it must get a fresh
 | 5 | Management: ratings, tags, drag and drop, rename, histogram with colour count, compare up to 4 | Done |
 | 6 | Effects, drawing, clone stamp, healing brush, red-eye | Done |
 | 7 | Tools: batch convert and rename, slideshow (8 transitions, music), contact sheet, montage wallpaper, print, screen capture, external editors | Done |
-| 8 | Polish: dual display, shortcuts, documentation | In progress |
+| 8 | Polish: dual display, shortcuts, documentation | Done |
 
 ## 8. Known limits
 

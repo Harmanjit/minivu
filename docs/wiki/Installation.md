@@ -16,6 +16,10 @@ Run that once after installing Xcode.
 
 Nothing else is needed. minivu has no third-party dependencies, so there is nothing to install with Homebrew and nothing is downloaded during the build.
 
+## Download
+
+Each release on the [Releases page](https://github.com/Harmanjit/minivu/releases) has the app ready built, as `minivu-<version>.zip`. Download it, double-click the zip, drag **minivu** to **Applications**, and open it. The first time, Gatekeeper stops it; the steps are under **The Gatekeeper dialog** below. Nothing else is needed: no Xcode, no Homebrew.
+
 ## Build from source
 
 ```bash
@@ -36,10 +40,10 @@ Drag `build/minivu.app` to Applications to keep it. To open images with it from 
 5. Writes `Info.plist`, which registers minivu as an alternate editor for images, camera RAW files, PDF and SVG, and lets you drop a folder on its Dock icon.
 6. Signs the bundle ad hoc with the hardened runtime and the sandbox entitlements in [`scripts/minivu.entitlements`](https://github.com/Harmanjit/minivu/blob/main/scripts/minivu.entitlements), verifies the signature, and prints the bundle's size, about 5.9 MB.
 
-The script takes an optional version number, which goes into `Info.plist` (the default is 0.1.0):
+The script takes an optional version number, which goes into `Info.plist` (the default is 0.9.0):
 
 ```bash
-scripts/make_app.sh 0.2.0
+scripts/make_app.sh 1.0.0
 ```
 
 ## The Gatekeeper dialog

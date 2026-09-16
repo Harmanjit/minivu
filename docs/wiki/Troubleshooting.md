@@ -103,3 +103,7 @@ Harmless: the app compiles the shaders when it starts instead. To precompile the
 
 **I changed the code and the app looks the same.**
 `build/minivu.app` is a snapshot of the last build. Run `scripts/make_app.sh` again after any change, and replace any copy in Applications.
+
+## Reporting a problem
+
+If none of this helps, open an [issue](https://github.com/Harmanjit/minivu/issues/new/choose) and choose **Bug report**. Say what you did, what you expected and what happened instead, and give the Mac, the macOS version and the minivu version from **minivu > About minivu**. For a file that opens wrongly, give its format (and the camera, for RAW), and attach it if you can share it. minivu never sends anything by itself, so an issue is the only way a problem reaches the project.

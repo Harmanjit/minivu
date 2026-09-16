@@ -6,7 +6,7 @@
 
 minivu opens a folder of thousands of photos without a stutter, shows every image with correct colour and real HDR, and edits without touching the original until you save. It is built natively with Swift, AppKit and Metal, uses only Apple's frameworks, and has no network access of any kind.
 
-- **Status:** every planned feature is implemented and covered by 1013 automated tests. It is young software, tried in earnest on one Mac only, so read [Limitations](Limitations) before relying on it.
+- **Status:** version 0.9, a review release: every planned feature is implemented and covered by 1013 automated tests. Download it from [Releases](https://github.com/Harmanjit/minivu/releases), and report problems as [issues](https://github.com/Harmanjit/minivu/issues/new/choose). It is young software, tried in earnest on one Mac only, so read [Limitations](Limitations) before relying on it.
 - **Licence:** GPLv3.
 - **Platform:** macOS 15 (Sequoia) or newer on Apple Silicon. Developed and tested on an M1 Pro MacBook Pro.
 
