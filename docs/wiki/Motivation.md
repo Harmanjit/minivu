@@ -9,7 +9,7 @@ minivu is that kind of tool for the Mac: a lean, native replacement that treats 
 - **Fast on huge folders.** The grid recycles its cells, so a folder of ten thousand files costs the same to show as fifty. Thumbnails are decoded small, at 256 or 512 pixels on the long edge, never at full size, and kept in a cache on disk. Moving to the next image in the viewer shows no decode delay, because neighbours are decoded ahead at screen size.
 - **Correct colour and real HDR.** Every image is colour managed, with any embedded profile honoured. HDR photos, gain maps and RAW files rendered with extended dynamic range show real highlights on an XDR or HDR display and are tone mapped smoothly on other screens, by the same code path.
 - **Non-destructive editing.** Edits are a list of steps, shown on the GPU as you make them. Nothing on disk changes until you save, and undo goes back 50 steps.
-- **Small.** The release app is about 5.7 MB. There is no third-party code: below the app are only Apple's frameworks, so there is nothing to vendor, update or audit.
+- **Small.** The release app is about 5.9 MB. There is no third-party code: below the app are only Apple's frameworks, so there is nothing to vendor, update or audit.
 - **Private.** The app runs in the App Sandbox without the network entitlement, so macOS does not let it open a connection. No account, analytics, crash reporting or update check. See [Security and Privacy](Security-and-Privacy).
 - **Free software.** GPLv3.
 - **Apple Silicon only.** The CPU and GPU share memory, so a decoded image becomes a Metal texture without being copied between CPU and GPU memory. minivu needs the Metal 3 feature set that every M1 has, and nothing newer.

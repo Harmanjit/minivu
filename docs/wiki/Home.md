@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/Harmanjit/minivu/main/Assets/minivu-icon.png" width="160" alt="minivu icon"></p>
+
 # minivu
 
 **A lightweight image browser, viewer and editor for Apple Silicon Macs, in the spirit of FastStone Image Viewer.**

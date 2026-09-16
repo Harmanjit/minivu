@@ -1,3 +1,5 @@
+<p align="center"><img src="Assets/minivu-icon.png" width="160" alt="minivu icon"></p>
+
 # minivu
 
 A lightweight image browser, viewer and editor for Apple Silicon Macs, in
@@ -149,7 +151,11 @@ Tests/
   MinivuCoreTests/       fast logic tests
   MinivuRenderTests/     GPU tests, on the real device
   MinivuTests/           the app: menus, windows, tools, help
-scripts/                 make_app.sh and the sandbox entitlements
+scripts/                 make_app.sh, make_icon.swift and the sandbox
+                         entitlements
+Assets/                  the app icon: AppIcon.pdf (the original) and the
+                         .icns and PNGs make_icon.swift draws from it
+docs/wiki/               the source of the GitHub wiki
 DESIGN.md                the spec: goals, architecture, UI, efficiency
                          rules, roadmap
 ```

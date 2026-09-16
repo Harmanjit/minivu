@@ -9,6 +9,7 @@
 #   build/minivu.app/Contents/MacOS/minivu
 #   build/minivu.app/Contents/Resources/minivu_MinivuRender.bundle   (shaders)
 #   build/minivu.app/Contents/Resources/minivu_Minivu.bundle         (help pages)
+#   build/minivu.app/Contents/Resources/AppIcon.icns                 (from Assets, made by make_icon.swift)
 #
 # Usage: scripts/make_app.sh [version] [--dev]
 #   --dev  skip the sandbox (lets `open build/minivu.app --args <path>` reach
@@ -39,6 +40,7 @@ strip -x "$APP/Contents/MacOS/minivu"
 # and Bundle.minivuHelp. Without the second, Help shows "Page Unavailable".
 cp -R .build/release/minivu_MinivuRender.bundle "$APP/Contents/Resources/"
 cp -R .build/release/minivu_Minivu.bundle "$APP/Contents/Resources/"
+cp Assets/AppIcon.icns "$APP/Contents/Resources/"
 
 # Precompile shaders when the Metal toolchain is installed; otherwise the
 # app compiles the bundled sources at launch (a fraction of a second).
@@ -67,6 +69,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key> <string>${VERSION}</string>
   <key>CFBundleExecutable</key>         <string>minivu</string>
   <key>CFBundlePackageType</key>        <string>APPL</string>
+  <key>CFBundleIconFile</key>           <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>     <string>15.0</string>
   <key>LSApplicationCategoryType</key>  <string>public.app-category.photography</string>
   <key>NSHighResolutionCapable</key>    <true/>

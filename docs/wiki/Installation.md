@@ -31,10 +31,10 @@ Drag `build/minivu.app` to Applications to keep it. To open images with it from 
 
 1. Builds the release binary with `swift build -c release`.
 2. Replaces `build/minivu.app` with a fresh bundle, copies the binary in and strips its local symbols, which halves its size.
-3. Copies the two resource bundles into `Contents/Resources`: the Metal shaders, and the pages for **Help > minivu Help**.
+3. Copies the two resource bundles into `Contents/Resources`: the Metal shaders, and the pages for **Help > minivu Help**. It also copies the app icon, `Assets/AppIcon.icns`. That file is made from the vector original, `Assets/AppIcon.pdf`, by `swift scripts/make_icon.swift`; run that again after changing the PDF.
 4. Precompiles the shaders into a Metal library when the Metal toolchain is installed, and otherwise says they will compile at launch.
 5. Writes `Info.plist`, which registers minivu as an alternate editor for images, camera RAW files, PDF and SVG, and lets you drop a folder on its Dock icon.
-6. Signs the bundle ad hoc with the hardened runtime and the sandbox entitlements in [`scripts/minivu.entitlements`](https://github.com/Harmanjit/minivu/blob/main/scripts/minivu.entitlements), verifies the signature, and prints the bundle's size, about 5.7 MB.
+6. Signs the bundle ad hoc with the hardened runtime and the sandbox entitlements in [`scripts/minivu.entitlements`](https://github.com/Harmanjit/minivu/blob/main/scripts/minivu.entitlements), verifies the signature, and prints the bundle's size, about 5.9 MB.
 
 The script takes an optional version number, which goes into `Info.plist` (the default is 0.1.0):
 

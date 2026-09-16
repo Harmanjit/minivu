@@ -137,7 +137,7 @@ Measured on an M1 Pro MacBook Pro.
 
 | | |
 |---|---|
-| App size | about 5.7 MB |
+| App size | about 5.9 MB |
 | Warm launch to browser window | ~131 ms |
 | Next or previous image | 9–17 ms |
 | Scrolling 5000 thumbnails | smooth, peak memory ~186 MB |
