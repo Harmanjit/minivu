@@ -135,17 +135,30 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         updateChrome()
     }
 
-    /// The canvas wants more pixels of an edited image: a larger preview when
-    /// a fitted window outgrew it, full resolution otherwise.
-    func sharpenEditedImage() {
-        guard let session = editSession else { return }
+    func showUneditedImage(preserveView: Bool) {
+        guard !isClosing, let session = editSession, let shown = current,
+              session.document.entry == shown.entry, session.document.page == shown.page else { return }
+        loadCurrentPage(reloading: preserveView)
+    }
+
+    /// The canvas wants more pixels of the image being edited: a larger
+    /// preview when a fitted window outgrew an edited render, full resolution
+    /// otherwise, which for an unedited image is rendered from the original
+    /// already decoded rather than decoded again. Returns false, leaving it
+    /// to the viewer's own loads, when nothing edited is on screen and either
+    /// a screen-sized decode will do or the original isn't decoded yet.
+    func sharpenEditedImage() -> Bool {
+        guard let session = editSession else { return false }
         let image = canvas.image
         let textureEdge = image.map { max($0.textureSize.width, $0.textureSize.height) } ?? 0
         if canvas.zoomMode == .fit, textureEdge < CGFloat(canvasPixelSize) * 0.97 {
-            session.requestPreview()
+            guard session.hasDisplayedEdit else { return false }
+            session.requestPreview(sharpening: true)
         } else {
+            guard session.hasDisplayedEdit || session.document.outputSize != nil else { return false }
             session.requestFullResolution()
         }
+        return true
     }
 
     // MARK: - Undo

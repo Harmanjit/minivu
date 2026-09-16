@@ -340,6 +340,39 @@ import Metal
         #expect(bright > 2.5, "bright end \(bright)")
     }
 
+    /// Every kind of tool keeps an HDR original's highlights, in previews
+    /// made from the screen proxy (Lanczos, then an intermediate texture) as
+    /// at full resolution: the texture for the canvas is flagged HDR and
+    /// still reaches past 2.5 in the ramp's bright end, which each tool here
+    /// leaves alone.
+    @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing"])
+    func hdrHighlightsSurviveEveryKindOfTool(kind: String) async throws {
+        let url = try Fixtures.gainMapHEIC(width: 2400, height: 1200)
+        let doc = document(url)
+        try await renderer.prepare(doc, proxyPixelSize: 900)
+        #expect(doc.proxy != nil)
+        var line = Annotation(kind: .line)
+        line.start = CGPoint(x: 0.1, y: 0.5)
+        line.end = CGPoint(x: 0.5, y: 0.5)
+        let operations: [EditOperation] = switch kind {
+        case "geometry": [.rotate90(turns: 1), .crop(CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8))]
+        case "resize": [.resize(width: 1200, height: 600, filter: .lanczos3), .rotate90(turns: 2)]
+        case "adjustment": [.colors(hue: 0, saturation: 0, lightness: 0, temperature: 0.3, tint: 0)]
+        case "effect": [.dropShadow(DropShadow())]
+        case "retouch": [.retouch([RetouchStroke(mode: .clone, points: [CGPoint(x: 0.2, y: 0.5)], radius: 0.05,
+                                                 sourceOffset: CGVector(dx: 0.05, dy: 0))])]
+        default: [.annotations([line])]
+        }
+        for op in operations.dropLast() { doc.apply(op) }
+        doc.preview = operations.last
+        for texture in [await preview(doc, 700), await fullResolution(doc)] {
+            let peak = F.pixels(texture.texture).data.max() ?? 0
+            #expect(texture.isHDR && texture.contentHeadroom > 3, "\(kind): flagged SDR")
+            #expect(peak > 2.5, "\(kind), \(texture.isFullResolution ? "full" : "preview"): brightest \(peak)")
+        }
+        renderer.release(doc)
+    }
+
     @Test(.enabled(if: RawRendererTests.hasAssets))
     func rawFilePreparesAtSensorSize() async throws {
         let doc = document(RawRendererTests.portraitNEF)

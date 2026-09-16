@@ -420,27 +420,38 @@ extension AppWindowTests {
             }
         }
 
+        /// A small texture flagged HDR, headroom 4.
+        func hdrTexture() throws -> ImageTexture {
+            let context = try #require(CGContext(data: nil, width: 64, height: 48, bitsPerComponent: 8,
+                                                 bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.displayP3)!,
+                                                 bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
+            context.setFillColor(gray: 0.9, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: 64, height: 48))
+            let image = try #require(context.makeImage())
+            return try TextureUploader.upload(DecodedImage(image: image, orientation: .up,
+                                                           imageSize: CGSize(width: 64, height: 48),
+                                                           isFullResolution: true, isHDR: true,
+                                                           contentHeadroom: 4, needsDeepStorage: true))
+        }
+
+        /// A borderless window on `display` with a canvas filling it.
+        func canvasWindow(on display: DisplayInfo) -> (NSWindow, ImageCanvasView) {
+            let window = NSWindow(contentRect: CGRect(x: display.frame.minX + 10, y: display.frame.minY + 10, width: 320,
+                                                      height: 240),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            let canvas = ImageCanvasView(frame: CGRect(x: 0, y: 0, width: 320, height: 240))
+            window.contentView = canvas
+            return (window, canvas)
+        }
+
         /// The canvas (the viewer's, and each compare pane's) turns EDR on or
         /// off for the display its window moves to.
         @Test func canvasDynamicRangeFollowsTheDisplay() async throws {
             let sdr = display(1, x: 0, potentialHeadroom: 1), xdr = display(2, x: 800, potentialHeadroom: 16)
             try await withDisplays([sdr, xdr], choice: .browserDisplay) { setup in
-                let context = try #require(CGContext(data: nil, width: 64, height: 48, bitsPerComponent: 8,
-                                                     bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.displayP3)!,
-                                                     bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
-                context.setFillColor(gray: 0.9, alpha: 1)
-                context.fill(CGRect(x: 0, y: 0, width: 64, height: 48))
-                let image = try #require(context.makeImage())
-                let hdr = try TextureUploader.upload(DecodedImage(image: image, orientation: .up,
-                                                                  imageSize: CGSize(width: 64, height: 48),
-                                                                  isFullResolution: true, isHDR: true,
-                                                                  contentHeadroom: 4, needsDeepStorage: true))
-                let window = NSWindow(contentRect: CGRect(x: sdr.frame.minX + 10, y: sdr.frame.minY + 10, width: 320,
-                                                          height: 240),
-                                      styleMask: [.borderless], backing: .buffered, defer: false)
-                window.isReleasedWhenClosed = false
-                let canvas = ImageCanvasView(frame: CGRect(x: 0, y: 0, width: 320, height: 240))
-                window.contentView = canvas
+                let hdr = try hdrTexture()
+                let (window, canvas) = canvasWindow(on: sdr)
                 defer {
                     window.contentView = nil
                     window.close()
@@ -455,6 +466,65 @@ extension AppWindowTests {
                 window.setFrameOrigin(CGPoint(x: sdr.frame.minX + 10, y: sdr.frame.minY + 10))
                 NotificationCenter.default.post(name: NSWindow.didChangeScreenNotification, object: window)
                 #expect(!canvas.isExtendedDynamicRange)
+            }
+        }
+
+        /// Every frame is tone mapped to the headroom the screen has when it
+        /// is drawn, so a frame drawn while the headroom was low looks SDR
+        /// until another one is drawn. The system says when the headroom
+        /// changes, but its notification can come before the new value can
+        /// be read, or not at all; the canvas still catches up by itself,
+        /// without waiting for a click to redraw it, then goes idle again.
+        @Test func canvasCatchesUpWithHeadroomChangesNobodyAnnounced() async throws {
+            let xdr = display(2, x: 0, potentialHeadroom: 16)
+            try await withDisplays([xdr], choice: .browserDisplay) { setup in
+                let (window, canvas) = canvasWindow(on: xdr)
+                defer {
+                    window.contentView = nil
+                    window.close()
+                }
+                @MainActor func headroom(_ value: CGFloat) { setup.screens.displays[0].headroom = value }
+                @MainActor func refresh() { for _ in 0..<3 { canvas.displayRefreshed() } }
+
+                // EDR comes on: the screen has no headroom yet.
+                canvas.setImage(try hdrTexture(), preserveView: false)
+                refresh()
+                #expect(canvas.isExtendedDynamicRange && canvas.lastFrameHeadroom == 1)
+
+                // The rise is announced before its value can be read.
+                setup.screens.postChange()
+                headroom(8)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 8)
+
+                // A dip is announced, a new texture arrives during it (an
+                // edit render), and the recovery isn't announced.
+                headroom(1)
+                setup.screens.postChange()
+                refresh()
+                canvas.setImage(try hdrTexture(), preserveView: true)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 1)
+                headroom(6)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 6)
+
+                // Steady for a while: the display link stops.
+                try await Task.sleep(for: .seconds(ImageCanvasView.headroomSettleTime + 0.3))
+                refresh()
+                #expect(!canvas.isRefreshing)
+
+                // Resized (a tools panel closing), then a change nobody announced.
+                canvas.setFrameSize(NSSize(width: 280, height: 240))
+                refresh()
+                headroom(8)
+                refresh()
+                #expect(canvas.lastFrameHeadroom == 8)
+
+                // An SDR image watches nothing.
+                canvas.setImage(nil, preserveView: false)
+                refresh()
+                #expect(!canvas.isExtendedDynamicRange && !canvas.isRefreshing)
             }
         }
     }

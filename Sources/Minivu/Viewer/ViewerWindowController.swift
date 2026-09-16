@@ -884,10 +884,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     func canvasNeedsFullResolution(_ canvas: ImageCanvasView) {
         guard let shown = current, displayed == shown else { return }
-        if editSession?.hasDisplayedEdit == true {
-            sharpenEditedImage()
-            return
-        }
+        if sharpenEditedImage() { return }
         if let player, let imageSize = player.imageSize {
             // An animation sharpens by decoding its next frames larger. The
             // canvas asks again with every frame until they arrive; the

@@ -122,7 +122,12 @@ One image goes from file to screen like this:
   screen at low brightness). The present shader passes values below the
   headroom through and rolls off anything above it smoothly, so the same
   code path gives real HDR on a MacBook Pro and a clean tone-mapped image on
-  a MacBook Air.
+  a MacBook Air. A frame drawn while the headroom is low stays tone mapped
+  to it, and the system's headroom notification can come before the new
+  value is readable or not at all, so for two seconds after an HDR texture
+  arrives, EDR comes on, the canvas resizes or the screen changes (and
+  while the headroom keeps moving) each display refresh compares the
+  headroom with the frame's and redraws if it moved.
 
 ### 4.4 The canvas
 
@@ -137,7 +142,8 @@ One image goes from file to screen like this:
 - The magnifier is the same shader: inside a circle around the cursor it
   uses a second, more magnified transform.
 - Frames are drawn on a display link that pauses itself whenever nothing is
-  dirty.
+  dirty, except that with EDR on it keeps checking the headroom for two
+  seconds after the content, size or screen changed (see 4.3).
 
 ### 4.5 Memory
 
@@ -211,7 +217,13 @@ quarter-size proxy.
 **Rendering an edit:**
 
 1. The original is decoded once at full resolution. A screen-sized proxy
-   (Lanczos) is made from it and cached.
+   (Lanczos) is made from it and cached. Until there is an edit to show (a
+   tool just opened, or its change cancelled or undone) the canvas keeps the
+   viewer's own texture, HDR included, rather than a render of the same
+   picture; zooming in then renders full resolution from the decoded
+   original. RAW files, whose viewer texture may be the camera's preview,
+   and originals decoded at another size than the viewer's (vectors) show a
+   render from the start.
 2. While a slider moves, the graph runs on the proxy and renders straight
    into a mipmapped texture the canvas shows. Target: under 16 ms per
    update for colour and tone operations on a 24 MP photo.

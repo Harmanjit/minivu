@@ -47,22 +47,23 @@ enum Fixtures {
 
     /// A grey ramp from 0 at the left to 4x SDR white at the right, in
     /// extended linear sRGB: the HDR rendition both HDR fixtures carry.
-    static func hdrRamp() -> CIImage {
+    static func hdrRamp(width: Int = hdrWidth, height: Int = hdrHeight) -> CIImage {
         let space = CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
         let gradient = CIFilter(name: "CILinearGradient", parameters: [
             "inputPoint0": CIVector(x: 0, y: 0),
-            "inputPoint1": CIVector(x: CGFloat(hdrWidth), y: 0),
+            "inputPoint1": CIVector(x: CGFloat(width), y: 0),
             "inputColor0": CIColor(red: 0, green: 0, blue: 0, colorSpace: space)!,
             "inputColor1": CIColor(red: 4, green: 4, blue: 4, colorSpace: space)!,
         ])!
-        return gradient.outputImage!.cropped(to: CGRect(x: 0, y: 0, width: hdrWidth, height: hdrHeight))
+        return gradient.outputImage!.cropped(to: CGRect(x: 0, y: 0, width: width, height: height))
     }
 
     /// An HEIC with an SDR base image and a gain map that lifts it back to
     /// the ramp, as an iPhone photo stores HDR. Decoded for HDR its content
     /// headroom is about 3.94.
-    static func gainMapHEIC(name: String = "hdr-gainmap-\(UUID()).heic") throws -> URL {
-        let ramp = hdrRamp()
+    static func gainMapHEIC(width: Int = hdrWidth, height: Int = hdrHeight,
+                            name: String = "hdr-gainmap-\(UUID()).heic") throws -> URL {
+        let ramp = hdrRamp(width: width, height: height)
         let sdr = ramp.applyingFilter("CIToneMapHeadroom", parameters: ["inputSourceHeadroom": 4, "inputTargetHeadroom": 1])
         guard let data = CIContext().heifRepresentation(of: sdr, format: .RGBA8,
                                                         colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
