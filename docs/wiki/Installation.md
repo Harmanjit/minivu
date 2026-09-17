@@ -40,7 +40,7 @@ Drag `build/minivu.app` to Applications to keep it. To open images with it from 
 5. Writes `Info.plist`, which registers minivu as an alternate editor for images, camera RAW files, PDF and SVG, and lets you drop a folder on its Dock icon.
 6. Signs the bundle ad hoc with the hardened runtime and the sandbox entitlements in [`scripts/minivu.entitlements`](https://github.com/Harmanjit/minivu/blob/main/scripts/minivu.entitlements), verifies the signature, and prints the bundle's size, about 5.9 MB.
 
-The script takes an optional version number, which goes into `Info.plist` (the default is 0.9.0):
+The script takes an optional version number, which goes into `Info.plist` (the default is 0.9.1):
 
 ```bash
 scripts/make_app.sh 1.0.0
