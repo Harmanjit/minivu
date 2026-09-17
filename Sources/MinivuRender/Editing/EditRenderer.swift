@@ -191,7 +191,6 @@ final class EditStage: @unchecked Sendable {
             document.proxy = proxy
             document.sourceSize = source.size
             if document.sourceSignature == nil { document.sourceSignature = signature }
-            HDRDiagnostics.editPrepared(source: source, proxy: proxy)   // TEMPORARY (HDRDiagnostics)
         }
         document.preparation = preparation
         defer { if document.preparationToken == token { document.preparation = nil } }
@@ -358,8 +357,10 @@ final class EditStage: @unchecked Sendable {
         defer { lane.runningRevision = nil }
         let outputSize = EditGraph.outputSize(source: source.size, operations: operations)
         let proxy = document.proxy
-        let plan = Self.plan(full: full, outputSize: outputSize, pixelSize: request.pixelSize ?? 1,
-                             proxyScale: proxy?.scale, sourceScale: source.scale)
+        let plan = full
+            ? Self.fullResolutionPlan(outputSize: outputSize, sourceScale: source.scale)
+            : Self.previewPlan(outputSize: outputSize, pixelSize: request.pixelSize ?? 1, proxyScale: proxy?.scale,
+                               sourceScale: source.scale)
         let gpu = self.gpu, context = self.context
         let stageLength = Self.stageLength(operations: operations, committed: committed.count, sourceSize: source.size)
         let stage = stageLength.flatMap { length in
@@ -387,9 +388,8 @@ final class EditStage: @unchecked Sendable {
                         let size = EditGraph.outputSize(source: source.size, operations: prefix)
                         let staged = EditGraph.image(source: working, sourceSize: source.size, operations: prefix,
                                                      scale: plan.scale)
-                        let (texture, renderedStage) = try Self.renderIntermediate(staged, context: context, gpu: gpu,
-                                                                                   label: "an edit stage")
-                        let stagedImage = HDRDiagnostics.taggingContentHeadroom(renderedStage, of: source)   // TEMPORARY (HDRDiagnostics)
+                        let (texture, stagedImage) = try Self.renderIntermediate(staged, context: context, gpu: gpu,
+                                                                                 label: "an edit stage")
                         newStage = EditStage(source: source, operations: prefix, scale: plan.scale, size: size,
                                              texture: texture, image: stagedImage)
                         image = EditGraph.image(source: stagedImage, sourceSize: size,
@@ -411,8 +411,6 @@ final class EditStage: @unchecked Sendable {
 
         // Released, or prepared again from scratch, while rendering.
         guard let (texture, newProxy, newStage) = result, document.source === source else { return }
-        HDRDiagnostics.editRendered(texture, full: full, plan: plan, proxy: newProxy ?? proxy,   // TEMPORARY (HDRDiagnostics)
-                                    rebuiltProxy: newProxy != nil, stage: stage != nil || newStage != nil)
         if let newProxy, newProxy.scale > (document.proxy?.scale ?? 0) {
             document.proxy = newProxy
         }
@@ -487,16 +485,6 @@ final class EditStage: @unchecked Sendable {
         var useProxy: Bool
         /// Make a new proxy at `scale` first.
         var rebuildProxy: Bool
-    }
-
-    /// The plan for a render in the full-resolution lane or the preview lane.
-    /// TEMPORARY (HDRDiagnostics): MINIVU_HDR_PREVIEW=full plans previews
-    /// as full-resolution renders.
-    nonisolated static func plan(full: Bool, outputSize: CGSize, pixelSize: Int, proxyScale: Double?, sourceScale: Double = 1,
-                                 diagnostics: HDRDiagnostics.Settings = HDRDiagnostics.current) -> Plan {
-        full || diagnostics.fullScalePreviews
-            ? fullResolutionPlan(outputSize: outputSize, sourceScale: sourceScale)
-            : previewPlan(outputSize: outputSize, pixelSize: pixelSize, proxyScale: proxyScale, sourceScale: sourceScale)
     }
 
     /// The largest scale at which an output of `outputSize` fits a texture
@@ -592,8 +580,7 @@ final class EditStage: @unchecked Sendable {
     nonisolated static func makeProxy(_ source: EditSource, scale: Double, context: CIContext, gpu: GPU) throws -> EditProxy {
         let image = lanczos(source.image, to: source.size, scale: scale)
         let (texture, proxyImage) = try renderIntermediate(image, context: context, gpu: gpu, label: "an edit proxy")
-        let tagged = HDRDiagnostics.taggingContentHeadroom(proxyImage, of: source)   // TEMPORARY (HDRDiagnostics)
-        return EditProxy(texture: texture, image: tagged, scale: scale)
+        return EditProxy(texture: texture, image: proxyImage, scale: scale)
     }
 
     /// Renders `image` (extent at the origin, whole pixels) into a half-float
@@ -743,9 +730,7 @@ final class EditStage: @unchecked Sendable {
             throw GPUError.allocationFailed("a RAW source image")
         }
         let h = CGFloat(texture.texture.height)
-        let flipped = image.transformed(by: CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h))
-        let upright = HDRDiagnostics.taggingContentHeadroom(flipped, isHDR: texture.isHDR,   // TEMPORARY (HDRDiagnostics)
-                                                            headroom: texture.contentHeadroom)
+        let upright = image.transformed(by: CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h))
         return EditSource(texture: texture.texture, image: upright, size: texture.textureSize,
                           isHDR: texture.isHDR, contentHeadroom: texture.contentHeadroom)
     }
@@ -831,11 +816,9 @@ final class EditStage: @unchecked Sendable {
                                                       bytesPerRow: pixels.bytesPerRow) else {
             throw GPUError.allocationFailed("an edit source texture")
         }
-        guard let wrapped = CIImage(mtlTexture: texture, options: [.colorSpace: space]) else {
+        guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: space]) else {
             throw GPUError.allocationFailed("an edit source image")
         }
-        let image = HDRDiagnostics.taggingContentHeadroom(wrapped, isHDR: decoded.isHDR,   // TEMPORARY (HDRDiagnostics)
-                                                          headroom: decoded.contentHeadroom)
         return EditSource(texture: texture, image: image, size: CGSize(width: fullWidth, height: fullHeight),
                           scale: scale, isHDR: decoded.isHDR, contentHeadroom: decoded.contentHeadroom)
     }

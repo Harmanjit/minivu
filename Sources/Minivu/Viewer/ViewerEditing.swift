@@ -138,7 +138,6 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     func showUneditedImage(preserveView: Bool) {
         guard !isClosing, let session = editSession, let shown = current,
               session.document.entry == shown.entry, session.document.page == shown.page else { return }
-        HDRDiagnostics.viewerRestoreRequested()   // TEMPORARY (HDRDiagnostics)
         loadCurrentPage(reloading: preserveView)
     }
 

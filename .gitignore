@@ -8,4 +8,3 @@ TestAssets/*
 !TestAssets/make_assets.sh
 .claude/
 *.swp
-/hdr-logs/

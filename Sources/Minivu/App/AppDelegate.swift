@@ -55,7 +55,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             MainActor.assumeIsolated { ThemeColors.apply(ThemeColors.current) }
         }
 
-        HDRDiagnostics.appLaunched()   // TEMPORARY (HDRDiagnostics): off unless MINIVU_HDR_* is set
         warmUpGPU()
         AppServices.start()
 
