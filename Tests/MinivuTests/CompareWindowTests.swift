@@ -12,13 +12,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct CompareWindowTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func press(_ characters: String, _ modifiers: NSEvent.ModifierFlags = [],
                    in controller: CompareWindowController) throws {
             let window = try #require(controller.window)
@@ -56,7 +49,7 @@ extension AppWindowTests {
             let controller = try #require(CompareWindowController.current)
             #expect(controller.paneViews.count == 3)
             #expect(controller.window?.subtitle == "3 images")
-            await waitUntil { controller.paneViews.allSatisfy { $0.canvas.image != nil } }
+            await TestTiming.waitUntil { controller.paneViews.allSatisfy { $0.canvas.image != nil } }
             let panes = controller.paneViews
             #expect(panes.allSatisfy { $0.canvas.image != nil })
             #expect(panes[0].isFocused && !panes[1].isFocused)
@@ -136,7 +129,7 @@ extension AppWindowTests {
 
             // Esc closes.
             try press(special(0x1B), in: controller)
-            await waitUntil { CompareWindowController.current == nil }
+            await TestTiming.waitUntil { CompareWindowController.current == nil }
             #expect(CompareWindowController.current == nil)
             #expect(controller.paneViews.isEmpty)
         }
@@ -152,7 +145,7 @@ extension AppWindowTests {
             }
             browser.open(folder: scratch.url)
             await browser.model.work?.value
-            await waitUntil { browser.model.state == .loaded }
+            await TestTiming.waitUntil { browser.model.state == .loaded }
             let item = NSMenuItem(title: "", action: .compareSelected, keyEquivalent: "")
             browser.model.select(all[0].url)
             #expect(!browser.validateMenuItem(item))

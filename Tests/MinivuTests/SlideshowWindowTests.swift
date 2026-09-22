@@ -12,13 +12,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct SlideshowWindowTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// Runs `body` with slideshow settings from a suite of its own.
         func withSettings(_ change: (inout SlideshowSettings) -> Void,
                           _ body: () async throws -> Void) async rethrows {
@@ -50,7 +43,7 @@ extension AppWindowTests {
         /// Waits for `index` to be on screen with its transition over and the
         /// display link stopped.
         func settle(on index: Int, _ slideshow: SlideshowWindowController) async {
-            await waitUntil { slideshow.shownIndex == index && !slideshow.isTransitioning && !slideshow.isAnimating }
+            await TestTiming.waitUntil { slideshow.shownIndex == index && !slideshow.isTransitioning && !slideshow.isAnimating }
         }
 
         func closeViewer() {
@@ -84,7 +77,7 @@ extension AppWindowTests {
                 #expect(slideshow.captionText == "a.jpg")
 
                 // Waited for rather than assumed, so a busy machine can't fail it.
-                await waitUntil { slideshow.hasDecoded(1) }
+                await TestTiming.waitUntil { slideshow.hasDecoded(1) }
                 try press(NSRightArrowFunctionKey, in: slideshow)
                 #expect(slideshow.isTransitioning)   // started at once: b was decoded ahead
                 await settle(on: 1, slideshow)
@@ -110,7 +103,7 @@ extension AppWindowTests {
                 #expect(SlideshowWindowController.current == nil)
                 #expect(slideshow.hasEnded && !slideshow.keepsDisplayAwake && !slideshow.isAnimating)
                 #expect(slideshow.window?.isVisible != true)
-                await waitUntil { viewer.model.index == 2 }
+                await TestTiming.waitUntil { viewer.model.index == 2 }
                 #expect(viewer.model.index == 2)
                 #expect(viewer.window?.title == "c.jpg")
                 #expect(ViewerWindowController.current === viewer)
@@ -137,11 +130,11 @@ extension AppWindowTests {
                     === slideshow)
                 await settle(on: 0, slideshow)
                 // After the interval: past b, which won't decode, to c.
-                await waitUntil { slideshow.shownIndex == 2 }
+                await TestTiming.waitUntil { slideshow.shownIndex == 2 }
                 #expect(slideshow.shownIndex == 2)
                 #expect(slideshow.sequence.failed == [1])
                 // After c's interval the show ends by itself, reporting c.
-                await waitUntil { slideshow.hasEnded }
+                await TestTiming.waitUntil { slideshow.hasEnded }
                 #expect(ended == [last])
                 #expect(SlideshowWindowController.current == nil)
                 #expect(!slideshow.keepsDisplayAwake)
@@ -160,7 +153,7 @@ extension AppWindowTests {
                 defer { slideshow.end() }
                 await settle(on: 0, slideshow)
                 slideshow.debugFreezeSlideshowTransition(nil)
-                await waitUntil { slideshow.isTransitioning }
+                await TestTiming.waitUntil { slideshow.isTransitioning }
                 #expect(slideshow.isTransitioning && slideshow.isPaused && slideshow.areControlsShown)
                 try? await Task.sleep(for: .milliseconds(100))
                 #expect(slideshow.isTransitioning && !slideshow.isAnimating)   // held, and nothing redraws

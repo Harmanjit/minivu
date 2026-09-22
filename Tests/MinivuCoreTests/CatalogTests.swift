@@ -544,15 +544,6 @@ import Foundation
 
     // MARK: - Performance
 
-    /// Limits are for release builds; debug builds get four times as long.
-    static let slack: Double = {
-        #if DEBUG
-        4
-        #else
-        1
-        #endif
-    }()
-
     @Test func readingMarksForAFolderIsFast() throws {
         let catalog = Catalog.inMemory()
         let folder = URL(fileURLWithPath: "/Users/someone/Pictures/Big Trip", isDirectory: true)
@@ -568,7 +559,14 @@ import Foundation
         print("marks(for: 5,000 URLs) among 10,000 rows: \(elapsed)")
         #expect(result.count == (0..<5_000).filter { $0 * 3 < 10_000 }.count)
         #expect(result[asked[1]] == Marks(rating: 3 % 5 + 1))
-        #expect(elapsed < .milliseconds(30 * Self.slack))
+        // What this guards is the index: without it each of the five
+        // thousand URLs would scan ten thousand rows, which is seconds
+        // rather than tens of milliseconds. The budget is deliberately well
+        // above what the work costs, because a debug build already spends
+        // most of the suite's slack on being a debug build: this measures
+        // in the tens of milliseconds here, which the earlier budget of 30
+        // could not hold even before the machine was busy.
+        #expect(elapsed < TestTiming.limit(milliseconds: 60))
     }
 
     @Test func ratingAThousandFilesIsOneQuickTransaction() throws {
@@ -579,6 +577,6 @@ import Foundation
         let elapsed = ContinuousClock().measure { catalog.setRating(4, for: files) }
         print("setRating for 1,000 files: \(elapsed)")
         #expect(catalog.marks(for: files).count == 1_000)
-        #expect(elapsed < .milliseconds(50 * Self.slack))
+        #expect(elapsed < TestTiming.limit(milliseconds: 50))
     }
 }

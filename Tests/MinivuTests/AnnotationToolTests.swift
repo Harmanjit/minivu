@@ -386,13 +386,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct AnnotationViewerTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// A key press delivered to `responder`, or to the window's content
         /// view as the canvas passes it on.
         func press(_ character: Int, in viewer: ViewerWindowController, to responder: NSResponder? = nil) throws {
@@ -422,9 +415,9 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.openDrawing(tool: .rectangle)
-            await waitUntil { viewer.drawingToolState != nil }
+            await TestTiming.waitUntil { viewer.drawingToolState != nil }
             let state = try #require(viewer.drawingToolState)
             let overlay = try #require(viewer.container.canvasOverlay as? AnnotationOverlayView)
             let t = overlay.imageToView
@@ -490,9 +483,9 @@ extension AppWindowTests {
             ViewerWindowController.show(images: entries, index: 1, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.openDrawing(tool: .arrow)
-            await waitUntil { viewer.drawingToolState != nil }
+            await TestTiming.waitUntil { viewer.drawingToolState != nil }
             let state = try #require(viewer.drawingToolState)
             let overlay = try #require(viewer.container.canvasOverlay as? AnnotationOverlayView)
             var a = state.newObject(.arrow)
@@ -547,13 +540,13 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             #expect(viewer.validateMenuItem(NSMenuItem(title: "", action: .drawAnnotations, keyEquivalent: "")))
 
             let item = NSMenuItem(title: "", action: .drawAnnotations, keyEquivalent: "")
             item.tag = AnnotationToolKind.arrow.rawValue
             viewer.drawAnnotations(item)
-            await waitUntil { viewer.drawingToolState != nil }
+            await TestTiming.waitUntil { viewer.drawingToolState != nil }
             let state = try #require(viewer.drawingToolState)
             #expect(state.tool == .arrow && state.imageSize == CGSize(width: 600, height: 400))
             let overlay = try #require(viewer.container.canvasOverlay as? AnnotationOverlayView)
@@ -565,7 +558,7 @@ extension AppWindowTests {
             drawn.end = CGPoint(x: 0.6, y: 0.5)
             state.add(drawn)
             let session = try #require(viewer.editSession)
-            await waitUntil { session.document.preview != nil }
+            await TestTiming.waitUntil { session.document.preview != nil }
             #expect(session.document.preview == .annotations([drawn]))
             // Delete with the object selected removes it; ⌘Z within the tool brings it back.
             try press(NSDeleteCharacter, in: viewer, to: overlay)

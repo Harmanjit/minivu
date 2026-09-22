@@ -32,13 +32,6 @@ extension AppWindowTests {
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
         }
 
-        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func names(_ folder: URL) -> [String] {
             ((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []).sorted()
         }
@@ -169,7 +162,7 @@ extension AppWindowTests {
             #expect(text(t.url.appendingPathComponent("a.jpg")) == "b.jpg" && text(t.url.appendingPathComponent("b.jpg")) == "a.jpg")
             #expect(catalog.marks(for: t.url.appendingPathComponent("b.jpg")).rating == 5, "stars follow the file")
             #expect(catalog.customOrder(in: t.url) == ["other.jpg", "a.jpg", "img.jpg", "b.jpg"])
-            await waitUntil { Set(controller.model.selection.map(\.lastPathComponent)) == ["a.jpg", "b.jpg"] }
+            await TestTiming.waitUntil(seconds: 30) { Set(controller.model.selection.map(\.lastPathComponent)) == ["a.jpg", "b.jpg"] }
             #expect(Set(controller.model.selection.map(\.lastPathComponent)) == ["a.jpg", "b.jpg"])
 
             let undo = try #require(controller.window?.undoManager)
@@ -240,10 +233,13 @@ extension AppWindowTests {
             }
             let model = BatchRenameModel(entries: entries, store: BatchTools.store, probe: probe)
             await model.planWork?.value
-            let started = Date()
+            let started = ContinuousClock.now
             model.pattern = RenamePattern(text: "Holiday {####}")
-            // Generous: the margin is for a busy test machine.
-            #expect(Date().timeIntervalSince(started) < 0.25, "setting the pattern doesn't plan on the main thread")
+            // Generous: the margin is for a busy test machine, which is what
+            // the shared slack in `TestTiming` measures out.
+            let planning = ContinuousClock.now - started
+            #expect(planning < TestTiming.limit(milliseconds: 250),
+                    "setting the pattern doesn't plan on the main thread, took \(planning)")
             await model.planWork?.value
             #expect(model.plan?.items.last?.newName == "Holiday 5000.JPG")
             #expect(model.canRename)
@@ -273,10 +269,7 @@ struct BatchToolsReset: SuiteTrait, TestTrait, TestScoping {
     }
 
     @MainActor static func reset() async {
-        let end = Date().addingTimeInterval(10)
-        while !BatchTools.work.isEmpty || BatchTools.renamesRunning > 0, Date() < end {
-            try? await Task.sleep(for: .milliseconds(10))
-        }
+        await TestTiming.waitUntil { BatchTools.work.isEmpty && BatchTools.renamesRunning == 0 }
         BatchTools.reset()
     }
 }

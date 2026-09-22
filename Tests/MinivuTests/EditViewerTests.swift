@@ -12,13 +12,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct EditViewerTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func enabled(_ viewer: ViewerWindowController, _ action: Selector) -> Bool {
             viewer.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: ""))
         }
@@ -45,7 +38,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             #expect(enabled(viewer, .rotateRight) && enabled(viewer, .adjustLighting) && enabled(viewer, .saveImageAs))
             #expect(!enabled(viewer, .saveImage) && !enabled(viewer, .revertToSaved))
             #expect(viewer.editSession == nil)   // viewing alone makes no session
@@ -54,7 +47,7 @@ extension AppWindowTests {
             viewer.rotateRight(nil)
             let session = try #require(viewer.editSession)
             #expect(session.document.isDirty)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600))
             #expect(viewer.window?.isDocumentEdited == true)
             #expect(enabled(viewer, .saveImage) && enabled(viewer, .revertToSaved))
@@ -72,7 +65,7 @@ extension AppWindowTests {
             #expect(redoItem.title == "Redo Rotate Right")
             window.perform(ViewerWindow.redoAction, with: nil)
             #expect(session.document.isDirty)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
 
             // Moving on with unsaved edits asks first. Cancel stays put.
             let savedQuestion = ViewerWindowController.askAboutUnsavedEdits
@@ -102,7 +95,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
 
             viewer.adjustLighting(nil)
             guard case .adjustment(let lighting)? = viewer.activeTool else {
@@ -114,7 +107,7 @@ extension AppWindowTests {
             #expect(viewer.container.canvasLeadingInset == ViewerToolsPanel.inspectorWidth)
             lighting.setValue(0.5, section: 0, slider: 0)
             let session = try #require(viewer.editSession)
-            await waitUntil { session.hasDisplayedEdit }
+            await TestTiming.waitUntil { session.hasDisplayedEdit }
             #expect(session.hasDisplayedEdit)
             #expect(viewer.undoEditTitle == "Lighting")
 
@@ -127,7 +120,7 @@ extension AppWindowTests {
             #expect(viewer.container.canvasLeadingInset == 0)
 
             viewer.cropImage(nil)
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             guard case .crop(let crop)? = viewer.activeTool else {
                 Issue.record("Crop didn't open")
                 return
@@ -139,7 +132,7 @@ extension AppWindowTests {
             #expect(viewer.activeTool == nil)
             #expect(viewer.container.canvasOverlay == nil)
             #expect(session.document.undoTitle == "Crop")
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 400) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 400) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 400))
             #expect(!viewer.canvasView.scrollingKeepsImage)
         }
@@ -154,10 +147,10 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
             let session = try #require(viewer.editSession)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
 
             // A save to another file leaves the document dirty: nothing changes.
             viewer.editsWereSaved(session)
@@ -176,15 +169,15 @@ extension AppWindowTests {
             // New display settings decode the saved file once, not rotated again.
             NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
             try? await Task.sleep(for: .milliseconds(600))
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600))
 
             // The next edit starts from the saved file.
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
             let next = try #require(viewer.editSession)
             #expect(next !== session && next.document.operations.count == 1)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400))
         }
 
@@ -195,7 +188,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             var replies: [Bool] = []
             viewer.reviewUnsavedEditsBeforeQuitting { replies.append($0) }
             #expect(replies == [true])
@@ -228,7 +221,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             let canvas = viewer.canvasView
             let rect = canvas.viewRect(forImageRect: CGRect(x: 0, y: 0, width: 600, height: 400))
             // Fitted and centred in the view (flipped, top-left origin).
@@ -268,7 +261,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.animationPlayer != nil && viewer.canvasTexture != nil }
+            await TestTiming.waitUntil { viewer.animationPlayer != nil && viewer.canvasTexture != nil }
             #expect(!viewer.canEditCurrent)
             #expect(!enabled(viewer, .rotateLeft) && !enabled(viewer, .adjustCurves) && !enabled(viewer, .saveImageAs))
             viewer.rotateLeft(nil)

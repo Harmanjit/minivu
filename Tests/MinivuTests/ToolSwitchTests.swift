@@ -10,25 +10,18 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ToolSwitchTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         @Test func anotherCommandAppliesTheOpenToolFirst() async throws {
             let folder = try ScratchFolder()
             let entry = try #require(FolderEntry(url: try folder.jpeg("a.jpg", width: 600, height: 400)))
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             let session = try #require(viewer.editSessionForCurrent())
 
             // Strokes, then Rotate Right: the strokes are committed before the turn.
             viewer.cloneStamp(nil)
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             guard case .custom(let open)? = viewer.activeTool, let brush = open as? RetouchToolState else {
                 Issue.record("The clone stamp didn't open")
                 return
@@ -42,7 +35,7 @@ extension AppWindowTests {
 
             // A drawing, then another tool: the drawing is committed.
             viewer.drawAnnotations(nil)
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             guard case .custom(let drawingOpen)? = viewer.activeTool,
                   let drawing = drawingOpen as? AnnotationToolState else {
                 Issue.record("The drawing tool didn't open")
@@ -61,13 +54,13 @@ extension AppWindowTests {
             #expect(viewer.activeTool != nil && drawing.objects.count == 1)
 
             viewer.removeRedEye(nil)
-            await waitUntil { if case .custom(let s)? = viewer.activeTool { s is RedEyeToolState } else { false } }
+            await TestTiming.waitUntil { if case .custom(let s)? = viewer.activeTool { s is RedEyeToolState } else { false } }
             #expect(session.document.operations.count == 3)
             #expect(session.document.undoTitle == "Drawing")
 
             // A tool with nothing in it closes without adding a step.
             viewer.adjustLighting(nil)
-            await waitUntil { if case .adjustment? = viewer.activeTool { true } else { false } }
+            await TestTiming.waitUntil { if case .adjustment? = viewer.activeTool { true } else { false } }
             #expect(session.document.operations.count == 3)
 
             // Esc (cancel) still drops the open tool's work.

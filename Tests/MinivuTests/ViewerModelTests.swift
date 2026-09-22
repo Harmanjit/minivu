@@ -499,13 +499,6 @@ extension AppWindowTests {
             #expect(closed == ["new:nil"])
         }
 
-        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// A real three-page PDF: its page count arrives from a background read,
         /// the option keys turn pages and Page Down carries on to the next file.
         @Test func documentPagesTurnWithTheKeys() async throws {
@@ -527,7 +520,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             let viewer = try #require(ViewerWindowController.current)
             defer { viewer.exitViewer(nil) }
-            await waitUntil { viewer.pageState.count == 3 }
+            await TestTiming.waitUntil(seconds: 30) { viewer.pageState.count == 3 }
             #expect(viewer.pageState == (0, 3))
             // The Go and Image menus' page and playback items follow along.
             func enabled(_ action: Selector) -> Bool {
@@ -591,7 +584,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
             let viewer = try #require(ViewerWindowController.current)
             defer { viewer.exitViewer(nil) }
-            await waitUntil { (viewer.animationPlayer?.frameCount ?? 0) > 0 }
+            await TestTiming.waitUntil(seconds: 30) { (viewer.animationPlayer?.frameCount ?? 0) > 0 }
             let player = try #require(viewer.animationPlayer)
             #expect(player.frameCount == 3 && player.isPlaying)
             #expect(viewer.pageState.count == 1)   // frames aren't pages
@@ -602,7 +595,7 @@ extension AppWindowTests {
             // which suspends the clock; let it play as if it were.
             player.isSuspended = false
             var textures: Set<ObjectIdentifier> = []
-            await waitUntil {
+            await TestTiming.waitUntil(seconds: 30) {
                 if let texture = viewer.canvasTexture { textures.insert(ObjectIdentifier(texture)) }
                 return textures.count >= 3
             }
@@ -640,7 +633,7 @@ extension AppWindowTests {
             defer { viewer.exitViewer(nil) }
             let window = try #require(viewer.window)
             window.setContentSize(NSSize(width: 480, height: 320))
-            await waitUntil { viewer.canvasTexture?.imageSize.width == 2400 }
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.imageSize.width == 2400 }
             try #require(viewer.canvasTexture != nil)
 
             // Press and hold: a drag that hasn't moved once the hold delay is up.
@@ -656,7 +649,7 @@ extension AppWindowTests {
             canvas.mouseDragged(with: try mouse(.leftMouseDragged, at: start + 0.3))
             let release = try mouse(.leftMouseUp, at: start + 0.4)
             defer { canvas.mouseUp(with: release) }
-            await waitUntil { viewer.canvasTexture?.isFullResolution == true }
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.isFullResolution == true }
             #expect(viewer.canvasTexture?.isFullResolution == true)
 
             // Whatever a prefetch at the old window size made of the next photo
@@ -665,14 +658,14 @@ extension AppWindowTests {
             AppServices.images.invalidate(list[1].url)
             viewer.nextImage(nil)
             var firstOfNext: ImageTexture?
-            await waitUntil {
+            await TestTiming.waitUntil(seconds: 30) {
                 if firstOfNext == nil, let texture = viewer.canvasTexture, texture.imageSize.width == 2000 {
                     firstOfNext = texture
                 }
                 return firstOfNext != nil
             }
             #expect(firstOfNext?.isFullResolution == false)
-            await waitUntil { viewer.canvasTexture?.isFullResolution == true }
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.isFullResolution == true }
             #expect(viewer.canvasTexture?.isFullResolution == true)
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 2000, height: 1500))
         }
@@ -692,14 +685,14 @@ extension AppWindowTests {
             func neighbourCached() -> Bool {
                 cache.anyTexture(url: list[1].url, modified: list[1].modified, page: 0) != nil
             }
-            await waitUntil { viewer.canvasTexture != nil && neighbourCached() }
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture != nil && neighbourCached() }
             try #require(neighbourCached())
 
             let canvas = viewer.canvasView
             viewer.zoomIn(nil)
             viewer.zoomIn(nil)
             canvas.pan(byPoints: CGSize(width: 40, height: 25))
-            await waitUntil { viewer.canvasTexture?.isFullResolution == true }   // the zoom asked for it
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.isFullResolution == true }   // the zoom asked for it
             let view = (canvas.transform, canvas.zoomMode)
             #expect(view.1 != .fit)
             let old = try #require(viewer.canvasTexture)
@@ -709,11 +702,11 @@ extension AppWindowTests {
             AppServices.images.invalidate(list[0].url)
             AppServices.images.invalidate(list[1].url)
             NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
-            await waitUntil { viewer.canvasTexture.map { $0 !== old } ?? false }
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture.map { $0 !== old } ?? false }
             #expect(viewer.canvasTexture !== old)
             #expect(canvas.transform == view.0)
             #expect(canvas.zoomMode == view.1)
-            await waitUntil(neighbourCached)
+            await TestTiming.waitUntil(seconds: 30, neighbourCached)
             #expect(neighbourCached())
         }
 

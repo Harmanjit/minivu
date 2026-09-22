@@ -260,7 +260,7 @@ final class FakeLauncher: ApplicationLaunching {
         try await Task.sleep(for: .milliseconds(300))   // FSEvents reports changes after its stream starts
         try scratch.jpeg("a.jpg", width: 50, height: 30)
         try scratch.jpeg("b.jpg", width: 60, height: 30)   // not watched
-        let deadline = Date().addingTimeInterval(10)
+        let deadline = TestTiming.patience()
         while reports.isEmpty, Date() < deadline {
             try await Task.sleep(for: .milliseconds(50))
             await watcher.work?.value
@@ -345,11 +345,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ExternalEditorWindowTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
-        }
-
         @Test func viewerReloadsAFileAnEditorSaved() async throws {
             let folder = try ScratchFolder()
             let a = try folder.jpeg("a.jpg", width: 600, height: 400)
@@ -357,7 +352,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400))
 
             // Another file changing leaves the image alone.
@@ -367,11 +362,11 @@ extension AppWindowTests {
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 600, height: 400))
 
             viewer.histogramPanel.model.onCountColors?()
-            await waitUntil { viewer.histogramPanel.model.colorCount != .counting }
+            await TestTiming.waitUntil { viewer.histogramPanel.model.colorCount != .counting }
             #expect(viewer.histogramPanel.model.colorCount != .idle)
             try folder.jpeg("a.jpg", width: 300, height: 500)
             ExternalEditWatcher.filesChanged([a])
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 500))
             // The entry takes the saved file's date and size at once, so the
             // info panel and colour count describe it without moving away.
@@ -382,7 +377,7 @@ extension AppWindowTests {
             #expect(viewer.model.index == 0 && viewer.model.images[1] == list[1])
             #expect(viewer.displayed?.entry == viewer.model.current)
             #expect(viewer.histogramPanel.model.colorCount == .idle, "the old file's count is gone")
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             #expect(viewer.canEditCurrent, "the saved file can be edited")
 
             // With unsaved edits the user is asked. Keep My Edits: the edited
@@ -404,9 +399,9 @@ extension AppWindowTests {
                 savesAs.append(entry.url)
                 completion(nil)
             }
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 500, height: 300) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 500, height: 300) }
             try folder.jpeg("a.jpg", width: 200, height: 200)
             let editorsVersion = try Data(contentsOf: a)
             ExternalEditWatcher.filesChanged([a])
@@ -423,14 +418,14 @@ extension AppWindowTests {
             viewer.endEditSession()
 
             // Reload: the edits go and the file as it is now shows.
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
-            await waitUntil { viewer.hasUnsavedEdits }
+            await TestTiming.waitUntil { viewer.hasUnsavedEdits }
             try folder.jpeg("a.jpg", width: 120, height: 90)
             answer = .reload
             ExternalEditWatcher.filesChanged([a])
             #expect(asked.count == 2 && !viewer.hasUnsavedEdits && viewer.editSession == nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 120, height: 90) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 120, height: 90) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 120, height: 90))
         }
 
@@ -460,14 +455,14 @@ extension AppWindowTests {
                 savesAs.append(entry.url)
                 completion(nil)
             }
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
             try folder.jpeg("a.jpg", width: 200, height: 200)
             let theirs = try Data(contentsOf: a)
 
             viewer.saveImage(nil)
-            await waitUntil { !asked.isEmpty }
+            await TestTiming.waitUntil { !asked.isEmpty }
             #expect(asked == ["a.jpg"])
             #expect(viewer.hasUnsavedEdits && viewer.window?.attachedSheet == nil)
             #expect(try Data(contentsOf: a) == theirs)
@@ -496,19 +491,19 @@ extension AppWindowTests {
             let original = CGSize(width: 600, height: 400), rotated = CGSize(width: 400, height: 600)
 
             // Kept when the change was seen.
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == rotated }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == rotated }
             let session = try #require(viewer.editSession)
             try folder.jpeg("a.jpg", width: 200, height: 200)
             ExternalEditWatcher.filesChanged([a])
             #expect(session.externalChange == .kept)
             viewer.undoEdit()
-            try await Task.sleep(for: .milliseconds(500))
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == original }
             #expect(viewer.canvasTexture?.imageSize == original, "undone, kept edits")
             #expect(viewer.editSession === session)
             viewer.openCrop()
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             if case .crop(let crop)? = viewer.activeTool {
                 #expect(crop.selection.bounds.size == viewer.canvasTexture?.imageSize, "the crop is over what shows")
             } else {
@@ -516,19 +511,19 @@ extension AppWindowTests {
             }
             viewer.closeTool()
             viewer.redoEdit()
-            await waitUntil { viewer.canvasTexture?.imageSize == rotated }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == rotated }
             #expect(viewer.canvasTexture?.imageSize == rotated)
             viewer.endEditSession()
 
             // Nobody noticed, and the cache let the viewer's copy go.
             viewer.nextImage(nil)
-            await waitUntil { viewer.displayed?.entry == list[1] && viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.displayed?.entry == list[1] && viewer.canEditCurrent }
             viewer.rotateRight(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == rotated }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == rotated }
             try folder.jpeg("b.jpg", width: 200, height: 200)
             AppServices.images.cache.removeAll()
             viewer.undoEdit()
-            try await Task.sleep(for: .milliseconds(500))
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == original }
             #expect(viewer.canvasTexture?.imageSize == original, "undone, change unnoticed")
             viewer.endEditSession()
         }

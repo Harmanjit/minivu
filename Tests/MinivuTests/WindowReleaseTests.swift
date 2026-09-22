@@ -12,13 +12,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct WindowReleaseTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// Lets queued main-thread work (work items, tasks delivering to
         /// closed windows) run, so what it captured is released.
         func drain() async {
@@ -51,19 +44,19 @@ extension AppWindowTests {
                     window = viewer?.window
                     canvas = viewer?.canvas
                 }
-                await waitUntil { viewer?.canEditCurrent == true && viewer?.canvasTexture != nil }
+                await TestTiming.waitUntil { viewer?.canEditCurrent == true && viewer?.canvasTexture != nil }
                 #expect(viewer?.canEditCurrent == true, "round \(round)")
                 for action in actions {
                     autoreleasepool { _ = NSApp.sendAction(action, to: viewer, from: nil) }
                     if action == .resizeImage {
                         // A sheet rather than a panel tool: cancelled by ending it.
-                        await waitUntil { window?.attachedSheet != nil }
+                        await TestTiming.waitUntil { window?.attachedSheet != nil }
                         #expect(window?.attachedSheet != nil, "\(action) did not open")
                         autoreleasepool { if let sheet = window?.attachedSheet { window?.endSheet(sheet) } }
-                        await waitUntil { window?.attachedSheet == nil }
+                        await TestTiming.waitUntil { window?.attachedSheet == nil }
                         continue
                     }
-                    await waitUntil { viewer?.activeTool != nil }
+                    await TestTiming.waitUntil { viewer?.activeTool != nil }
                     #expect(viewer?.activeTool != nil, "\(action) did not open")
                     if session == nil { session = viewer?.editSession }
                     autoreleasepool { viewer?.closeTool() }
@@ -73,13 +66,13 @@ extension AppWindowTests {
                     viewer?.toggleInfoPanel(nil)
                     viewer?.nextImage(nil)
                 }
-                await waitUntil { viewer?.canvasTexture != nil }
+                await TestTiming.waitUntil { viewer?.canvasTexture != nil }
                 autoreleasepool {
                     viewer?.toggleHistogram(nil)
                     viewer?.toggleInfoPanel(nil)
                     viewer?.exitViewer(nil)
                 }
-                await waitUntil { viewer == nil && window == nil && canvas == nil && session == nil }
+                await TestTiming.waitUntil { viewer == nil && window == nil && canvas == nil && session == nil }
                 await drain()
                 #expect(ViewerWindowController.current == nil)
                 #expect(viewer == nil, "round \(round)")
@@ -113,12 +106,12 @@ extension AppWindowTests {
                                                            keyCode: 53))
                 #expect(attached.performKeyEquivalent(with: escape))
             }
-            await waitUntil { results.count == 1 }
+            await TestTiming.waitUntil { results.count == 1 }
             #expect(results.count == 1 && results.first == .some(nil))
             #expect(parent?.attachedSheet == nil)
             autoreleasepool { parent?.close() }
             await drain()
-            await waitUntil { sheet == nil && parent == nil }
+            await TestTiming.waitUntil { sheet == nil && parent == nil }
             #expect(sheet == nil)
             #expect(parent == nil)
         }
@@ -135,14 +128,14 @@ extension AppWindowTests {
             let viewer = try #require(ViewerWindowController.current)
             weak var session: EditSession?
             for action in [Selector.adjustLighting, .cropImage, .adjustCurves, .cloneStamp, .drawAnnotations] {
-                await waitUntil { viewer.canEditCurrent }
+                await TestTiming.waitUntil { viewer.canEditCurrent }
                 autoreleasepool { _ = NSApp.sendAction(action, to: viewer, from: nil) }
-                await waitUntil { viewer.activeTool != nil }
+                await TestTiming.waitUntil { viewer.activeTool != nil }
                 #expect(viewer.activeTool != nil, "\(action)")
                 session = viewer.editSession
                 #expect(session != nil)
                 autoreleasepool { viewer.nextImage(nil) }
-                await waitUntil { session == nil }
+                await TestTiming.waitUntil { session == nil }
                 #expect(session == nil, "\(action)")
                 if viewer.model.index == list.count - 1 { viewer.firstImage(nil) }
             }
@@ -162,10 +155,10 @@ extension AppWindowTests {
                     canvases.append(Weak(ViewerWindowController.current?.canvas))
                     ViewerWindowController.current?.nextImage(nil)
                 }
-                if index % 10 == 0 { await waitUntil { ViewerWindowController.current?.canvasTexture != nil } }
+                if index % 10 == 0 { await TestTiming.waitUntil { ViewerWindowController.current?.canvasTexture != nil } }
                 autoreleasepool { ViewerWindowController.current?.exitViewer(nil) }
             }
-            await waitUntil { alive.allSatisfy { $0.value == nil } && canvases.allSatisfy { $0.value == nil } }
+            await TestTiming.waitUntil { alive.allSatisfy { $0.value == nil } && canvases.allSatisfy { $0.value == nil } }
             #expect(alive.filter { $0.value != nil }.count == 0)
             #expect(canvases.filter { $0.value != nil }.count == 0)
         }
@@ -183,11 +176,11 @@ extension AppWindowTests {
                     panes += (CompareWindowController.current?.paneViews ?? []).map { Weak($0) }
                 }
                 if index % 10 == 0 {
-                    await waitUntil { CompareWindowController.current?.paneViews.allSatisfy { $0.canvas.image != nil } == true }
+                    await TestTiming.waitUntil { CompareWindowController.current?.paneViews.allSatisfy { $0.canvas.image != nil } == true }
                 }
                 autoreleasepool { CompareWindowController.current?.window?.close() }
             }
-            await waitUntil { alive.allSatisfy { $0.value == nil } && panes.allSatisfy { $0.value == nil } }
+            await TestTiming.waitUntil { alive.allSatisfy { $0.value == nil } && panes.allSatisfy { $0.value == nil } }
             #expect(CompareWindowController.current == nil)
             #expect(alive.filter { $0.value != nil }.count == 0)
             #expect(panes.filter { $0.value != nil }.count == 0)
@@ -246,7 +239,7 @@ extension AppWindowTests {
                 }
                 await drain()
             }
-            await waitUntil { alive.allSatisfy { $0.1.value == nil } }
+            await TestTiming.waitUntil { alive.allSatisfy { $0.1.value == nil } }
             let survivors = Dictionary(grouping: alive.filter { $0.1.value != nil }, by: \.0).mapValues(\.count)
             #expect(survivors.isEmpty, "\(survivors)")
             #expect(parent.attachedSheet == nil)
@@ -276,10 +269,10 @@ extension AppWindowTests {
                     alive.append(Weak(show))
                     windows.append(Weak(show?.window))
                 }
-                if index % 10 == 0 { await waitUntil { SlideshowWindowController.current?.shownIndex != nil } }
+                if index % 10 == 0 { await TestTiming.waitUntil { SlideshowWindowController.current?.shownIndex != nil } }
                 autoreleasepool { SlideshowWindowController.current?.end() }
             }
-            await waitUntil { alive.allSatisfy { $0.value == nil } && windows.allSatisfy { $0.value == nil } }
+            await TestTiming.waitUntil { alive.allSatisfy { $0.value == nil } && windows.allSatisfy { $0.value == nil } }
             #expect(SlideshowWindowController.current == nil)
             #expect(alive.filter { $0.value != nil }.count == 0)
             #expect(windows.filter { $0.value != nil }.count == 0)

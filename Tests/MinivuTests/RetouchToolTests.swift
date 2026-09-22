@@ -165,13 +165,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct RetouchViewerTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func key(_ characters: String, flags: NSEvent.ModifierFlags = [], window: NSWindow) throws -> NSEvent {
             try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0,
                                           windowNumber: window.windowNumber, context: nil, characters: characters,
@@ -184,13 +177,13 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             #expect(viewer.validateEditAction(.healingBrush) == true)
             #expect(viewer.validateEditAction(.cloneStamp) == true)
             #expect(viewer.validateEditAction(.removeRedEye) == true)
 
             viewer.healingBrush(nil)
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             guard case .custom(let open)? = viewer.activeTool, let state = open as? RetouchToolState else {
                 Issue.record("The healing brush didn't open")
                 return
@@ -214,7 +207,7 @@ extension AppWindowTests {
             let session = try #require(viewer.editSession)
             #expect(session.document.preview == .retouch(state.strokes))
             // Drawn on the overlay until the render with them is delivered.
-            await waitUntil { state.strokesNotYetRendered().isEmpty }
+            await TestTiming.waitUntil { state.strokesNotYetRendered().isEmpty }
             #expect(state.strokesNotYetRendered().isEmpty)
             #expect(session.document.deliveredOperations == [.retouch(state.strokes)])
 
@@ -233,7 +226,7 @@ extension AppWindowTests {
             window.contentView?.keyDown(with: try key("\r", window: window))
             #expect(viewer.activeTool == nil && viewer.container.canvasOverlay == nil)
             #expect(session.document.operations.count == 1 && session.document.undoTitle == "Healing Brush")
-            await waitUntil { session.hasDisplayedEdit }
+            await TestTiming.waitUntil { session.hasDisplayedEdit }
             #expect(session.hasDisplayedEdit)
         }
 
@@ -243,10 +236,10 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
 
             viewer.removeRedEye(nil)
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             guard case .custom(let open)? = viewer.activeTool, let state = open as? RedEyeToolState else {
                 Issue.record("Red-eye removal didn't open")
                 return
@@ -276,12 +269,12 @@ extension AppWindowTests {
             ViewerWindowController.show(images: entries, index: 1, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             let window = try #require(viewer.window)
             let delete = try key(String(Character(UnicodeScalar(NSDeleteCharacter)!)), window: window)
 
             viewer.removeRedEye(nil)
-            await waitUntil { viewer.activeTool != nil }
+            await TestTiming.waitUntil { viewer.activeTool != nil }
             guard case .custom(let open)? = viewer.activeTool, let redEye = open as? RedEyeToolState else {
                 Issue.record("Red-eye removal didn't open")
                 return
@@ -292,7 +285,7 @@ extension AppWindowTests {
             #expect(redEye.spots.count == 1 && viewer.activeTool != nil && viewer.model.index == 1)
 
             viewer.healingBrush(nil)
-            await waitUntil { viewer.container.canvasOverlay is RetouchBrushOverlayView }
+            await TestTiming.waitUntil { viewer.container.canvasOverlay is RetouchBrushOverlayView }
             #expect(window.firstResponder is RetouchBrushOverlayView)
             window.firstResponder?.keyDown(with: delete)
             #expect(viewer.activeTool != nil && viewer.model.index == 1 && window.attachedSheet == nil)

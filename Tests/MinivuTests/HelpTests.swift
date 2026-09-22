@@ -110,7 +110,7 @@ import SwiftUI
         let model = HelpModel()
         model.refreshShortcuts()
         model.load()
-        for _ in 0..<500 where !model.isLoaded { try? await Task.sleep(for: .milliseconds(10)) }
+        await TestTiming.waitUntil { model.isLoaded }
         #expect(model.isLoaded)
         #expect(model.visiblePages == HelpPage.allCases)
         model.query = "Batch Rename"

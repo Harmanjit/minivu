@@ -338,11 +338,7 @@ import MinivuRender
             defer { model.cancel() }
             model.format = .png
             model.refreshEstimate()
-            let deadline = ContinuousClock.now + .seconds(20)
-            while ContinuousClock.now < deadline {
-                if case .exact = model.estimate { break }
-                try await Task.sleep(for: .milliseconds(20))
-            }
+            await TestTiming.waitUntil(seconds: 20) { if case .exact = model.estimate { true } else { false } }
             guard case .exact(let bytes) = model.estimate else {
                 Issue.record("no estimate: \(model.estimate)")
                 return
@@ -359,10 +355,7 @@ import MinivuRender
             model.options.keepMetadata.toggle()
             #expect(model.isEstimating)
             #expect(model.sizeText == SaveSizeText.file(bytes))
-            let second = ContinuousClock.now + .seconds(20)
-            while ContinuousClock.now < second, model.isEstimating {
-                try await Task.sleep(for: .milliseconds(20))
-            }
+            await TestTiming.waitUntil(seconds: 20) { !model.isEstimating }
             #expect(!model.isEstimating)
             guard case .exact(let updated) = model.estimate else {
                 Issue.record("no second estimate: \(model.estimate)")
@@ -646,11 +639,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct SaveViewerTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
-        }
-
         /// Save (⌘S) over the original: the entry on screen takes the file's
         /// new date and size at once, so the info panel, the colour count and
         /// the filmstrip describe what was saved rather than what was there
@@ -668,15 +656,15 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.histogramPanel.model.onCountColors?()
-            await waitUntil { viewer.histogramPanel.model.colorCount != .counting }
+            await TestTiming.waitUntil { viewer.histogramPanel.model.colorCount != .counting }
             #expect(viewer.histogramPanel.model.colorCount != .idle)
 
             viewer.rotateRight(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
             viewer.saveImage(nil)
-            await waitUntil { viewer.model.current?.modified != entry.modified }
+            await TestTiming.waitUntil { viewer.model.current?.modified != entry.modified }
 
             let saved = try #require(FolderEntry(url: a))
             #expect(viewer.model.current?.modified == saved.modified)
@@ -707,22 +695,22 @@ extension AppWindowTests {
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
 
             let question = ViewerWindowController.askAboutUnsavedEdits
             defer { ViewerWindowController.askAboutUnsavedEdits = question }
             ViewerWindowController.askAboutUnsavedEdits = { _, _, reply in reply(.save) }
             viewer.nextImage(nil)
-            await waitUntil { viewer.model.images[0].modified != list[0].modified }
+            await TestTiming.waitUntil { viewer.model.images[0].modified != list[0].modified }
 
             let saved = try #require(FolderEntry(url: a))
             #expect(viewer.model.images[0].modified == saved.modified)
             #expect(viewer.model.images[0].fileSize == saved.fileSize)
             #expect(viewer.model.index == 1 && viewer.model.current == list[1])
             #expect(viewer.editSession == nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 200) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 200) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 200))
         }
     }

@@ -178,8 +178,8 @@ final class FileThumbnails: MontageThumbnailProviding {
             let queue = FileWriteQueue.shared
             queue.enqueue { await gate.wait() }
             let task = Task { try await model.makeMontages(in: output, date: Date(timeIntervalSince1970: 1_789_381_805)) }
-            let deadline = Date().addingTimeInterval(30)   // as generous, for the same reason
-            while model.writesQueued == 0, Date() < deadline { try await Task.sleep(for: .milliseconds(5)) }
+            // As generous as the waits below, and for the same reason.
+            await TestTiming.waitUntil(seconds: 30) { model.writesQueued > 0 }
             #expect(model.writesQueued == 1, "the montage is queued behind the gate")
             task.cancel()
             await gate.open()
@@ -227,10 +227,7 @@ final class FileThumbnails: MontageThumbnailProviding {
             await model.waitForThumbnails()
             // Generous: under the full test run the main actor is shared by
             // every window test, and this only waits as long as it must.
-            let deadline = Date().addingTimeInterval(30)
-            while model.preview == nil || model.previewWork == nil, Date() < deadline {
-                try await Task.sleep(for: .milliseconds(20))
-            }
+            await TestTiming.waitUntil(seconds: 30) { model.preview != nil && model.previewWork != nil }
             await model.previewWork?.value
             let preview = try #require(model.preview)
             #expect(CGFloat(preview.width) == MontageModel.previewLongEdge)

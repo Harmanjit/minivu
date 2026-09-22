@@ -12,13 +12,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct CompareWindowBehaviourTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func folder(_ count: Int, width: Int = 600, height: Int = 400) throws -> (ScratchFolder, [FolderEntry]) {
             let scratch = try ScratchFolder()
             let entries = try (0..<count).map { i in
@@ -70,7 +63,7 @@ extension AppWindowTests {
             defer { CompareWindowController.current?.window?.close() }
             let controller = try #require(CompareWindowController.current)
             if !controller.isSynced { controller.toggleSync(nil) }
-            await waitUntil { controller.paneViews.allSatisfy { $0.canvas.image != nil } }
+            await TestTiming.waitUntil { controller.paneViews.allSatisfy { $0.canvas.image != nil } }
             var reports = 0
             for pane in controller.paneViews {
                 let forward = pane.onInteractiveViewChange
@@ -95,13 +88,13 @@ extension AppWindowTests {
             defer { CompareWindowController.current?.window?.close() }
             let controller = try #require(CompareWindowController.current)
             if !controller.isSynced { controller.toggleSync(nil) }
-            await waitUntil { controller.paneViews.allSatisfy { $0.canvas.image != nil } }
+            await TestTiming.waitUntil { controller.paneViews.allSatisfy { $0.canvas.image != nil } }
             controller.actualSize(nil)
             let zoomed = try #require(controller.paneViews[1].relativeView())
             #expect(!zoomed.isFit)
             controller.nextImage(nil)   // pane 1: a → c
             let pane = controller.paneViews[0]
-            await waitUntil { pane.entry?.name == "c.jpg" && pane.canvas.image != nil && pane.relativeView()?.isFit == false }
+            await TestTiming.waitUntil { pane.entry?.name == "c.jpg" && pane.canvas.image != nil && pane.relativeView()?.isFit == false }
             let view = try #require(pane.relativeView())
             #expect(!view.isFit)
             #expect(abs(view.zoomFactor - zoomed.zoomFactor) < 1e-6)
@@ -120,7 +113,7 @@ extension AppWindowTests {
                 window = controller?.window
                 pane = controller?.paneViews.first
             }
-            await waitUntil { pane?.canvas.image != nil }
+            await TestTiming.waitUntil { pane?.canvas.image != nil }
             texture = pane?.canvas.image
             #expect(texture != nil)
             autoreleasepool {
@@ -128,7 +121,7 @@ extension AppWindowTests {
                 controller?.toggleSync(nil)
                 controller?.window?.close()
             }
-            await waitUntil { controller == nil && window == nil && pane == nil }
+            await TestTiming.waitUntil { controller == nil && window == nil && pane == nil }
             #expect(CompareWindowController.current == nil)
             #expect(controller == nil)
             #expect(window == nil)

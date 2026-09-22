@@ -28,7 +28,7 @@ import os
         let counter = Counter()
         let watcher = try #require(FolderWatcher(folder: t.url, latency: 0.05) { counter.increment() })
         try t.file("new.jpg")
-        #expect(await counter.waitForMore(than: 0, timeout: .seconds(5)))
+        #expect(await counter.waitForMore(than: 0, timeout: TestTiming.limit(milliseconds: 5000)))
         watcher.stop()
     }
 
@@ -40,13 +40,18 @@ import os
         let counter = Counter()
         let watcher = try #require(FolderWatcher(folder: t.url, latency: 0.05) { counter.increment() })
         // FSEvents may still deliver the creation of "sub" a moment ago,
-        // even to a stream started after it; let that settle first.
-        try await Task.sleep(for: .milliseconds(500))
-        let baseline = counter.count
+        // even to a stream started after it. Waiting for the stream to fall
+        // quiet, rather than for a fixed time, is what makes the baseline
+        // mean anything: a straggler arriving after it would otherwise be
+        // read as the subfolder change below.
+        var baseline = counter.count
+        while await counter.waitForMore(than: baseline, timeout: TestTiming.limit(milliseconds: 300)) {
+            baseline = counter.count
+        }
         try Data().write(to: sub.appendingPathComponent("deep.jpg"))
-        #expect(await !counter.waitForMore(than: baseline, timeout: .seconds(1)))
+        #expect(await !counter.waitForMore(than: baseline, timeout: TestTiming.limit(milliseconds: 1000)))
         try t.file("top.jpg")
-        #expect(await counter.waitForMore(than: baseline, timeout: .seconds(5)))
+        #expect(await counter.waitForMore(than: baseline, timeout: TestTiming.limit(milliseconds: 5000)))
         watcher.stop()
     }
 
@@ -57,7 +62,7 @@ import os
         watcher.stop()
         watcher.stop()   // idempotent
         try t.file("after-stop.jpg")
-        #expect(await !counter.waitForMore(than: 0, timeout: .milliseconds(700)))
+        #expect(await !counter.waitForMore(than: 0, timeout: TestTiming.limit(milliseconds: 700)))
     }
 
     /// A callback already running when `stop()` is called must finish
@@ -68,11 +73,14 @@ import os
         let finished = OSAllocatedUnfairLock(initialState: false)
         let watcher = try #require(FolderWatcher(folder: t.url, latency: 0.05) {
             started.increment()
-            Thread.sleep(forTimeInterval: 0.3)
+            // Long enough that `stop()` below is reached while this is still
+            // running, which is the whole point of the test, on a machine
+            // that may be slow to get back to it.
+            Thread.sleep(forTimeInterval: 0.3 * TestTiming.slack)
             finished.withLock { $0 = true }
         })
         try t.file("slow.jpg")
-        #expect(await started.waitForMore(than: 0, timeout: .seconds(5)))
+        #expect(await started.waitForMore(than: 0, timeout: TestTiming.limit(milliseconds: 5000)))
         watcher.stop()
         #expect(finished.withLock { $0 })
     }
@@ -88,7 +96,7 @@ import os
         })
         box.withLockUnchecked { $0 = watcher }
         try t.file("stop-inside.jpg")
-        #expect(await counter.waitForMore(than: 0, timeout: .seconds(5)))
+        #expect(await counter.waitForMore(than: 0, timeout: TestTiming.limit(milliseconds: 5000)))
         box.withLockUnchecked { $0 = nil }
     }
 
@@ -99,7 +107,7 @@ import os
         #expect(watcher != nil)
         watcher = nil
         try t.file("after-release.jpg")
-        #expect(await !counter.waitForMore(than: 0, timeout: .milliseconds(700)))
+        #expect(await !counter.waitForMore(than: 0, timeout: TestTiming.limit(milliseconds: 700)))
     }
 
     @Test func missingFolderGivesNil() {

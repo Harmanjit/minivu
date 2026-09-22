@@ -21,13 +21,6 @@ extension AppWindowTests {
             await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
         }
 
-        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func key(_ characters: String, code: UInt16, at time: TimeInterval) -> NSEvent {
             NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: time, windowNumber: 0,
                              context: nil, characters: characters, charactersIgnoringModifiers: characters,
@@ -116,25 +109,25 @@ extension AppWindowTests {
             #expect(controller.grid.renameEditor == nil)
             #expect(FileManager.default.fileExists(atPath: photo.path))
             if let sheet = controller.window?.attachedSheet { controller.window?.endSheet(sheet) }
-            await waitUntil { controller.grid.renameEditor != nil }
+            await TestTiming.waitUntil(seconds: 30) { controller.grid.renameEditor != nil }
             #expect(controller.grid.renameEditor?.field.stringValue == "other.jpg", "back to correct")
 
             let again = try #require(controller.grid.renameEditor)
             again.field.stringValue = "beach.jpg"
             again.commit()
             let beach = t.url.appendingPathComponent("beach.jpg")
-            await waitUntil { controller.model.lead?.lastPathComponent == "beach.jpg" }
+            await TestTiming.waitUntil(seconds: 30) { controller.model.lead?.lastPathComponent == "beach.jpg" }
             #expect(FileManager.default.fileExists(atPath: beach.path))
             #expect(!FileManager.default.fileExists(atPath: photo.path))
 
             let undo = try #require(controller.window?.undoManager)
             #expect(undo.undoActionName == "Rename")
             undo.undo()
-            await waitUntil { FileManager.default.fileExists(atPath: photo.path) }
+            await TestTiming.waitUntil(seconds: 30) { FileManager.default.fileExists(atPath: photo.path) }
             #expect(FileManager.default.fileExists(atPath: photo.path))
             #expect(undo.canRedo)
             undo.redo()
-            await waitUntil { FileManager.default.fileExists(atPath: beach.path) }
+            await TestTiming.waitUntil(seconds: 30) { FileManager.default.fileExists(atPath: beach.path) }
             #expect(FileManager.default.fileExists(atPath: beach.path))
         }
 
@@ -169,7 +162,7 @@ extension AppWindowTests {
             #expect(controller.validateMenuItem(item(.newFolder)))
 
             controller.newFolder(nil)
-            await waitUntil { controller.grid.renameEditor != nil }
+            await TestTiming.waitUntil(seconds: 30) { controller.grid.renameEditor != nil }
             let editor = try #require(controller.grid.renameEditor)
             #expect(editor.url.lastPathComponent == "untitled folder")
             #expect(editor.field.currentEditor()?.selectedRange == NSRange(location: 0, length: 15))
@@ -202,11 +195,11 @@ extension AppWindowTests {
             let undo = try #require(controller.window?.undoManager)
             #expect(undo.undoActionName == "Move 1 Item")
             undo.undo()
-            await waitUntil { controller.model.entries.contains { $0.name == "a.jpg" } }
+            await TestTiming.waitUntil(seconds: 30) { controller.model.entries.contains { $0.name == "a.jpg" } }
             #expect(FileManager.default.fileExists(atPath: a.path) && !FileManager.default.fileExists(atPath: moved.path))
             #expect(controller.model.lead?.lastPathComponent == "a.jpg", "put back and selected")
             undo.redo()
-            await waitUntil { FileManager.default.fileExists(atPath: moved.path) }
+            await TestTiming.waitUntil(seconds: 30) { FileManager.default.fileExists(atPath: moved.path) }
             #expect(!FileManager.default.fileExists(atPath: a.path))
         }
 

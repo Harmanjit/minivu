@@ -15,13 +15,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct HDREditingTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// A gain-map HEIC: a grey ramp from black to 4x SDR white over its
         /// left three quarters, 4x white beyond, so every resampled copy
         /// keeps highlights at 4.
@@ -93,7 +86,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: true) { _ in }
             let viewer = try #require(ViewerWindowController.current)
             #expect(viewer.window?.frame == frame)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             try await body(viewer)
         }
 
@@ -157,7 +150,7 @@ extension AppWindowTests {
                 ]
                 for (name, open) in tools {
                     open()
-                    await waitUntil { viewer.activeTool != nil && viewer.editSession?.document.outputSize != nil }
+                    await TestTiming.waitUntil { viewer.activeTool != nil && viewer.editSession?.document.outputSize != nil }
                     #expect(viewer.activeTool?.title == name)
                     // Long enough for a render started by the decode to arrive.
                     try await Task.sleep(for: .milliseconds(300))
@@ -174,9 +167,9 @@ extension AppWindowTests {
                 // resolution comes from the original already decoded for
                 // editing, not from decoding the file again.
                 viewer.healingBrush(nil)
-                await waitUntil { viewer.activeTool != nil }
+                await TestTiming.waitUntil { viewer.activeTool != nil }
                 viewer.canvasView.actualSize(at: nil)
-                await waitUntil { viewer.canvasTexture?.isFullResolution == true }
+                await TestTiming.waitUntil { viewer.canvasTexture?.isFullResolution == true }
                 #expect(viewer.editSession?.hasDisplayedEdit == true && viewer.canvasTexture?.isFullResolution == true)
                 await expectHDR(viewer, "zoomed in with Healing Brush open")
                 viewer.closeTool()
@@ -195,10 +188,10 @@ extension AppWindowTests {
                 }
                 let session = try #require(viewer.editSession)
                 colors.setValue(0.3, section: 0, slider: 3)
-                await waitUntil { session.hasDisplayedEdit }
+                await TestTiming.waitUntil { session.hasDisplayedEdit }
                 await expectHDR(viewer, "temperature preview")
                 viewer.closeTool()
-                await waitUntil { showsViewersTexture(viewer) }
+                await TestTiming.waitUntil { showsViewersTexture(viewer) }
                 #expect(showsViewersTexture(viewer), "temperature cancelled: the edit render stayed")
                 await expectHDR(viewer, "temperature cancelled")
 
@@ -210,7 +203,7 @@ extension AppWindowTests {
                 }
                 warmer.setValue(0.3, section: 0, slider: 3)
                 viewer.closeTool(applying: true)
-                await waitUntil { session.document.deliveredOperations == session.document.operations }
+                await TestTiming.waitUntil { session.document.deliveredOperations == session.document.operations }
                 try await Task.sleep(for: .milliseconds(200))
                 #expect(!showsViewersTexture(viewer) && session.document.operations.count == 1)
                 await expectHDR(viewer, "temperature applied")
@@ -218,16 +211,16 @@ extension AppWindowTests {
                 // A line drawn: only the line is SDR.
                 var drawing: AnnotationToolState?
                 viewer.openDrawing(tool: .line) { state, _ in drawing = state }
-                await waitUntil { drawing != nil }
+                await TestTiming.waitUntil { drawing != nil }
                 let state = try #require(drawing)
                 var line = state.newObject(.line)
                 line.start = CGPoint(x: 0.1, y: 0.5)
                 line.end = CGPoint(x: 0.5, y: 0.5)
                 state.add(line)
-                await waitUntil { session.document.deliveredOperations?.count == 2 }
+                await TestTiming.waitUntil { session.document.deliveredOperations?.count == 2 }
                 await expectHDR(viewer, "line drawn")
                 viewer.closeTool(applying: true)
-                await waitUntil { session.document.operations.count == 2 }
+                await TestTiming.waitUntil { session.document.operations.count == 2 }
                 try await Task.sleep(for: .milliseconds(300))
                 await expectHDR(viewer, "drawing applied and closed")
 
@@ -235,7 +228,7 @@ extension AppWindowTests {
                 viewer.undoEdit()
                 viewer.undoEdit()
                 #expect(session.document.operations.isEmpty)
-                await waitUntil { showsViewersTexture(viewer) }
+                await TestTiming.waitUntil { showsViewersTexture(viewer) }
                 #expect(showsViewersTexture(viewer), "undone: the edit render stayed")
                 try await Task.sleep(for: .milliseconds(300))
                 #expect(showsViewersTexture(viewer), "undone: a render replaced the viewer's texture again")
@@ -267,7 +260,7 @@ extension AppWindowTests {
                     await nextTurn()
                     #expect(session.hasDisplayedEdit, "\(what): the unedited photo came up after the event")
                     var unedited = false
-                    let end = Date().addingTimeInterval(10)
+                    let end = TestTiming.patience()
                     while viewer.canvasTexture === shown
                         || session.document.deliveredOperations != session.document.renderedOperations, Date() < end {
                         if !session.hasDisplayedEdit { unedited = true }
@@ -289,33 +282,35 @@ extension AppWindowTests {
                     session.hasDisplayedEdit && session.document.deliveredOperations == session.document.renderedOperations
                 }
                 colors.setValue(0.3, section: 0, slider: 3)
-                await waitUntil { renderShown() }
+                await TestTiming.waitUntil { renderShown() }
                 try await expectEditStays("Colors section switched") { colors.setValue(0.2, section: 1, slider: 0) }
                 viewer.closeTool()
-                await waitUntil { showsViewersTexture(viewer) }
+                await TestTiming.waitUntil { showsViewersTexture(viewer) }
 
                 // Sketch, then Oil Painting in its place.
                 viewer.applySketch(nil)
-                await waitUntil { renderShown() }
+                await TestTiming.waitUntil { renderShown() }
                 try await expectEditStays("Oil Painting after Sketch") { viewer.applyOilPaint(nil) }
                 viewer.closeTool()
-                await waitUntil { showsViewersTexture(viewer) }
+                await TestTiming.waitUntil { showsViewersTexture(viewer) }
 
                 // A line drawn and applied, opened again, and cancelled.
                 var drawing: AnnotationToolState?
                 viewer.openDrawing(tool: .line) { state, _ in drawing = state }
-                await waitUntil { drawing != nil }
+                await TestTiming.waitUntil { drawing != nil }
                 var line = try #require(drawing).newObject(.line)
                 line.start = CGPoint(x: 0.1, y: 0.5)
                 line.end = CGPoint(x: 0.5, y: 0.5)
                 drawing?.add(line)
                 viewer.closeTool(applying: true)
-                await waitUntil { session.document.operations.count == 1 && session.document.deliveredOperations == session.document.operations }
+                await TestTiming.waitUntil {
+                    session.document.operations.count == 1 && session.document.deliveredOperations == session.document.operations
+                }
                 drawing = nil
                 viewer.openDrawing(tool: .select) { state, _ in drawing = state }
-                await waitUntil { drawing != nil }
+                await TestTiming.waitUntil { drawing != nil }
                 #expect(drawing?.isReEditing == true)
-                await waitUntil { renderShown() }
+                await TestTiming.waitUntil { renderShown() }
                 try await expectEditStays("drawing re-edit cancelled") { viewer.closeTool() }
                 #expect(session.document.operations.count == 1)
             }
@@ -334,10 +329,10 @@ extension AppWindowTests {
                 }
                 let session = try #require(viewer.editSession)
                 lighting.setValue(0.4, section: 0, slider: 0)
-                await waitUntil { session.hasDisplayedEdit }
+                await TestTiming.waitUntil { session.hasDisplayedEdit }
                 #expect(canvas.image?.isHDR == false && !canvas.isExtendedDynamicRange)
                 viewer.closeTool(applying: true)
-                await waitUntil { session.document.deliveredOperations == session.document.operations }
+                await TestTiming.waitUntil { session.document.deliveredOperations == session.document.operations }
                 for _ in 0..<3 { canvas.displayRefreshed() }
                 #expect(canvas.image?.isHDR == false && !canvas.isExtendedDynamicRange && !canvas.isRefreshing)
                 #expect(canvas.lastFrameHeadroom == 1)

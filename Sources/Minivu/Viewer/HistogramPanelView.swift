@@ -126,6 +126,11 @@ final class HistogramPanelController {
     private weak var measured: ImageTexture?
     private var computeTask: Task<Void, Never>?
     private var waitWork: DispatchWorkItem?
+    /// Whether a frame is being held back to the animation's pace. A paused
+    /// frame must never be: the wait is cancelled for it, and a test can say
+    /// so without timing how quickly the frame arrives, which on a loaded
+    /// machine says nothing.
+    var isPacingAFrame: Bool { waitWork != nil }
     private var lastStart: TimeInterval = -.infinity
     private var interval = HistogramPanelController.minimumInterval
     /// Computations started, for tests.

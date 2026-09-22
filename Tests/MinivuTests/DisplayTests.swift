@@ -209,13 +209,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct DisplayWindowTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         struct Setup {
             let screens: FakeScreens
             let options: FakePresentationOptions
@@ -372,7 +365,7 @@ extension AppWindowTests {
                 window.contentView?.layoutSubtreeIfNeeded()
                 #expect(window.frame == two.frame && window.isVisible && !slideshow.hasEnded)
                 #expect(slideshow.pictureFrame.minY == 38)
-                await waitUntil { slideshow.shownIndex == 0 }
+                await TestTiming.waitUntil { slideshow.shownIndex == 0 }
                 #expect(slideshow.shownIndex == 0)
             }
         }
@@ -415,7 +408,7 @@ extension AppWindowTests {
                 #expect(!setup.options.writes.contains([.autoHideToolbar]))
 
                 viewer.toggleFullScreenViewer(nil)
-                await waitUntil { setup.options.value == [.autoHideToolbar] }
+                await TestTiming.waitUntil { setup.options.value == [.autoHideToolbar] }
                 #expect(setup.options.value == [.autoHideToolbar] && !presentation.isHiding)
             }
         }

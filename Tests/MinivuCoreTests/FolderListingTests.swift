@@ -160,7 +160,7 @@ final class TemporaryFolder {
         }
     }
 
-    /// 3,000 files must list and sort quickly even in a debug build.
+    /// 3,000 files must list and sort quickly.
     @Test func listsThreeThousandFilesQuickly() throws {
         let t = try TemporaryFolder()
         for i in 0..<3000 { try t.file("photo\(i).jpg") }
@@ -176,7 +176,8 @@ final class TemporaryFolder {
         #expect(sorted.prefix(3).map(\.name) == ["photo0.jpg", "photo1.jpg", "photo2.jpg"])
         #expect(sorted[10].name == "photo10.jpg")
         #expect(sorted.last?.name == "photo2999.jpg")
-        #expect(elapsed < .milliseconds(500), "listing took \(elapsed)")
+        print("listing and sorting 3,000 files: \(elapsed)")
+        #expect(elapsed < TestTiming.limit(milliseconds: 250), "listing took \(elapsed)")
     }
 }
 

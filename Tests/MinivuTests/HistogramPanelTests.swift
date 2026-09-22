@@ -46,13 +46,6 @@ import MinivuRender
 }
 
 @MainActor @Suite(.serialized) struct HistogramPanelControllerTests {
-    func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-        let end = Date().addingTimeInterval(timeout)
-        while !condition(), Date() < end {
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-
     func texture(width: Int, height: Int) throws -> ImageTexture {
         let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                              space: CGColorSpace(name: CGColorSpace.displayP3)!,
@@ -78,7 +71,7 @@ import MinivuRender
 
         // Shown: the texture on the canvas is measured.
         panel.setActive(true)
-        await waitUntil { panel.model.data != nil }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.data != nil }
         #expect(panel.computeCount == 1)
         #expect(panel.model.data?.pixelCount == 100)
 
@@ -92,7 +85,7 @@ import MinivuRender
             panel.show(texture)
             try await Task.sleep(for: .milliseconds(10))
         }
-        await waitUntil { panel.model.data?.pixelCount == 800 }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.data?.pixelCount == 800 }
         let elapsed = clock.now - start
         #expect(panel.model.data?.pixelCount == 800)
         let allowed = Int(Double(elapsed.components.attoseconds) / 1e17) + Int(elapsed.components.seconds) * 10 + 1
@@ -110,7 +103,7 @@ import MinivuRender
         try await Task.sleep(for: .milliseconds(150))
         #expect(panel.computeCount == count)
         panel.setActive(true)
-        await waitUntil { panel.model.data?.pixelCount == 100 }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.data?.pixelCount == 100 }
         #expect(panel.computeCount == count + 1)
 
         panel.show(nil)
@@ -125,18 +118,20 @@ import MinivuRender
         let frames = try (1...3).map { try texture(width: 10 * $0, height: 10) }
         panel.setActive(true)
         panel.show(frames[0], interval: HistogramPanelController.animationInterval)
-        await waitUntil { panel.model.data != nil }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.data != nil }
         #expect(panel.computeCount == 1)
         panel.show(frames[1], interval: HistogramPanelController.animationInterval)
         try await Task.sleep(for: .milliseconds(300))
         #expect(panel.computeCount == 1)
         #expect(panel.model.data?.pixelCount == 100)
-        // Paused on a frame: it arrives at the usual pace, not a second later.
-        let paused = ContinuousClock.now
+        // Paused on a frame: it is not held back to the animation's tick.
+        // Asked of the wait itself rather than of a clock: any limit loose
+        // enough for a loaded machine is looser than the one second tick
+        // this exists to rule out, so it would rule out nothing.
         panel.show(frames[2])
-        await waitUntil { panel.model.data?.pixelCount == 300 }
+        #expect(!panel.isPacingAFrame)
+        await TestTiming.waitUntil(seconds: 30) { panel.model.data?.pixelCount == 300 }
         #expect(panel.model.data?.pixelCount == 300)
-        #expect(ContinuousClock.now - paused < .milliseconds(600))
         panel.stop()
     }
 
@@ -150,7 +145,7 @@ import MinivuRender
         #expect(panel.model.canCountColors)
         panel.model.onCountColors?()
         #expect(panel.model.colorCount == .counting)
-        await waitUntil { panel.model.colorCount != .counting }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.colorCount != .counting }
         guard case .counted(let count) = panel.model.colorCount else {
             Issue.record("not counted: \(panel.model.colorCount)")
             return
@@ -179,7 +174,7 @@ import MinivuRender
                                               ofItemAtPath: first.url.path)
         panel.countColors()
         #expect(panel.model.colorCount == .counting)
-        await waitUntil { panel.model.colorCount != .counting }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.colorCount != .counting }
         #expect(panel.model.colorCount == .counted(64))
 
         panel.setEntry(nil)
@@ -199,7 +194,7 @@ import MinivuRender
         panel.setEntry(entry)
         panel.countColors()
         #expect(panel.model.colorCount == .counting)
-        await waitUntil { panel.model.colorCount != .counting }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.colorCount != .counting }
         #expect(panel.model.colorCount == .tooLarge)
 
         // The very same file just within the budget counts as usual, so it
@@ -207,7 +202,7 @@ import MinivuRender
         panel.maximumCountPixels = 64 * 48
         panel.countColors()
         #expect(panel.model.colorCount == .counting)
-        await waitUntil { panel.model.colorCount != .counting }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.colorCount != .counting }
         guard case .counted(let count) = panel.model.colorCount else {
             Issue.record("not counted: \(panel.model.colorCount)")
             return
@@ -234,7 +229,7 @@ import MinivuRender
         panel.maximumCountPixels = 1
         panel.setEntry(try #require(FolderEntry(url: file)))
         panel.countColors()
-        await waitUntil { panel.model.colorCount != .counting }
+        await TestTiming.waitUntil(seconds: 30) { panel.model.colorCount != .counting }
         guard case .counted = panel.model.colorCount else {
             Issue.record("not counted: \(panel.model.colorCount)")
             return
@@ -250,13 +245,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ViewerHistogramTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         @Test func toggleHistogramAndCountColours() async throws {
             let scratch = try ScratchFolder()
             let list = try [scratch.jpeg("a.jpg", width: 800, height: 600), scratch.jpeg("b.jpg", width: 640, height: 480)]
@@ -264,7 +252,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canvasTexture != nil }
+            await TestTiming.waitUntil { viewer.canvasTexture != nil }
             let panel = viewer.histogramPanel
             #expect(panel.computeCount == 0)
             #expect(!panel.isActive)
@@ -275,23 +263,23 @@ extension AppWindowTests {
             viewer.toggleHistogram(nil)
             #expect(viewer.validateMenuItem(toggle))
             #expect(toggle.state == .on)
-            await waitUntil { panel.model.data != nil }
+            await TestTiming.waitUntil { panel.model.data != nil }
             #expect(panel.model.data?.pixelCount ?? 0 > 0)
 
             #expect(viewer.validateMenuItem(NSMenuItem(title: "", action: .countColors, keyEquivalent: "")))
             viewer.countColors(nil)
-            await waitUntil { if case .counted = panel.model.colorCount { true } else { false } }
+            await TestTiming.waitUntil { if case .counted = panel.model.colorCount { true } else { false } }
             if case .counted = panel.model.colorCount {} else { Issue.record("\(panel.model.colorCount)") }
 
             // The next image: its histogram follows, and its count starts afresh.
             viewer.nextImage(nil)
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 640, height: 480) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 640, height: 480) }
             #expect(panel.model.colorCount == .idle)
-            await waitUntil { panel.model.data?.sampledWidth == 640 }
+            await TestTiming.waitUntil { panel.model.data?.sampledWidth == 640 }
             #expect(panel.model.data?.sampledWidth == 640)
 
             viewer.toggleHistogram(nil)
-            await waitUntil { !panel.isActive }
+            await TestTiming.waitUntil { !panel.isActive }
             #expect(!panel.isActive)
         }
     }

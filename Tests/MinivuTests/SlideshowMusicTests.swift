@@ -253,7 +253,7 @@ import Foundation
         func waitForOpening(_ music: SlideshowMusic, _ gate: Gate) async {
             // Polled with a sleep, not Task.yield: yielding would spin on the
             // main actor, taking turns from every other test waiting there.
-            while gate.continuation == nil { try? await Task.sleep(for: .milliseconds(2)) }
+            await TestTiming.waitUntil { gate.continuation != nil }
             #expect(music.track == .opening)
         }
 

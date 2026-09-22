@@ -11,13 +11,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct TrashSafetyTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// Closes whatever viewer is open without asking about edits.
         func closeViewer() {
             ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in }
@@ -72,7 +65,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
 
             let savedQuestion = ViewerWindowController.askAboutUnsavedEdits
             defer { ViewerWindowController.askAboutUnsavedEdits = savedQuestion }
@@ -87,6 +80,9 @@ extension AppWindowTests {
             viewer.rotateRight(nil)
             let session = try #require(viewer.editSession)
             viewer.moveToTrash(nil)
+            // The ask arrives within the call, so waiting for it would prove
+            // nothing. This window is for the trashing that must not follow
+            // it, which would take a turn of its own.
             try await Task.sleep(for: .milliseconds(200))
             #expect(asked == ["a.jpg"])
             #expect(bin.names.isEmpty && exists(list[0].url))
@@ -102,6 +98,7 @@ extension AppWindowTests {
             lighting.setValue(0.4, section: 0, slider: 0)
             #expect(viewer.hasUnsavedEdits)
             viewer.moveToTrash(nil)
+            // Again a window for a trashing that must not happen.
             try await Task.sleep(for: .milliseconds(200))
             #expect(asked == ["a.jpg", "a.jpg"])
             #expect(bin.names.isEmpty && viewer.activeTool != nil)
@@ -109,7 +106,7 @@ extension AppWindowTests {
             // Don't Save trashes it and moves on.
             answer = .discard
             viewer.moveToTrash(nil)
-            await waitUntil { viewer.window?.title == "b.jpg" }
+            await TestTiming.waitUntil { viewer.window?.title == "b.jpg" }
             #expect(asked.count == 3 && bin.names == ["a.jpg"])
             #expect(viewer.editSession == nil && !exists(list[0].url))
         }
@@ -126,7 +123,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             viewer.rotateRight(nil)
 
             let savedQuestion = ViewerWindowController.askAboutUnsavedEdits
@@ -148,11 +145,13 @@ extension AppWindowTests {
 
             controller.model.setSelection([entries[1]], lead: entries[1])
             controller.moveToTrash(nil)
-            await waitUntil { bin.names == ["b.jpg"] }
+            await TestTiming.waitUntil { bin.names == ["b.jpg"] }
             #expect(asked.isEmpty && bin.names == ["b.jpg"])
 
             controller.model.setSelection([entries[0], entries[2]], lead: entries[0])
             controller.moveToTrash(nil)
+            // The ask arrives within the call; this window is for the two
+            // selected files, neither of which may go while it is up.
             try await Task.sleep(for: .milliseconds(200))
             #expect(asked == ["a.jpg"] && bin.names == ["b.jpg"])
             #expect(viewer.editSession?.document.isDirty == true)
@@ -160,7 +159,7 @@ extension AppWindowTests {
             answer = .discard
             controller.model.setSelection([entries[0], entries[2]], lead: entries[0])
             controller.moveToTrash(nil)
-            await waitUntil { bin.names.count == 3 }
+            await TestTiming.waitUntil { bin.names.count == 3 }
             #expect(asked == ["a.jpg", "a.jpg"] && Set(bin.names) == ["a.jpg", "b.jpg", "c.jpg"])
             #expect(viewer.editSession == nil)
         }
@@ -184,7 +183,7 @@ extension AppWindowTests {
             let viewerSave = slowSave(a, "viewer save")
             viewer.moveToTrash(nil)
             _ = try await viewerSave.value
-            await waitUntil { bin.names == ["a.jpg"] }
+            await TestTiming.waitUntil { bin.names == ["a.jpg"] }
             #expect(!exists(a) && bin.contents("a.jpg") == "viewer save")
             closeViewer()
 
@@ -199,7 +198,7 @@ extension AppWindowTests {
             let browserSave = slowSave(c, "browser save")
             controller.moveToTrash(nil)
             _ = try await browserSave.value
-            await waitUntil { bin.names.contains("c.jpg") }
+            await TestTiming.waitUntil { bin.names.contains("c.jpg") }
             #expect(!exists(c) && bin.contents("c.jpg") == "browser save")
 
             // Rename.
@@ -207,7 +206,7 @@ extension AppWindowTests {
             let renameSave = slowSave(d, "before rename")
             controller.performRename(d, to: "e.jpg")
             _ = try await renameSave.value
-            await waitUntil { exists(e) }
+            await TestTiming.waitUntil { exists(e) }
             #expect(!exists(d) && contents(e) == "before rename")
 
             // Move.

@@ -47,8 +47,11 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
     /// Waits for something to happen, never for it not to: a long deadline
     /// costs nothing when the player works, and frames arrive on the main
     /// queue, which the suite's GPU-heavy tests share when run in parallel.
-    func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-        let end = Date().addingTimeInterval(timeout)
+    /// How long that deadline is comes from `TestTiming`; the wait itself
+    /// has to stay here, because `TestTiming.waitUntil` is not isolated and
+    /// these conditions read main-actor state.
+    func waitUntil(_ condition: () -> Bool) async {
+        let end = TestTiming.patience()
         while !condition(), Date() < end {
             try? await Task.sleep(for: .milliseconds(5))
         }
@@ -90,17 +93,36 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         await waitUntil { times.count >= 13 }
         player.stop()
         try #require(times.count >= 13)
-        // Frames are 50 ms apart. The median interval is used rather than
-        // the total, because other test suites share the main actor and can
-        // make any single frame late; the player then catches up against its
-        // deadlines (intended), which shortens the following interval. The
-        // median ignores both, while a player that drifted or ran at the
-        // wrong rate would still move it.
-        let intervals = zip(times.dropFirst(), times).map { $0 - $1 }.sorted()
-        let median = intervals[intervals.count / 2]
-        // Upper bound generous: the whole test suite shares the main actor.
-        // It still catches a player running at the wrong rate (e.g. double).
-        #expect(median > 0.04 && median < 0.095, "\(intervals)")
+        // Frames are 50 ms apart, so twelve of them span 600 ms. Two things
+        // are asked of that, and each is asked of the measurement that load
+        // cannot fake, because other test suites share this main actor and
+        // have been seen to hold it for seconds at a time.
+        let intervals = zip(times.dropFirst(), times).map { $0 - $1 }
+        // Not too fast, from the whole span. A busy machine can only make a
+        // frame late, never early, so this needs no allowance at all: the
+        // player counts each delay from when the frame was due rather than
+        // from when it appeared, and only restarts its clock for a frame
+        // more than `catchUpLimit` late, so twelve frames can never be
+        // handed over sooner than this however loaded the machine is. A
+        // player that ignored the file's delays, or shortened them by a
+        // sixth, breaks it every time.
+        let span = times[12] - times[0]
+        #expect(span > 12 * 0.05 - AnimationPlayer.catchUpLimit, "span \(span), \(intervals)")
+        // Not too slow, from the quickest interval, for the same reason the
+        // drawing budgets take the best of several runs: the span is no use
+        // here, since a stall inflates it without limit, whereas the
+        // quickest of twelve intervals is the one the machine left alone.
+        // A player at half the rate has no quick interval to show: on a
+        // quiet machine every one of its intervals is 100 ms. Only a
+        // machine that held every single frame up could fail this wrongly,
+        // and one that stalls that evenly for 600 ms cannot be told from a
+        // slow player by any clock. That the file's own numbers are read
+        // correctly is settled without a clock in `AnimationFramesTests`.
+        // 75 ms, not the 95 ms that only just separates the two cases: the
+        // quickest interval of a working player sits near the file's 50 ms,
+        // and a player at half the rate has none below 100 ms, so the line
+        // belongs between them rather than against one of them.
+        #expect(intervals.min()! < 0.075, "\(intervals)")
     }
 
     @Test func pauseAndSuspendStopTheClock() async throws {
@@ -116,7 +138,11 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         #expect(!player.isPlaying && states == 1)
         let paused = count
         let frame = player.currentFrame
-        try await Task.sleep(for: .milliseconds(150))
+        // Frames are 20 ms apart, so this covers several of them. It is
+        // stretched like every other wait in the suite: a stopped clock is
+        // only proved by waiting longer than a running one would take, and
+        // on a busy machine a running one takes longer.
+        try await Task.sleep(for: TestTiming.limit(milliseconds: 150))
         #expect(count == paused)
         #expect(player.currentFrame == frame)
 
@@ -127,14 +153,14 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         player.isSuspended = true
         #expect(player.isPlaying)   // still wants to play when visible again
         let suspended = count
-        try await Task.sleep(for: .milliseconds(150))
+        try await Task.sleep(for: TestTiming.limit(milliseconds: 150))
         #expect(count == suspended)
         player.isSuspended = false
         await waitUntil { count >= suspended + 2 }
         #expect(count >= suspended + 2)
         player.stop()
         let stopped = count
-        try await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(for: TestTiming.limit(milliseconds: 100))
         #expect(count == stopped)
     }
 

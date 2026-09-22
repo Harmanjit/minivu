@@ -167,7 +167,10 @@ import UniformTypeIdentifiers
         service.setSuspended(false)
         #expect(await otherDone != nil)
 
-        try await Task.sleep(for: .milliseconds(200))
+        // Long enough that a request that had not really been cancelled
+        // would have been decoded and reported by now, on a busy machine
+        // as much as on a quiet one.
+        try await Task.sleep(for: TestTiming.limit(milliseconds: 200))
         #expect(recorder.names.isEmpty)
         #expect(service.cachedImage(for: skipped, pixelSize: 256) == nil)   // never decoded
     }

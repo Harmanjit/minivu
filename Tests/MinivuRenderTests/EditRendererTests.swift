@@ -36,10 +36,21 @@ import Metal
         }
     }
 
-    func waitUntilIdle(_ doc: EditDocument) async {
-        while doc.previewLane.isRunning || doc.previewLane.pending != nil || doc.fullLane.isRunning
-            || doc.fullLane.pending != nil {
+    /// `TestTiming.waitUntil` is not isolated and everything waited on here
+    /// is main-actor state, so the wait stays local and takes only its
+    /// deadline from `TestTiming`: work that never finishes should fail the
+    /// test it belongs to rather than hang the run.
+    func waitUntil(_ condition: () -> Bool) async {
+        let end = TestTiming.patience()
+        while !condition(), Date() < end {
             try? await Task.sleep(for: .milliseconds(2))
+        }
+    }
+
+    func waitUntilIdle(_ doc: EditDocument) async {
+        await waitUntil {
+            !doc.previewLane.isRunning && doc.previewLane.pending == nil && !doc.fullLane.isRunning
+                && doc.fullLane.pending == nil
         }
     }
 
@@ -140,7 +151,10 @@ import Metal
 
         doc.preview = .rgbAdjust(red: -1, green: 0, blue: 0)
         renderer.renderFullResolution(doc) { record($0) }
-        try await Task.sleep(for: .milliseconds(1))   // let it take its snapshot of the document
+        // Let it take its snapshot of the document before the preview
+        // changes underneath it: the lane publishes the revision it took,
+        // and a lane that has already stopped running took one too.
+        await waitUntil { doc.fullLane.runningRevision != nil || !doc.fullLane.isRunning }
         doc.preview = .rgbAdjust(red: 0, green: 0, blue: 0)
         renderer.renderPreview(doc, pixelSize: 400) { record($0) }
         await waitUntilIdle(doc)
@@ -464,9 +478,7 @@ import Metal
             droppedDoc = other
             droppedSource = other.source
         }
-        for _ in 0..<50 where droppedDoc != nil || droppedSource != nil || releasedDoc != nil {
-            try await Task.sleep(for: .milliseconds(5))
-        }
+        await waitUntil { releasedDoc == nil && droppedDoc == nil && droppedSource == nil }
         #expect(releasedDoc == nil && droppedDoc == nil && droppedSource == nil)
     }
 

@@ -148,10 +148,7 @@ import MinivuCore
         sidebar.onNavigate = { navigated.append($0) }
 
         sidebar.reveal(iceland)
-        let deadline = ContinuousClock.now + .seconds(30)
-        while sidebar.selectedFolder.map({ BrowserModel.samePath($0, iceland) }) != true, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(20))
-        }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.selectedFolder.map { BrowserModel.samePath($0, iceland) } == true }
         #expect(sidebar.selectedFolder.map { BrowserModel.samePath($0, iceland) } == true)
         #expect(navigated.isEmpty, "a reveal must not navigate")
 
@@ -213,13 +210,6 @@ extension AppWindowTests {
     /// The preview pane with real photos, which go through the app's shared
     /// image loader.
     @MainActor @Suite struct PreviewReloadTests {
-        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         /// A display setting changed (the loader has dropped its textures): the
         /// photo in the pane decodes again with its zoom kept, and its
         /// neighbours are prefetched again.
@@ -239,12 +229,12 @@ extension AppWindowTests {
             func neighbourCached() -> Bool {
                 cache.anyTexture(url: photos[1].url, modified: photos[1].modified, page: 0) != nil
             }
-            await waitUntil { preview.canvasView?.image != nil && neighbourCached() }
+            await TestTiming.waitUntil(seconds: 30) { preview.canvasView?.image != nil && neighbourCached() }
             let canvas = try #require(preview.canvasView)
             try #require(canvas.image != nil && neighbourCached())
 
             canvas.zoom(by: 2.5, at: nil)
-            await waitUntil { canvas.image?.isFullResolution == true }   // the zoom asked for it
+            await TestTiming.waitUntil(seconds: 30) { canvas.image?.isFullResolution == true }   // the zoom asked for it
             let view = (canvas.transform, canvas.zoomMode)
             #expect(view.1 != .fit)
             let old = try #require(canvas.image)
@@ -253,10 +243,10 @@ extension AppWindowTests {
             AppServices.images.invalidate(photos[0].url)
             AppServices.images.invalidate(photos[1].url)
             NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
-            await waitUntil { canvas.image.map { $0 !== old } ?? false }
+            await TestTiming.waitUntil(seconds: 30) { canvas.image.map { $0 !== old } ?? false }
             #expect(canvas.image !== old)
             #expect(canvas.transform == view.0 && canvas.zoomMode == view.1)
-            await waitUntil(neighbourCached)
+            await TestTiming.waitUntil(seconds: 30, neighbourCached)
             #expect(neighbourCached())
 
             // Hidden, the pane does nothing until it is shown again.
@@ -288,22 +278,22 @@ extension AppWindowTests {
             window.contentView?.layoutSubtreeIfNeeded()
             defer { preview.isVisible = false }
             preview.show(.image(photos[0], neighbours: [photos[1]]))
-            await waitUntil { preview.canvasView?.image != nil && cached(photos[1]) }
+            await TestTiming.waitUntil(seconds: 30) { preview.canvasView?.image != nil && cached(photos[1]) }
             let old = try #require(preview.canvasView?.image)
 
             ViewerWindowController.show(images: [photos[2], photos[3]], index: 0, fullScreen: false) { _ in }
             let viewer = try #require(ViewerWindowController.current)
             defer { viewer.exitViewer(nil) }
-            await waitUntil { viewer.canvasTexture != nil && cached(photos[3]) }
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture != nil && cached(photos[3]) }
             try #require(cached(photos[3]))
 
             // The viewer's photo stays cached, so it shows again (and sets its
             // prefetch) at once; the pane's decodes, and arrives after.
             for photo in [photos[0], photos[1], photos[3]] { AppServices.images.invalidate(photo.url) }
             NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
-            await waitUntil { preview.canvasView?.image.map { $0 !== old } ?? false }
+            await TestTiming.waitUntil(seconds: 30) { preview.canvasView?.image.map { $0 !== old } ?? false }
             #expect(preview.canvasView?.image !== old)
-            await waitUntil { cached(photos[3]) }
+            await TestTiming.waitUntil(seconds: 30) { cached(photos[3]) }
             try await Task.sleep(for: .milliseconds(300))   // time for a neighbour decode to land
             #expect(cached(photos[3]))
             #expect(!cached(photos[1]))
@@ -393,13 +383,6 @@ extension AppWindowTests {
         rootTitle = FileManager.default.displayName(atPath: t.url.path)
     }
 
-    func waitUntil(_ condition: () -> Bool) async throws {
-        let deadline = ContinuousClock.now + .seconds(30)
-        while !condition(), ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(20))
-        }
-    }
-
     func node(_ url: URL) -> SidebarNode? {
         let outline = sidebar.outlineView
         return (0..<outline.numberOfRows).lazy.compactMap { outline.item(atRow: $0) as? SidebarNode }
@@ -418,7 +401,7 @@ extension AppWindowTests {
         sidebar.onNavigate = { navigated.append($0) }
 
         sidebar.reveal(inner)
-        try await waitUntil { isSelected(inner) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         sidebar.reveal(alpha)
         #expect(isSelected(alpha))
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "  Charlie"])
@@ -428,7 +411,7 @@ extension AppWindowTests {
         try t.folder("Bravo")
         try t.folder("Delta")
         sidebar.folderChangedOnDisk(t.url)
-        try await waitUntil { sidebar.rowOutline.contains("  Delta") }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("  Delta") }
 
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "  Bravo", "  Delta"])
         #expect(node(alpha) === alphaNode, "rows still there keep their objects")
@@ -442,13 +425,13 @@ extension AppWindowTests {
         let alpha = try t.folder("Alpha")
         let inner = try t.folder("Inner", in: alpha)
         sidebar.reveal(inner)
-        try await waitUntil { isSelected(inner) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         let alphaNode = try #require(node(alpha))
         sidebar.outlineView.collapseItem(alphaNode)
 
         try t.folder("Bravo")
         sidebar.folderChangedOnDisk(t.url)
-        try await waitUntil { sidebar.rowOutline.contains("  Bravo") }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("  Bravo") }
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "  Bravo"])
         #expect(!sidebar.outlineView.isItemExpanded(alphaNode))
     }
@@ -457,7 +440,7 @@ extension AppWindowTests {
         let alpha = try t.folder("Alpha")
         let inner = try t.folder("Inner", in: alpha)
         sidebar.reveal(inner)
-        try await waitUntil { isSelected(inner) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         let alphaNode = try #require(node(alpha))
         // The favourite and Alpha, once each: opening a row because its
         // first listing arrived is not opening it again.
@@ -467,7 +450,7 @@ extension AppWindowTests {
         try t.folder("Second", in: alpha)
         try FileManager.default.removeItem(at: inner)
         sidebar.outlineView.expandItem(alphaNode)
-        try await waitUntil { sidebar.rowOutline.contains("    Second") }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("    Second") }
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Second"])
         #expect(sidebar.listingsStarted == 3)
     }
@@ -480,13 +463,13 @@ extension AppWindowTests {
         let inner = try t.folder("Inner", in: alpha)
         let echo = try t.folder("Echo")
         sidebar.reveal(inner)
-        try await waitUntil { isSelected(inner) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         let alphaNode = try #require(node(alpha))
         sidebar.outlineView.collapseItem(alphaNode)
 
         try t.folder("Third", in: alpha)
         sidebar.folderChangedOnDisk(alpha)
-        try await waitUntil { alphaNode.children?.count == 2 }
+        await TestTiming.waitUntil(seconds: 30) { alphaNode.children?.count == 2 }
         sidebar.outlineView.expandItem(alphaNode)
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "    Third", "  Echo"])
 
@@ -494,7 +477,7 @@ extension AppWindowTests {
         #expect(!sidebar.outlineView.isExpandable(echoNode))
         try t.folder("Sub", in: echo)
         sidebar.folderChangedOnDisk(echo)
-        try await waitUntil { sidebar.outlineView.isExpandable(echoNode) }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.outlineView.isExpandable(echoNode) }
         #expect(sidebar.outlineView.isExpandable(echoNode))
     }
 
@@ -508,26 +491,26 @@ extension AppWindowTests {
         try t.folder("Deep", in: inner)
         try t.folder("Bravo")
         sidebar.reveal(inner)
-        try await waitUntil { isSelected(inner) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         let innerNode = try #require(node(inner))
         sidebar.outlineView.expandItem(innerNode)
-        try await waitUntil { sidebar.rowOutline.contains("      Deep") }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("      Deep") }
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "      Deep", "  Bravo"])
 
         // Alpha goes with Inner inside it: two levels up is what's left.
         try FileManager.default.removeItem(at: alpha)
         sidebar.folderChangedOnDisk(inner)
-        try await waitUntil { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"] }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"] }
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"])
 
         // A row never listed itself (only its disclosure triangle checked).
         let charlie = try t.folder("Charlie")
         sidebar.folderChangedOnDisk(t.url)
-        try await waitUntil { sidebar.rowOutline.contains("  Charlie") }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("  Charlie") }
         #expect(node(charlie)?.children == nil)
         try FileManager.default.moveItem(at: charlie, to: t.url.appendingPathComponent("Delta"))
         sidebar.folderChangedOnDisk(charlie)
-        try await waitUntil { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"] }
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"] }
         #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"])
     }
 
@@ -539,7 +522,7 @@ extension AppWindowTests {
         let alpha = try t.folder("Alpha")
         let inner = try t.folder("Inner", in: alpha)
         sidebar.reveal(inner)
-        try await waitUntil { isSelected(inner) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         let oldAlpha = try #require(node(alpha))
         let started = sidebar.listingsStarted
 
@@ -549,7 +532,7 @@ extension AppWindowTests {
         #expect(oldAlpha.isListing)
         sidebar.reloadFavorites()              // Alpha's row replaced before either lands
         #expect(oldAlpha.isDetached)
-        try await waitUntil { isSelected(inner) && !oldAlpha.isListing }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(inner) && !oldAlpha.isListing }
         try await Task.sleep(for: .milliseconds(100))
 
         #expect(!oldAlpha.isListing)
@@ -566,17 +549,17 @@ extension AppWindowTests {
     @Test func revealingANewFolderListsItsParentAgain() async throws {
         let alpha = try t.folder("Alpha")
         sidebar.reveal(alpha)
-        try await waitUntil { isSelected(alpha) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(alpha) }
 
         let late = try t.folder("Late")
         sidebar.reveal(late)
-        try await waitUntil { isSelected(late) }
+        await TestTiming.waitUntil(seconds: 30) { isSelected(late) }
         #expect(isSelected(late))
 
         // A hidden folder is never found; revealing it must settle, not loop.
         let hidden = try t.folder(".hidden")
         sidebar.reveal(hidden)
-        try await Task.sleep(for: .milliseconds(200))
+        await TestTiming.waitUntil(seconds: 30) { !(node(t.url)?.isListing ?? true) }
         #expect(sidebar.selectedFolder == nil)
         #expect(!(node(t.url)?.isListing ?? true))
     }

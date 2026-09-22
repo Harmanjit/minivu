@@ -134,13 +134,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct EffectsViewerTests {
         init() { _ = NSApplication.shared }
 
-        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end {
-                try? await Task.sleep(for: .milliseconds(10))
-            }
-        }
-
         func closeViewer() {
             ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in }
         }
@@ -151,7 +144,7 @@ extension AppWindowTests {
             ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
             defer { closeViewer() }
             let viewer = try #require(ViewerWindowController.current)
-            await waitUntil { viewer.canEditCurrent }
+            await TestTiming.waitUntil { viewer.canEditCurrent }
             for action in [Selector.addDropShadow, .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens] {
                 #expect(viewer.validateEditAction(action) == true, "\(action)")
                 #expect(viewer.toolsPanel.row(for: action)?.isEnabled == true, "\(action)")
@@ -159,7 +152,7 @@ extension AppWindowTests {
 
             // Frame: opens once decoded, previews, and grows the canvas when applied.
             viewer.addFrame(nil)
-            await waitUntil { viewer.activeEffect != nil }
+            await TestTiming.waitUntil { viewer.activeEffect != nil }
             let frame = try #require(viewer.activeEffect as? EffectToolState<FrameStyle>)
             #expect(viewer.flyouts.isPinned(.left) && viewer.toolsPanel.inspector != nil)
             let session = try #require(viewer.editSession)
@@ -167,7 +160,7 @@ extension AppWindowTests {
             frame.update { $0.kind = .polaroid }
             viewer.closeTool(applying: true)
             #expect(session.document.outputSize == CGSize(width: 632, height: 472))   // 16 px sides, 56 px bottom
-            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 632, height: 472) }
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 632, height: 472) }
             #expect(viewer.canvasTexture?.imageSize == CGSize(width: 632, height: 472))
 
             // Oil paint and sketch default their sizes to the photo: the smallest brush for 632 x 472.

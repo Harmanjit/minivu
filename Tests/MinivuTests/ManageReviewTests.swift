@@ -121,11 +121,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ManageUndoSafetyTests {
         let catalog = Catalog.inMemory()
 
-        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
-        }
-
         func size(_ url: URL) -> Int? {
             (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int
         }
@@ -151,13 +146,13 @@ extension AppWindowTests {
 
             let undo = try #require(controller.window?.undoManager)
             undo.undo()
-            await waitUntil { self.size(old) == 1 && FileManager.default.fileExists(atPath: incoming.path) }
+            await TestTiming.waitUntil(seconds: 30) { self.size(old) == 1 && FileManager.default.fileExists(atPath: incoming.path) }
             #expect(size(incoming) == 4, "moved back")
             #expect(size(old) == 1, "the replaced file is back from the Trash")
 
             #expect(undo.canRedo)
             undo.redo()
-            await waitUntil { self.size(old) == 4 }
+            await TestTiming.waitUntil(seconds: 30) { self.size(old) == 4 }
             #expect(size(old) == 4 && !FileManager.default.fileExists(atPath: incoming.path))
         }
 
@@ -184,13 +179,13 @@ extension AppWindowTests {
             let undo = try #require(controller.window?.undoManager)
             #expect(undo.undoActionName == "Copy 1 Item")
             undo.undo()
-            await waitUntil { self.size(old) == 1 }
+            await TestTiming.waitUntil(seconds: 30) { self.size(old) == 1 }
             #expect(size(old) == 1 && size(incoming) == 4)
             let binned = try FileManager.default.contentsOfDirectory(at: bin, includingPropertiesForKeys: nil)
             #expect(binned.map { size($0) } == [4], "only the copy is left in the Trash")
 
             undo.redo()
-            await waitUntil { self.size(old) == 4 }
+            await TestTiming.waitUntil(seconds: 30) { self.size(old) == 4 }
             #expect(size(old) == 4)
             #expect(try FileManager.default.contentsOfDirectory(atPath: bin.path).count == 2)
         }
@@ -242,11 +237,6 @@ extension AppWindowTests {
     @MainActor @Suite(.serialized) struct ManageReviewWindowTests {
         let catalog = Catalog.inMemory()
 
-        func waitUntil(timeout: Double = 30, _ condition: () -> Bool) async {
-            let end = Date().addingTimeInterval(timeout)
-            while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
-        }
-
         /// A file renamed in Custom Order stays where the user put it.
         @Test func renameKeepsCustomOrderPlace() async throws {
             _ = NSApplication.shared
@@ -263,7 +253,7 @@ extension AppWindowTests {
             #expect(controller.model.entries.map(\.name) == ["c.jpg", "a.jpg", "b.jpg"])
 
             controller.performRename(a, to: "z.jpg")
-            await waitUntil { controller.model.entries.map(\.name) == ["c.jpg", "z.jpg", "b.jpg"] }
+            await TestTiming.waitUntil(seconds: 30) { controller.model.entries.map(\.name) == ["c.jpg", "z.jpg", "b.jpg"] }
             #expect(controller.model.entries.map(\.name) == ["c.jpg", "z.jpg", "b.jpg"])
             #expect(catalog.customOrder(in: t.url) == ["c.jpg", "z.jpg", "b.jpg"])
         }
