@@ -186,6 +186,61 @@ import MinivuRender
         #expect(!panel.model.canCountColors)
         panel.stop()
     }
+
+    /// Too many pixels to count: the file's header says so, and the panel
+    /// says so too instead of decoding gigabytes to find out or reporting
+    /// no colours at all. The budget is pinned, since a file large enough
+    /// to refuse on this Mac is one no test should write.
+    @Test func refusesAnImagePastTheMemoryBudgetWithoutDecodingIt() async throws {
+        let scratch = try ScratchFolder()
+        let entry = try #require(FolderEntry(url: scratch.jpeg("wide.jpg", width: 64, height: 48)))
+        let panel = HistogramPanelController()
+        panel.maximumCountPixels = 64 * 48 - 1
+        panel.setEntry(entry)
+        panel.countColors()
+        #expect(panel.model.colorCount == .counting)
+        await waitUntil { panel.model.colorCount != .counting }
+        #expect(panel.model.colorCount == .tooLarge)
+
+        // The very same file just within the budget counts as usual, so it
+        // was the budget that refused it and not the file.
+        panel.maximumCountPixels = 64 * 48
+        panel.countColors()
+        #expect(panel.model.colorCount == .counting)
+        await waitUntil { panel.model.colorCount != .counting }
+        guard case .counted(let count) = panel.model.colorCount else {
+            Issue.record("not counted: \(panel.model.colorCount)")
+            return
+        }
+        #expect(count >= 1)
+        panel.stop()
+    }
+
+    /// A PDF is rasterised at a bounded edge whatever size the document
+    /// calls itself, so the budget has nothing to refuse there however
+    /// small it is set.
+    @Test func countsAVectorDocumentWhateverSizeItCallsItself() async throws {
+        let scratch = try ScratchFolder()
+        let file = scratch.url.appendingPathComponent("poster.pdf")
+        var box = CGRect(x: 0, y: 0, width: 200, height: 100)
+        let pdf = try #require(CGContext(file as CFURL, mediaBox: &box, nil))
+        pdf.beginPDFPage(nil)
+        pdf.setFillColor(red: 0.2, green: 0.4, blue: 0.9, alpha: 1)
+        pdf.fill(box)
+        pdf.endPDFPage()
+        pdf.closePDF()
+
+        let panel = HistogramPanelController()
+        panel.maximumCountPixels = 1
+        panel.setEntry(try #require(FolderEntry(url: file)))
+        panel.countColors()
+        await waitUntil { panel.model.colorCount != .counting }
+        guard case .counted = panel.model.colorCount else {
+            Issue.record("not counted: \(panel.model.colorCount)")
+            return
+        }
+        panel.stop()
+    }
 }
 
 extension AppWindowTests {

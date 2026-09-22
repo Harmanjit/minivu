@@ -22,9 +22,33 @@ public enum ColorCounter {
     /// Number of possible 24-bit colours, and bits in the bitset.
     public static let colorSpaceSize = 1 << 24
 
+    /// The bitmap the count draws into could not be allocated, so there is
+    /// no answer to give. Reporting no colours instead would be a wrong
+    /// answer, and an image this large is exactly where it would happen.
+    public struct OutOfMemory: Error {}
+
+    /// The most pixels an image may have before counting it is refused, on
+    /// a Mac with `physicalMemory` bytes of RAM.
+    ///
+    /// A count holds the whole image twice over: the copy ImageIO decodes
+    /// (four bytes a pixel, and more again while a 16-bit file converts)
+    /// and the 8-bit bitmap drawn from it here. Eight bytes a pixel, then,
+    /// and a quarter of RAM is as much as one count may take. That is a
+    /// larger share than a cache may claim, because this is a transient
+    /// allocation the user asked for and waits on, but only so large: a
+    /// 30000x30000 stitched TIFF wants 7.2 GB, which a 16 GB Mac would
+    /// spend a minute paging for before it could answer. So 268 megapixels
+    /// on an 8 GB Mac and 2.1 gigapixels on a 64 GB one, neither of which
+    /// puts a 24 MP photo or a 200 MP panorama in question.
+    public static func maximumPixels(physicalMemory: UInt64) -> Int {
+        Int(physicalMemory / 32)
+    }
+
     /// - Parameter isCancelled: checked once per row, from the calling
     ///   thread; the default follows the current task.
-    /// - Throws: `CancellationError` when `isCancelled` returns true.
+    /// - Throws: `CancellationError` when `isCancelled` returns true, and
+    ///   `OutOfMemory` when the bitmap can't be allocated. An image with no
+    ///   pixels at all is not a failure: it has no colours, so 0.
     public static func countUniqueColors(in image: CGImage,
                                          isCancelled: () -> Bool = { Task.isCancelled }) throws -> Int {
         let width = image.width, height = image.height
@@ -36,7 +60,7 @@ public enum ColorCounter {
                                       space: space, bitmapInfo: bitmapInfo)
                 ?? CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
                              space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: bitmapInfo),
-              let data = context.data else { return 0 }
+              let data = context.data else { throw OutOfMemory() }
         // Exact pixels: no resampling or dithering between image and bitmap.
         context.interpolationQuality = .none
         context.setShouldAntialias(false)

@@ -74,12 +74,17 @@ nonisolated enum HistogramPlot {
 
 /// What the panel shows; the controller below fills it in.
 @Observable final class HistogramPanelModel {
-    enum ColorCount: Equatable {
+    /// `nonisolated` because the count is made on a background queue and
+    /// its outcome comes back as one of these.
+    nonisolated enum ColorCount: Equatable, Sendable {
         /// Not counted yet (the Count button shows).
         case idle
         case counting
         case counted(Int)
         case failed
+        /// Refused from the file's header: counting this many pixels needs
+        /// more memory than this Mac can spare, so retrying is pointless.
+        case tooLarge
     }
 
     var data: HistogramData?
@@ -135,6 +140,8 @@ final class HistogramPanelController {
     /// Colour counts already made this session, by file and modification
     /// date: counting decodes the whole image, so a second look is free.
     private static var counts: [CountKey: Int] = [:]
+    /// `ColorCounter.maximumPixels` for this Mac; tests set it.
+    var maximumCountPixels = ColorCounter.maximumPixels(physicalMemory: ProcessInfo.processInfo.physicalMemory)
 
     init() {
         model.onCountColors = { [weak self] in self?.countColors() }
@@ -231,6 +238,9 @@ final class HistogramPanelController {
     /// Decodes the file at full resolution off the main thread and counts
     /// its colours. The file as saved is counted, not an unsaved edit, and
     /// HDR photos as their SDR rendition (the counter works in 8 bits).
+    /// Nothing is decoded when the header alone says the image is past
+    /// `maximumCountPixels`: the panel says so instead of spending
+    /// gigabytes to find out.
     ///
     /// The file's modification date is read afresh (one stat): the viewer's
     /// entry keeps the date the folder was listed with, so after a save in
@@ -248,26 +258,32 @@ final class HistogramPanelController {
         }
         model.colorCount = .counting
         let url = entry.url
+        let limit = maximumCountPixels
         // A full decode and a count of every pixel block their thread for
         // seconds: on GCD (BlockingWork), with a flag in place of task
         // cancellation so a closed viewer skips the count after the decode.
         let cancel = CancellationFlag()
         countTask = Task { [weak self] in
-            let count = await withTaskCancellationHandler {
-                await BlockingWork.run { () -> Int? in
-                    guard let decoded = try? ImageDecoder.decode(url, allowHDR: false), !cancel.isCancelled
-                    else { return nil }
-                    return try? ColorCounter.countUniqueColors(in: decoded.image)
+            let outcome = await withTaskCancellationHandler {
+                await BlockingWork.run { () -> HistogramPanelModel.ColorCount in
+                    // The header gives the size without reading a pixel, so
+                    // refusing an image too large costs nothing. Only a
+                    // raster or RAW file decodes at that size: a PDF or an
+                    // SVG is rasterised at a bounded edge however large the
+                    // document calls itself, so there is nothing to refuse.
+                    let kind = ImageFormats.kind(of: url)
+                    if kind == .raster || kind == .raw, let info = ImageDecoder.info(for: url),
+                       info.pixelSize.width * info.pixelSize.height > Double(limit) { return .tooLarge }
+                    guard let decoded = try? ImageDecoder.decode(url, allowHDR: false), !cancel.isCancelled,
+                          let count = try? ColorCounter.countUniqueColors(in: decoded.image)
+                    else { return .failed }
+                    return .counted(count)
                 }
             } onCancel: { cancel.cancel() }
             guard !Task.isCancelled, let self, self.entry == entry else { return }
             self.countTask = nil
-            if let count {
-                Self.counts[key] = count
-                self.model.colorCount = .counted(count)
-            } else {
-                self.model.colorCount = .failed
-            }
+            if case .counted(let count) = outcome { Self.counts[key] = count }
+            self.model.colorCount = outcome
         }
     }
 
@@ -452,6 +468,12 @@ struct HistogramPanelView: View {
                 Spacer()
                 Button("Retry") { model.onCountColors?() }
                     .controlSize(.small)
+            case .tooLarge:
+                // No Retry: the image will be just as large next time.
+                Text("Too large to count colors")
+                    .foregroundStyle(.secondary)
+                    .help("Counting reads every pixel at full size, which needs more memory than this image leaves")
+                Spacer()
             }
         }
         .font(.callout)

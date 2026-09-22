@@ -23,6 +23,23 @@ import ImageIO
         return try #require(context.makeImage())
     }
 
+    /// An image no bitmap could ever be allocated for (a petabyte of
+    /// pixels). Its own pixels are never read: the count gives up before it
+    /// draws, so the provider is asked for nothing and vends nothing.
+    func imageTooLargeForAnyBitmap() throws -> CGImage {
+        let side = 1 << 24
+        var callbacks = CGDataProviderDirectCallbacks(version: 0, getBytePointer: { _ in nil },
+                                                      releaseBytePointer: nil,
+                                                      getBytesAtPosition: { _, _, _, _ in 0 }, releaseInfo: nil)
+        let provider = try #require(CGDataProvider(directInfo: nil, size: off_t(side) * off_t(side) * 4,
+                                                   callbacks: &callbacks))
+        return try #require(CGImage(width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 32,
+                                    bytesPerRow: side * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                    bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+                                    provider: provider, decode: nil, shouldInterpolate: false,
+                                    intent: .defaultIntent))
+    }
+
     @Test func solidAndTwoColourImages() throws {
         #expect(try ColorCounter.countUniqueColors(in: image(width: 31, height: 17) { _, _ in (12, 200, 99, 255) }) == 1)
         #expect(try ColorCounter.countUniqueColors(in: image(width: 31, height: 17) { x, _ in
@@ -69,6 +86,32 @@ import ImageIO
         grey.fill(CGRect(x: 0, y: 0, width: 4, height: 8))
         let greyImage = try #require(grey.makeImage())
         #expect(try ColorCounter.countUniqueColors(in: greyImage) == 2)
+    }
+
+    /// The smallest image there can be: Core Graphics makes no image with a
+    /// zero side, so the count of an empty one stays a guard rather than a
+    /// case a test can reach.
+    @Test func aSinglePixelIsOneColour() throws {
+        #expect(try ColorCounter.countUniqueColors(in: image(width: 1, height: 1) { _, _ in (9, 200, 9, 255) }) == 1)
+    }
+
+    /// Nought colours would read as a real answer, so a bitmap that could
+    /// not be allocated throws rather than returning one.
+    @Test func failingToAllocateTheBitmapThrowsRatherThanCountingNoColours() throws {
+        #expect(throws: ColorCounter.OutOfMemory.self) {
+            try ColorCounter.countUniqueColors(in: imageTooLargeForAnyBitmap())
+        }
+    }
+
+    @Test func theBudgetLeavesRoomForBothCopiesOfTheImage() {
+        // A quarter of memory at the eight bytes a pixel a count holds.
+        #expect(ColorCounter.maximumPixels(physicalMemory: 8 << 30) == 268_435_456)
+        #expect(ColorCounter.maximumPixels(physicalMemory: 64 << 30) == 2_147_483_648)
+        // A 24 MP photo counts even on the smallest Mac; a 30000x30000
+        // stitched TIFF is refused on all but a very large one.
+        #expect(ColorCounter.maximumPixels(physicalMemory: 8 << 30) > 24_000_000)
+        #expect(ColorCounter.maximumPixels(physicalMemory: 16 << 30) < 30_000 * 30_000)
+        #expect(ColorCounter.maximumPixels(physicalMemory: 64 << 30) > 30_000 * 30_000)
     }
 
     @Test func stopsWhenCancelled() throws {
