@@ -205,6 +205,31 @@ import UniformTypeIdentifiers
         #expect(await thumbnail(service, broken)?.width == 256)     // retried after invalidate
     }
 
+    /// A file whose header claims more pixels than the budget allows gets no
+    /// thumbnail, nothing is cached for it, and the failure is remembered:
+    /// scrolling past such a file, however often, never starts the decode
+    /// that would take the app down with it.
+    @Test func headersOverTheBudgetAreRefusedAndRemembered() async throws {
+        let store = try ThumbnailStore.inMemory()
+        let service = ThumbnailService(store: store)
+        let url = folder.url.appendingPathComponent("bomb.png")
+        try TestImages.forgedPNG(width: 40000, height: 30000, rows: 3, to: url)
+        let entry = try #require(FolderEntry(url: url))
+        let size = ImageDecoder.headerPixelSize(of: url)
+        try #require(size == CGSize(width: 40000, height: 30000),
+                     "ImageIO no longer reads this fixture's header (\(size as Any)), so the test proves nothing")
+
+        #expect(await thumbnail(service, entry) == nil)
+        #expect(service.cachedImage(for: entry, pixelSize: 256) == nil)
+        #expect(store.image(for: url, modified: entry.modified, fileSize: entry.fileSize, tier: 256) == nil)
+
+        // Put a decodable file there without changing the entry's date and
+        // size, as the test above does: only a second decode attempt could
+        // now answer with a picture, and there must not be one.
+        TestImages.write(TestImages.gradient(width: 640, height: 480), to: url, type: .png)
+        #expect(await thumbnail(service, entry) == nil)
+    }
+
     // MARK: - HEIF route
 
     /// Draws `image` into a tiny sRGB bitmap, for comparing two thumbnails.

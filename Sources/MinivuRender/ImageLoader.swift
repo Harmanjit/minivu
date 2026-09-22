@@ -542,7 +542,14 @@ public struct DisplaySettings: Sendable, Equatable {
                 }
             }
         }
-        let decoded = try ImageDecoder.decode(url, fitting: target, page: page, allowHDR: settings.showHDR)
+        // A full-resolution request (target nil) can't show more than a
+        // texture holds: the upload on the next line scales anything longer
+        // than `maximumDimension` down to it, so pixels past that edge are
+        // decoded only to be thrown away. Asking for that edge instead costs
+        // nothing, and saves gigabytes wherever the codec can halve the image
+        // into it: a 40000 px scan decodes at 20000 px rather than 40000.
+        let decoded = try ImageDecoder.decode(url, maxPixelSize: target == nil ? TextureUploader.maximumDimension : nil,
+                                              fitting: target, page: page, allowHDR: settings.showHDR)
         try checkStop()
         return try TextureUploader.upload(decoded)
     }

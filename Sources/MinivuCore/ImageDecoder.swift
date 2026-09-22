@@ -133,9 +133,33 @@ public enum ImageDecoder {
 
     // MARK: - Thumbnails
 
+    /// The most pixels a file's header may claim before the browser gives
+    /// up on thumbnailing it: the 32768 px square that Resize and Batch
+    /// Convert already cap their output at, so nothing above it is anything
+    /// minivu could have written itself.
+    ///
+    /// The header, not the size on disk, says what a decode could cost. An
+    /// image that is flat or gently graded compresses to a few hundred
+    /// kilobytes however large it is, and a damaged or forged header claims
+    /// pixels the file does not hold, so a file of no size at all can ask
+    /// for gigabytes.
+    ///
+    /// Measured on macOS 15.7, ImageIO's thumbnail request streams the rows
+    /// rather than holding the whole image: a 144 megapixel PNG costs 11 MB
+    /// and half a second. So this is a backstop against a format or an
+    /// ImageIO version that does hold it, not a limit real work should meet,
+    /// and it is deliberately a fixed line rather than a share of memory: a
+    /// share would refuse a scan on a small Mac to guard against a cost that
+    ///, as measured, is not there. A file over it costs one property read
+    /// and no decode, and the thumbnail service remembers the nil, so
+    /// scrolling past it again is free. It still opens in the viewer, which
+    /// decodes it once, at screen size, because the user asked for it.
+    public static let thumbnailPixelBudget = 32768 * 32768
+
     /// A small oriented image for the browser grid, decoded at `maxPixelSize`
     /// on the long edge. Uses embedded previews when they are big enough, so
-    /// RAW files cost milliseconds.
+    /// RAW files cost milliseconds. Nil for a file over
+    /// `thumbnailPixelBudget`, which is never decoded at all.
     public static func thumbnail(for url: URL, maxPixelSize: Int) -> CGImage? {
         guard let kind = ImageFormats.kind(of: url) else { return nil }
         switch kind {
@@ -147,6 +171,12 @@ public enum ImageDecoder {
             return renderSVG(image, maxPixelSize: maxPixelSize)
         case .raster, .raw:
             guard let source = makeSource(url) else { return nil }
+            let index = primaryIndex(source)
+            // The header bounds what the decode could cost, so it is read
+            // first and the outsized file refused unstarted. Nil, not
+            // an error: the thumbnail service records a nil as a failure and
+            // stops asking for the file.
+            guard headerPixelCount(source: source, index: index) <= Double(thumbnailPixelBudget) else { return nil }
             if let image = heifThumbnail(source: source, maxPixelSize: maxPixelSize) { return image }
             let options: [CFString: Any] = [
                 kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
@@ -157,8 +187,21 @@ public enum ImageDecoder {
                 kCGImageSourceCreateThumbnailFromImageIfAbsent: true,
                 kCGImageSourceShouldCacheImmediately: true,
             ]
-            return CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
+            return CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary)
         }
+    }
+
+    /// The pixels image `index` claims in its header: what decoding it whole
+    /// would have to hold, read without touching a pixel. A count rather
+    /// than a size because that is what the memory costs, and a Double
+    /// because a damaged or hostile header can claim more than an Int holds.
+    /// Zero when the file names no size.
+    static func headerPixelCount(source: CGImageSource, index: Int) -> Double {
+        guard let props = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+        else { return 0 }
+        let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
+        let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
+        return w * h
     }
 
     /// HEIC and HEIF thumbnails, which ImageIO's direct route makes slow.
@@ -320,7 +363,14 @@ public enum ImageDecoder {
                 options[kCGImageSourceCreateThumbnailFromImageAlways] = true
             }
             guard let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
-                throw DecodeError.noImage(url)
+                // ImageIO never says why it gave up. One failure can be
+                // named: a file whose header claims more pixels than the
+                // browser will even thumbnail, asked for whole, is too large
+                // rather than unreadable. A file ImageIO can decode never
+                // reaches this line, so nothing is refused by saying so.
+                let pixels = info.pixelSize.width * info.pixelSize.height
+                throw wantsFull && pixels > Double(thumbnailPixelBudget)
+                    ? DecodeError.tooLarge(url) : DecodeError.noImage(url)
             }
             let full = max(image.width, image.height) >= longest
             return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: hdr)
