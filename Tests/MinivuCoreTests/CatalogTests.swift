@@ -119,6 +119,53 @@ import Foundation
         #expect(names.contains { $0.hasPrefix("catalog.sqlite.damaged-") })
     }
 
+    // MARK: - What kind of catalog this is
+
+    @Test func aCatalogThatOpenedNormallyReportsThatMarksAreKept() throws {
+        let t = try TemporaryFolder()
+        let dbURL = t.url.appendingPathComponent("db/catalog.sqlite")
+        #expect(try Catalog(url: dbURL).storage == .persistent)
+        #expect(try Catalog(url: dbURL).storage == .persistent)     // reopened
+    }
+
+    /// The catalog that test, snapshot and MINIVU_CATALOG=memory runs get is
+    /// the one that was asked for, and must never be reported as a failure.
+    @Test func aPrivateCatalogIsNotReportedAsAFailure() throws {
+        #expect(Catalog.inMemory().storage == .private)
+        #expect(Catalog.shared.storage == .private)
+    }
+
+    @Test func aCatalogThatCannotBeOpenedReportsATemporaryOne() throws {
+        let t = try TemporaryFolder()
+        // A file where the catalog's folder would have to go: the folder
+        // can't be created, so opening throws, which is what `shared` turns
+        // into a temporary catalog.
+        let blocked = try t.file("blocker").appendingPathComponent("catalog.sqlite")
+        #expect(throws: (any Error).self) { try Catalog(url: blocked) }
+        #expect(Catalog.temporary(reason: "disk is full").storage == .temporary(reason: "disk is full"))
+    }
+
+    @Test func aDamagedCatalogReportsTheNameItWasMovedTo() throws {
+        let t = try TemporaryFolder()
+        let dbURL = t.url.appendingPathComponent("catalog.sqlite")
+        try Data(repeating: 0x42, count: 8192).write(to: dbURL)
+        let catalog = try Catalog(url: dbURL)
+        guard case .recovered(let setAside) = catalog.storage else {
+            Issue.record("expected a recovered catalog, got \(catalog.storage)")
+            return
+        }
+        let name = try #require(setAside)
+        #expect(name.hasPrefix("catalog.sqlite.damaged-"))
+        #expect(FileManager.default.fileExists(atPath: t.url.appendingPathComponent(name).path))
+    }
+
+    /// Nothing may claim the old database was kept when the move failed, or
+    /// the user is sent looking for a file that isn't there.
+    @Test func aDamagedFileThatCannotBeMovedIsNotReportedAsSetAside() throws {
+        let t = try TemporaryFolder()
+        #expect(Catalog.setDamagedFileAside(t.url.appendingPathComponent("gone.sqlite")) == nil)
+    }
+
     @Test func postsDidChangeOnTheMainQueue() async throws {
         let t = try TemporaryFolder()
         let a = try t.file("a.jpg")

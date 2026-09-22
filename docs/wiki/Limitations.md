@@ -9,6 +9,7 @@ An honest list. Some are design decisions, some are unfinished work, some are th
 - **RAW support is Apple's camera list.** A camera macOS doesn't know shows only the preview it embedded, as large as the camera made it, and some files not at all.
 - **Photoshop files are flattened.** Layers aren't shown separately.
 - **Very large images are shown downscaled.** Anything over 16384 px on a side, Metal's texture limit, is displayed at that size.
+- **A file claiming more than 32768 x 32768 pixels gets no thumbnail** in the browser, the same cap Resize and Batch Convert put on minivu's own output. It still opens in the viewer. **Count Colors** also refuses an image too large to count on this Mac, rather than spending minutes paging, and says so.
 - **No WebP, AVIF or JPEG XL output.** Save As and Batch Convert write JPEG, PNG, HEIC, TIFF, BMP, GIF, TGA, JPEG 2000 and ICO.
 - **Save can't write some files back.** RAW, WebP, AVIF, JPEG XL, PDF, SVG and Photoshop files, animations, and files holding more than one image (a multi-page TIFF, an icon with several sizes, a HEIC collection) open Save As instead.
 - **Lossless rotate and flip in the browser** work on JPEG, HEIC and HEIF, TIFF and PNG, by changing the orientation tag. RAW files are never changed; GIF, BMP and other formats without the tag are skipped and named afterwards. **Edit Comment…** is for JPEGs only.
@@ -33,6 +34,7 @@ An honest list. Some are design decisions, some are unfinished work, some are th
 - **Marks follow a file moved in Finder only when you open the folder it went to** in minivu. A file missing from its folder for a year loses its marks.
 - **On a case-sensitive volume, "A.jpg" and "a.jpg" in one folder share their marks,** because the catalog compares paths without case.
 - **Captures, montages and desktop copies take a free name just before writing.** A file another application creates under that name in the same instant would be replaced.
+- **Ratings need their database.** If the ratings database can't be opened, minivu says so at launch and the stars, tags and Custom Order you set then last only until it quits.
 
 ## Tools
 

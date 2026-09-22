@@ -1,5 +1,6 @@
 import Testing
 import AppKit
+import MinivuCore
 @testable import Minivu
 
 @MainActor @Suite struct LaunchTests {
@@ -71,6 +72,27 @@ import AppKit
             ])
             #expect(paths.map(\.path) == [folder.path])
         }
+    }
+
+    /// A catalog that opened normally, and the private one every test and
+    /// snapshot run gets, must put nothing on screen at launch.
+    @Test func aWorkingOrPrivateCatalogRaisesNoNoticeAtLaunch() {
+        #expect(AppDelegate.catalogNotice(for: .persistent) == nil)
+        #expect(AppDelegate.catalogNotice(for: .private) == nil)
+    }
+
+    @Test func aTemporaryCatalogNoticeSaysTheMarksLastOnlyUntilQuit() throws {
+        let notice = try #require(AppDelegate.catalogNotice(for: .temporary(reason: "disk is full")))
+        #expect(notice.detail.contains("until minivu quits"))
+        #expect(notice.detail.contains("disk is full"))
+    }
+
+    /// The old database is named only when it really was moved aside.
+    @Test func aRecoveredCatalogNoticeNamesTheFileOnlyWhenThereIsOne() throws {
+        let named = try #require(AppDelegate.catalogNotice(for: .recovered(setAside: "catalog.sqlite.damaged-9")))
+        #expect(named.detail.contains("“catalog.sqlite.damaged-9”"))
+        let unnamed = try #require(AppDelegate.catalogNotice(for: .recovered(setAside: nil)))
+        #expect(!unnamed.detail.contains("damaged-"))
     }
 
     /// `@Published` tells subscribers before the property changes, so the

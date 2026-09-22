@@ -73,6 +73,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         if requested.isEmpty || !open(requested) {
             browser.open(folder: Self.startFolder())
         }
+        // After the window exists, so this can be a sheet on it like every
+        // other explanation, and behind any refusal `open` has just queued.
+        reportCatalogTrouble()
 
         #if DEBUG
         SnapshotHarness.startIfRequested(app: self)
@@ -97,6 +100,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
                 FileHandle.standardError.write(Data("Metal ready in \(elapsed)\n".utf8))
             }
         } }
+    }
+
+    /// Tells the user, once at launch, when the ratings catalog is not the
+    /// one it should be. Everything that writes a rating, a tag or a Custom
+    /// Order carries on working: those marks still sort and cull the session
+    /// the user is in, and taking the commands away would cost more than the
+    /// persistence that has been lost. Saying so plainly, once, is enough.
+    private func reportCatalogTrouble() {
+        guard let notice = Self.catalogNotice(for: Catalog.shared.storage) else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = notice.message
+        alert.informativeText = notice.detail
+        present(alert)
+    }
+
+    /// What to say about how the catalog opened, or nil when there is
+    /// nothing to say. Kept apart from presenting it so the wording can be
+    /// tested without putting an alert on screen.
+    static func catalogNotice(for storage: Catalog.Storage) -> (message: String, detail: String)? {
+        switch storage {
+        // A private catalog is the one that was asked for, not a failure.
+        case .persistent, .private:
+            return nil
+        case .temporary(let reason):
+            return ("minivu can’t keep your ratings this time",
+                    "The ratings database couldn’t be opened, so the stars, tags and Custom Order you set "
+                        + "now last only until minivu quits. The reason given was “\(reason)”. Freeing up "
+                        + "space on the disk and opening minivu again usually puts it right.")
+        case .recovered(let setAside):
+            let kept = setAside.map { "The damaged file has been kept beside the new one as “\($0)”, in case "
+                + "it can be recovered." } ?? "The damaged file could not be set aside for you to recover."
+            return ("minivu started a new ratings database",
+                    "The old one was damaged and couldn’t be read, so the stars, tags and Custom Order you "
+                        + "had set are no longer shown. \(kept)")
+        }
     }
 
     /// The last visited folder if it can still be read, else Pictures.
@@ -249,6 +288,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let names = urls.map { "“\($0.lastPathComponent)”" }.formatted(.list(type: .and))
         alert.messageText = "minivu can’t open \(names)"
         alert.informativeText = reason
+        present(alert)
+    }
+
+    /// As a sheet on the browser window when there is one, so a second alert
+    /// queues behind the first instead of stacking over it.
+    private func present(_ alert: NSAlert) {
         if let window = browser?.window, window.isVisible {
             alert.beginSheetModal(for: window)
         } else {

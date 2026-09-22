@@ -40,6 +40,29 @@ public final class Catalog: @unchecked Sendable {
         public static let none = Marks()
     }
 
+    /// Where a catalog's marks are being kept, and whether that is what the
+    /// user asked for. Everything the interface shows carries on working
+    /// when it is not the user's own file, so the app reads this once at
+    /// launch and says so (`AppDelegate.catalogNotice(for:)`).
+    ///
+    /// The reason travels as text already rendered rather than as the error
+    /// itself, so the value stays `Sendable` and `Equatable` and can be read
+    /// from any thread.
+    public enum Storage: Sendable, Equatable {
+        /// The user's own file, opened as it was left. Marks are kept.
+        case persistent
+        /// A catalog in memory asked for deliberately, by a test run, the
+        /// snapshot harness or `MINIVU_CATALOG=memory`. Nothing is wrong.
+        case `private`
+        /// The user's file could not be opened at all, so this catalog is in
+        /// memory and everything marked in this session goes at quit.
+        case temporary(reason: String)
+        /// The user's file was damaged and a fresh one took its place.
+        /// `setAside` is the name the damaged file was given, or nil when it
+        /// could not be moved: nothing may name a file that is not there.
+        case recovered(setAside: String?)
+    }
+
     /// Posted on the main queue after marks or custom order change. `object`
     /// is the `[URL]` of files (or the folder, for custom order) affected.
     public static let didChange = Notification.Name("MinivuCatalogDidChange")
@@ -48,11 +71,19 @@ public final class Catalog: @unchecked Sendable {
     /// `MINIVU_CATALOG=memory`), which get a private one in memory: tests and
     /// the snapshot harness rate and move files through app code, and must
     /// never change or read the ratings a user has made.
+    ///
+    /// However it turns out, `storage` records it, so that a catalog the
+    /// user did not ask for is not passed off as their own.
     public static let shared: Catalog = {
         if usesPrivateCatalog(ProcessInfo.processInfo) { return Catalog.inMemory() }
         do { return try Catalog(url: Catalog.defaultURL) } catch {
             log.error("Catalog unavailable, using a temporary one: \(String(describing: error), privacy: .public)")
-            return Catalog.inMemory()
+            // The SQLite message alone ("database or disk is full"), because
+            // the full description carries the SQL that failed with it. For
+            // anything else the localised text, because `describing` renders
+            // a Cocoa error as its domain, code and whole userInfo dictionary,
+            // and this reason is read back to the user in an alert.
+            return Catalog.temporary(reason: (error as? SQLiteError)?.message ?? error.localizedDescription)
         }
     }()
 
@@ -80,6 +111,10 @@ public final class Catalog: @unchecked Sendable {
     static let schemaVersion = 1
 
     let db: SQLiteDatabase
+    /// Fixed at construction, never afterwards: this class is `@unchecked
+    /// Sendable` with its own locking, and a `var` here would be read on the
+    /// main thread while the write queue worked with the compiler silenced.
+    public let storage: Storage
     private let lock = NSLock()
     private var hasPrunedMissing = false
     private var movesInFlight = 0
@@ -94,22 +129,49 @@ public final class Catalog: @unchecked Sendable {
     public init(url: URL?) throws {
         guard let url else {
             db = try Self.migrated(.inMemory())
+            storage = .private
             return
         }
         do {
             db = try Self.migrated(SQLiteDatabase(url: url))
+            storage = .persistent
         } catch let error as SQLiteError where error.code == SQLITE_CORRUPT || error.code == SQLITE_NOTADB {
-            let stamp = Int(Date().timeIntervalSince1970)
-            for suffix in ["", "-wal", "-shm"] {
-                try? FileManager.default.moveItem(atPath: url.path + suffix,
-                                                  toPath: url.path + ".damaged-\(stamp)" + suffix)
-            }
-            log.error("Catalog was damaged and has been set aside: \(String(describing: error), privacy: .public)")
+            let setAside = Self.setDamagedFileAside(url)
+            let fate = setAside.map { "has been set aside as \($0)" } ?? "could not be set aside"
+            log.error("Catalog was damaged and \(fate, privacy: .public): \(String(describing: error), privacy: .public)")
             db = try Self.migrated(SQLiteDatabase(url: url))
+            storage = .recovered(setAside: setAside)
         }
     }
 
+    /// Renames a damaged catalog, and the write-ahead log files beside it,
+    /// out of the way, and reports the name the catalog itself was given.
+    /// Nil when that move failed, so that nothing tells the user a file was
+    /// kept for them when it was not.
+    static func setDamagedFileAside(_ url: URL) -> String? {
+        let name = url.lastPathComponent + ".damaged-\(Int(Date().timeIntervalSince1970))"
+        let destination = url.deletingLastPathComponent().appendingPathComponent(name)
+        var setAside: String?
+        for suffix in ["", "-wal", "-shm"] {
+            // Only the catalog's own move decides the answer: the -wal and
+            // -shm files are often absent, and neither is named to the user.
+            let moved = (try? FileManager.default.moveItem(atPath: url.path + suffix,
+                                                           toPath: destination.path + suffix)) != nil
+            if suffix.isEmpty, moved { setAside = name }
+        }
+        return setAside
+    }
+
     public static func inMemory() -> Catalog { try! Catalog(url: nil) }
+
+    /// A catalog in memory standing in for the user's, which could not be
+    /// opened at all: see `shared`.
+    static func temporary(reason: String) -> Catalog { try! Catalog(temporaryBecause: reason) }
+
+    private init(temporaryBecause reason: String) throws {
+        db = try Self.migrated(.inMemory())
+        storage = .temporary(reason: reason)
+    }
 
     /// Brings `db` to the current schema one version step at a time, so a
     /// catalog from any earlier minivu keeps its ratings.

@@ -162,7 +162,23 @@ One image goes from file to screen like this:
   colour space, so Core Animation has nothing to convert on the main
   thread; on disk they stay JPEG or PNG.
 - Images above 16384 px on a side (Metal's texture limit on M1) are shown
-  downscaled to fit the limit.
+  downscaled to fit the limit, and a full-resolution decode asks ImageIO for
+  that edge rather than for everything, since the upload would scale the
+  rest away: a 40000 px scan decodes at 20000 px where the codec can halve
+  it. Save, Save As, Batch Convert and export are unaffected and still keep
+  every pixel, which is what `EditRenderer.tiledSource` exists for.
+- The browser refuses to thumbnail a file whose header claims more than
+  32768 x 32768 pixels, the cap Resize and Batch Convert already put on
+  minivu's own output, and the thumbnail service remembers the refusal.
+  ImageIO streams the rows of a thumbnail request rather than holding the
+  image (a 144 MP PNG costs 11 MB, measured), so this is a backstop against
+  a damaged or forged header, not a limit real work meets; the file still
+  opens in the viewer, decoded once at screen size.
+- Count Colors holds the image twice, as the decode and as the 8-bit bitmap
+  it draws, so it refuses a raster or RAW file whose header is past a
+  quarter of RAM at eight bytes a pixel, before decoding anything. A bitmap
+  it cannot allocate is reported as a failure; reporting no colours would be
+  a wrong answer.
 - RAW renders: one at a time, in a slot of their own beside the three
   decode slots, because the RAW engine adds about 1.6 GB of footprint per
   full-resolution 24 MP render (0.8 GB screen-sized) and holds it for about
