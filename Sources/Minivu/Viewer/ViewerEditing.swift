@@ -358,7 +358,37 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
                            fileChanged: { [weak self] in
                                BrowserModel.invalidateCaches(entry.url)
                                self?.reloadAfterExternalEdit(of: [entry.url])
-                           }, completion: completion)
+                           }, completion: { [weak self] saved in
+                               // The caller first: Save ends the session there,
+                               // and the new stamp is only safe once it has.
+                               completion(saved)
+                               if saved { self?.restampAfterSaving(entry) }
+                           })
+    }
+
+    /// A save has written over `entry`'s file: the viewer's copy of the entry
+    /// takes the file's new date and size, exactly as `showSavedFile` does
+    /// for another application's save, so the info panel, the colour count
+    /// and the filmstrip's thumbnail describe what was just written rather
+    /// than what was there before. Reading the stamp is disk work, so it
+    /// happens off the main actor. A save that wrote somewhere else (Save As
+    /// from here) or wrote nothing reads the stamp the entry already carries,
+    /// and `refreshEntry` then has nothing to do.
+    ///
+    /// Only once no session of this file is open: a session tells its own
+    /// entry apart from the one on screen, so restamping under it would cost
+    /// it its renders and its history. A save that leaves edits behind (the
+    /// document was edited again while it ran) therefore keeps the old date
+    /// until the save that clears them, as it always has.
+    private func restampAfterSaving(_ entry: FolderEntry) {
+        Task { [weak self] in
+            let stamp = await BlockingWork.run { ExternalEditWatcher.stamp(of: entry.url) }
+            guard let self, !self.isClosing, self.editSession?.document.entry.url != entry.url else { return }
+            var saved = entry
+            saved.modified = stamp.modified ?? entry.modified
+            saved.fileSize = stamp.size.map(Int64.init) ?? entry.fileSize
+            self.refreshEntry(saved)
+        }
     }
 
     /// Shows Save As; a hook so tests can record it instead of a panel.

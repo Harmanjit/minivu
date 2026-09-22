@@ -640,3 +640,90 @@ import MinivuRender
         #expect(JPEGComment.read(from: url) == "note")
     }
 }
+
+extension AppWindowTests {
+    /// What the viewer knows about the file once Save has written over it.
+    @MainActor @Suite(.serialized) struct SaveViewerTests {
+        init() { _ = NSApplication.shared }
+
+        func waitUntil(timeout: Double = 10, _ condition: () -> Bool) async {
+            let end = Date().addingTimeInterval(timeout)
+            while !condition(), Date() < end { try? await Task.sleep(for: .milliseconds(10)) }
+        }
+
+        /// Save (⌘S) over the original: the entry on screen takes the file's
+        /// new date and size at once, so the info panel, the colour count and
+        /// the filmstrip describe what was saved rather than what was there
+        /// before, without moving to another image first.
+        @Test func savingOverTheOriginalGivesTheEntryTheNewDateAndSize() async throws {
+            // "Replace the original?" would sit on the window as a sheet and
+            // the save would never run.
+            let asked = Preferences.shared.confirmOverwriteOnSave
+            defer { Preferences.shared.confirmOverwriteOnSave = asked }
+            Preferences.shared.confirmOverwriteOnSave = false
+
+            let folder = try ScratchFolder()
+            let a = try folder.jpeg("a.jpg", width: 600, height: 400)
+            let entry = try #require(FolderEntry(url: a))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            viewer.histogramPanel.model.onCountColors?()
+            await waitUntil { viewer.histogramPanel.model.colorCount != .counting }
+            #expect(viewer.histogramPanel.model.colorCount != .idle)
+
+            viewer.rotateRight(nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+            viewer.saveImage(nil)
+            await waitUntil { viewer.model.current?.modified != entry.modified }
+
+            let saved = try #require(FolderEntry(url: a))
+            #expect(viewer.model.current?.modified == saved.modified)
+            #expect(viewer.model.current?.fileSize == saved.fileSize)
+            #expect(viewer.displayed?.entry == viewer.model.current)
+            #expect(viewer.histogramPanel.model.colorCount == .idle, "the old file's count is gone")
+            // The new stamp waits for the save to have finished with the
+            // session, so it takes nothing away from the edits: the session
+            // has ended (the file holds them), and the edited picture is
+            // still the one on the canvas, at the size it had.
+            #expect(viewer.editSession == nil)
+            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600))
+        }
+
+        /// Save on the way to another image restamps the file it wrote
+        /// without describing it again: the entry it leaves in the list is
+        /// the one the filmstrip and a return to it will use, while the HUD,
+        /// the info panel and the colour count are the next image's.
+        @Test func savingOnTheWayToTheNextImageRestampsWhatItWrote() async throws {
+            let asked = Preferences.shared.confirmOverwriteOnSave
+            defer { Preferences.shared.confirmOverwriteOnSave = asked }
+            Preferences.shared.confirmOverwriteOnSave = false
+
+            let folder = try ScratchFolder()
+            let a = try folder.jpeg("a.jpg", width: 600, height: 400)
+            let list = try [a, folder.jpeg("b.jpg", width: 300, height: 200)]
+                .map { try #require(FolderEntry(url: $0)) }
+            ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            await waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 400, height: 600) }
+
+            let question = ViewerWindowController.askAboutUnsavedEdits
+            defer { ViewerWindowController.askAboutUnsavedEdits = question }
+            ViewerWindowController.askAboutUnsavedEdits = { _, _, reply in reply(.save) }
+            viewer.nextImage(nil)
+            await waitUntil { viewer.model.images[0].modified != list[0].modified }
+
+            let saved = try #require(FolderEntry(url: a))
+            #expect(viewer.model.images[0].modified == saved.modified)
+            #expect(viewer.model.images[0].fileSize == saved.fileSize)
+            #expect(viewer.model.index == 1 && viewer.model.current == list[1])
+            #expect(viewer.editSession == nil)
+            await waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 200) }
+            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 300, height: 200))
+        }
+    }
+}
