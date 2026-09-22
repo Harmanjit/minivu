@@ -203,7 +203,9 @@ extension EditDocument {
         public let url: URL
         public let page: Int
         public let kind: ImageKind?
-        /// The committed operations only: a preview is never saved.
+        /// What to apply. `snapshot()` gives the committed operations, which
+        /// is what a save writes; `shownSnapshot()` gives what the canvas is
+        /// drawing, a tool's unapplied change included.
         public let operations: [EditOperation]
         public let sourceSize: CGSize?
         /// The decoded original if the document had one, so exporting doesn't
@@ -232,6 +234,17 @@ extension EditDocument {
     public func snapshot() -> Snapshot {
         Snapshot(url: entry.url, page: page, kind: entry.kind, operations: operations, sourceSize: sourceSize,
                  source: source, settings: ImageLoader.shared.settings, sourceSignature: sourceSignature)
+    }
+
+    /// The document as the canvas is drawing it, with an open tool's
+    /// unapplied change included. Save applies that change before it writes,
+    /// so anything handing over the picture the user is looking at wants
+    /// this rather than `snapshot()`, which would give them the photo as it
+    /// was before they touched the slider.
+    public func shownSnapshot() -> Snapshot {
+        Snapshot(url: entry.url, page: page, kind: entry.kind, operations: renderedOperations,
+                 sourceSize: sourceSize, source: source, settings: ImageLoader.shared.settings,
+                 sourceSignature: sourceSignature)
     }
 }
 
