@@ -247,3 +247,194 @@ extension AppWindowTests.BrowserWindowTests {
         #expect(!controller.validateToolbarItem(upButton))
     }
 }
+
+/// Edit > Select Tagged and Invert Selection on the grid, each with a
+/// catalog of its own. Part of the serialized window suite.
+extension AppWindowTests.BrowserWindowTests {
+    /// A browser window with a catalog of its own, so a test's tags never
+    /// reach the one the person running it has.
+    func makeController() -> BrowserWindowController {
+        let controller = BrowserWindowController(catalog: .inMemory())
+        _ = controller.grid.view
+        return controller
+    }
+
+    /// Tags the named images through the model, so the marks land under the
+    /// URLs the listing made rather than the test's own spelling of them.
+    func tag(_ names: [String], in controller: BrowserWindowController) async {
+        let urls = controller.model.entries.filter { names.contains($0.name) }.map(\.url)
+        controller.model.toggleTag(for: urls)
+        await settleCatalog(controller.model)
+        await TestTiming.waitUntil { urls.allSatisfy { controller.model.marks(for: $0).isTagged } }
+    }
+
+    /// Select Tagged takes exactly the tagged images and leaves the folder
+    /// and the untagged image alone. The lead moves only when it has to.
+    @Test func selectTaggedTakesTheTaggedImagesAndNothingElse() async throws {
+        _ = NSApplication.shared
+        let t = try ScratchFolder()
+        try t.folder("Sub")
+        try t.file("a.jpg"); let b = try t.file("b.jpg"); try t.file("c.jpg")
+        let controller = makeController()
+        defer { controller.window?.close() }
+        controller.open(folder: t.url)
+        await settle(controller.model)
+
+        // Nothing is tagged yet, so there is nothing to select.
+        #expect(!controller.validateMenuItem(item(.selectTagged)))
+        await tag(["a.jpg", "c.jpg"], in: controller)
+        #expect(controller.validateMenuItem(item(.selectTagged)))
+
+        controller.model.select(b)
+        controller.selectTagged(nil)
+        #expect(controller.model.selectedEntries.map(\.name) == ["a.jpg", "c.jpg"])
+        #expect(controller.model.lead?.lastPathComponent == "a.jpg", "the lead was untagged, so it moved")
+        #expect(controller.grid.collectionView.selectionIndexPaths.map(\.item).sorted() == [1, 3])
+
+        // A lead that is itself tagged stays where it is, so the preview
+        // doesn't jump to another photo.
+        controller.model.select(try #require(controller.model.entries.last).url)
+        controller.selectTagged(nil)
+        #expect(controller.model.selectedEntries.map(\.name) == ["a.jpg", "c.jpg"])
+        #expect(controller.model.lead?.lastPathComponent == "c.jpg")
+    }
+
+    /// A filter is the user saying which images they are working with, so a
+    /// tagged image the grid isn't showing is not selected.
+    @Test func selectTaggedStopsAtWhatTheFilterShows() async throws {
+        _ = NSApplication.shared
+        let t = try ScratchFolder()
+        try t.file("a.jpg"); try t.file("b.jpg"); try t.file("c.jpg")
+        let controller = makeController()
+        defer { controller.window?.close() }
+        controller.open(folder: t.url)
+        await settle(controller.model)
+        await tag(["a.jpg", "c.jpg"], in: controller)
+
+        controller.model.filter = "c"
+        #expect(controller.model.entries.map(\.name) == ["c.jpg"])
+        controller.selectTagged(nil)
+        #expect(controller.model.selectedEntries.map(\.name) == ["c.jpg"])
+        #expect(controller.model.selection.count == 1, "a.jpg is tagged, but the grid isn't showing it")
+
+        // With every tagged image filtered out there is nothing to select.
+        controller.model.filter = "b"
+        #expect(!controller.validateMenuItem(item(.selectTagged)))
+    }
+
+    /// Invert Selection swaps exactly the entries the grid is showing,
+    /// folders included, and leaves the ones it isn't showing alone.
+    @Test func invertSelectionSwapsWhatTheGridIsShowing() async throws {
+        _ = NSApplication.shared
+        let t = try ScratchFolder()
+        try t.folder("Sub")
+        try t.file("p1.jpg"); let p2 = try t.file("p2.jpg"); try t.file("p3.jpg")
+        let controller = makeController()
+        defer { controller.window?.close() }
+        controller.open(folder: t.url)
+        await settle(controller.model)
+        controller.model.select(p2)
+
+        controller.invertSelection(nil)
+        #expect(controller.model.selectedEntries.map(\.name) == ["Sub", "p1.jpg", "p3.jpg"],
+                "a folder the grid shows is part of the rest of it, as it is for Select All")
+        #expect(controller.model.lead?.lastPathComponent == "Sub", "the old lead is never in the new selection")
+
+        controller.invertSelection(nil)
+        #expect(controller.model.selectedEntries.map(\.name) == ["p2.jpg"])
+        #expect(controller.model.lead?.lastPathComponent == "p2.jpg")
+
+        // The filter hides the folder, so inverting doesn't reach it.
+        controller.model.filter = "p"
+        #expect(controller.model.entries.map(\.name) == ["p1.jpg", "p2.jpg", "p3.jpg"])
+        controller.model.select(p2)
+        controller.invertSelection(nil)
+        #expect(controller.model.selectedEntries.map(\.name) == ["p1.jpg", "p3.jpg"])
+        #expect(controller.model.selection.count == 2, "Sub is hidden, so it stays out of the selection")
+
+        // Everything shown selected inverts to nothing selected.
+        controller.model.selectAll()
+        controller.invertSelection(nil)
+        #expect(controller.model.selection.isEmpty && controller.model.lead == nil)
+    }
+
+    /// Neither command is offered when it would change nothing.
+    @Test func selectionCommandsAreOffWhenTheyWouldDoNothing() async throws {
+        _ = NSApplication.shared
+        let t = try ScratchFolder()
+        let empty = try t.folder("Empty")
+        try t.file("a.jpg")
+        let controller = makeController()
+        defer { controller.window?.close() }
+        controller.open(folder: t.url)
+        await settle(controller.model)
+
+        // An untagged image is nothing to select, but still something to swap.
+        #expect(!controller.validateMenuItem(item(.selectTagged)))
+        #expect(controller.validateMenuItem(item(.invertSelection)))
+
+        controller.model.navigate(to: empty)
+        await settle(controller.model)
+        #expect(controller.model.entries.isEmpty)
+        #expect(!controller.validateMenuItem(item(.selectTagged)))
+        #expect(!controller.validateMenuItem(item(.invertSelection)))
+    }
+
+    /// AppKit offers ⇧⌘I to the menu bar before the search field and the
+    /// inline rename editor, so `canPerformSelection` turns both commands
+    /// off while either has the keyboard and the key press reaches the text.
+    ///
+    /// The press is handed to `canPerformSelection` rather than left for it
+    /// to find: the only way to fill `NSApp.currentEvent` is to dequeue a
+    /// posted event, and doing that in this process ends the test run. With
+    /// no press to answer for, which is how a click on the item arrives, the
+    /// same call says yes, so the menu item is still there to be clicked.
+    @Test func theSearchFieldAndTheRenameEditorKeepTheirKeys() async throws {
+        _ = NSApplication.shared
+        let t = try ScratchFolder()
+        try t.file("a.jpg"); try t.file("b.jpg")
+        let controller = makeController()
+        defer { controller.window?.close() }
+        let window = try #require(controller.window)
+        controller.open(folder: t.url)
+        await settle(controller.model)
+        await tag(["a.jpg"], in: controller)
+        let key = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .shift],
+                                                timestamp: 0, windowNumber: window.windowNumber, context: nil,
+                                                characters: "i", charactersIgnoringModifiers: "i",
+                                                isARepeat: false, keyCode: 34))
+
+        // With the grid on the keyboard, ⇧⌘I is the command's.
+        window.makeFirstResponder(controller.grid.collectionView)
+        #expect(controller.canPerformSelection(.selectTagged, event: key) == true)
+        #expect(controller.canPerformSelection(.invertSelection, event: key) == true)
+
+        // The toolbar's search field has it while a filter is being typed.
+        let search = try #require(window.toolbar?.items
+            .first { $0.itemIdentifier == .browserSearch } as? NSSearchToolbarItem)
+        #expect(window.makeFirstResponder(search.searchField))
+        #expect(window.firstResponder is NSText)
+        #expect(controller.canPerformSelection(.selectTagged, event: key) == false)
+        #expect(controller.canPerformSelection(.invertSelection, event: key) == false)
+        // The same items, chosen with the mouse, still work: no key press is
+        // in flight then, which is what a nil event stands for.
+        #expect(controller.validateMenuItem(item(.selectTagged)))
+        #expect(controller.validateMenuItem(item(.invertSelection)))
+
+        // The inline rename editor has the keyboard the same way.
+        window.makeFirstResponder(controller.grid.collectionView)
+        controller.model.select(try #require(controller.model.entries.first).url)
+        controller.renameItem(nil)
+        let editor = try #require(controller.grid.renameEditor)
+        #expect(window.firstResponder is NSText)
+        #expect(controller.canPerformSelection(.selectTagged, event: key) == false)
+        #expect(controller.canPerformSelection(.invertSelection, event: key) == false)
+
+        // The editor gone, the grid has the key back and so do the commands.
+        editor.cancel()
+        window.makeFirstResponder(controller.grid.collectionView)
+        #expect(controller.canPerformSelection(.selectTagged, event: key) == true)
+        #expect(controller.canPerformSelection(.invertSelection, event: key) == true)
+        #expect(controller.validateMenuItem(item(.invertSelection)))
+    }
+}
