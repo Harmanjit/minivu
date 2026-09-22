@@ -219,6 +219,30 @@ extension AppWindowTests {
             await FileWriteQueue.shared.waitUntilIdle()
         }
 
+        /// ⌘S in the viewer then Batch Rename in the browser: the batch waits
+        /// for the queued save, so the new name holds it and nothing is left
+        /// at the old one.
+        @Test(.batchToolsReset) func queuedSavesLandBeforeBatchRenameMovesTheFile() async throws {
+            let scratch = try ScratchFolder()
+            let a = try scratch.file("a.jpg")
+            let b = scratch.url.appendingPathComponent("b.jpg")
+            let controller = BrowserWindowController(catalog: Catalog.inMemory())
+            defer { controller.window?.close() }
+            _ = controller.grid.view
+            controller.open(folder: scratch.url)
+            await controller.model.work?.value
+
+            let save = slowSave(a, "before batch rename")
+            controller.performBatchRename([BatchRenamer.Request(url: a, newName: "b.jpg")],
+                                          actionName: BatchRenameModel.actionName(count: 1))
+            _ = try await save.value
+            await controller.batchWork?.value
+            // Had the rename gone first, the save's atomic replace would have
+            // made "a.jpg" again and left "b.jpg" with the older bytes.
+            #expect(!exists(a) && contents(b) == "before batch rename")
+            await FileWriteQueue.shared.waitUntilIdle()
+        }
+
         /// A write that names its file only as touched (a comment, a
         /// lossless rotate) is waited for too, and so are writes inside a
         /// folder; writes to other files aren't.

@@ -166,7 +166,22 @@ extension BrowserWindowController {
         let work = Task {
             await previous?.value
             let requests = requests()
+            // Counted as running before the wait below, not after: a batch
+            // the user has confirmed is under way from here on, and quitting
+            // must wait for it rather than cut a swap short and leave a photo
+            // under a hidden name.
             BatchTools.renamesRunning += 1
+            // Saves and rotates still queued for these files land first:
+            // behind a rename, SafeFileWriter's atomic replace would make the
+            // old name again, or the save would be refused and the user told
+            // the file was changed by another application, which it wasn't.
+            // Both names of every request are waited for, which covers an
+            // undo renaming the other way round, and a write queued for a
+            // name the batch is about to create, which would make its
+            // exclusive rename fail.
+            await FileWriteQueue.shared.waitForWrites(to: requests.flatMap {
+                [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
+            })
             let outcome = await BlockingWork.run {
                 BatchRenamer.perform(requests, restoring: restoring, catalog: catalog)
             }
