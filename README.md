@@ -1,5 +1,7 @@
 <p align="center"><img src="Assets/minivu-icon.png" width="160" alt="minivu icon"></p>
 
+<p align="center"><a href="https://github.com/Harmanjit/minivu/actions/workflows/ci.yml"><img src="https://github.com/Harmanjit/minivu/actions/workflows/ci.yml/badge.svg" alt="CI build and test status"></a></p>
+
 # minivu
 
 A lightweight image browser, viewer and editor for Apple Silicon Macs, in
@@ -89,6 +91,10 @@ pages). It precompiles the shaders when the Metal toolchain is installed,
 and signs the app ad hoc with the hardened runtime and the entitlements in
 `scripts/minivu.entitlements`. `scripts/make_app.sh --dev` leaves the
 sandbox out, for testing with folders passed on the command line.
+
+Every push to `main` and every pull request builds, tests and packages
+minivu the same way on a macOS runner (`.github/workflows/ci.yml`), and
+keeps the app bundle it made with the run.
 
 **First launch on another Mac.** The app is signed ad hoc rather than with
 a Developer ID, and isn't notarised, so Gatekeeper stops it the first time

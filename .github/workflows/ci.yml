@@ -1,0 +1,153 @@
+# Builds and tests minivu on every push to main and every pull request,
+# and keeps the app it made for anyone who wants to try the change.
+#
+# The steps are the commands in the README's Building section, in the same
+# order, so a failure here is reproduced on a developer Mac by typing the
+# same thing. There is nothing to fetch first: the package has no
+# dependencies at all.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Pushing again makes the run already going pointless, and the runners are
+# shared with everyone else, so let the new push cancel the old run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The job reads the repository and writes nothing back to it.
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    name: Build, test and package
+    # macos-26 rather than macos-latest: "latest" moves to another image
+    # when GitHub decides it does, which would change the macOS and the
+    # Xcode under a commit that changed neither. This label is Apple
+    # Silicon, which is what minivu is for, and its image carries the
+    # Xcode 26 that swift-tools-version 6.2 needs.
+    runs-on: macos-26
+    # The build, the suite and the release build together take a few
+    # minutes. Three quarters of an hour means something has hung, and a
+    # hung job should be cut off rather than left to spend the account's
+    # runner minutes.
+    timeout-minutes: 45
+    defaults:
+      run:
+        # -e and -o pipefail, so a command that fails inside a pipe still
+        # fails the step.
+        shell: bash
+    env:
+      # DEVELOPER_DIR is chosen by the Toolchain step below rather than
+      # written here: naming one exact version pins the compiler but turns
+      # a routine image update into a job that cannot start at all.
+      # A runner is a virtual machine sharing a host with other jobs, so it
+      # is slower and far less even than a quiet Mac, and the suite's
+      # limits are written for a quiet one. This multiplies every
+      # wall-clock limit and every wait in Tests/*/TestTiming.swift. It is
+      # twice the 4 a debug build already assumes, because that 4 covers a
+      # loaded machine rather than a shared and virtualised one.
+      MINIVU_TEST_SLACK: "8"
+      # Keep the catalog of ratings in memory. A test run is recognised by
+      # its process name already, so this changes nothing the suite does;
+      # it says out loud that nothing this workflow runs may write a
+      # catalog into the runner's Application Support folder. The suite
+      # looks after the rest of its own state: it fakes the wallpaper
+      # agent and screen capture, keeps its preferences in a scratch
+      # domain, and trashes files only into a folder of its own.
+      MINIVU_CATALOG: memory
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        # The newest Xcode 26 on the image, whichever point release that
+        # is. The major version is what matters: swift-tools-version 6.2
+        # needs Swift 6.2, which is Xcode 26. Following the image's own
+        # default instead would let a future image change the compiler
+        # silently, and naming 26.6 exactly would break the job the day
+        # that image ships 26.7.
+        #
+        # The versions are printed so that a failure a month from now can
+        # be compared with a run from today, and the graphics device so
+        # that a GPU test failing on this virtual machine can be told apart
+        # from a GPU test failing on its own merits.
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$xcode" ]; then
+            echo "No Xcode 26 on this image; minivu needs Swift 6.2. Present:"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          echo "DEVELOPER_DIR=$xcode/Contents/Developer" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$xcode/Contents/Developer"
+          sw_vers
+          swift --version
+          xcodebuild -version
+          system_profiler SPDisplaysDataType
+
+      # There is deliberately no cache of .build. Nothing is fetched from
+      # anywhere, so a cache would hold only this repository's own object
+      # files, which are exactly what each push changes; and a .build
+      # carried over from another compiler or another macOS produces
+      # failures that read like faults in the code and are not. The minutes
+      # saved are worth less than that.
+      - name: Build
+        # The test step would build the package anyway. Building first
+        # tells code that does not compile apart from code that does not
+        # work, in the list of steps, without reading any log.
+        run: swift build
+
+      - name: Test
+        id: test
+        # The suite opens real AppKit windows and runs Metal kernels on the
+        # device, and a runner is a virtual machine. If that machine will
+        # not give it a window or a Metal device, this step fails, and that
+        # is deliberate: nothing here skips those tests, because a green
+        # tick that had quietly left the windows and the GPU out would say
+        # the app was tested when most of it was not. The output is not
+        # trimmed, so the log names the suite and the test; the copy is for
+        # the step below.
+        run: swift test 2>&1 | tee "$RUNNER_TEMP/tests.log"
+
+      - name: Name what failed
+        if: failure() && steps.test.outcome == 'failure'
+        # Swift Testing writes a line naming the test for each failure, and
+        # a thousand tests make a long log to scroll through, so those
+        # lines go at the top of the run's summary page.
+        run: |
+          {
+            echo '### Failing tests'
+            echo '```'
+            grep -E "✘|error:" "$RUNNER_TEMP/tests.log" | head -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the app bundle
+        # Ad hoc signing wants no certificate and no keychain, so nothing
+        # has to be set up before this. The Metal toolchain is a separate
+        # download as of Xcode 26 and is probably not on the image; the
+        # script says so in the log and the app compiles its shaders at
+        # launch instead, which costs a fraction of a second.
+        run: scripts/make_app.sh
+
+      - name: Archive the app
+        # ditto rather than the upload action's own zipping, which drops
+        # the executable bit and flattens the symlinks inside a bundle:
+        # what came down would neither launch nor verify.
+        run: ditto -c -k --keepParent build/minivu.app "$RUNNER_TEMP/minivu.app.zip"
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v4
+        with:
+          name: minivu-app-${{ github.sha }}
+          path: ${{ runner.temp }}/minivu.app.zip
+          if-no-files-found: error
+          # Long enough to try a build somebody asks about, short enough
+          # that a year of pushes does not sit in the account's storage.
+          retention-days: 14
