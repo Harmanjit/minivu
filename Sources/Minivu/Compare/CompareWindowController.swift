@@ -55,6 +55,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
     private let arrangementControl = NSSegmentedControl()
     private var trashing: Set<URL> = []
     private var catalogObserver: NSObjectProtocol?
+    private var displaySettingsObserver: NSObjectProtocol?
     private(set) var isClosing = false
 
     private init(model: CompareModel) {
@@ -90,6 +91,17 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         catalogObserver = NotificationCenter.default.addObserver(forName: Catalog.didChange, object: nil,
                                                                  queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.panes.forEach { $0.refreshMarks() } }
+        }
+        // Show HDR, HDR RAW and RAW decoding change what these photos should
+        // look like. Every pane decodes again at once, or the panes disagree:
+        // the first one to be sharpened or replaced would come back under the
+        // new settings while the rest kept their old textures.
+        displaySettingsObserver = NotificationCenter.default.addObserver(forName: .minivuDisplaySettingsChanged,
+                                                                        object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.isClosing else { return }
+                self.panes.forEach { $0.reloadForDisplaySettings() }
+            }
         }
     }
 
@@ -426,6 +438,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         guard !isClosing else { return }
         isClosing = true
         if let catalogObserver { NotificationCenter.default.removeObserver(catalogObserver) }
+        if let displaySettingsObserver { NotificationCenter.default.removeObserver(displaySettingsObserver) }
         for pane in panes { pane.stopAndRemove() }
         panes = []
         (window as? CompareWindow)?.onMouseDown = nil

@@ -315,6 +315,22 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         sharpenHandle = nil
     }
 
+    /// Decodes this pane's image again because Show HDR, HDR RAW or RAW
+    /// decoding changed.
+    ///
+    /// `displayedEntry` is deliberately left as it is. Clearing it would send
+    /// `load` down its different-image branch, and since the loader has just
+    /// emptied its cache nothing would be found there, so the pane would go
+    /// black and lose its zoom until the decode landed. Left alone, the
+    /// texture already on screen stays up until the new one replaces it, and
+    /// the zoom is kept while the size is unchanged, which is what the viewer
+    /// and the browser's preview pane already do.
+    func reloadForDisplaySettings() {
+        guard entry != nil else { return }
+        cancelLoads()
+        load()
+    }
+
     /// Stops all work; the pane is about to go.
     func stop() {
         cancelLoads()

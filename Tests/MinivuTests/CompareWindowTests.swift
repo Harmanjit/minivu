@@ -134,6 +134,53 @@ extension AppWindowTests {
             #expect(controller.paneViews.isEmpty)
         }
 
+        /// A change to Show HDR or RAW decoding reaches every pane at once, so
+        /// two panes never disagree about the same setting. Each pane keeps the
+        /// image and the zoom it already has while the new one decodes.
+        @Test func reloadsEveryPaneWhenTheDisplaySettingsChange() async throws {
+            let savedCatalog = CompareWindowController.catalog
+            CompareWindowController.catalog = .inMemory()
+            defer { CompareWindowController.catalog = savedCatalog }
+            let (scratch, all) = try folder([(1200, 800), (1200, 800)])
+            _ = scratch
+            CompareWindowController.show(entries: all, allImages: all)
+            defer { close() }
+            let controller = try #require(CompareWindowController.current)
+            let panes = controller.paneViews
+            #expect(panes.count == 2)
+            await TestTiming.waitUntil(seconds: 30) { panes.allSatisfy { $0.canvas.image != nil } }
+            try #require(panes.allSatisfy { $0.canvas.image != nil })
+
+            // Zoomed in, so a pane that lost its view would show it. The
+            // sharpening the zoom asks for has to have landed before the
+            // reload, or its texture would arrive during the reload and read
+            // as the reload's own work.
+            if !controller.isSynced { controller.toggleSync(nil) }
+            controller.actualSize(nil)
+            await TestTiming.waitUntil(seconds: 30) { panes.allSatisfy { $0.canvas.image?.isFullResolution == true } }
+            try #require(panes.allSatisfy { $0.canvas.image?.isFullResolution == true })
+            let before = panes.map { ($0.canvas.image, $0.canvas.transform, $0.canvas.zoomMode) }
+            #expect(before.allSatisfy { $0.2 != .fit })
+
+            // What Preferences does, for these two files only: the rest of the
+            // app's cache is left alone for the tests running alongside.
+            for entry in all { AppServices.images.invalidate(entry.url) }
+            NotificationCenter.default.post(name: .minivuDisplaySettingsChanged, object: nil)
+            var wentBlank = false
+            await TestTiming.waitUntil(seconds: 30) {
+                if panes.contains(where: { $0.canvas.image == nil }) { wentBlank = true }
+                return zip(panes, before).allSatisfy { $0.canvas.image !== $1.0 }
+            }
+            // Both panes decoded again, neither went black on the way, and the
+            // zoom and pan are where the user left them.
+            #expect(zip(panes, before).allSatisfy { $0.canvas.image !== $1.0 })
+            #expect(!wentBlank)
+            for (pane, was) in zip(panes, before) {
+                #expect(pane.canvas.transform == was.1)
+                #expect(pane.canvas.zoomMode == was.2)
+            }
+        }
+
         @Test func browserComparesTwoToFourSelectedImages() async throws {
             let savedLastFolder = UserDefaults.standard.string(forKey: AppDelegate.lastFolderKey)
             defer { UserDefaults.standard.set(savedLastFolder, forKey: AppDelegate.lastFolderKey) }
