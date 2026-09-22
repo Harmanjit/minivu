@@ -98,6 +98,7 @@ The flips, **Straighten…**, **Sharpen…**, **Blur…**, everything under **Ef
 | ⇧⌘F | **Start Slideshow** |
 | ⌥⌘B | **Batch Convert…** |
 | ⇧F2 | **Batch Rename…** |
+| ⇧⌘I | **Invert Selection** |
 | ⌘E | The first editor under **Open in External Editor** |
 
 **Contact Sheet…**, **Montage Wallpaper…**, **Set as Desktop Picture** and **Capture** have no shortcut; macOS keeps ⇧⌘3 to ⇧⌘5 for its own screenshots.

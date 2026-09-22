@@ -888,6 +888,24 @@ shows display-only shortcuts on the bar it is given, so it must get a fresh
 | 7 | Tools: batch convert and rename, slideshow (8 transitions, music), contact sheet, montage wallpaper, print, screen capture, external editors | Done |
 | 8 | Polish: dual display, shortcuts, documentation | Done |
 
+### Selection and the clipboard
+
+Edit > Select Tagged and Invert Selection act on the entries the grid is
+showing, not on the folder: a filter is the user saying which images they
+are working with. Select Tagged leaves folders out, since the tag is a
+catalog mark on an image; Invert Selection takes them, as Select All does.
+
+Copy in the browser writes the selected files to the pasteboard as the same
+object the grid's drag source writes, so dragging out and copying agree.
+Paste goes through the same transfer the drop uses, so it inherits the
+name-conflict alert, the undo step, the catalog bookkeeping and the write
+queue's waiting; it copies and never moves, because the pasteboard says
+nothing about what was meant to happen to the originals. Copy in the viewer
+renders what the canvas is drawing, an open tool's unapplied change
+included, in the colour space Save As would use, so a copy and a saved copy
+are the same picture. No file URL goes with it: with unsaved edits that
+would be a second, different answer to what was copied.
+
 ## 8. Known limits
 
 - **Editing:** Save keeps HDR only for gain-map JPEG and HEIC originals;

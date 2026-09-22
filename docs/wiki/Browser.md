@@ -219,6 +219,10 @@ minivu waits for any save still being written to a file before it moves, renames
 
 ### Undo
 
+**Edit > Select Tagged** selects every tagged image the grid is showing, and **Edit > Invert Selection** (⇧⌘I) selects everything shown that wasn't selected. Both stop at what a filter shows, so an image hidden by one is left alone. Select Tagged never takes folders; Invert Selection takes them, as Select All does.
+
+**Edit > Copy** (⌘C) puts the selected files on the clipboard, so they paste into Finder or anywhere else that takes files, and **Edit > Paste** (⌘V) brings files on the clipboard into the folder you're looking at. Pasting copies, never moves, and a name already in the folder is offered Keep Both, Replace or Skip, exactly as dragging is. In the viewer, ⌘C copies the picture on screen, edits and all, so it pastes into Mail or Pages as you see it.
+
 **Edit > Undo** (⌘Z) and **Edit > Redo** (⇧⌘Z) cover copies, moves, renames, new folders and Batch Rename. The menu names the step, as in "Undo Move 3 Items".
 
 - Undoing a move puts each file back exactly where it was, under the name it had.
