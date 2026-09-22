@@ -164,6 +164,25 @@ final class FakeDesktop: DesktopPictureSetting {
         #expect(result.pathExtension == "jpg")
     }
 
+    /// A wallpaper copy waiting in the write queue names its folder, so a
+    /// wait on minivu Wallpapers comes back only once the copy is on disk.
+    @Test func waitingOnTheWallpapersFolderWaitsForAQueuedCopy() async throws {
+        let scratch = try ScratchFolder()
+        let photo = try scratch.jpeg("photo.jpg", width: 40, height: 30)
+        let image = ImageBox(image: try #require(ImageDecoder.thumbnail(for: photo, maxPixelSize: 40)))
+        let setter = setter(pictures: scratch.url, desktop: FakeDesktop())
+        setter.now = { Date(timeIntervalSince1970: 1_789_381_805) }
+        let copied = Task { try await setter.writeCopy(image, format: .jpeg, base: "photo") }
+        // One turn of the main actor is enough: the write takes its place in
+        // the queue before it suspends.
+        await Task.yield()
+        await FileWriteQueue.shared.waitForWrites(to: [setter.wallpapersFolder])
+        let expected = setter.wallpapersFolder.appendingPathComponent(
+            DesktopPictureCopies.fileName(base: "photo", date: setter.now(), format: .jpeg))
+        #expect(FileManager.default.fileExists(atPath: expected.path))
+        #expect(try await copied.value == expected)
+    }
+
     @Test func downscalingKeepsTheShape() throws {
         let context = try #require(CGContext(data: nil, width: 1000, height: 250, bitsPerComponent: 8, bytesPerRow: 0,
                                              space: CGColorSpace(name: CGColorSpace.sRGB)!,

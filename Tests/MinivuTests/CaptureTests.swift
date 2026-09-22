@@ -388,6 +388,22 @@ final class FakeCapturer: ScreenCapturing {
         }
     }
 
+    /// A capture waiting in the write queue names its folder, so a wait on
+    /// minivu Captures (a trash, a rename, a move) comes back only once the
+    /// PNG is on disk.
+    @Test func waitingOnTheCapturesFolderWaitsForAQueuedCapture() async throws {
+        let scratch = try ScratchFolder()
+        let (controller, _) = controller(FakeCapturer(), pictures: scratch.url)
+        let saved = Task { try await controller.save(FakeCapturer.image(width: 20, height: 10)) }
+        // One turn of the main actor is enough: the write takes its place in
+        // the queue before it suspends.
+        await Task.yield()
+        await FileWriteQueue.shared.waitForWrites(to: [controller.capturesFolder])
+        let expected = controller.capturesFolder.appendingPathComponent(CaptureFiles.fileName(date: controller.now()))
+        #expect(FileManager.default.fileExists(atPath: expected.path))
+        #expect(try await saved.value == expected)
+    }
+
     @Test func commandsAreImplementedByTheAppDelegate() {
         for action: Selector in [.captureScreen, .captureWindow, .captureSelection, .manageExternalEditors] {
             #expect(AppDelegate.instancesRespond(to: action), "\(action)")

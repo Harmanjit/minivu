@@ -161,11 +161,15 @@ nonisolated enum DesktopPicturePolicy {
 
     /// Writes the copy into minivu Wallpapers under a name nothing has yet,
     /// in line with every other image write.
-    private func writeCopy(_ image: ImageBox, format: ExportFormat, base: String) async throws -> URL {
+    func writeCopy(_ image: ImageBox, format: ExportFormat, base: String) async throws -> URL {
         let folder = wallpapersFolder
         let name = DesktopPictureCopies.fileName(base: base, date: now(), format: format)
         let options = { var o = ExportOptions.defaults(for: format); o.keepMetadata = false; return o }()
-        let job = FileWriteQueue.shared.enqueue {
+        // The folder is named, not the file: the name is only chosen inside
+        // the job, so the folder is the smallest thing that can be named in
+        // advance. Moving minivu Wallpapers then waits for a copy still in
+        // the queue instead of racing it.
+        let job = FileWriteQueue.shared.enqueue(touching: [folder]) {
             try await BlockingWork.run {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 let url = folder.appendingPathComponent(FileOperations.uniqueName(for: name, in: folder))

@@ -294,7 +294,11 @@ struct MontageSettingsStore {
 enum MontageWriter {
     static func write(_ image: ImageBox, name: String, folder: URL) async throws -> URL {
         let options = ExportOptions(format: .jpeg, quality: 0.9, colorProfile: .original, keepMetadata: false)
-        let job = FileWriteQueue.shared.enqueue {
+        // The folder is named, not the file: the name is only chosen inside
+        // the job, so the folder is the smallest thing that can be named in
+        // advance. Moving minivu Wallpapers then waits for a montage still
+        // in the queue instead of racing it.
+        let job = FileWriteQueue.shared.enqueue(touching: [folder]) {
             try await BlockingWork.run {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 // Decided just before writing, in the queue, so no other
@@ -313,7 +317,10 @@ enum MontageWriter {
     /// rather than put in the Trash. Queued behind the writes.
     static func remove(_ urls: [URL]) async {
         guard !urls.isEmpty else { return }
-        let job = FileWriteQueue.shared.enqueue {
+        // A removal knows its files, so it names them rather than the folder
+        // the writes had to make do with: more precise, and a wait on the
+        // folder still covers them.
+        let job = FileWriteQueue.shared.enqueue(touching: urls) {
             await BlockingWork.run { for url in urls { try? FileManager.default.removeItem(at: url) } }
         }
         _ = try? await job.value

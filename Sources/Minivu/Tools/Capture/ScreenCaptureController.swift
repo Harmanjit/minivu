@@ -127,7 +127,11 @@ import MinivuCore
         let folder = capturesFolder
         let name = CaptureFiles.fileName(date: now())
         let options = ExportOptions(format: .png, colorProfile: .original, keepMetadata: false)
-        let job = FileWriteQueue.shared.enqueue {
+        // The folder is named, not the file: the name is only chosen inside
+        // the job, so the folder is the smallest thing that can be named in
+        // advance. Trashing or moving minivu Captures then waits for a
+        // capture still in the queue instead of racing it.
+        let job = FileWriteQueue.shared.enqueue(touching: [folder]) {
             try await BlockingWork.run {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 let url = folder.appendingPathComponent(FileOperations.uniqueName(for: name, in: folder))

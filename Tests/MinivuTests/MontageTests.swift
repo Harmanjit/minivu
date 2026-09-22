@@ -15,7 +15,9 @@ final class FileThumbnails: MontageThumbnailProviding {
     }
 }
 
-@MainActor @Suite struct MontageTests {
+/// Serialized because several of these tests hold and inspect the app-wide
+/// write queue: two of them at once would see each other's writes.
+@MainActor @Suite(.serialized) struct MontageTests {
     func withSettings(_ body: (MontageSettingsStore) async throws -> Void) async rethrows {
         let scratchDefaults = ScratchDefaults("minivu-montage-tests")
         defer { scratchDefaults.remove() }
@@ -187,6 +189,32 @@ final class FileThumbnails: MontageThumbnailProviding {
             #expect(left.isEmpty, "\(left)")
             #expect(model.phase == .editing)
         }
+    }
+
+    /// A montage waiting in the write queue names its folder, and a removal
+    /// names its own files, so a wait on minivu Wallpapers comes back only
+    /// once each has happened.
+    @Test func waitingOnTheMontageFolderWaitsForAQueuedMontage() async throws {
+        let scratch = try ScratchFolder()
+        let photo = try scratch.jpeg("photo.jpg", width: 40, height: 30)
+        let image = ImageBox(image: try #require(ImageDecoder.thumbnail(for: photo, maxPixelSize: 40)))
+        let folder = scratch.url.appendingPathComponent("minivu Wallpapers")
+        let queue = FileWriteQueue.shared
+
+        let written = Task { try await MontageWriter.write(image, name: "Montage.jpg", folder: folder) }
+        // One turn of the main actor is enough: the write takes its place in
+        // the queue before it suspends.
+        await Task.yield()
+        await queue.waitForWrites(to: [folder])
+        let url = folder.appendingPathComponent("Montage.jpg")
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        #expect(try await written.value == url)
+
+        let removed = Task { await MontageWriter.remove([url]) }
+        await Task.yield()
+        await queue.waitForWrites(to: [folder])
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        await removed.value
     }
 
     @Test func previewIsSmallAndFollowsTheDisplayShape() async throws {
