@@ -439,6 +439,112 @@ final class FolderCheckLog: @unchecked Sendable {
         #expect(model.image(1, from: c, wrap: true) == nil, "one image: nowhere to go")
     }
 
+    /// A Finder tag filter used to hide the whole folder until the tags
+    /// arrived, and the selection a listing was asked to make was consumed
+    /// against that empty grid: Back came home to nothing selected.
+    @Test func aFinderTagFilterKeepsTheSelectionTheListingRestores() async throws {
+        let t = try ScratchFolder()
+        let a = try t.file("a.jpg")
+        let b = try t.file("b.jpg")
+        let sub = try t.folder("Sub")
+        try FinderTags.setTags(["Red"], for: a)
+        try FinderTags.setTags(["Red"], for: b)
+        let model = makeModel()
+        await open(model, t.url, selecting: a)
+        await model.finderTagWork?.value
+        model.marksFilter.finderTag = "Red"
+        #expect(names(model) == ["Sub", "a.jpg", "b.jpg"])
+
+        await open(model, sub)
+        model.goBack()
+        await model.work?.value
+        #expect(names(model) == ["Sub", "a.jpg", "b.jpg"])
+        #expect(model.lead?.lastPathComponent == "a.jpg")
+        #expect(model.selection.map(\.lastPathComponent) == ["a.jpg"])
+    }
+
+    /// Opening a tagged file from Finder: the window controller drops its
+    /// request at the first change that isn't still loading, so the lead has
+    /// to be there by then or the viewer never opens and says nothing.
+    @Test func aFinderTagFilterKeepsTheFileAViewerRequestWaitsFor() async throws {
+        let t = try ScratchFolder()
+        let a = try t.file("a.jpg")
+        try t.file("b.jpg")
+        let sub = try t.folder("Sub")
+        try FinderTags.setTags(["Red"], for: a)
+        let model = makeModel()
+        await open(model, t.url)
+        await model.finderTagWork?.value
+        model.marksFilter.finderTag = "Red"
+        await open(model, sub)
+
+        var settled = false
+        var leadWhenSettled: URL?
+        model.onChange = { _ in
+            guard !settled, model.state != .loading else { return }
+            settled = true
+            leadWhenSettled = model.lead
+        }
+        model.navigate(to: t.url, selecting: a)
+        await model.work?.value
+        #expect(leadWhenSettled?.lastPathComponent == "a.jpg")
+        #expect(names(model) == ["Sub", "a.jpg"])
+    }
+
+    /// An inline rename lists again and selects the new name. The file used
+    /// to vanish from the grid until the tags landed, and unselected.
+    @Test func aFinderTagFilterShowsARenamedFileSelected() async throws {
+        let t = try ScratchFolder()
+        let a = try t.file("a.jpg")
+        try FinderTags.setTags(["Red"], for: a)
+        let model = makeModel()
+        await open(model, t.url)
+        await model.finderTagWork?.value
+        model.marksFilter.finderTag = "Red"
+        #expect(names(model) == ["a.jpg"])
+
+        let renamed = t.url.appendingPathComponent("z.jpg")
+        try FileManager.default.moveItem(at: a, to: renamed)
+        // The grid says "No Matches" when it is loaded and empty while a
+        // filter is up, and this folder holds nothing but the one image, so
+        // an empty grid here is that message. The other tag filter tests
+        // cannot see it, because a subfolder always passes the filter.
+        var emptyWhileLoaded = false
+        model.onChange = { _ in
+            if model.state == .loaded, model.entries.isEmpty { emptyWhileLoaded = true }
+        }
+        model.reload(thenSelect: [renamed])
+        await model.work?.value
+        #expect(names(model) == ["z.jpg"])
+        #expect(model.lead?.lastPathComponent == "z.jpg")
+        #expect(model.selection.map(\.lastPathComponent) == ["z.jpg"])
+        #expect(!emptyWhileLoaded, "the grid never flashes No Matches on the way")
+    }
+
+    /// The ordinary case, which must stay fast: with no Finder tag filter on
+    /// the listing reads no extended attributes and doesn't wait for them.
+    /// The change it emits carries none, and the tags follow on their own.
+    @Test func withoutAFinderTagFilterTheTagsStillFollowTheListing() async throws {
+        let t = try ScratchFolder()
+        let a = try t.file("a.jpg")
+        try FinderTags.setTags(["Red"], for: a)
+        let model = makeModel()
+        var settled = false
+        var tagsWhenSettled: [FinderTag] = []
+        model.onChange = { _ in
+            guard !settled, model.state == .loaded else { return }
+            settled = true
+            tagsWhenSettled = model.finderTags(for: a)
+        }
+
+        await open(model, t.url)
+        #expect(settled)
+        #expect(tagsWhenSettled.isEmpty)
+        await model.finderTagWork?.value
+        #expect(model.finderTags(for: a).map(\.name) == ["Red"])
+        #expect(model.finderTagsInFolder.map(\.name) == ["Red"])
+    }
+
     /// The watcher tells the sidebar before it reloads.
     @Test func watcherReportsChangesForTheSidebar() async throws {
         let t = try ScratchFolder()

@@ -89,6 +89,9 @@ nonisolated struct FolderSnapshot: Sendable {
         var changed: [URL]
         /// Read with the listing; nil for a re-sort, which keeps the marks.
         var marks: [String: Catalog.Marks]?
+        /// Read with the listing while a Finder tag filter is on, so the
+        /// filter has them; nil when the usual asynchronous read will do.
+        var finderTags: [String: [FinderTag]]?
     }
 
     enum State: Equatable {
@@ -386,6 +389,7 @@ nonisolated struct FolderSnapshot: Sendable {
         let lister = self.lister, hidden = showHiddenFiles, order = sortOrder
         let previous = snapshot.flatMap { Self.samePath($0.folder, folder) ? $0.entries : nil } ?? []
         let parent = parentToCheck, isReadableFolder = self.isReadableFolder, catalog = self.catalog
+        let needsFinderTags = marksFilter.finderTag != nil
         work = Task { [weak self] in
             let (result, parentIsReadable) = await BlockingWork.run(qos: .userInitiated) {
                 let result = Result { () throws -> Listing in
@@ -399,8 +403,14 @@ nonisolated struct FolderSnapshot: Sendable {
                     let marks = Self.marksByName(contents.images, in: catalog)
                     let custom = order.key == .custom ? catalog.customOrder(in: folder) : []
                     let snapshot = FolderSnapshot(contents: contents, order: order, marks: marks, customOrder: custom)
+                    // A Finder tag filter hides every image until the tags
+                    // are known, and the selection the listing was asked to
+                    // make would be consumed against that empty grid and
+                    // lost, so while one is on the tags ride along with the
+                    // marks in this same hop rather than following later.
+                    let tags = needsFinderTags ? Self.finderTagsByName(snapshot.entries) : nil
                     return Listing(snapshot: snapshot, changed: Self.changedFiles(old: previous, new: snapshot.entries),
-                                   marks: marks)
+                                   marks: marks, finderTags: tags)
                 }
                 return (result, parent.map(isReadableFolder))
             }
@@ -451,6 +461,18 @@ nonisolated struct FolderSnapshot: Sendable {
         return result
     }
 
+    /// Every entry's Finder tags, one extended attribute read each, for the
+    /// listing to carry. Only tagged entries get an entry, as the
+    /// asynchronous read's map does.
+    nonisolated static func finderTagsByName(_ entries: [FolderEntry]) -> [String: [FinderTag]] {
+        var tags: [String: [FinderTag]] = [:]
+        for entry in entries {
+            let found = FinderTag.read(from: entry.url)
+            if !found.isEmpty { tags[entry.name] = found }
+        }
+        return tags
+    }
+
     private func finish(_ result: Result<Listing, Error>, generation: Int) {
         guard generation == self.generation else { return }
         isListing = false
@@ -462,7 +484,17 @@ nonisolated struct FolderSnapshot: Sendable {
             if let marks = listing.marks {
                 if marks != self.marks { changedMarkNames = nil }
                 self.marks = marks
-                readFinderTags()
+                if let tags = listing.finderTags {
+                    // In place before the filter runs below, so the grid is
+                    // never momentarily empty. A read still in flight would
+                    // land after them and put older tags back, and a listing
+                    // has always cancelled one.
+                    finderTagRead?.cancel.cancel()
+                    finderTagRead = nil
+                    storeFinderTags(tags)
+                } else {
+                    readFinderTags()
+                }
             }
         case .failure(let error):
             snapshot?.entries.filter { !$0.isDirectory }.forEach { invalidate($0.url) }
@@ -558,8 +590,12 @@ nonisolated struct FolderSnapshot: Sendable {
         }
     }
 
-    private func applyFinderTags(_ tags: [String: [FinderTag]]) {
-        guard tags != finderTags else { return }
+    /// Takes a read's tags into the model: the map, the folder's tags for
+    /// the filter menu, and which names changed. False when they are the
+    /// tags already held, so the caller can tell the views nothing happened.
+    @discardableResult
+    private func storeFinderTags(_ tags: [String: [FinderTag]]) -> Bool {
+        guard tags != finderTags else { return false }
         var changed = Set<String>()
         for name in Set(tags.keys).union(finderTags.keys) where tags[name] != finderTags[name] { changed.insert(name) }
         finderTags = tags
@@ -568,6 +604,11 @@ nonisolated struct FolderSnapshot: Sendable {
             .filter { seen.insert($0.name).inserted }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         changedMarkNames = changed
+        return true
+    }
+
+    private func applyFinderTags(_ tags: [String: [FinderTag]]) {
+        guard storeFinderTags(tags) else { return }
         if marksFilter.finderTag != nil {
             applyFilter()
             onChange?([.marks, .entries, .selection])
