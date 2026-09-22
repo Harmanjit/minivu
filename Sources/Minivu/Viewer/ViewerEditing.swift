@@ -241,6 +241,11 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             cancelled?()
             return
         }
+        // The question has to be where the user is looking. The browser can
+        // set it off while the viewer sits behind it, by a double-click on
+        // another image or by a Command-Q of its own, and a sheet on a hidden
+        // window reads as nothing having happened at all.
+        window.makeKeyAndOrderFront(nil)
         Self.askAboutUnsavedEdits(session.document.entry.name, window) { [weak self] choice in
             guard let self, self.editSession === session else {
                 cancelled?()
@@ -269,11 +274,20 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     /// For Move to Trash in the browser: runs `proceed` once unsaved edits
     /// of an image among `urls` (or inside a folder among them) are dealt
     /// with, as moving on deals with them. Edits of any other image stay.
+    ///
+    /// As with a retarget, a sheet of the viewer's own leaves no way to ask,
+    /// so the request is dropped without the user having been asked: the
+    /// viewer comes forward with the beep the app gives any command it can't
+    /// carry out, rather than the browser appearing to ignore the key.
     func resolveUnsavedEdits(before urls: [URL], then proceed: @escaping () -> Void) {
         guard hasUnsavedEdits, let edited = editSession?.document.entry.url,
               FileWriteQueue.path(FileWriteQueue.key(edited), isIn: urls) else { return proceed() }
-        window?.makeKeyAndOrderFront(nil)
-        resolveUnsavedEdits(then: proceed)
+        let unanswerable = window?.attachedSheet != nil
+        resolveUnsavedEdits(then: proceed) { [weak self] in
+            guard unanswerable, let window = self?.window else { return }
+            window.makeKeyAndOrderFront(nil)
+            NSSound.beep()
+        }
     }
 
     /// Edits on screen that no file has: committed ones not saved, or a

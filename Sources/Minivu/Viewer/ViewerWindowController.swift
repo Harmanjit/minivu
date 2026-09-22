@@ -284,8 +284,21 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// stays on its image and the browser's new request is dropped.
     private func retarget(images: [FolderEntry], index: Int, fullScreen: Bool,
                           onClose: @escaping (FolderEntry?) -> Void) {
+        // A sheet of the viewer's own (Resize, a save panel) leaves no way to
+        // ask about the edits, so this request is dropped without the user
+        // having been asked anything, and a double-click that does nothing at
+        // all looks like a broken browser. Say no where they are looking
+        // instead: the viewer in front, showing what is in the way, with the
+        // beep the app gives any command it can't carry out. A request the
+        // user dropped themselves by answering Cancel needs neither, since
+        // they chose it with the question in front of them.
+        let unanswerable = hasUnsavedEdits && window?.attachedSheet != nil
         resolveUnsavedEdits { [weak self] in
             self?.performRetarget(images: images, index: index, fullScreen: fullScreen, onClose: onClose)
+        } cancelled: { [weak self] in
+            guard unanswerable, let window = self?.window else { return }
+            window.makeKeyAndOrderFront(nil)
+            NSSound.beep()
         }
     }
 
@@ -1227,6 +1240,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         model.wrapAround = Preferences.shared.wrapAround
         if let enabled = validateEditAction(menuItem.action) { return enabled }
         if let enabled = validateToolAction(menuItem.action) { return enabled }
+        if let enabled = validateClipboardAction(menuItem.action) { return enabled }
         switch menuItem.action {
         case .nextImage: return model.canGoNext
         case .previousImage: return model.canGoPrevious

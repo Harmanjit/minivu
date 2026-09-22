@@ -213,6 +213,57 @@ extension AppWindowTests {
             #expect(viewer.editSession == nil && !viewer.hasUnsavedEdits)
         }
 
+        /// The browser's double-click reaches a viewer that may be behind it,
+        /// so the question about unsaved edits has to come forward with it;
+        /// and a request that can't be asked about at all has to say so
+        /// rather than vanish.
+        @Test func aBrowserRequestAsksInFrontAndSaysNoWhenASheetIsUp() async throws {
+            let folder = try ScratchFolder()
+            let list = try [folder.jpeg("a.jpg", width: 600, height: 400), folder.jpeg("b.jpg", width: 600, height: 400)]
+                .map { try #require(FolderEntry(url: $0)) }
+            ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
+            defer { closeViewer() }
+            let viewer = try #require(ViewerWindowController.current)
+            await TestTiming.waitUntil { viewer.canEditCurrent }
+            viewer.rotateRight(nil)
+            #expect(viewer.hasUnsavedEdits)
+            let window = try #require(viewer.window)
+
+            // A window of its own, standing in for the browser over the viewer.
+            let browser = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 200), styleMask: [.titled],
+                                   backing: .buffered, defer: true)
+            defer { browser.orderOut(nil) }
+            browser.makeKeyAndOrderFront(nil)
+            #expect(window.orderedIndex > browser.orderedIndex)
+
+            let savedQuestion = ViewerWindowController.askAboutUnsavedEdits
+            defer { ViewerWindowController.askAboutUnsavedEdits = savedQuestion }
+            var askedInFront: [Bool] = []
+            ViewerWindowController.askAboutUnsavedEdits = { _, asking, reply in
+                askedInFront.append(asking === window && window.orderedIndex < browser.orderedIndex)
+                reply(.cancel)
+            }
+            // The browser asks for the other image: the question is asked on
+            // the viewer in front, and Cancel keeps the image being edited.
+            ViewerWindowController.show(images: list, index: 1, fullScreen: false) { _ in }
+            #expect(askedInFront == [true])
+            #expect(window.title == "a.jpg" && viewer.hasUnsavedEdits)
+
+            // A sheet of the viewer's own leaves nothing to ask with, so the
+            // request is dropped; the viewer still comes forward, where what
+            // is in the way can be seen and dealt with.
+            let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled],
+                                 backing: .buffered, defer: true)
+            window.beginSheet(sheet, completionHandler: nil)
+            defer { window.endSheet(sheet) }
+            browser.makeKeyAndOrderFront(nil)
+            #expect(window.orderedIndex > browser.orderedIndex)
+            ViewerWindowController.show(images: list, index: 1, fullScreen: false) { _ in }
+            #expect(askedInFront == [true])   // nothing more could be asked
+            #expect(window.title == "a.jpg")
+            #expect(window.orderedIndex < browser.orderedIndex)
+        }
+
         /// The crop overlay draws through the canvas's mapping: image pixels
         /// to view points and back, whatever the zoom and backing scale.
         @Test func imageAndViewPointsRoundTrip() async throws {
