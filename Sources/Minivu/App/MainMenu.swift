@@ -95,6 +95,8 @@ enum MainMenu {
         menu.add("Copy", #selector(NSText.copy(_:)), "c")
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
+        menu.add("Select Tagged", .selectTagged)
+        menu.add("Invert Selection", .invertSelection, "i", [.command, .shift])
         return menu
     }
 
