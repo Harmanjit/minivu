@@ -32,7 +32,6 @@ An honest list. Some are design decisions, some are unfinished work, some are th
 - **Stars and tags live only in minivu's catalog.** They aren't written to XMP sidecars or Finder tags, so other applications don't see them. Finder tags are read, shown and filtered by, never changed.
 - **Marks follow a file moved in Finder only when you open the folder it went to** in minivu. A file missing from its folder for a year loses its marks.
 - **On a case-sensitive volume, "A.jpg" and "a.jpg" in one folder share their marks,** because the catalog compares paths without case.
-- **Batch Rename doesn't wait for queued saves.** Move to Trash, a single rename and a move wait for a Save of the file still being written; Batch Rename doesn't, so let a Save finish before renaming the same file in a batch.
 - **Captures, montages and desktop copies take a free name just before writing.** A file another application creates under that name in the same instant would be replaced.
 
 ## Tools
