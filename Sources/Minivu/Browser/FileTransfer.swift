@@ -103,12 +103,18 @@ final class FileTransfer {
         guard !plan.isEmpty else { return outcome }
 
         let progress = TransferProgress(total: plan.count)
-        var sheet: TransferProgressSheet?
+        // The sheet lives in a box the main actor owns rather than in a
+        // variable these closures capture. `onUpdate` is called from the
+        // worker's own thread and is `@Sendable`, so what it carries across
+        // has to be safe to carry: a main-actor box is, a captured variable
+        // holding a window is not, and Swift 6.3 says so where 6.2 let it
+        // pass.
+        let shown = ProgressSheetBox()
         let showSheet = { @MainActor in
-            guard sheet == nil, let window, window.attachedSheet == nil, !progress.isFinished else { return }
+            guard shown.sheet == nil, let window, window.attachedSheet == nil, !progress.isFinished else { return }
             let made = TransferProgressSheet(title: progressTitle(count: plan.count, isMove: request.isMove,
                                                                   destination: destination), progress: progress)
-            sheet = made
+            shown.sheet = made
             window.beginSheet(made)
         }
         if plan.count > progressThreshold { showSheet() }
@@ -117,7 +123,7 @@ final class FileTransfer {
             if !Task.isCancelled { showSheet() }
         }
         progress.onUpdate = { done in
-            DispatchQueue.main.async { MainActor.assumeIsolated { sheet?.update(done: done) } }
+            DispatchQueue.main.async { MainActor.assumeIsolated { shown.sheet?.update(done: done) } }
         }
 
         let items = plan
@@ -168,7 +174,7 @@ final class FileTransfer {
         }
         progress.finish()
         delayed.cancel()
-        if let sheet, let window { window.endSheet(sheet) }
+        if let sheet = shown.sheet, let window { window.endSheet(sheet) }
 
         let replacing = Set(plan.filter { $0.policy == .replace }.map(\.url))
         outcome.transfers = result.completed
@@ -277,6 +283,14 @@ nonisolated final class TransferProgress: @unchecked Sendable {
 }
 
 /// The sheet for a long transfer: what is happening, a bar and Cancel.
+/// Holds the transfer's progress sheet for the main actor, so the worker's
+/// progress closure can reach it by hopping there instead of carrying the
+/// window with it. A main-actor type is safe to hand to a `@Sendable`
+/// closure precisely because only the main actor may touch what is inside.
+@MainActor final class ProgressSheetBox {
+    var sheet: TransferProgressSheet?
+}
+
 final class TransferProgressSheet: NSWindow {
     private let bar = NSProgressIndicator()
     private let progress: TransferProgress
