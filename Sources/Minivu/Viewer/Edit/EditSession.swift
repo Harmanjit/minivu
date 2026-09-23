@@ -78,6 +78,11 @@ final class EditSession {
     /// loads (a sharper decode, a settings reload) must not replace it.
     var hasDisplayedEdit: Bool { displayedGeometry != nil }
 
+    /// The edit render on screen is on its way off: the document has nothing
+    /// left to show and the viewer's own texture goes back at the end of the
+    /// event. A render asked for in that window would be thrown away.
+    var isRestoringViewersTexture: Bool { restoreScheduled }
+
     init(entry: FolderEntry, page: Int, canvas: EditCanvas, renderer: EditRenderer = .shared) {
         document = EditDocument(entry: entry, page: page)
         self.canvas = canvas
@@ -155,10 +160,15 @@ final class EditSession {
     /// cache let it go, or dropped it for a change on disk), so after a
     /// change it would show the other version, while tools, Redo and Save As
     /// go on with this one: then the document is rendered instead.
+    ///
+    /// Either way the canvas is left showing the document as it is. A
+    /// document with nothing to show may never change again, and this is the
+    /// only place that asks: an attempt that gave up quietly here would leave
+    /// an edit render on screen for the rest of the session.
     private func restoreViewersTexture() {
         restoreScheduled = false
-        guard !isEnded, let geometry = displayedGeometry, showsViewersTexture else { return }
-        guard fileIsUnchanged() else { return requestPreview() }
+        guard !isEnded, let geometry = displayedGeometry else { return }
+        guard showsViewersTexture, fileIsUnchanged() else { return requestPreview() }
         displayedGeometry = nil
         canvas?.showUneditedImage(preserveView: geometry.isEmpty)
     }
@@ -182,23 +192,29 @@ final class EditSession {
         return !fileChanged
     }
 
-    /// A screen-sized render of the current state. `sharpening` when the
-    /// canvas asked for more pixels (see `deliver`).
-    func requestPreview(sharpening: Bool = false) {
+    /// A screen-sized render of the current state.
+    func requestPreview() {
         guard !isEnded else { return }
         let geometry = Self.geometry(of: document)
         let size = max(canvas?.editPreviewPixelSize ?? 0, 256)
         renderer.renderPreview(document, pixelSize: size) { [weak self] texture in
-            self?.deliver(texture, geometry: geometry, sharpening: sharpening)
+            self?.deliver(texture, geometry: geometry, mayStandIn: false)
         }
     }
 
     /// A full-resolution render, for zooming past the texture on screen.
+    ///
+    /// Asked for with nothing to show, it is the unedited picture at more
+    /// pixels than a decode of the file gives, and belongs on the canvas in
+    /// place of the viewer's texture. Asked for with edits on screen it is
+    /// their render, and a Cancel or Undo while it runs leaves it a picture
+    /// nobody asked for, whoever it reaches first.
     func requestFullResolution() {
         guard !isEnded else { return }
         let geometry = Self.geometry(of: document)
+        let standsIn = showsViewersTexture
         renderer.renderFullResolution(document) { [weak self] texture in
-            self?.deliver(texture, geometry: geometry, sharpening: true)
+            self?.deliver(texture, geometry: geometry, mayStandIn: standsIn)
         }
     }
 
@@ -220,13 +236,20 @@ final class EditSession {
     /// first render, which replaces the viewer's texture (a RAW file's
     /// embedded preview can differ in size from the render).
     ///
-    /// While the viewer's texture shows the document, a render arriving is
-    /// dropped unless the canvas asked for it and it shows no edits: one of
-    /// edits since taken back, or the same picture again (a render takes the
-    /// document as it is when it starts, which can be after an Undo).
-    private func deliver(_ texture: ImageTexture, geometry: [EditOperation], sharpening: Bool) {
+    /// While the viewer's texture shows the document, only a render asked
+    /// for as a stand-in for it may take its place (see
+    /// `requestFullResolution`). A screen-sized render is the picture the
+    /// viewer already has, and one showing edits taken back while it ran is a
+    /// picture nobody asked for. Both are dropped, and the viewer's texture
+    /// asked for again in case an earlier render is still on the canvas: a
+    /// render can arrive long after the change that started it was taken
+    /// back, and a document with nothing to show may never change again.
+    private func deliver(_ texture: ImageTexture, geometry: [EditOperation], mayStandIn: Bool) {
         guard !isEnded, let canvas else { return }
-        if showsViewersTexture, !sharpening || document.deliveredOperations?.isEmpty == false { return }
+        if showsViewersTexture, !mayStandIn || document.deliveredOperations?.isEmpty == false {
+            showCurrentState()
+            return
+        }
         let preserve = Self.preservesView(displayedGeometry: displayedGeometry ?? [], newGeometry: geometry,
                                           displayedSize: canvas.editDisplayedImageSize, newSize: texture.imageSize)
         displayedGeometry = geometry

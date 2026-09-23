@@ -247,7 +247,11 @@ quarter-size proxy.
    original. Edits all taken back put the viewer's texture back at the end
    of the event, so a tool changing the document in several steps (one
    Colors section taking over from another, one effect replacing another)
-   never flashes the unedited photo between them. RAW files, whose viewer
+   never flashes the unedited photo between them. A render still running
+   when the change came back arrives too late to matter: it shows the
+   picture the viewer's texture already shows, so it is dropped rather than
+   put over it, and the texture is asked for again in case an earlier
+   render is still on the canvas. RAW files, whose viewer
    texture may be the camera's preview, originals decoded at another size
    than the viewer's (vectors), and files changed on disk since the
    original was decoded (the viewer would show the other version) show a

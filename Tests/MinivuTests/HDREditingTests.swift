@@ -190,9 +190,25 @@ extension AppWindowTests {
                 colors.setValue(0.3, section: 0, slider: 3)
                 await TestTiming.waitUntil { session.hasDisplayedEdit }
                 await expectHDR(viewer, "temperature preview")
+                // Two full-resolution renders asked for while the edit is on
+                // screen, as a zoom or the magnifier would: the second starts
+                // only once the first is done, by which time the change has
+                // been cancelled, so it renders the unedited photo. It
+                // answers a question about the edit, not about the picture
+                // the viewer's own texture already shows.
+                session.requestFullResolution()
+                session.requestFullResolution()
                 viewer.closeTool()
+                // The canvas grows back as the tool closes and asks then for
+                // more pixels of a change being taken back in the same event.
+                // Answering would render the unedited photo over the texture
+                // the viewer is about to put back, and nothing would take it
+                // off again: a document with nothing to show never changes.
+                #expect(viewer.sharpenEditedImage() == false, "a render was asked for while the edit came off")
                 await TestTiming.waitUntil { showsViewersTexture(viewer) }
                 #expect(showsViewersTexture(viewer), "temperature cancelled: the edit render stayed")
+                await TestTiming.waitUntil { session.document.deliveredOperations?.isEmpty == true }
+                #expect(showsViewersTexture(viewer), "temperature cancelled: a late render replaced the viewer's texture")
                 await expectHDR(viewer, "temperature cancelled")
 
                 // Applied this time: the edit stays on screen after the tool closes.

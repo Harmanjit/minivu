@@ -146,14 +146,17 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     /// otherwise, which for an unedited image is rendered from the original
     /// already decoded rather than decoded again. Returns false, leaving it
     /// to the viewer's own loads, when nothing edited is on screen and either
-    /// a screen-sized decode will do or the original isn't decoded yet.
+    /// a screen-sized decode will do or the original isn't decoded yet, and
+    /// while the render on screen is on its way off: the canvas grows back as
+    /// a tool closes, and asks then for more pixels of a change being taken
+    /// back at that moment.
     func sharpenEditedImage() -> Bool {
-        guard let session = editSession else { return false }
+        guard let session = editSession, !session.isRestoringViewersTexture else { return false }
         let image = canvas.image
         let textureEdge = image.map { max($0.textureSize.width, $0.textureSize.height) } ?? 0
         if canvas.zoomMode == .fit, textureEdge < CGFloat(canvasPixelSize) * 0.97 {
             guard session.hasDisplayedEdit else { return false }
-            session.requestPreview(sharpening: true)
+            session.requestPreview()
         } else {
             guard session.hasDisplayedEdit || session.document.outputSize != nil else { return false }
             session.requestFullResolution()
