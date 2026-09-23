@@ -906,6 +906,21 @@ included, in the colour space Save As would use, so a copy and a saved copy
 are the same picture. No file URL goes with it: with unsaved edits that
 would be a second, different answer to what was copied.
 
+### Building with Xcode 26
+
+Swift 6.3 cannot compile this module for release. Every Xcode 26 tried
+(26.0.1, 26.3, 26.6) dies with signal 11 in the SIL optimiser's
+EarlyPerfInliner on a class's deallocating deinit. It is not one class:
+fixing the first only moved the crash to the next, and every class has a
+deinit. It is not whole-module optimisation either, which was ruled out by
+building without it. Debug builds and the whole test suite are fine on
+6.3, and Swift 6.2 builds a release normally, so this is a compiler
+regression rather than anything the app does.
+
+Continuous integration therefore builds and tests but does not package;
+`scripts/make_app.sh` is run on a machine with Swift 6.2. The steps to put
+back are named in the workflow.
+
 ## 8. Known limits
 
 - **Editing:** Save keeps HDR only for gain-map JPEG and HEIC originals;
