@@ -620,21 +620,48 @@ extension AppWindowTests {
         /// viewer must already count the new photo as displayed, or that one
         /// request is dropped and the magnifier (and any zoom) stays blurry.
         @Test func magnifierOverTheNextPhotoLoadsItsFullResolution() async throws {
-            // Larger than the small window's canvas, and different sizes so
-            // each texture says which photo it is. Small enough to encode
-            // quickly: this runs on the main actor, which other suites'
-            // timing tests share.
+            // Larger than the canvas pinned below, and different sizes so each
+            // texture says which photo it is. Small enough to encode quickly:
+            // this runs on the main actor, which other suites' timing tests
+            // share.
             let folder = try ScratchFolder()
-            let list = try [folder.jpeg("a.jpg", width: 2400, height: 1600), folder.jpeg("b.jpg", width: 2000, height: 1500)]
+            let next = CGSize(width: 2000, height: 1500)
+            let list = try [folder.jpeg("a.jpg", width: 2400, height: 1600),
+                            folder.jpeg("b.jpg", width: Int(next.width), height: Int(next.height))]
                 .map { try #require(FolderEntry(url: $0)) }
 
             ViewerWindowController.show(images: list, index: 0, fullScreen: false) { _ in }
             let viewer = try #require(ViewerWindowController.current)
             defer { viewer.exitViewer(nil) }
             let window = try #require(viewer.window)
-            window.setContentSize(NSSize(width: 480, height: 320))
-            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.imageSize.width == 2400 }
-            try #require(viewer.canvasTexture != nil)
+            // A windowed viewer autosaves its frame, so the size set below
+            // goes back as it was before the window closes: it is this test's
+            // size, not the next test's.
+            let frame = window.frame
+            defer { window.setFrame(frame, display: false) }
+            // Both photos must reach the canvas short of full resolution, or
+            // the magnifier has nothing to ask for and the rest proves
+            // nothing. A screen-sized decode is the photo fitted to the
+            // canvas, so the canvas is held to a size of this test's
+            // choosing: the window's own minimum goes, since how small a
+            // window AppKit allows is the running machine's business and not
+            // this test's subject, and the laid-out size is then measured
+            // rather than assumed. Half of the smaller photo on both axes
+            // leaves every fitted decode well short of full resolution.
+            window.minSize = NSSize(width: 240, height: 160)
+            window.setContentSize(window.minSize)
+            viewer.container.layoutSubtreeIfNeeded()
+            let fit = viewer.canvasFitSize
+            try #require(fit.width <= next.width / 2 && fit.height <= next.height / 2)
+
+            // The photo on screen was decoded for the window as it opened, so
+            // it goes and comes back fitted to the canvas as pinned.
+            AppServices.images.invalidate(list[0].url)
+            viewer.loadCurrentPage(reloading: true)
+            await TestTiming.waitUntil(seconds: 30) {
+                viewer.canvasTexture.map { $0.imageSize.width == 2400 && !$0.isFullResolution } ?? false
+            }
+            try #require(viewer.canvasTexture?.isFullResolution == false)
 
             // Press and hold: a drag that hasn't moved once the hold delay is up.
             let canvas = viewer.canvasView
@@ -653,21 +680,17 @@ extension AppWindowTests {
             #expect(viewer.canvasTexture?.isFullResolution == true)
 
             // Whatever a prefetch at the old window size made of the next photo
-            // goes, so it arrives screen-sized: smaller than the image, which
-            // the magnifier needs.
+            // goes, so it too arrives screen-sized: shorter than the photo by
+            // the fit measured above, which is what the magnifier needs. Its
+            // full resolution can only come from the request the canvas makes
+            // as that first texture is set, which is what is under test here,
+            // so waiting for it is the whole assertion.
             AppServices.images.invalidate(list[1].url)
             viewer.nextImage(nil)
-            var firstOfNext: ImageTexture?
-            await TestTiming.waitUntil(seconds: 30) {
-                if firstOfNext == nil, let texture = viewer.canvasTexture, texture.imageSize.width == 2000 {
-                    firstOfNext = texture
-                }
-                return firstOfNext != nil
-            }
-            #expect(firstOfNext?.isFullResolution == false)
+            await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.imageSize == next }
             await TestTiming.waitUntil(seconds: 30) { viewer.canvasTexture?.isFullResolution == true }
             #expect(viewer.canvasTexture?.isFullResolution == true)
-            #expect(viewer.canvasTexture?.imageSize == CGSize(width: 2000, height: 1500))
+            #expect(viewer.canvasTexture?.imageSize == next)
         }
 
         /// A display setting changed (the loader has dropped its textures): the

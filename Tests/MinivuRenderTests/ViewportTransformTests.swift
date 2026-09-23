@@ -8,6 +8,9 @@ import CoreGraphics
 
     @Test func bestFitShowsWholeImageCentred() {
         let t = ViewportTransform.bestFit(imageSize: image, viewSize: view)
+        // Halving these sizes is exact in binary, so every machine lands on
+        // the same doubles and these can be equalities. A fit that does not
+        // divide exactly cannot, as below.
         #expect(t.zoom == 0.5)
         #expect(t.screenRect(imageSize: image, viewSize: view) == CGRect(x: 0, y: 0, width: 3000, height: 2000))
     }
@@ -15,7 +18,15 @@ import CoreGraphics
     @Test func smallImagesAreNotEnlargedByDefault() {
         let small = CGSize(width: 800, height: 600)
         #expect(ViewportTransform.bestFit(imageSize: small, viewSize: view).zoom == 1)
-        #expect(ViewportTransform.bestFit(imageSize: small, viewSize: view, enlargeSmall: true).zoom == 2000.0 / 600.0)
+        // Enlarged, the image fills the view's height, which is the axis that
+        // limits it, so its scaled height lands on the view's. Stated as a
+        // tolerance because 2000/600 has no exact double, so an equality
+        // would hold only while every toolchain lands both sides on the same
+        // last bit. A billionth of a pixel is thousands of times wider than
+        // that last bit and far narrower than any real change to the rule:
+        // fitting the width instead would miss by 250 pixels.
+        let enlarged = ViewportTransform.bestFit(imageSize: small, viewSize: view, enlargeSmall: true)
+        #expect(abs(enlarged.zoom * small.height - view.height) < 1e-9)
     }
 
     @Test func zoomKeepsAnchorFixed() {
