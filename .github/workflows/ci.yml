@@ -130,20 +130,24 @@ jobs:
 
       # TEMPORARY, and to be removed once it has answered. Swift 6.3's
       # optimiser crashes building this module for release, in the inliner,
-      # on a class's deinit; it is not one class, since fixing the first
-      # only moved it to the next, and every class has one. This asks
-      # whether leaving out whole-module optimisation avoids it, which is
-      # the difference between a workaround that costs the app some speed
-      # and one that means pinning the toolchain. It must not decide the
-      # job either way, hence continue-on-error.
-      - name: Does release build without whole-module optimisation
+      # on a class's deinit; it is not one class, and it is not whole-module
+      # optimisation, both of which have been ruled out by measurement. This
+      # asks which of the image's Xcode 26 versions can build a release, so
+      # that pinning one is an informed choice rather than a guess. It must
+      # not decide the job, hence continue-on-error.
+      - name: Which Xcode 26 can build a release
         continue-on-error: true
         run: |
-          if swift build -c release --product minivu -Xswiftc -no-whole-module-optimization 2>&1 | tail -40; then
-            echo "RESULT: release builds WITHOUT whole-module optimisation"
-          else
-            echo "RESULT: it crashes without whole-module optimisation too"
-          fi
+          for xcode in /Applications/Xcode_26.0.1.app /Applications/Xcode_26.3.app /Applications/Xcode_26.5.app; do
+            [ -d "$xcode" ] || { echo "RESULT: $xcode is not on this image"; continue; }
+            rm -rf .build/release
+            if DEVELOPER_DIR="$xcode/Contents/Developer" swift build -c release --product minivu >/tmp/rel.log 2>&1; then
+              echo "RESULT: $(basename "$xcode") BUILDS a release"
+            else
+              echo "RESULT: $(basename "$xcode") crashes: $(grep -m1 'While running pass' /tmp/rel.log || echo 'see log')"
+            fi
+          done
+          rm -rf .build/release
 
       - name: Build the app bundle
         # Ad hoc signing wants no certificate and no keychain, so nothing
