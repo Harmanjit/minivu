@@ -27,7 +27,19 @@ for arg in "$@"; do
 done
 
 echo "Building release…"
-swift build -c release --product minivu 2>&1 | tail -1
+# On success only the last line is wanted, which is SwiftPM's own summary.
+# On failure everything is: piping straight into `tail -1` threw the error
+# away and left one line of whatever came last, which for a compiler crash
+# is the bottom of a stack trace and tells nobody anything.
+build_log=$(mktemp -t minivu-release-build)
+if swift build -c release --product minivu >"$build_log" 2>&1; then
+    tail -1 "$build_log"
+    rm -f "$build_log"
+else
+    cat "$build_log"
+    rm -f "$build_log"
+    exit 1
+fi
 
 APP="build/minivu.app"
 rm -rf "$APP"
