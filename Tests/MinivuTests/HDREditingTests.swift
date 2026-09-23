@@ -180,6 +180,12 @@ extension AppWindowTests {
         /// back (Cancel, Undo) puts the viewer's own texture back.
         @Test func editsStayHDRAndTakingThemBackRestoresTheViewersTexture() async throws {
             try await withHDRViewer { viewer in
+                // TEMPORARY PROBE: what the session is about to take as the
+                // size of the viewer's texture, which it must later match to
+                // put that texture back.
+                print("PROBE before tool: displayed=\(viewer.editDisplayedImageSize.map(String.init(describing:)) ?? "nil") " +
+                      "canvas=\(viewer.canvasView.bounds.size) backing=\(viewer.window?.backingScaleFactor ?? -1) " +
+                      "full=\(viewer.canvasTexture?.isFullResolution.description ?? "nil")")
                 // A temperature preview, then Cancel.
                 viewer.adjustColors(nil)
                 guard case .adjustment(let colors)? = viewer.activeTool else {
@@ -192,6 +198,11 @@ extension AppWindowTests {
                 await expectHDR(viewer, "temperature preview")
                 viewer.closeTool()
                 await TestTiming.waitUntil { showsViewersTexture(viewer) }
+                // TEMPORARY PROBE: if the restore never happened, these say why.
+                print("PROBE after cancel: displayed=\(viewer.editDisplayedImageSize.map(String.init(describing:)) ?? "nil") " +
+                      "source=\(session.document.sourceSize.map(String.init(describing:)) ?? "nil") " +
+                      "ops=\(session.document.operations.count) preview=\(session.document.preview.debugDescription) " +
+                      "hasDisplayedEdit=\(session.hasDisplayedEdit)")
                 #expect(showsViewersTexture(viewer), "temperature cancelled: the edit render stayed")
                 await expectHDR(viewer, "temperature cancelled")
 
