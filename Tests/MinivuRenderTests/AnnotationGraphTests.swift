@@ -222,8 +222,9 @@ import simd
         #expect(largeErrors < 600, "large errors \(largeErrors)")
     }
 
-    /// Tiles of a provider join without seams, shadows and text included.
-    @Test func tilesJoinSeamlessly() {
+    /// The objects the seam tests draw: a turned, stroked rectangle with a
+    /// shadow and outlined text across it.
+    static func seamObjects() -> [Annotation] {
         var rect = Annotation(kind: .rectangle)
         rect.frame = CGRect(x: 0.2, y: 0.2, width: 0.5, height: 0.5)
         rect.rotation = 30
@@ -234,19 +235,127 @@ import simd
         text.fontSize = 0.12
         text.frame = CGRect(x: 0.05, y: 0.4, width: 0.9, height: 0.3)
         text.textOutlineColor = .black
-        let ops: [EditOperation] = [.annotations([rect, text])]
-        let source = F.flat(0.4, width: 300, height: 200)
-        let whole = render(ops, source: source, fullSize: CGSize(width: 300, height: 200))
-        let saved = AnnotationGraph.tileSize
-        AnnotationGraph.tileSize = 64
-        defer { AnnotationGraph.tileSize = saved }
-        let tiled = render(ops, source: source, fullSize: CGSize(width: 300, height: 200))
-        var worst: Float = 0
-        for (a, b) in zip(whole.all, tiled.all) {
-            let d: SIMD4<Float> = simd.abs(a - b)
-            worst = max(worst, d.x, d.y, d.z)
+        return [rect, text]
+    }
+
+    /// Draws `objects` into one BGRA8 buffer covering `region`, in tiles of
+    /// `tile` or in one piece, calling the provider exactly as Core Image
+    /// does: a buffer and a row stride of its own for each tile.
+    static func drawTiles(_ objects: [Annotation], size: CGSize, region: CGRect, tile: Int?) -> [UInt8] {
+        let w = Int(region.width), h = Int(region.height)
+        var out = [UInt8](repeating: 0, count: w * h * 4)
+        let provider = AnnotationTileProvider(objects: objects, imageSize: size, region: region)
+        let step = tile ?? max(w, h)
+        for y in stride(from: 0, to: h, by: step) {
+            for x in stride(from: 0, to: w, by: step) {
+                let tw = min(step, w - x), th = min(step, h - y)
+                var buffer = [UInt8](repeating: 0, count: tw * th * 4)
+                buffer.withUnsafeMutableBytes {
+                    provider.provideImageData($0.baseAddress!, bytesPerRow: tw * 4, origin: x, y, size: tw, th,
+                                              userInfo: nil)
+                }
+                for row in 0..<th {
+                    let source = row * tw * 4, destination = ((y + row) * w + x) * 4
+                    out.replaceSubrange(destination..<(destination + tw * 4),
+                                        with: buffer[source..<(source + tw * 4)])
+                }
+            }
         }
-        #expect(worst < 0.01, "worst difference \(worst)")
+        return out
+    }
+
+    /// Tiles of a provider join without seams, shadows and text included.
+    ///
+    /// The provider is driven straight rather than through
+    /// `AnnotationGraph.tileSize`, because Core Image treats
+    /// `.providerTileSize` as a hint and macOS 15 ignores it: the provider is
+    /// asked in 64 px tiles whatever we set, through `render(toBitmap:)` and
+    /// `createCGImage` alike. Setting the hook and comparing renders therefore
+    /// compares a render with itself and tests nothing at all on that release.
+    ///
+    /// Seamless does not mean the bitmaps match byte for byte. A path clipped
+    /// to a small context rasterises its antialiased edge a little
+    /// differently, measured here at up to 7 levels of coverage out of 255, so
+    /// pixels along an outline move whether or not they are near a boundary.
+    /// It means the two things a seam would break: tiling never changes a
+    /// pixel that lies solidly inside or outside a shape, and the cut does not
+    /// dominate where along an edge the coverage moves. A clip does cost the
+    /// pixels it passes through something, measured here at twice the rate
+    /// found elsewhere along the same outline, so the last bound is loose on
+    /// purpose; a seam would be a step, not a rate.
+    @Test func tilesJoinSeamlessly() {
+        let size = CGSize(width: 300, height: 200)
+        let objects = Self.seamObjects()
+        let region = objects.reduce(CGRect.null) { $0.union($1.paintedBounds(in: size, includingShadow: false)) }
+            .intersection(CGRect(origin: .zero, size: size)).integral
+        let whole = Self.drawTiles(objects, size: size, region: region, tile: nil)
+        let tiled = Self.drawTiles(objects, size: size, region: region, tile: 64)
+        let w = Int(region.width), h = Int(region.height)
+
+        // A pixel is on an edge when any neighbour differs from it in any
+        // channel. Coverage alone will not do: the fill is 80% opaque, so
+        // "not fully opaque" would count the whole inside of the rectangle,
+        // and the boundary between the opaque stroke and the fill beneath it
+        // changes colour at a constant alpha. A neighbour outside the region
+        // counts as the same, so the region's own border is an edge only where
+        // something is drawn against it. Calling the whole border an edge
+        // instead would be worse than useless: it is transparent padding that
+        // can never change, and 475 of its 896 pixels sit on a multiple of 64,
+        // so it would pad the boundary count below with three fifths of
+        // pixels that are certain to pass.
+        func onAnEdge(_ x: Int, _ y: Int) -> Bool {
+            let i = (y * w + x) * 4
+            return [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { offset in
+                let (nx, ny) = (x + offset.0, y + offset.1)
+                guard nx >= 0, ny >= 0, nx < w, ny < h else { return false }
+                let j = (ny * w + nx) * 4
+                return (0..<4).contains { whole[i + $0] != whole[j + $0] }
+            }
+        }
+        var changed = 0, worstByte = 0
+        var nearBoundary = (changed: 0, total: 0), elsewhere = (changed: 0, total: 0)
+        var offTheEdges = 0
+        for y in 0..<h {
+            for x in 0..<w {
+                let i = (y * w + x) * 4
+                var differs = false
+                for c in 0..<4 where whole[i + c] != tiled[i + c] {
+                    differs = true
+                    worstByte = max(worstByte, abs(Int(whole[i + c]) - Int(tiled[i + c])))
+                }
+                if differs { changed += 1 }
+                guard onAnEdge(x, y) else {
+                    if differs { offTheEdges += 1 }
+                    continue
+                }
+                if x % 64 <= 1 || x % 64 >= 62 || y % 64 <= 1 || y % 64 >= 62 {
+                    nearBoundary.total += 1; if differs { nearBoundary.changed += 1 }
+                } else {
+                    elsewhere.total += 1; if differs { elsewhere.changed += 1 }
+                }
+            }
+        }
+        let edges = nearBoundary.total + elsewhere.total
+        // Nothing away from an edge may move at all: a tile that drew its
+        // objects in the wrong place would put colour where there was none.
+        #expect(offTheEdges == 0, "tiling changed \(offTheEdges) pixels that sit in flat colour")
+        // Along an edge, coverage may land a level or two differently.
+        // Measured at 6 of 255 on macOS 15.7.9; content misplaced by a whole
+        // pixel moves an edge pixel by more than 200.
+        #expect(worstByte <= 24, "an edge pixel moved by \(worstByte) of 255")
+        #expect(changed * 4 <= edges,
+                "\(changed) of \(edges) edge pixels changed, more than a quarter of the outline")
+        // The seam itself: the cut may cost the edge it passes through, but it
+        // must not be where the difference lives. Measured on macOS 15.7.9 at
+        // 21% of edge pixels beside a boundary against 10% elsewhere, so a
+        // fourfold rate is the point at which the cut has stopped being one
+        // influence among several.
+        #expect(nearBoundary.total > 100 && elsewhere.total > 100,
+                "too few edge pixels to judge: \(nearBoundary.total) beside a boundary, \(elsewhere.total) elsewhere")
+        let near = Double(nearBoundary.changed) / Double(max(nearBoundary.total, 1))
+        let far = Double(elsewhere.changed) / Double(max(elsewhere.total, 1))
+        #expect(near <= max(far * 4, 0.02),
+                "beside a boundary \(Int(near * 100))% of edge pixels changed, elsewhere \(Int(far * 100))%")
     }
 
     // MARK: - Codable
@@ -430,5 +539,181 @@ import simd
                      graphTimes.map { String(format: "%.1f", $0) }.joined(separator: ", "),
                      exportBase.map { String(format: "%.1f", $0) }.joined(separator: ", "),
                      exportTimes.map { String(format: "%.1f", $0) }.joined(separator: ", ")))
+    }
+}
+
+
+// MARK: - Temporary diagnostic
+
+/// Records the tiles Core Image asks a provider for, so a run can say whether
+/// this release honours `.providerTileSize` at all.
+private final class CountingTileProvider: NSObject, @unchecked Sendable {
+    let lock = NSLock()
+    var calls: [(x: Int, y: Int, width: Int, height: Int)] = []
+
+    override func provideImageData(_ data: UnsafeMutableRawPointer, bytesPerRow: Int, origin x: Int, _ y: Int,
+                                   size width: Int, _ height: Int, userInfo info: Any?) {
+        lock.lock()
+        calls.append((x, y, width, height))
+        lock.unlock()
+        // Row by row, since only the first `width` pixels of each row are
+        // ours: Core Image need not have allocated the padding after the last.
+        for row in 0..<height { memset(data.advanced(by: row * bytesPerRow), 128, width * 4) }
+    }
+}
+
+/// TEMPORARY, and not an assertion of anything: it prints measurements and
+/// always passes. `tilesJoinSeamlessly` failed on a macOS 26 runner and passes
+/// on macOS 15, and the two releases cannot be compared from one machine.
+/// Delete this suite once a run on the newer release has been read.
+///
+/// Run it alone with:
+///
+///     swift test --filter temporaryTilingDiagnostic
+@Suite(.serialized) struct TemporarySeamDiagnostics {
+    typealias F = EditFixtures
+
+    /// An sRGB byte as linear light, to say what a level of coverage in a tile
+    /// is worth in the working space the old assertion measured in.
+    static func linear(_ b: UInt8) -> Float {
+        let e = Float(b) / 255
+        return e <= 0.04045 ? e / 12.92 : pow((e + 0.055) / 1.055, 2.4)
+    }
+
+    @Test func temporaryTilingDiagnostic() {
+        print("")
+        print("======== TEMPORARY TILING DIAGNOSTIC ========")
+        print("macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+
+        // 1. Does Core Image honour the tile size we ask for? On macOS 15.7.9
+        // it does not: render(toBitmap:) asks for the whole image in one call
+        // and createCGImage asks in 64 px tiles, whatever we request. If that
+        // is so here too, `AnnotationGraph.tileSize` is a hint with no effect
+        // and no test can force tiling through it.
+        print("")
+        print("[1] TILE SIZES CORE IMAGE ACTUALLY ASKS FOR")
+        for (width, height) in [(300, 200), (1650, 990)] {
+            for asked in [64, 256, 1024] {
+                for path in ["render(toBitmap:)", "createCGImage"] {
+                    let provider = CountingTileProvider()
+                    let image = CIImage(imageProvider: provider, size: width, height, format: .BGRA8,
+                                        colorSpace: AnnotationRenderer.sRGB, options: [.providerTileSize: asked])
+                    if path == "createCGImage" {
+                        _ = F.context.createCGImage(image, from: image.extent)
+                    } else {
+                        var data = [UInt8](repeating: 0, count: width * height * 4)
+                        F.context.render(image, toBitmap: &data, rowBytes: width * 4, bounds: image.extent,
+                                         format: .BGRA8, colorSpace: AnnotationRenderer.sRGB)
+                    }
+                    let sizes = Set(provider.calls.map { "\($0.width)x\($0.height)" }).sorted().prefix(4)
+                    print("    \(width)x\(height), asked \(asked) px, \(path): \(provider.calls.count) calls, "
+                          + "sizes \(sizes.joined(separator: " "))")
+                }
+            }
+        }
+
+        // 2. The Core Graphics drawing on its own: the provider called once for
+        // the whole region, then tile by tile, with no Core Image and no GPU in
+        // between. This is where a seam would have to come from, since the
+        // tiles are filled by Core Graphics on the CPU.
+        print("")
+        print("[2] CORE GRAPHICS: WHOLE REGION VERSUS TILES")
+        let cases: [(String, CGSize, [Annotation], [Int])] = [
+            ("rectangle alone", CGSize(width: 300, height: 200),
+             [AnnotationGraphTests.seamObjects()[0]], [32, 64, 128, 256]),
+            ("text alone", CGSize(width: 300, height: 200),
+             [AnnotationGraphTests.seamObjects()[1]], [32, 64, 128, 256]),
+            ("both, as tilesJoinSeamlessly draws them", CGSize(width: 300, height: 200),
+             AnnotationGraphTests.seamObjects(), [32, 64, 128, 256]),
+            ("both at a size where tiling really happens", CGSize(width: 1800, height: 1200),
+             AnnotationGraphTests.seamObjects(), [64, 1024]),
+        ]
+        for (label, size, objects, tiles) in cases {
+            let region = objects.reduce(CGRect.null) { $0.union($1.paintedBounds(in: size, includingShadow: false)) }
+                .intersection(CGRect(origin: .zero, size: size)).integral
+            let w = Int(region.width), h = Int(region.height)
+            let whole = AnnotationGraphTests.drawTiles(objects, size: size, region: region, tile: nil)
+            print("    \(label), region \(w)x\(h) of a \(Int(size.width))x\(Int(size.height)) image:")
+            for tile in tiles {
+                let tiled = AnnotationGraphTests.drawTiles(objects, size: size, region: region, tile: tile)
+                var changed = 0, worstByte = 0, solid = 0
+                var worstLinear: Float = 0
+                var near = (changed: 0, total: 0), far = (changed: 0, total: 0)
+                for y in 0..<h {
+                    for x in 0..<w {
+                        let i = (y * w + x) * 4
+                        let differs = (0..<4).contains { whole[i + $0] != tiled[i + $0] }
+                        // As in `tilesJoinSeamlessly`: a neighbour outside the
+                        // region counts as the same, so the region's border of
+                        // transparent padding does not pass for an outline.
+                        let edge = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { offset in
+                            let (nx, ny) = (x + offset.0, y + offset.1)
+                            guard nx >= 0, ny >= 0, nx < w, ny < h else { return false }
+                            let j = (ny * w + nx) * 4
+                            return (0..<4).contains { whole[i + $0] != whole[j + $0] }
+                        }
+                        if differs {
+                            changed += 1
+                            if !edge { solid += 1 }
+                            for c in 0..<4 { worstByte = max(worstByte, abs(Int(whole[i + c]) - Int(tiled[i + c]))) }
+                            // What the difference is worth in the linear
+                            // working space the old assertion measured in,
+                            // composited over the test's 0.4 grey.
+                            for c in 0..<3 {
+                                let p = Self.linear(whole[i + c])
+                                    + 0.4 * (1 - Float(whole[i + 3]) / 255)
+                                let q = Self.linear(tiled[i + c])
+                                    + 0.4 * (1 - Float(tiled[i + 3]) / 255)
+                                worstLinear = max(worstLinear, abs(p - q))
+                            }
+                        }
+                        guard edge else { continue }
+                        if x % tile <= 1 || x % tile >= tile - 2 || y % tile <= 1 || y % tile >= tile - 2 {
+                            near.total += 1; if differs { near.changed += 1 }
+                        } else {
+                            far.total += 1; if differs { far.changed += 1 }
+                        }
+                    }
+                }
+                print(String(format: "        tile %4d: %6d pixels differ, worst %2d/255 (%.4f linear), %d of them away from any edge",
+                             tile, changed, worstByte, worstLinear, solid))
+                print(String(format: "                   antialiased pixels changed: %.1f%% beside a tile boundary (%d of %d), %.1f%% elsewhere (%d of %d)",
+                             near.total == 0 ? 0 : Double(near.changed) / Double(near.total) * 100, near.changed, near.total,
+                             far.total == 0 ? 0 : Double(far.changed) / Double(far.total) * 100, far.changed, far.total))
+            }
+        }
+
+        // 3. What the old assertion measured, printed instead of asserted: the
+        // whole graph rendered twice, once with the tile size left alone and
+        // once forced down to 64. It reported 0.024906635 on the macOS 26
+        // runner and 0 here, because here the forcing does nothing.
+        print("")
+        print("[3] THE OLD END-TO-END ASSERTION, MEASURED NOT ASSERTED")
+        let size = CGSize(width: 300, height: 200)
+        let objects = AnnotationGraphTests.seamObjects()
+        func rendered(_ tile: Int) -> F.Pixels {
+            let saved = AnnotationGraph.tileSize
+            AnnotationGraph.tileSize = tile
+            defer { AnnotationGraph.tileSize = saved }
+            let source = F.flat(0.4, width: 300, height: 200)
+            return F.pixels(EditGraph.image(source: source, sourceSize: size,
+                                            operations: [.annotations(objects)], scale: 1))
+        }
+        let whole = rendered(1024)
+        for tile in [32, 64, 128, 1024] {
+            let tiled = rendered(tile)
+            var worst: Float = 0, over: Int = 0
+            for (a, b) in zip(whole.all, tiled.all) {
+                let d: SIMD4<Float> = simd.abs(a - b)
+                let e = max(d.x, d.y, d.z)
+                worst = max(worst, e)
+                if e > 0.01 { over += 1 }
+            }
+            print(String(format: "    tile size set to %4d: worst difference %.9f, %d pixels over 0.01",
+                         tile, worst, over))
+        }
+        print("======== END TEMPORARY TILING DIAGNOSTIC ========")
+        print("")
+        #expect(Bool(true), "a printing diagnostic, never a failure")
     }
 }
