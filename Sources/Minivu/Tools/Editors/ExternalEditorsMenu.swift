@@ -57,11 +57,8 @@ enum ExternalEditorsMenu {
 /// A weak reference that can sit in an array, so the list of menus doesn't
 /// keep closed menu bars alive.
 ///
-/// A struct rather than a class, which is all this needs since the
-/// reference is only ever read after it is made, and which also steps
-/// around a Swift 6.3 optimiser crash: building for release, the inliner
-/// falls over on the deinit a class of this shape gets, and a struct has
-/// none. Swift 6.2 compiles either.
+/// A struct rather than a class: the reference is only ever read after it
+/// is made, so nothing here needs identity.
 struct Weak<Value: AnyObject> {
     weak var value: Value?
     init(_ value: Value?) { self.value = value }
