@@ -923,7 +923,37 @@ regression rather than anything the app does.
 
 Continuous integration therefore builds and tests but does not package;
 `scripts/make_app.sh` is run on a machine with Swift 6.2. The steps to put
-back are named in the workflow.
+back are named in the workflow. Xcode 26.2 ships Swift 6.2.3 and builds a
+release normally, so a Mac on that toolchain packages as it always did.
+
+Xcode 26 also makes the Metal compiler a separate download. Without it
+`make_app.sh` says so and skips precompiling the shaders, and the app
+compiles the bundled sources at launch instead; `xcodebuild
+-downloadComponent MetalToolchain` puts the precompiled `default.metallib`
+back in the bundle.
+
+### Core Image on macOS 27
+
+Two changes in macOS 27 cost HDR and opacity, and are worked around where
+they bite. Both were found by measurement, and the workarounds are written
+so an OS without the change behaves as before.
+
+`CILanczosScaleTransform` and `CIBicubicScaleTransform` clamp every value
+to 1 when handed an image of infinite extent, which is what
+`clampedToExtent` makes; a plain affine transform does not. Every edit
+preview goes through the screen proxy, which is Lanczos, so an HDR photo
+lost its highlights the moment a tool touched it while full resolution
+kept them. `EditRenderer.lanczos` now resamples the image as it stands and
+composites the result over an affine copy of the clamped one, which is
+opaque everywhere the kernel would otherwise have sampled transparent
+black: highlights survive and the border stays opaque.
+
+A `CIImageProcessorKernel` is handed an input region a pixel larger on
+every side than the one its `roi` asked for, and that ring is Core Image's
+own transparent padding rather than rendered content. A kernel that clamps
+a sample to its texture therefore repeats the padding instead of the
+picture's edge. The oil paint kernel is given the picture's bounds inside
+the texture (`sourceBounds`) and clamps to those.
 
 ## 8. Known limits
 

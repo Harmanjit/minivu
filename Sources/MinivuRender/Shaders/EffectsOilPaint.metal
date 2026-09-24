@@ -34,6 +34,10 @@ struct OilPaintUniforms {
     float4 params;
     // Brightness levels, anisotropy alpha, unused, unused.
     float4 config;
+    // The picture's edges inside the colour texture, as texture coordinates:
+    // left, top, right, bottom. Samples clamp to these rather than to the
+    // texture, which can carry a ring of padding Core Image added.
+    float4 sourceBounds;
 };
 
 // The eight polynomial sector weights of a point in the unit disc, as two
@@ -61,6 +65,11 @@ kernel void effectsOilPaint(texture2d<float, access::read> src [[texture(0)]],
 {
     if (gid.x >= dst.get_width() || gid.y >= dst.get_height()) { return; }
     int srcW = int(src.get_width()), srcH = int(src.get_height());
+    // The picture's own edges within the colour texture (see `sourceBounds`):
+    // samples stop there, not at the texture's, which can carry a ring of
+    // transparent padding Core Image added.
+    int loX = max(0, int(u.sourceBounds.x)), loY = max(0, int(u.sourceBounds.y));
+    int hiX = min(srcW - 1, int(u.sourceBounds.z)), hiY = min(srcH - 1, int(u.sourceBounds.w));
 
     // This pixel in Core Image coordinates (y up), then in each texture
     // (top row first).
@@ -107,7 +116,7 @@ kernel void effectsOilPaint(texture2d<float, access::read> src [[texture(0)]],
     // too bright once unpremultiplied. Alpha counts in the variance too, so a
     // sector across such an edge counts for little, like one across a
     // colour edge.
-    float4 cc = src.read(uint2(clamp(sx, 0, srcW - 1), clamp(sy, 0, srcH - 1)));
+    float4 cc = src.read(uint2(clamp(sx, loX, hiX), clamp(sy, loY, hiY)));
     float4 rA = float4(cc.r * 0.125), gA = float4(cc.g * 0.125), bA = float4(cc.b * 0.125);
     float4 aA = float4(cc.a * 0.125);
     float4 rB = rA, gB = gA, bB = bA, aB = aA;
@@ -129,8 +138,8 @@ kernel void effectsOilPaint(texture2d<float, access::read> src [[texture(0)]],
             wa *= g;
             wb *= g;
             // Texture rows count down while j counts up.
-            float4 up = src.read(uint2(clamp(sx + i, 0, srcW - 1), clamp(sy - j, 0, srcH - 1)));
-            float4 lo = src.read(uint2(clamp(sx - i, 0, srcW - 1), clamp(sy + j, 0, srcH - 1)));
+            float4 up = src.read(uint2(clamp(sx + i, loX, hiX), clamp(sy - j, loY, hiY)));
+            float4 lo = src.read(uint2(clamp(sx - i, loX, hiX), clamp(sy + j, loY, hiY)));
             float upq = dot(up, up), loq = dot(lo, lo);
             rA += up.r * wa + lo.r * wb;  rB += up.r * wb + lo.r * wa;
             gA += up.g * wa + lo.g * wb;  gB += up.g * wb + lo.g * wa;

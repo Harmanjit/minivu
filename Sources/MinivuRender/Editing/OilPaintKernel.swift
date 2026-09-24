@@ -8,6 +8,7 @@ struct OilPaintUniforms {
     var tensorOrigin = SIMD4<Float>()
     var params = SIMD4<Float>()
     var config = SIMD4<Float>()
+    var sourceBounds = SIMD4<Float>()
 }
 
 /// Oil painting as a node in a Core Image graph: an anisotropic Kuwahara
@@ -80,7 +81,8 @@ final class OilPaintKernel: CIImageProcessorKernel {
                                 output: any CIImageProcessorOutput) throws {
         guard let inputs, inputs.count == 2, let source = inputs[0].metalTexture, let tensor = inputs[1].metalTexture,
               let destination = output.metalTexture, let commands = output.metalCommandBuffer,
-              let radius = arguments?["radius"] as? Double, let levels = arguments?["levels"] as? Int else {
+              let radius = arguments?["radius"] as? Double, let levels = arguments?["levels"] as? Int,
+              let extent = (arguments?["extent"] as? CIVector)?.cgRectValue else {
             throw GPUError.allocationFailed("oil paint textures")
         }
         let gpu = GPU.shared
@@ -96,7 +98,18 @@ final class OilPaintKernel: CIImageProcessorKernel {
                            Float(output.region.minX), Float(output.region.maxY)),
             tensorOrigin: SIMD4(Float(inputs[1].region.minX), Float(inputs[1].region.maxY), 0, 0),
             params: SIMD4(Float(radius), zeta, eta, sharpness),
-            config: SIMD4(Float(levels), anisotropyAlpha, 0, 0))
+            config: SIMD4(Float(levels), anisotropyAlpha, 0, 0),
+            // Where the picture itself sits in the colour texture. macOS 27
+            // hands the kernel a region a pixel larger on every side than
+            // the one `roi` asked for, and fills that ring with transparent
+            // black rather than rendered content: clamping a sample to the
+            // texture repeats the ring and the effect comes out with a
+            // see-through fringe. Clamping to these bounds repeats the
+            // picture's own edge, which is what the kernel documents.
+            sourceBounds: SIMD4(Float(extent.minX - inputs[0].region.minX),
+                                Float(inputs[0].region.maxY - extent.maxY),
+                                Float(extent.maxX - 1 - inputs[0].region.minX),
+                                Float(inputs[0].region.maxY - 1 - extent.minY)))
         guard let encoder = commands.makeComputeCommandEncoder() else {
             throw GPUError.allocationFailed("an oil paint encoder")
         }

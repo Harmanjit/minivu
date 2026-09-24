@@ -567,13 +567,24 @@ final class EditStage: @unchecked Sendable {
 
     /// `image` resampled to `EditGraph.workingLength` of `fullSize` at
     /// `scale`, exactly, with the edges repeated so the border stays opaque.
+    ///
+    /// The edges are repeated underneath rather than in the kernel's input.
+    /// Handed an image of infinite extent, which is what `clampedToExtent`
+    /// makes, macOS 27's CILanczosScaleTransform clamps every value to 1 and
+    /// an HDR photo loses its highlights (CIBicubicScaleTransform does the
+    /// same; a plain affine does not). So Lanczos resamples the image as it
+    /// stands, keeping them, over an affine copy of the clamped one that is
+    /// opaque everywhere the kernel would otherwise have sampled transparent
+    /// black. Alpha is 1 across the picture, so only the border blends.
     nonisolated static func lanczos(_ image: CIImage, to fullSize: CGSize, scale: Double) -> CIImage {
         let width = EditGraph.workingLength(Int(fullSize.width.rounded()), scale: scale)
         let height = EditGraph.workingLength(Int(fullSize.height.rounded()), scale: scale)
         let sx = Double(width) / Double(image.extent.width)
         let sy = Double(height) / Double(image.extent.height)
-        return image.clampedToExtent()
+        let border = image.clampedToExtent().transformed(by: CGAffineTransform(scaleX: sx, y: sy))
+        return image
             .applyingFilter("CILanczosScaleTransform", parameters: [kCIInputScaleKey: sy, kCIInputAspectRatioKey: sx / sy])
+            .composited(over: border)
             .cropped(to: CGRect(x: 0, y: 0, width: width, height: height))
     }
 
