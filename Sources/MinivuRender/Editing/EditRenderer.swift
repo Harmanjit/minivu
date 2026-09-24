@@ -569,13 +569,16 @@ final class EditStage: @unchecked Sendable {
     /// `scale`, exactly, with the edges repeated so the border stays opaque.
     ///
     /// The edges are repeated underneath rather than in the kernel's input.
-    /// Handed an image of infinite extent, which is what `clampedToExtent`
-    /// makes, macOS 27's CILanczosScaleTransform clamps every value to 1 and
-    /// an HDR photo loses its highlights (CIBicubicScaleTransform does the
-    /// same; a plain affine does not). So Lanczos resamples the image as it
-    /// stands, keeping them, over an affine copy of the clamped one that is
-    /// opaque everywhere the kernel would otherwise have sampled transparent
-    /// black. Alpha is 1 across the picture, so only the border blends.
+    /// Fused into one graph with a scale filter, the node `clampedToExtent`
+    /// makes is materialised by macOS 27 in an 8-bit buffer whenever the
+    /// context works in half float, so every value is clipped to 1 before
+    /// the resample and an HDR photo loses its highlights (see "Core Image
+    /// on macOS 27" in DESIGN.md). So Lanczos resamples the image as it
+    /// stands, keeping them, over an affine copy of the clamped one, which
+    /// is opaque everywhere the kernel would otherwise have sampled
+    /// transparent black. Alpha is 1 across the picture, so only the border
+    /// blends. Rendering the clamped image to a texture first would also
+    /// work, at the cost of a full-size buffer for every proxy.
     nonisolated static func lanczos(_ image: CIImage, to fullSize: CGSize, scale: Double) -> CIImage {
         let width = EditGraph.workingLength(Int(fullSize.width.rounded()), scale: scale)
         let height = EditGraph.workingLength(Int(fullSize.height.rounded()), scale: scale)

@@ -214,7 +214,13 @@ public enum EditGraph {
         case .sharpen(let amount, let radius):
             let r = radius * scale
             guard r > 0.01 else { return image }
-            return image.clampedToExtent()
+            // The edges are not repeated outward first, as the blur below
+            // does it: fused with a `clampedToExtent`, macOS 27's
+            // CIUnsharpMask clips the whole picture to 1 and an HDR photo
+            // comes back SDR (see "Core Image on macOS 27" in DESIGN.md).
+            // A Gaussian blur is not affected, so the blur keeps its
+            // repeat; the mask holds the border opaque without one.
+            return image
                 .applyingFilter("CIUnsharpMask", parameters: [kCIInputRadiusKey: r,
                                                               kCIInputIntensityKey: min(max(amount, 0), 5)])
                 .cropped(to: image.extent)

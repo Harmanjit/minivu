@@ -938,15 +938,21 @@ Two changes in macOS 27 cost HDR and opacity, and are worked around where
 they bite. Both were found by measurement, and the workarounds are written
 so an OS without the change behaves as before.
 
-`CILanczosScaleTransform` and `CIBicubicScaleTransform` clamp every value
-to 1 when handed an image of infinite extent, which is what
-`clampedToExtent` makes; a plain affine transform does not. Every edit
-preview goes through the screen proxy, which is Lanczos, so an HDR photo
-lost its highlights the moment a tool touched it while full resolution
-kept them. `EditRenderer.lanczos` now resamples the image as it stands and
-composites the result over an affine copy of the clamped one, which is
-opaque everywhere the kernel would otherwise have sampled transparent
-black: highlights survive and the border stays opaque.
+The node `clampedToExtent` makes is materialised in an 8-bit buffer when
+the context works in half float and a resampling filter consumes it in the
+same graph, so values are clipped to 1 (and quantised) before the resample
+runs. `CILanczosScaleTransform`, `CIBicubicScaleTransform` and
+`CIUnsharpMask` all trigger it; a Gaussian blur and a plain affine do not,
+and rendering the clamped image to a texture first avoids it at the cost
+of a buffer. Every edit preview goes through the screen proxy, which is
+Lanczos, so an HDR photo lost its highlights the moment a tool touched it
+while full resolution kept them — the asymmetry that gave it away.
+`EditRenderer.lanczos` now resamples the image as it stands and composites
+the result over an affine copy of the clamped one, which is opaque
+everywhere the kernel would otherwise have sampled transparent black, and
+`EditGraph`'s sharpen drops the repeat the unsharp mask does not need.
+Working in full float instead would fix every site at once, but doubles
+every intermediate and costs about 13% on export.
 
 A `CIImageProcessorKernel` is handed an input region a pixel larger on
 every side than the one its `roi` asked for, and that ring is Core Image's

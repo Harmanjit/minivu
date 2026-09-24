@@ -359,7 +359,7 @@ import Metal
     /// at full resolution: the texture for the canvas is flagged HDR and
     /// still reaches past 2.5 in the ramp's bright end, which each tool here
     /// leaves alone.
-    @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing"])
+    @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing", "sharpen", "blur"])
     func hdrHighlightsSurviveEveryKindOfTool(kind: String) async throws {
         let url = try Fixtures.gainMapHEIC(width: 2400, height: 1200)
         let doc = document(url)
@@ -375,6 +375,10 @@ import Metal
         case "effect": [.dropShadow(DropShadow())]
         case "retouch": [.retouch([RetouchStroke(mode: .clone, points: [CGPoint(x: 0.2, y: 0.5)], radius: 0.05,
                                                  sourceOffset: CGVector(dx: 0.05, dy: 0))])]
+        // Both repeat the edges outward before a Core Image filter, the
+        // shape that cost the proxy its highlights on macOS 27.
+        case "sharpen": [.sharpen(amount: 1.5, radius: 2.5)]
+        case "blur": [.blur(radius: 3)]
         default: [.annotations([line])]
         }
         for op in operations.dropLast() { doc.apply(op) }
