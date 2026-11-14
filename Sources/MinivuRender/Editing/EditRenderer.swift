@@ -142,8 +142,16 @@ final class EditStage: @unchecked Sendable {
 
     nonisolated static let workingSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
 
-    public init(gpu: GPU = .shared) {
+    /// The most bytes an export may decode an original into
+    /// (`ImageDecoder.exportDecodeLimit`): Save of an unedited original and
+    /// Batch Convert's format-only path, which decode without this renderer,
+    /// read it from here too, so every export refuses the same files.
+    /// Tests pin it.
+    nonisolated public let exportDecodeLimit: Int
+
+    public init(gpu: GPU = .shared, exportDecodeLimit: Int = ImageDecoder.exportDecodeLimit()) {
         self.gpu = gpu
+        self.exportDecodeLimit = exportDecodeLimit
         context = CIContext(mtlCommandQueue: gpu.queue, options: [
             .workingColorSpace: Self.workingSpace,
             .workingFormat: CIFormat.RGBAh,
@@ -251,12 +259,12 @@ final class EditStage: @unchecked Sendable {
         guard bitsPerComponent == 8 || bitsPerComponent == 16 else {
             throw EditRenderError.unsupportedBitDepth(bitsPerComponent)
         }
-        let gpu = self.gpu, context = self.context
+        let gpu = self.gpu, context = self.context, limit = exportDecodeLimit
         // Decoding and Core Image's CPU readback block for tens of ms to
         // seconds (a RAW, a batch of them): on GCD, not the cooperative pool.
         return try await BlockingWork.run(qos: Task.currentPriority >= .userInitiated ? .userInitiated : .utility) {
             try Self.exportImage(snapshot, colorSpace: colorSpace, bitsPerComponent: bitsPerComponent,
-                                 context: context, gpu: gpu)
+                                 context: context, gpu: gpu, decodeLimit: limit)
         }
     }
 
@@ -269,11 +277,12 @@ final class EditStage: @unchecked Sendable {
     /// setting (a setting for the screen, not for the file); nil when it has
     /// no HDR form to decode.
     nonisolated public func renderHDRForExport(_ snapshot: EditDocument.Snapshot) async throws -> CGImage? {
-        let gpu = self.gpu, context = self.context
+        let gpu = self.gpu, context = self.context, limit = exportDecodeLimit
         return try await BlockingWork.run(qos: Task.currentPriority >= .userInitiated ? .userInitiated : .utility) {
             var settings = snapshot.settings
             settings.showHDR = true
-            let source = try Self.exportSource(snapshot, settings: settings, requireHDR: true, gpu: gpu)
+            let source = try Self.exportSource(snapshot, settings: settings, requireHDR: true, gpu: gpu,
+                                               decodeLimit: limit)
             guard source.isHDR, source.contentHeadroom > 1 else { return nil }
             let image = EditGraph.image(source: Self.workingImage(source: source, proxy: nil, scale: 1),
                                         sourceSize: source.size, operations: snapshot.operations, scale: 1)
@@ -290,7 +299,8 @@ final class EditStage: @unchecked Sendable {
     /// every pixel (and, with `requireHDR`, is HDR), otherwise decoded again
     /// with `settings`.
     nonisolated private static func exportSource(_ snapshot: EditDocument.Snapshot, settings: DisplaySettings,
-                                                 requireHDR: Bool = false, gpu: GPU) throws -> EditSource {
+                                                 requireHDR: Bool = false, gpu: GPU,
+                                                 decodeLimit: Int) throws -> EditSource {
         if let prepared = snapshot.source, prepared.scale >= 1, prepared.isHDR || !requireHDR {
             return prepared
         }
@@ -302,12 +312,13 @@ final class EditStage: @unchecked Sendable {
             throw EditRenderError.sourceChanged(snapshot.url)
         }
         return try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
-                              settings: settings, gpu: gpu, forExport: true)
+                              settings: settings, gpu: gpu, forExport: true, decodeLimit: decodeLimit)
     }
 
     nonisolated private static func exportImage(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
-                                                bitsPerComponent: Int, context: CIContext, gpu: GPU) throws -> CGImage {
-        let source = try exportSource(snapshot, settings: snapshot.settings, gpu: gpu)
+                                                bitsPerComponent: Int, context: CIContext, gpu: GPU,
+                                                decodeLimit: Int) throws -> CGImage {
+        let source = try exportSource(snapshot, settings: snapshot.settings, gpu: gpu, decodeLimit: decodeLimit)
         var image = EditGraph.image(source: workingImage(source: source, proxy: nil, scale: 1),
                                     sourceSize: source.size, operations: snapshot.operations, scale: 1)
         if source.isHDR && !CGColorSpaceUsesITUR_2100TF(colorSpace) {
@@ -668,14 +679,17 @@ final class EditStage: @unchecked Sendable {
     /// An original larger than a texture may be is uploaded at the texture
     /// limit (`EditSource.scale` below 1) for editing on screen. `forExport`
     /// decodes it at its own size instead and leaves it to Core Image to
-    /// read in tiles, so a saved file keeps every pixel.
+    /// read in tiles, so a saved file keeps every pixel; a file whose header
+    /// claims more than `decodeLimit` bytes of that is refused with
+    /// `DecodeError.tooLarge` before it is decoded.
     nonisolated static func loadSource(url: URL, page: Int, kind: ImageKind?, settings: DisplaySettings,
-                                       gpu: GPU, forExport: Bool = false) throws -> EditSource {
+                                       gpu: GPU, forExport: Bool = false,
+                                       decodeLimit: Int = ImageDecoder.exportDecodeLimit()) throws -> EditSource {
         if kind == .raw, let raw = try loadRaw(url: url, settings: settings, gpu: gpu) {
             return raw
         }
         let decoded = try ImageDecoder.decode(url, maxPixelSize: forExport ? nil : maximumDimension, page: page,
-                                              allowHDR: settings.showHDR)
+                                              allowHDR: settings.showHDR, byteLimit: forExport ? decodeLimit : nil)
         let drawn = orientedSize(decoded)
         if forExport && max(drawn.width, drawn.height) > CGFloat(maximumDimension) {
             return try tiledSource(decoded)

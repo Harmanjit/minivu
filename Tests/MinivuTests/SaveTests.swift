@@ -456,6 +456,38 @@ import MinivuRender
         #expect(type == "public.png")
     }
 
+    /// Save and Save As of an unedited original keep every pixel, so a
+    /// header claiming more than an export may hold is refused before it is
+    /// decoded, and the alert names the file. The forged PNG claims 1.2
+    /// gigapixels in 360 KB. A renderer pinned just under a real 64 x 48
+    /// photo shows the header is read first: that photo would otherwise
+    /// decode at once.
+    @Test func originalsOverTheExportBudgetAreRefused() async throws {
+        let t = try ScratchFolder()
+        let bomb = try ForgedImages.png(width: 40000, height: 30000, to: t.url.appendingPathComponent("bomb.png"))
+        let entry = try #require(FolderEntry(url: bomb))
+        var message: String?
+        do {
+            _ = try await SaveImageSource(entry: entry, document: nil).image(for: .defaults(for: .png))
+        } catch let error as DecodeError {
+            if case .tooLarge = error { message = SaveAlert.message(for: error) }
+        }
+        #expect(message == "bomb.png is too large to decode.")
+
+        let photo = try t.jpeg("photo.jpg", width: 64, height: 48)
+        var refused = false
+        do {
+            _ = try await SaveImageSource.render(.original(photo, page: 0), key: .decodedOriginal,
+                                                 renderer: EditRenderer(exportDecodeLimit: 64 * 48 * 4 - 1))
+        } catch DecodeError.tooLarge {
+            refused = true
+        }
+        #expect(refused, "a header over the limit is refused, not decoded")
+        let whole = try await SaveImageSource.render(.original(photo, page: 0), key: .decodedOriginal,
+                                                     renderer: EditRenderer(exportDecodeLimit: 64 * 48 * 4))
+        #expect(whole.width == 64 && whole.height == 48)
+    }
+
     @Test func anEditIsRenderedForTheChosenSpaceAndDepth() async throws {
         let t = try ScratchFolder()
         let url = try t.jpeg("photo.jpg", width: 64, height: 48)

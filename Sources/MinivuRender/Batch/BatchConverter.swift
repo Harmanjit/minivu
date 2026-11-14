@@ -49,7 +49,11 @@ public struct BatchConverter: Sendable {
         guard let info = loadInfo(url) else { throw DecodeError.unreadable(url) }
         let operations = settings.operations(sourceSize: info.pixelSize)
         if operations.isEmpty && kind != .raw {
-            return try ImageDecoder.decode(url, maxPixelSize: nil, page: 0, allowHDR: false).image
+            // Every pixel, as an export keeps; a header claiming more than
+            // the renderer's export limit is refused unread (`tooLarge`),
+            // which the batch reports for this file and goes on.
+            return try ImageDecoder.decode(url, maxPixelSize: nil, page: 0, allowHDR: false,
+                                           byteLimit: renderer.exportDecodeLimit).image
         }
         let options = settings.options
         let bits = options.format.supports16Bit && options.sixteenBit ? 16 : 8

@@ -441,6 +441,55 @@ import Metal
         }
     }
 
+    /// True when `work` throws `DecodeError.tooLarge`; false when it
+    /// succeeds or fails in any other way.
+    func isTooLarge(_ work: () async throws -> Any) async -> Bool {
+        do {
+            _ = try await work()
+            return false
+        } catch DecodeError.tooLarge {
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// An export keeps every pixel, so an original whose header claims more
+    /// than the renderer's export limit is refused before it is decoded
+    /// rather than decoded smaller. The forged PNG claims 1.2 gigapixels in
+    /// 360 KB. A renderer pinned just under the 64 x 32 fixture shows the
+    /// header is read first, since that file would otherwise decode at once;
+    /// one pinned at exactly its size exports it whole.
+    @Test func exportRefusesOriginalsOverTheBudget() async throws {
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
+        let bomb = try ForgedImages.png(width: 40000, height: 30000,
+                                        to: Fixtures.directory.appendingPathComponent("bomb-\(UUID()).png"))
+        let forged = document(bomb)
+        forged.apply(.flip(horizontal: true))
+        #expect(await isTooLarge {
+            try await renderer.renderForExport(forged.snapshot(), colorSpace: srgb, bitsPerComponent: 8)
+        })
+
+        let doc = document(quadrantFile())
+        doc.apply(.flip(horizontal: true))
+        let tight = EditRenderer(exportDecodeLimit: 64 * 32 * 4 - 1)
+        #expect(await isTooLarge {
+            try await tight.renderForExport(doc.snapshot(), colorSpace: srgb, bitsPerComponent: 8)
+        })
+        #expect(await isTooLarge {
+            try EditRenderer.loadSource(url: doc.entry.url, page: 0, kind: .raster, settings: DisplaySettings(),
+                                        gpu: .shared, forExport: true, decodeLimit: 64 * 32 * 4 - 1)
+        })
+        // The editor's own decode is for the screen and has no export limit.
+        let onScreen = try EditRenderer.loadSource(url: doc.entry.url, page: 0, kind: .raster, settings: DisplaySettings(),
+                                                   gpu: .shared, decodeLimit: 1)
+        #expect(onScreen.size == CGSize(width: 64, height: 32))
+
+        let exact = EditRenderer(exportDecodeLimit: 64 * 32 * 4)
+        let image = try await exact.renderForExport(doc.snapshot(), colorSpace: srgb, bitsPerComponent: 8)
+        #expect(image.width == 64 && image.height == 32)
+    }
+
     func near8(_ a: [UInt8], _ b: [UInt8]) -> Bool {
         zip(a, b).allSatisfy { abs(Int($0) - Int($1)) <= 1 }
     }

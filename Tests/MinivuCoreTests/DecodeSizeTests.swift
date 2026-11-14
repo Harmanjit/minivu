@@ -131,4 +131,78 @@ extension TestImages {
         #expect(ImageDecoder.headerPixelCount(source: photoSource, index: 0) == 640 * 480)
         #expect(ImageDecoder.thumbnail(for: photo, maxPixelSize: 256)?.width == 256)
     }
+
+    // MARK: - Export budget
+
+    func info(_ width: Double, _ height: Double, bitDepth: Int = 8, isHDR: Bool = false) -> ImageInfo {
+        ImageInfo(kind: .raster, pixelSize: CGSize(width: width, height: height), orientation: .up, pageCount: 1,
+                  isAnimated: false, hasAlpha: false, bitDepth: bitDepth, colorModel: "RGB", profileName: nil,
+                  isHDR: isHDR, uti: "public.png")
+    }
+
+    /// True when `decode` throws `DecodeError.tooLarge`; false when it
+    /// succeeds or fails in any other way.
+    func isTooLarge(_ decode: () throws -> DecodedImage) -> Bool {
+        do {
+            _ = try decode()
+            return false
+        } catch DecodeError.tooLarge {
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// A quarter of RAM, at the bytes the decode really takes: every real
+    /// photograph still exports at full resolution on the smallest Mac, and
+    /// what is refused is a header no Mac of that size could hold.
+    @Test func theExportBudgetIsAQuarterOfMemory() {
+        let gib: UInt64 = 1 << 30
+        #expect(ImageDecoder.exportDecodeLimit(physicalMemory: 8 * gib) == 2 << 30)
+        #expect(ImageDecoder.exportDecodeLimit(physicalMemory: 64 * gib) == 16 << 30)
+
+        let small = ImageDecoder.exportDecodeLimit(physicalMemory: 8 * gib)
+        let large = ImageDecoder.exportDecodeLimit(physicalMemory: 64 * gib)
+        // A 102 MP medium-format frame, 8-bit, 16-bit and HDR: on 8 GB.
+        #expect(!ImageDecoder.exceedsExportBudget(info(12_288, 8_192), byteLimit: small))
+        #expect(!ImageDecoder.exceedsExportBudget(info(12_288, 8_192, bitDepth: 16), byteLimit: small))
+        #expect(!ImageDecoder.exceedsExportBudget(info(12_288, 8_192, isHDR: true), byteLimit: small))
+        #expect(ImageDecoder.decodedBytesPerPixel(info(1, 1)) == 4)
+        #expect(ImageDecoder.decodedBytesPerPixel(info(1, 1, bitDepth: 16)) == 8)
+        #expect(ImageDecoder.decodedBytesPerPixel(info(1, 1, isHDR: true)) == 8)
+        #expect(ImageDecoder.decodedBytesPerPixel(info(1, 1, bitDepth: 32)) == 16)
+        // A 640 MP stitched panorama: too much for 8 GB, fine on 64 GB, and
+        // at 16 bits the depth decides it.
+        #expect(ImageDecoder.exceedsExportBudget(info(40_000, 16_000), byteLimit: small))
+        #expect(!ImageDecoder.exceedsExportBudget(info(40_000, 16_000), byteLimit: large))
+        #expect(ImageDecoder.exceedsExportBudget(info(20_000, 16_000, bitDepth: 16), byteLimit: small))
+        #expect(!ImageDecoder.exceedsExportBudget(info(20_000, 16_000), byteLimit: small))
+        // Past the 32768 px square the app caps its output at, no Mac is
+        // asked, and a forged header beyond an Int is still a number.
+        #expect(ImageDecoder.exceedsExportBudget(info(60_000, 60_000), byteLimit: .max))
+        #expect(ImageDecoder.exceedsExportBudget(info(1e19, 1e19), byteLimit: .max))
+        #expect(!ImageDecoder.exceedsExportBudget(info(32_768, 32_768), byteLimit: .max))
+    }
+
+    /// The decode behind an export refuses a header over the budget before
+    /// decoding anything, as `tooLarge`. The forged file claims 1.2
+    /// gigapixels; the pinned limit refuses a real 640 x 480 photo, which
+    /// would decode at once if the header were not read first. Without a
+    /// limit (the viewer's decodes) that photo decodes as before.
+    @Test func exportDecodesRefuseHeadersOverTheBudget() throws {
+        let folder = try TemporaryFolder()
+        let bomb = try TestImages.forgedPNG(width: 40000, height: 30000, rows: 3,
+                                            to: folder.url.appendingPathComponent("bomb.png"))
+        #expect(isTooLarge { try ImageDecoder.decode(bomb, allowHDR: false, byteLimit: ImageDecoder.exportDecodeLimit()) })
+
+        let photo = TestImages.write(TestImages.gradient(width: 640, height: 480),
+                                     to: folder.url.appendingPathComponent("photo.jpg"))
+        #expect(isTooLarge { try ImageDecoder.decode(photo, allowHDR: false, byteLimit: 640 * 480 * 4 - 1) },
+                "a header over the limit is refused, not decoded")
+        let whole = try ImageDecoder.decode(photo, allowHDR: false, byteLimit: 640 * 480 * 4)
+        #expect(whole.image.width == 640 && whole.image.height == 480)
+        #expect(try ImageDecoder.decode(photo, allowHDR: false).image.width == 640)
+        // A screen-sized decode holds a fraction of it and is never refused.
+        #expect(try ImageDecoder.decode(photo, maxPixelSize: 160, allowHDR: false, byteLimit: 1).image.width <= 320)
+    }
 }

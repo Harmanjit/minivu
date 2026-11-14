@@ -304,6 +304,49 @@ public enum ImageDecoder {
         return context.makeImage()
     }
 
+    // MARK: - Export budget
+
+    /// The most bytes a full-resolution decode for Save, Save As, Batch
+    /// Convert or export may hold, on a Mac with `physicalMemory` bytes of
+    /// RAM: a quarter of it.
+    ///
+    /// Those decodes keep every pixel on purpose (a saved file must not
+    /// lose resolution, which is why the export path tiles), so unlike the
+    /// viewer's they can't be made smaller to fit. ImageIO allocates the
+    /// whole image the header declares before it reads a row, so a file of
+    /// a few kilobytes claiming 60000 x 60000 would ask for 14 GB. Instead a
+    /// header claiming more than this is refused before anything is
+    /// decoded. A quarter, as Count Colors allows itself, because the export
+    /// holds a second image of about the same size while it renders and
+    /// encodes, so the whole save stays within half of RAM. That is 2 GB on
+    /// an 8 GB Mac: a 100 megapixel photo at 16 bits a channel (800 MB)
+    /// saves with room to spare, and 8-bit images up to 536 megapixels do.
+    public static func exportDecodeLimit(physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) -> Int {
+        Int(physicalMemory / 4)
+    }
+
+    /// The bytes a pixel of image `info` takes once ImageIO has decoded it:
+    /// four channels at the file's own depth, which ImageIO keeps (8 bits,
+    /// 16 bits, or 32-bit float), and at least 16 bits for an HDR image,
+    /// which decodes to half floats or, tone mapped, to 16 bits. A grey
+    /// image may decode smaller; counting it as colour errs on the side of
+    /// refusing.
+    static func decodedBytesPerPixel(_ info: ImageInfo) -> Int {
+        let bytesPerChannel = info.bitDepth > 16 ? 4 : info.bitDepth > 8 || info.isHDR ? 2 : 1
+        return 4 * bytesPerChannel
+    }
+
+    /// True when decoding image `info` whole would hold more than `byteLimit`
+    /// bytes, or more pixels than `thumbnailPixelBudget`: the 32768 px square
+    /// minivu caps its own output at, so nothing over it is anything the app
+    /// could have written, and the browser won't thumbnail it either. In
+    /// Doubles, because a forged header can claim more than an Int holds.
+    static func exceedsExportBudget(_ info: ImageInfo, byteLimit: Int) -> Bool {
+        let pixels = info.pixelSize.width * info.pixelSize.height
+        return pixels > Double(thumbnailPixelBudget)
+            || pixels * Double(decodedBytesPerPixel(info)) > Double(byteLimit)
+    }
+
     // MARK: - Display decode
 
     /// Decodes for display, oriented. `maxPixelSize` and `fitting` both nil
@@ -312,8 +355,15 @@ public enum ImageDecoder {
     /// Screen-sized requests are snapped to a size the codec can produce
     /// without resampling (see `scaledDecodeSize`). RAW files use the
     /// camera's embedded preview when it is large enough.
+    ///
+    /// - Parameter byteLimit: for the decodes behind Save, Save As, Batch
+    ///   Convert and export, `exportDecodeLimit()`. A full-resolution decode
+    ///   of a raster or RAW file whose header claims more than that (see
+    ///   `exceedsExportBudget`) throws `DecodeError.tooLarge` without
+    ///   decoding anything. Nil checks nothing, as the viewer needs: it never
+    ///   asks for more than a texture holds.
     public static func decode(_ url: URL, maxPixelSize: Int? = nil, fitting: CGSize? = nil, page: Int = 0,
-                              allowHDR: Bool = true) throws -> DecodedImage {
+                              allowHDR: Bool = true, byteLimit: Int? = nil) throws -> DecodedImage {
         guard let kind = ImageFormats.kind(of: url) else { throw DecodeError.noImage(url) }
         switch kind {
         case .pdf:
@@ -353,6 +403,12 @@ public enum ImageDecoder {
             let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
             let wantsFull = wanted == nil || wanted! >= longest
             let hdr = allowHDR && info.isHDR
+            // The header is all there is to go on before ImageIO allocates
+            // the whole image, so an export that could not hold it is
+            // refused here rather than discovered by running out of memory.
+            if wantsFull, let byteLimit, exceedsExportBudget(info, byteLimit: byteLimit) {
+                throw DecodeError.tooLarge(url)
+            }
 
             var options: [CFString: Any] = [kCGImageSourceShouldCacheImmediately: true]
             if info.isHDR {

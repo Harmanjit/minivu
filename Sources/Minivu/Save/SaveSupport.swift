@@ -257,8 +257,11 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
         switch origin {
         case .original(let url, let page):
             // Decoding and reading headers block: on GCD (BlockingWork).
+            // Every pixel, but no more than an export may hold: a header
+            // claiming more is refused unread, and the save says so.
+            let limit = renderer.exportDecodeLimit
             return try await BlockingWork.run {
-                try ImageDecoder.decode(url, maxPixelSize: nil, page: page, allowHDR: false).image
+                try ImageDecoder.decode(url, maxPixelSize: nil, page: page, allowHDR: false, byteLimit: limit).image
             }
         case .edit(let snapshot):
             let space = await BlockingWork.run {

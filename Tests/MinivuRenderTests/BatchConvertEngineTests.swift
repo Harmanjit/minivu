@@ -228,6 +228,48 @@ import UniformTypeIdentifiers
         }
     }
 
+    /// True when `work` throws `DecodeError.tooLarge`; false when it
+    /// succeeds or fails in any other way.
+    func isTooLarge(_ work: () async throws -> Data) async -> Bool {
+        do {
+            _ = try await work()
+            return false
+        } catch DecodeError.tooLarge {
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// A file whose header claims more than an export may hold is refused
+    /// unread, as `tooLarge`, which the batch lists against that file, on
+    /// both paths: the plain format change and a render with operations.
+    /// The forged PNG claims 1.2 gigapixels in 360 KB. A renderer with a
+    /// limit pinned just under a real 64 x 48 photo shows the header is read
+    /// first: that photo would otherwise decode at once.
+    @Test func headersOverTheExportBudgetAreRefused() async throws {
+        let dir = try folder()
+        let bomb = try ForgedImages.png(width: 40000, height: 30000, to: dir.appendingPathComponent("bomb.png"))
+        let converter = await converter()
+        let turned = BatchConvertSettings(options: .defaults(for: .png), quarterTurns: 1)
+        #expect(await isTooLarge { try await converter.encodedData(for: bomb, settings: BatchConvertSettings()) })
+        #expect(await isTooLarge { try await converter.encodedData(for: bomb, settings: turned) })
+
+        let photo = dir.appendingPathComponent("photo.jpg")
+        try BatchFixtures.writeJPEG(to: photo, width: 64, height: 48)
+        let tight = await BatchConverter(renderer: EditRenderer(exportDecodeLimit: 64 * 48 * 4 - 1),
+                                         displaySettings: DisplaySettings()) { [srgb] _, _, _ in srgb }
+        #expect(await isTooLarge { try await tight.encodedData(for: photo, settings: BatchConvertSettings()) })
+        #expect(await isTooLarge { try await tight.encodedData(for: photo, settings: turned) })
+        // Within the limit, the same photo converts whole, both ways.
+        let roomy = await BatchConverter(renderer: EditRenderer(exportDecodeLimit: 64 * 48 * 4),
+                                         displaySettings: DisplaySettings()) { [srgb] _, _, _ in srgb }
+        let (plain, _, _) = try decode(try await roomy.encodedData(for: photo, settings: BatchConvertSettings()))
+        #expect(plain.width == 64 && plain.height == 48)
+        let (rendered, _, _) = try decode(try await roomy.encodedData(for: photo, settings: turned))
+        #expect(rendered.width == 48 && rendered.height == 64)
+    }
+
     @Test(.enabled(if: FileManager.default.fileExists(atPath: "/Users/harman/latent/TestAssets/HSB_6548.NEF")))
     func convertsACameraRaw() async throws {
         let raw = URL(fileURLWithPath: "/Users/harman/latent/TestAssets/HSB_6548.NEF")
