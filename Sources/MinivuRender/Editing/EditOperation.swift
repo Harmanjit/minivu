@@ -176,6 +176,29 @@ public enum EditOperation: Codable, Hashable, Sendable {
     case retouch([RetouchStroke])
     case redEye([RedEyeSpot])
 
+    // G11 and the watermark. Payloads and rendering live in Corrections.swift
+    // (auto enhance, noise reduction, vignette), Perspective.swift,
+    // CanvasSize.swift and Watermark.swift.
+    /// Core Image's automatic adjustments, measured once on the image when
+    /// the user asked for them and stored, so every render applies the same
+    /// ones.
+    case autoEnhance(AutoEnhance)
+    /// `level` 0...1 (how large a difference between neighbours counts as
+    /// noise and is smoothed away), `sharpness` 0...2 (how strongly the
+    /// edges that remain are sharpened).
+    case noiseReduction(level: Double, sharpness: Double)
+    /// Darkens (positive `amount`) or lightens the edges, up to two stops at
+    /// 1. `radius` 0...1 is where the falloff starts and `feather` 0...1 how
+    /// far it runs, both as fractions of the distance from the centre to a
+    /// corner.
+    case vignette(amount: Double, radius: Double, feather: Double)
+    /// Four corners of the image, normalised, pulled out to a rectangle.
+    case perspective(PerspectiveQuad)
+    /// A new canvas size, with the image placed at an anchor on a fill.
+    case canvasSize(CanvasSize)
+    /// Text or a picture stamped over the image.
+    case watermark(Watermark)
+
     /// For the Edit menu's "Undo Crop" and the history list.
     public var title: String {
         switch self {
@@ -209,6 +232,12 @@ public enum EditOperation: Codable, Hashable, Sendable {
         case .retouch(let strokes):
             strokes.allSatisfy { $0.mode == .clone } ? "Clone Stamp" : "Healing Brush"
         case .redEye: "Red-Eye Removal"
+        case .autoEnhance: "Auto Enhance"
+        case .noiseReduction: "Noise Reduction"
+        case .vignette: "Vignette"
+        case .perspective: "Perspective"
+        case .canvasSize: "Canvas Size"
+        case .watermark: "Watermark"
         }
     }
 
@@ -263,6 +292,15 @@ public enum EditOperation: Codable, Hashable, Sendable {
         case .annotations(let objects): return objects.isEmpty
         case .retouch(let strokes): return strokes.allSatisfy(\.isIdentity)
         case .redEye(let spots): return spots.isEmpty
+        case .autoEnhance(let v): return v.isIdentity
+        case .noiseReduction(let level, let sharpness):
+            // Sharpness alone still changes the picture.
+            return !(level > 0) && !(sharpness > 0)
+        case .vignette(let amount, _, _):
+            return !amount.isFinite || amount == 0
+        case .perspective(let v): return v.isIdentity
+        case .canvasSize(let v): return v.isIdentity
+        case .watermark(let v): return v.isIdentity
         }
     }
 
@@ -271,7 +309,7 @@ public enum EditOperation: Codable, Hashable, Sendable {
     public var changesGeometry: Bool {
         switch self {
         // A shadow and an outer frame add margins around the image.
-        case .resize, .rotate90, .rotate, .flip, .crop, .dropShadow, .frame: true
+        case .resize, .rotate90, .rotate, .flip, .crop, .dropShadow, .frame, .perspective, .canvasSize: true
         default: false
         }
     }

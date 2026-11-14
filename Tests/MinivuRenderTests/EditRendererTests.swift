@@ -359,7 +359,8 @@ import Metal
     /// at full resolution: the texture for the canvas is flagged HDR and
     /// still reaches past 2.5 in the ramp's bright end, which each tool here
     /// leaves alone.
-    @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing", "sharpen", "blur"])
+    @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing", "sharpen", "blur",
+                      "autoEnhance", "noiseReduction", "vignette", "perspective", "canvasSize", "watermark"])
     func hdrHighlightsSurviveEveryKindOfTool(kind: String) async throws {
         let url = try Fixtures.gainMapHEIC(width: 2400, height: 1200)
         let doc = document(url)
@@ -379,6 +380,16 @@ import Metal
         // shape that cost the proxy its highlights on macOS 27.
         case "sharpen": [.sharpen(amount: 1.5, radius: 2.5)]
         case "blur": [.blur(radius: 3)]
+        // What Core Image's analysis suggested for a dull photo, stored as
+        // Auto Enhance stores it.
+        case "autoEnhance": [.autoEnhance(CorrectionsTests.dullPhotoEnhancement)]
+        case "noiseReduction": [.noiseReduction(level: 0.5, sharpness: 1)]
+        case "vignette": [.vignette(amount: 0.5, radius: 0.5, feather: 0.5)]
+        case "perspective": [.perspective(PerspectiveQuad(topLeft: CGPoint(x: 0.08, y: 0.1), topRight: CGPoint(x: 1, y: 0),
+                                                          bottomRight: CGPoint(x: 1, y: 1),
+                                                          bottomLeft: CGPoint(x: 0.08, y: 0.9)))]
+        case "canvasSize": [.canvasSize(CanvasSize(width: 2600, height: 1400, anchor: .left))]
+        case "watermark": [.watermark(CorrectionsTests.textWatermark)]
         default: [.annotations([line])]
         }
         for op in operations.dropLast() { doc.apply(op) }
