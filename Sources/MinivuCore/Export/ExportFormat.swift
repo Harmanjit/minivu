@@ -212,6 +212,12 @@ public struct ExportOptions: Codable, Hashable, Sendable {
     /// JPEG the COM comment is carried over too. Without it, only the
     /// colour profile is written.
     public var keepMetadata: Bool
+    /// With `keepMetadata`: leaves out where the photo was taken (the GPS
+    /// dictionary, its `exif:GPS…` XMP mirror and the IPTC place names) and
+    /// keeps everything else. On by default, since a copy is usually made to
+    /// be shared (S4 in docs/SECURITY-REVIEW.md); Save over the original
+    /// turns it off (`SavePolicy.inPlaceOptions`), as Save keeps all metadata.
+    public var removeLocation: Bool
     /// JPEG only: a progressive file shows a coarse whole image early while
     /// it downloads, and is usually a few percent smaller.
     public var progressive: Bool
@@ -223,12 +229,14 @@ public struct ExportOptions: Codable, Hashable, Sendable {
     public var backgroundForOpaqueFormats: ExportColor
 
     public init(format: ExportFormat, quality: Double = 0.9, colorProfile: ExportColorProfile = .original,
-                keepMetadata: Bool = true, progressive: Bool = false, sixteenBit: Bool = false,
-                tiffCompression: TIFFCompression = .lzw, backgroundForOpaqueFormats: ExportColor = .white) {
+                keepMetadata: Bool = true, removeLocation: Bool = true, progressive: Bool = false,
+                sixteenBit: Bool = false, tiffCompression: TIFFCompression = .lzw,
+                backgroundForOpaqueFormats: ExportColor = .white) {
         self.format = format
         self.quality = quality
         self.colorProfile = colorProfile
         self.keepMetadata = keepMetadata
+        self.removeLocation = removeLocation
         self.progressive = progressive
         self.sixteenBit = sixteenBit
         self.tiffCompression = tiffCompression
@@ -236,7 +244,8 @@ public struct ExportOptions: Codable, Hashable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case format, quality, colorProfile, keepMetadata, progressive, sixteenBit, tiffCompression, backgroundForOpaqueFormats
+        case format, quality, colorProfile, keepMetadata, removeLocation, progressive, sixteenBit, tiffCompression
+        case backgroundForOpaqueFormats
     }
 
     /// Options are saved in preferences and batch presets, so decoding
@@ -248,6 +257,7 @@ public struct ExportOptions: Codable, Hashable, Sendable {
         if let value = try container.decodeIfPresent(Double.self, forKey: .quality) { options.quality = value }
         if let value = try container.decodeIfPresent(ExportColorProfile.self, forKey: .colorProfile) { options.colorProfile = value }
         if let value = try container.decodeIfPresent(Bool.self, forKey: .keepMetadata) { options.keepMetadata = value }
+        if let value = try container.decodeIfPresent(Bool.self, forKey: .removeLocation) { options.removeLocation = value }
         if let value = try container.decodeIfPresent(Bool.self, forKey: .progressive) { options.progressive = value }
         if let value = try container.decodeIfPresent(Bool.self, forKey: .sixteenBit) { options.sixteenBit = value }
         if let value = try container.decodeIfPresent(TIFFCompression.self, forKey: .tiffCompression) { options.tiffCompression = value }

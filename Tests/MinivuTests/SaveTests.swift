@@ -55,6 +55,8 @@ import MinivuRender
         var remembered = ExportOptions(format: .png, quality: 0.5, colorProfile: .sRGB, keepMetadata: false)
         var options = SavePolicy.inPlaceOptions(remembered: remembered, sourceBitDepth: 16)
         #expect(options.colorProfile == .original && options.keepMetadata && options.sixteenBit)
+        // Save keeps every tag, location included, whatever Save As remembered.
+        #expect(remembered.removeLocation && !options.removeLocation)
         #expect(options.quality == 0.5)
         options = SavePolicy.inPlaceOptions(remembered: remembered, sourceBitDepth: 8)
         #expect(!options.sixteenBit)
@@ -143,6 +145,7 @@ import MinivuRender
             #expect(options.format == .jpeg)
             #expect(options.quality == 0.3)
             #expect(options.keepMetadata)
+            #expect(options.removeLocation)
         }
     }
 
