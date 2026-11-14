@@ -118,6 +118,46 @@ enum DocumentFixtures {
         return url
     }
 
+    // MARK: - Crafted sizes
+
+    /// An SVG that declares itself `width` points wide and 10 high, as a
+    /// crafted file can: AppKit reports whatever the file says.
+    static func svg(width: String, in folder: URL) -> URL {
+        let url = folder.appendingPathComponent("wide-\(width).svg")
+        let svg = """
+        <svg xmlns="http://www.w3.org/2000/svg" width="\(width)" height="10" viewBox="0 0 10 10">
+          <rect x="0" y="0" width="10" height="10" fill="#ff0000"/>
+        </svg>
+        """
+        try! Data(svg.utf8).write(to: url)
+        return url
+    }
+
+    /// A one-page PDF whose media box is `side` points square, written by
+    /// hand because Core Graphics won't make one that large. The cross
+    /// reference table's offsets are counted, so the file is valid as
+    /// written rather than repaired on reading.
+    static func pdf(side: String, in folder: URL) -> URL {
+        let url = folder.appendingPathComponent("page-\(side).pdf")
+        let objects = [
+            "<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 \(side) \(side)] >>",
+        ]
+        var text = "%PDF-1.4\n"
+        var offsets: [Int] = []
+        for (i, object) in objects.enumerated() {
+            offsets.append(text.utf8.count)
+            text += "\(i + 1) 0 obj\n\(object)\nendobj\n"
+        }
+        let xref = text.utf8.count
+        text += "xref\n0 \(objects.count + 1)\n0000000000 65535 f \n"
+        for offset in offsets { text += String(format: "%010d 00000 n \n", offset) }
+        text += "trailer\n<< /Size \(objects.count + 1) /Root 1 0 R >>\nstartxref\n\(xref)\n%%EOF\n"
+        try! Data(text.utf8).write(to: url)
+        return url
+    }
+
     // MARK: - Rasters
 
     static func solid(_ rgb: (CGFloat, CGFloat, CGFloat), width: Int, height: Int) -> CGImage {

@@ -128,10 +128,12 @@ public enum MetadataReader {
     static func imageItems(_ url: URL, _ p: Properties?) -> [MetadataItem] {
         var items = Items()
         guard let info = ImageDecoder.info(for: url) else { return [] }
-        let w = Int(info.pixelSize.width), h = Int(info.pixelSize.height)
+        let w = Int(saturating: info.pixelSize.width), h = Int(saturating: info.pixelSize.height)
         if w > 0, h > 0 {
             items.add("Dimensions", "\(w) × \(h)")
-            items.add("Megapixels", String(format: "%.1f MP", Double(w * h) / 1_000_000))
+            // In Double: the product of two sizes a file declared can be
+            // past what an Int holds.
+            items.add("Megapixels", String(format: "%.1f MP", Double(w) * Double(h) / 1_000_000))
         }
         items.add("Bit depth", "\(info.bitDepth) bits per channel")
         items.add("Color model", info.colorModel)

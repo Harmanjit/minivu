@@ -406,7 +406,7 @@ public struct DisplaySettings: Sendable, Equatable {
             guard let imageSize, imageSize.width > 0, imageSize.height > 0 else {
                 return have.width >= need.width * 0.97 && have.height >= need.height * 0.97
             }
-            let longest = Int(max(imageSize.width, imageSize.height))
+            let longest = Int(saturating: max(imageSize.width, imageSize.height))
             func edge(_ view: CGSize) -> Int { min(ImageDecoder.fittedLongEdge(imageSize: imageSize, in: view), longest) }
             return Double(edge(have)) >= Double(edge(need)) * 0.97
         default:
@@ -707,7 +707,7 @@ public struct DisplaySettings: Sendable, Equatable {
         }
         let fitted = ImageDecoder.fittedLongEdge(imageSize: size, in: viewSize)
         guard entry.kind != .pdf, entry.kind != .svg else { return Self.square(fitted) }
-        let longest = Int(max(size.width, size.height))
+        let longest = Int(saturating: max(size.width, size.height))
         return Self.square(min(ImageDecoder.scaledDecodeSize(longestEdge: longest, needed: fitted), longest))
     }
 
@@ -720,7 +720,7 @@ public struct DisplaySettings: Sendable, Equatable {
     /// largest texture Metal allows (which is as good as it gets).
     private func cachedFullResolution(_ entry: FolderEntry, page: Int) -> ImageTexture? {
         guard let size = cache.knownImageSize(url: entry.url, modified: entry.modified, page: page) else { return nil }
-        let longest = Int(max(size.width, size.height))
+        let longest = Int(saturating: max(size.width, size.height))
         let texture = cache.bestTexture(url: entry.url, modified: entry.modified, page: page,
                                         fitting: Self.square(min(longest, TextureUploader.maximumDimension)))
         guard let texture else { return nil }

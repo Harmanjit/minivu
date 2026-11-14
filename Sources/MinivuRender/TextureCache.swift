@@ -135,7 +135,7 @@ public final class TextureCache: @unchecked Sendable {
         for (key, entry) in entries where key.sameImage(url: url, modified: modified, page: page) {
             if key.fullResolution { best = (key, entry); break }
             let imageSize = entry.texture.imageSize
-            let imageLongEdge = Int(max(imageSize.width, imageSize.height))
+            let imageLongEdge = Int(saturating: max(imageSize.width, imageSize.height))
             let fitted = ImageDecoder.fittedLongEdge(imageSize: imageSize, in: viewSize)
             let needed = Double(min(fitted, imageLongEdge)) * 0.97
             guard Double(key.longEdge) >= needed else { continue }

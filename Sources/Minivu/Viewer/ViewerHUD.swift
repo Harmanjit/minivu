@@ -118,7 +118,7 @@ final class ViewerHUD: NSVisualEffectView {
         if !position.isEmpty { parts.append(position) }
         if let part, !part.isEmpty { parts.append(part) }
         if let size = pixelSize, size.width > 0, size.height > 0 {
-            parts.append("\(Int(size.width)) × \(Int(size.height))")
+            parts.append("\(Int(saturating: size.width)) × \(Int(saturating: size.height))")
         }
         if let zoom = zoomPercent { parts.append(zoomText(zoom)) }
         return parts.joined(separator: "  ·  ")

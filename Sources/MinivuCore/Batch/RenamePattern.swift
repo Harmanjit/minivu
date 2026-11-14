@@ -218,14 +218,14 @@ public struct RenameSource: Hashable, Sendable {
                     copy.dateTakenTimeZone = taken.hasOffset ? taken.timeZone : nil
                 }
                 if let size = properties.orientedPixelSize {
-                    copy.pixelWidth = Int(size.width.rounded())
-                    copy.pixelHeight = Int(size.height.rounded())
+                    copy.pixelWidth = Int(saturating: size.width.rounded())
+                    copy.pixelHeight = Int(saturating: size.height.rounded())
                 }
             }
         default:
             if let size = ImageDecoder.info(for: url)?.pixelSize {
-                copy.pixelWidth = Int(size.width.rounded())
-                copy.pixelHeight = Int(size.height.rounded())
+                copy.pixelWidth = Int(saturating: size.width.rounded())
+                copy.pixelHeight = Int(saturating: size.height.rounded())
             }
         }
         if copy.modified == nil {

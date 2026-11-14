@@ -225,6 +225,26 @@ import UniformTypeIdentifiers
         #expect(MetadataReader.jpegComments(url).isEmpty)
     }
 
+    /// A PDF whose page claims 2e9 points a side used to stop the app every
+    /// time the Info panel showed it: 4e9 px times 4e9 px overflowed an Int.
+    /// Now it has no dimensions to show, and the rest of the panel still
+    /// reads. A large but real page shows its megapixels.
+    @Test func vectorsDeclaringAbsurdSizesDoNotCrashTheInfoPanel() throws {
+        let t = try TemporaryFolder()
+        for url in [DocumentFixtures.pdf(side: "2000000000", in: t.url),
+                    DocumentFixtures.svg(width: "1e18", in: t.url),
+                    DocumentFixtures.svg(width: "1e19", in: t.url)] {
+            let sections = MetadataReader.sections(for: url)
+            #expect(sections.first?.title == "File")
+            #expect(!sections.flatMap(\.items).contains { $0.label == "Dimensions" })
+            #expect(MetadataReader.summary(for: url).pixelSize == nil)
+        }
+        let page = MetadataReader.sections(for: DocumentFixtures.pdf(side: "14400", in: t.url))
+        let image = page.first { $0.title == "Image" }?.items
+        #expect(image?.first { $0.label == "Dimensions" }?.value == "28800 × 28800")
+        #expect(image?.first { $0.label == "Megapixels" }?.value == "829.4 MP")
+    }
+
     @Test func allPropertiesAreFlattenedAndSorted() throws {
         let t = try TemporaryFolder()
         let items = MetadataReader.allProperties(for: try makeTaggedJPEG(in: t))

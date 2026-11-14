@@ -170,7 +170,7 @@ public struct BatchResize: Codable, Hashable, Sendable {
         let limit = Double(Self.maximumSide)
         let width = Int(min(max((w * scale).rounded(), 1), limit))
         let height = Int(min(max((h * scale).rounded(), 1), limit))
-        guard width != Int(w.rounded()) || height != Int(h.rounded()) else { return nil }
+        guard width != Int(saturating: w.rounded()) || height != Int(saturating: h.rounded()) else { return nil }
         return (width, height)
     }
 }

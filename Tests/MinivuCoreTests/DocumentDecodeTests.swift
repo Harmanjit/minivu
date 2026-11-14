@@ -22,6 +22,74 @@ import CoreGraphics
         #expect(ImageDecoder.vectorRenderEdge(longEdge: 32, maxPixelSize: 256) == (256, false))
     }
 
+    @Test func vectorRenderSizesOfAbsurdEdgesDoNotOverflow() {
+        // Past the cap the answer is the cap; it used to multiply by 32 first.
+        #expect(ImageDecoder.vectorRenderEdge(longEdge: Int.max, maxPixelSize: nil) == (16384, true))
+        #expect(ImageDecoder.vectorRenderEdge(longEdge: Int.max / 2, maxPixelSize: 512) == (512, false))
+        for side in [1e18, 1e19, .infinity, .nan] as [CGFloat] {
+            let render = ImageDecoder.vectorRenderEdge(for: CGSize(width: side, height: 10), maxPixelSize: nil)
+            #expect(render.edge >= 1 && render.edge <= 16384)
+        }
+    }
+
+    @Test func saturatingConversionsClampInsteadOfTrapping() {
+        #expect(Int(saturating: 1234.9) == 1234)
+        #expect(Int(saturating: -3.5) == -3)
+        #expect(Int(saturating: 1e19) == Int.max)
+        #expect(Int(saturating: Double(Int.max)) == Int.max)
+        #expect(Int(saturating: -1e19) == Int.min)
+        #expect(Int(saturating: Double.infinity) == Int.max)
+        #expect(Int(saturating: Double.nan) == 0)
+        #expect(Int(saturating: CGFloat(4e9)) == 4_000_000_000)
+    }
+
+    // MARK: - Crafted sizes
+
+    /// An SVG or PDF that declares an absurd size is refused as too large,
+    /// on every path that used to size it from the file: these used to stop
+    /// the app (1e18 overflowed times 32, 1e19 trapped converting to Int).
+    @Test(arguments: ["1e18", "1e19", "2000000000"])
+    func svgDeclaringAnAbsurdSizeIsRefused(width: String) throws {
+        let folder = try TemporaryFolder()
+        let url = F.svg(width: width, in: folder.url)
+        #expect(ImageDecoder.info(for: url) == nil)
+        #expect(ImageDecoder.thumbnail(for: url, maxPixelSize: 256) == nil)
+        for maxPixelSize in [nil, 2880] as [Int?] {
+            #expect {
+                try ImageDecoder.decode(url, maxPixelSize: maxPixelSize)
+            } throws: { error in
+                if case DecodeError.tooLarge = error { true } else { false }
+            }
+        }
+    }
+
+    @Test func pdfDeclaringAnAbsurdPageIsRefused() throws {
+        let folder = try TemporaryFolder()
+        let url = F.pdf(side: "2000000000", in: folder.url)
+        // Core Graphics reads the page as it is: the file is valid, only huge.
+        let page = try #require(CGPDFDocument(url as CFURL)?.page(at: 1))
+        #expect(page.getBoxRect(.cropBox).width == 2_000_000_000)
+        #expect(ImageDecoder.info(for: url) == nil)
+        #expect(ImageDecoder.thumbnail(for: url, maxPixelSize: 256) == nil)
+        #expect {
+            try ImageDecoder.decode(url, fitting: CGSize(width: 1440, height: 900))
+        } throws: { error in
+            if case DecodeError.tooLarge = error { true } else { false }
+        }
+    }
+
+    /// The limit is far above any real drawing: a 200 inch page, the PDF
+    /// format's largest, and an SVG a hundred times wider still both open.
+    @Test func largeButRealVectorsStillOpen() throws {
+        let folder = try TemporaryFolder()
+        let pdf = F.pdf(side: "14400", in: folder.url)
+        #expect(ImageDecoder.info(for: pdf)?.pixelSize == CGSize(width: 28800, height: 28800))
+        #expect(try ImageDecoder.decode(pdf, maxPixelSize: 64).image.width == 64)
+        let svg = F.svg(width: "400000", in: folder.url)
+        #expect(ImageDecoder.info(for: svg)?.pixelSize == CGSize(width: 800_000, height: 20))
+        #expect(ImageDecoder.thumbnail(for: svg, maxPixelSize: 256) != nil)
+    }
+
     // MARK: - PDF
 
     @Test func pdfInfoIsTheFirstPageAt144DPI() throws {

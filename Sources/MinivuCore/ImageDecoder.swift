@@ -86,8 +86,11 @@ public enum ImageDecoder {
         guard let kind = ImageFormats.kind(of: url) else { return nil }
         switch kind {
         case .pdf:
-            guard let doc = CGPDFDocument(url as CFURL), let page = doc.page(at: 1) else { return nil }
-            return ImageInfo(kind: .pdf, pixelSize: pdfPixelSize(page), orientation: .up,
+            // A page past the size limit is described as nothing, as an
+            // unreadable file is: there is no size to show that is true.
+            guard let doc = CGPDFDocument(url as CFURL), let page = doc.page(at: 1),
+                  let size = pdfPixelSize(page) else { return nil }
+            return ImageInfo(kind: .pdf, pixelSize: size, orientation: .up,
                              pageCount: doc.numberOfPages, isAnimated: false, hasAlpha: false,
                              bitDepth: 8, colorModel: "RGB", profileName: nil, isHDR: false, uti: "com.adobe.pdf")
         case .svg:
@@ -164,10 +167,12 @@ public enum ImageDecoder {
         guard let kind = ImageFormats.kind(of: url) else { return nil }
         switch kind {
         case .pdf:
-            guard let page = CGPDFDocument(url as CFURL)?.page(at: 1) else { return nil }
+            // Refused past the size limit, as a raster over
+            // `thumbnailPixelBudget` is: a size that large is no drawing.
+            guard let page = CGPDFDocument(url as CFURL)?.page(at: 1), pdfPixelSize(page) != nil else { return nil }
             return renderPDF(page, maxPixelSize: maxPixelSize)
         case .svg:
-            guard let image = NSImage(contentsOf: url) else { return nil }
+            guard let image = NSImage(contentsOf: url), svgPixelSize(image) != nil else { return nil }
             return renderSVG(image, maxPixelSize: maxPixelSize)
         case .raster, .raw:
             guard let source = makeSource(url) else { return nil }
@@ -315,7 +320,7 @@ public enum ImageDecoder {
             guard let doc = CGPDFDocument(url as CFURL) else { throw DecodeError.unreadable(url) }
             guard doc.numberOfPages > 0, let pdfPage = doc.page(at: min(max(page, 0), doc.numberOfPages - 1) + 1)
             else { throw DecodeError.noImage(url) }
-            let size = pdfPixelSize(pdfPage)
+            guard let size = pdfPixelSize(pdfPage) else { throw DecodeError.tooLarge(url) }
             let wanted = wantedLongEdge(imageSize: size, maxPixelSize: maxPixelSize, fitting: fitting)
             let render = vectorRenderEdge(for: size, maxPixelSize: wanted)
             guard let image = renderPDF(pdfPage, maxPixelSize: render.edge) else { throw DecodeError.noImage(url) }
@@ -324,7 +329,12 @@ public enum ImageDecoder {
                                 needsDeepStorage: false)
         case .svg:
             guard let svg = NSImage(contentsOf: url) else { throw DecodeError.unreadable(url) }
-            guard let size = svgPixelSize(svg) else { throw DecodeError.noImage(url) }
+            guard let size = svgPixelSize(svg) else {
+                // No size at all is no image; a size past the limit is a
+                // file too large, as for a raster whose header claims more
+                // than a decode could hold.
+                throw svg.size.width > 0 && svg.size.height > 0 ? DecodeError.tooLarge(url) : DecodeError.noImage(url)
+            }
             let wanted = wantedLongEdge(imageSize: size, maxPixelSize: maxPixelSize, fitting: fitting)
             let render = vectorRenderEdge(for: size, maxPixelSize: wanted)
             guard let image = renderSVG(svg, maxPixelSize: render.edge) else { throw DecodeError.noImage(url) }
@@ -339,7 +349,7 @@ public enum ImageDecoder {
             // multi-page TIFF by index, each with its own size.
             let index = kind == .raw || page <= 0 || count <= 1 ? primaryIndex(source) : min(page, count - 1)
             guard let info = info(source: source, kind: kind, index: index) else { throw DecodeError.noImage(url) }
-            let longest = Int(max(info.pixelSize.width, info.pixelSize.height))
+            let longest = Int(saturating: max(info.pixelSize.width, info.pixelSize.height))
             let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
             let wantsFull = wanted == nil || wanted! >= longest
             let hdr = allowHDR && info.isHDR
@@ -389,7 +399,7 @@ public enum ImageDecoder {
                                         fitting: CGSize? = nil) throws -> DecodedImage? {
         guard let source = makeSource(url) else { throw DecodeError.unreadable(url) }
         guard var info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
-        let longest = Int(max(info.pixelSize.width, info.pixelSize.height))
+        let longest = Int(saturating: max(info.pixelSize.width, info.pixelSize.height))
         // Neither "from image" option: only an image already in the file
         // may be returned, scaled down if it is larger than asked.
         var options: [CFString: Any] = [
@@ -549,6 +559,19 @@ public enum ImageDecoder {
     static let vectorMaximumMagnification = 32
     /// ...and never past Metal's texture limit.
     static let vectorMaximumEdge = 16384
+    /// The largest actual-size edge a vector may declare, in pixels (half
+    /// that in points, about 176 metres at 72 points to the inch). A file
+    /// that claims more is refused as too large rather than sized from it.
+    ///
+    /// An SVG's width and a PDF's crop box are whatever the file says, and
+    /// AppKit and Core Graphics pass absurd values straight through: an SVG
+    /// with width="1e18" reports 1e18 points. Nothing past this line is a
+    /// real drawing: the largest page the PDF format allows without
+    /// UserUnit is 200 inches (28,800 px here), and the app never renders a
+    /// vector above `vectorMaximumEdge` anyway. Yet it is small enough that
+    /// every sum the app does with a size (32 times it, its area) stays far
+    /// inside an Int.
+    static let vectorMaximumDeclaredEdge: CGFloat = 1_000_000
 
     /// The long edge to render a vector at, and whether that render counts as
     /// full resolution.
@@ -566,7 +589,9 @@ public enum ImageDecoder {
     ///   - longEdge: the vector's actual-size long edge in pixels.
     ///   - maxPixelSize: the long edge wanted, nil for full resolution.
     static func vectorRenderEdge(longEdge: Int, maxPixelSize: Int?) -> (edge: Int, isFullResolution: Bool) {
-        let actual = max(longEdge, 1)
+        // Capped before it is multiplied, so a size no caller should pass
+        // still can't overflow: past the cap the answer is the cap anyway.
+        let actual = min(max(longEdge, 1), vectorMaximumEdge)
         let full = min(max(actual, vectorMinimumFullEdge), actual * vectorMaximumMagnification, vectorMaximumEdge)
         guard let wanted = maxPixelSize else { return (full, true) }
         let edge = min(max(wanted, 1), full)
@@ -574,7 +599,7 @@ public enum ImageDecoder {
     }
 
     static func vectorRenderEdge(for size: CGSize, maxPixelSize: Int?) -> (edge: Int, isFullResolution: Bool) {
-        vectorRenderEdge(longEdge: Int(max(size.width, size.height).rounded()), maxPixelSize: maxPixelSize)
+        vectorRenderEdge(longEdge: Int(saturating: max(size.width, size.height).rounded()), maxPixelSize: maxPixelSize)
     }
 
     /// A page's /Rotate as 0, 90, 180 or 270. The PDF specification allows
@@ -591,18 +616,30 @@ public enum ImageDecoder {
         return pdfRotation(page) % 180 == 0 ? box.size : CGSize(width: box.height, height: box.width)
     }
 
-    /// The page's actual size in pixels (144 dpi).
-    static func pdfPixelSize(_ page: CGPDFPage) -> CGSize {
-        let points = pdfDisplaySize(page)
-        return CGSize(width: (points.width * vectorPixelsPerPoint).rounded(),
-                      height: (points.height * vectorPixelsPerPoint).rounded())
+    /// The page's actual size in pixels (144 dpi), or nil when the crop box
+    /// is past `vectorMaximumDeclaredEdge`.
+    static func pdfPixelSize(_ page: CGPDFPage) -> CGSize? {
+        vectorPixelSize(points: pdfDisplaySize(page))
     }
 
     /// An SVG's actual size in pixels: its intrinsic size in points, twice.
+    /// Nil when the SVG has no size, or claims one past
+    /// `vectorMaximumDeclaredEdge`.
     static func svgPixelSize(_ image: NSImage) -> CGSize? {
         guard image.size.width > 0, image.size.height > 0 else { return nil }
-        return CGSize(width: (image.size.width * vectorPixelsPerPoint).rounded(),
-                      height: (image.size.height * vectorPixelsPerPoint).rounded())
+        return vectorPixelSize(points: image.size)
+    }
+
+    /// A vector's declared size in points as pixels, or nil when it is not
+    /// a finite size within `vectorMaximumDeclaredEdge`. This is where a
+    /// file's word on its own size enters the app, so it is checked here
+    /// once rather than wherever the size is used.
+    static func vectorPixelSize(points: CGSize) -> CGSize? {
+        let pixels = CGSize(width: (points.width * vectorPixelsPerPoint).rounded(),
+                            height: (points.height * vectorPixelsPerPoint).rounded())
+        guard pixels.width.isFinite, pixels.height.isFinite,
+              max(pixels.width, pixels.height) <= vectorMaximumDeclaredEdge else { return nil }
+        return pixels
     }
 
     /// Pixel dimensions with `maxPixelSize` on the long edge, at least 1x1.

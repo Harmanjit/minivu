@@ -471,6 +471,6 @@ final class ThumbnailCell: NSCollectionViewItem {
     }
 
     nonisolated static func dimensions(_ size: CGSize) -> String {
-        "\(Int(size.width)) × \(Int(size.height))"
+        "\(Int(saturating: size.width)) × \(Int(saturating: size.height))"
     }
 }
