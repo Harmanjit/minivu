@@ -113,7 +113,10 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
     private(set) var shown: (texture: ImageTexture, subject: Subject)?
     /// The analysis of a picture, kept while that picture is on screen.
     private(set) var result: (subject: Subject, value: LiveTextResult)?
-    private var running: (subject: Subject, task: Task<LiveTextResult?, Never>)?
+    private var running: (subject: Subject, task: Task<LiveTextResult?, Never>, number: Int)?
+    /// Counts analyses started, so one cancelled and replaced by another of
+    /// the same picture can't report in its place.
+    private var started = 0
     private var settleWork: DispatchWorkItem?
     /// When the current texture arrived, in system uptime.
     private var shownSince: TimeInterval = 0
@@ -237,22 +240,21 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
         guard isActive, let (texture, subject) = shown else { return }
         running?.task.cancel()
         let analyzer = analyzer
+        started += 1
+        let number = started
         let task = Task { [weak self] () -> LiveTextResult? in
             let image = await BlockingWork.run { LiveTextImage.render(texture) }
-            guard !Task.isCancelled, let image else {
-                self?.finished(nil, for: subject)
-                return nil
-            }
-            let value = try? await analyzer.analyze(image)
             guard !Task.isCancelled else { return nil }
-            self?.finished(value, for: subject)
+            let value: LiveTextResult? = if let image { try? await analyzer.analyze(image) } else { nil }
+            guard !Task.isCancelled else { return nil }
+            self?.finished(value, number: number, for: subject)
             return value
         }
-        running = (subject, task)
+        running = (subject, task, number)
     }
 
-    private func finished(_ value: LiveTextResult?, for subject: Subject) {
-        guard running?.subject == subject else { return }
+    private func finished(_ value: LiveTextResult?, number: Int, for subject: Subject) {
+        guard running?.number == number else { return }
         running = nil
         guard isActive, let value, shown?.subject == subject else { return }
         result = (subject, value)

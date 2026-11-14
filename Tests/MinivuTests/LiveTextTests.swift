@@ -111,6 +111,25 @@ extension AppWindowTests {
             #expect(viewer.liveText.result == nil)
         }
 
+        /// An analysis cancelled (the page reloaded under new settings) and
+        /// asked for again for the same picture: the cancelled one must not
+        /// report in place of its successor, whose result is kept.
+        @Test func anAnalysisCancelledAndStartedAgainKeepsTheNewResult() async throws {
+            let t = try ScratchFolder()
+            let (viewer, fake) = try await openViewer(t, count: 1)
+            defer { closeViewer() }
+            viewer.liveText.settleDelay = 0
+            movePointer(viewer)
+            let first = try #require(viewer.liveText.runningTask)
+            viewer.liveText.cancelPending()
+            movePointer(viewer)
+            let second = try #require(viewer.liveText.runningTask)
+            #expect(await first.value == nil, "cancelled")
+            _ = await second.value
+            #expect(viewer.liveText.result?.value.transcript == fake.transcript)
+            #expect(viewer.liveText.runningTask == nil)
+        }
+
         /// An edit changes the picture, so its render is analysed afresh:
         /// what is shown, not the file.
         @Test func anEditIsAnalysedAsItIsShown() async throws {
