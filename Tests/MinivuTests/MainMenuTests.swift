@@ -155,6 +155,7 @@ import MinivuCore
             .cloneStamp, .healingBrush, .removeRedEye,
             .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
             .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
+            .copyText, #selector(AppDelegate.toggleLiveText(_:)),
             #selector(NSApplication.runPageLayout(_:)),
         ]
         for selector in expected {
@@ -264,6 +265,21 @@ import MinivuCore
             let inBar = allItems.filter { $0.action == item.action && $0.tag == item.tag }.map(\.title)
             #expect(inBar.contains(item.title), "\(item.title) is \(inBar) in the menu bar")
         }
+    }
+
+    /// Live Text (G7): Copy Text beside Copy on ⇧⌘C, and the setting in
+    /// View.
+    @Test func liveTextItems() throws {
+        let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
+        let titles = edit.items.map { $0.isSeparatorItem ? "-" : $0.title }
+        #expect(titles.firstIndex(of: "Copy Text") == titles.firstIndex(of: "Copy").map { $0 + 1 })
+        let copyText = try item("Copy Text")
+        #expect(copyText.action == .copyText && copyText.keyEquivalent == "c"
+            && copyText.keyEquivalentModifierMask == [.command, .shift])
+
+        let liveText = try item("Live Text")
+        #expect(liveText.action == #selector(AppDelegate.toggleLiveText(_:)) && liveText.keyEquivalent.isEmpty)
+        #expect(liveText.menu?.title == "View")
     }
 
     @Test func menuItemsHaveNoTarget() {

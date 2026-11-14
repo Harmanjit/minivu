@@ -118,6 +118,10 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(confirmOverwriteOnSave, forKey: Keys.confirmOverwriteOnSave) }
     }
 
+    /// Text in the viewer's picture can be selected and copied (View > Live
+    /// Text). Off, nothing is analysed at all.
+    @Published var liveText: Bool { didSet { defaults.set(liveText, forKey: Keys.liveText) } }
+
     /// The decoding settings the image loader follows.
     var displaySettings: DisplaySettings {
         DisplaySettings(rawDecoding: rawDecoding, showHDR: showHDR, hdrRaw: hdrRaw,
@@ -144,6 +148,7 @@ final class Preferences: ObservableObject {
         hdrRawAmount = d.object(forKey: Keys.hdrRawAmount) as? Double ?? 1
         rawDecoding = RawDecoding(rawValue: d.string(forKey: Keys.rawDecoding) ?? "") ?? .embeddedPreview
         confirmOverwriteOnSave = d.object(forKey: Keys.confirmOverwriteOnSave) as? Bool ?? true
+        liveText = d.object(forKey: Keys.liveText) as? Bool ?? true
         // Before anything loads: the app delegate reads the theme at launch,
         // well ahead of the first image.
         ImageLoader.shared.settings = displaySettings
@@ -177,5 +182,6 @@ final class Preferences: ObservableObject {
         static let hdrRawAmount = "hdrRawAmount"
         static let rawDecoding = "rawDecoding"
         static let confirmOverwriteOnSave = "confirmOverwriteOnSave"
+        static let liveText = "liveText"
     }
 }

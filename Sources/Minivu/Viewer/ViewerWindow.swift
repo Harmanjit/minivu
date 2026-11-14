@@ -170,7 +170,19 @@ final class ViewerContainerView: NSView {
             if oldValue !== canvasOverlay { oldValue?.removeFromSuperview() }
             if let canvasOverlay, canvasOverlay.superview !== self {
                 canvasOverlay.frame = canvas.frame
-                addSubview(canvasOverlay, positioned: .above, relativeTo: canvas)
+                addSubview(canvasOverlay, positioned: .above, relativeTo: textOverlay ?? canvas)
+            }
+        }
+    }
+    /// The Live Text overlay, kept on the canvas's frame like
+    /// `canvasOverlay` but staying for the life of the viewer: just above
+    /// the canvas, below any tool's overlay, the HUD and the panels.
+    var textOverlay: NSView? {
+        didSet {
+            if oldValue !== textOverlay { oldValue?.removeFromSuperview() }
+            if let textOverlay, textOverlay.superview !== self {
+                textOverlay.frame = canvas.frame
+                addSubview(textOverlay, positioned: .above, relativeTo: canvas)
             }
         }
     }
@@ -221,7 +233,7 @@ final class ViewerContainerView: NSView {
         let inset = min(canvasLeadingInset, area.width / 2)
         canvasFrame.origin.x += inset
         canvasFrame.size.width -= inset
-        if canvas.frame != canvasFrame || canvasOverlay?.frame != canvasFrame {
+        if canvas.frame != canvasFrame || canvasOverlay?.frame != canvasFrame || textOverlay?.frame != canvasFrame {
             // Never animated, even inside a panel's slide: a Metal layer
             // animating its bounds would stretch the image on screen.
             NSAnimationContext.runAnimationGroup { context in
@@ -229,6 +241,7 @@ final class ViewerContainerView: NSView {
                 context.allowsImplicitAnimation = false
                 canvas.frame = canvasFrame
                 canvasOverlay?.frame = canvasFrame
+                textOverlay?.frame = canvasFrame
             }
         }
         layoutHandler?(area)

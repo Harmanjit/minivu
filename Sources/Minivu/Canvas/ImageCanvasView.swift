@@ -70,6 +70,9 @@ final class ImageCanvasView: NSView, SnapshotProviding {
     /// Called after every change to zoom, pan or the view's size, so an
     /// overlay drawn in image coordinates (the crop rectangle) can follow.
     var onViewChange: (() -> Void)?
+    /// The same, for the viewer's Live Text overlay, which stays while the
+    /// tools come and go with `onViewChange`.
+    var onTextOverlayViewChange: (() -> Void)?
 
     private(set) var image: ImageTexture?
     private(set) var zoomMode: ZoomMode = .fit
@@ -278,6 +281,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         updatePannable()
         setNeedsRedraw()
         onViewChange?()
+        onTextOverlayViewChange?()
         if zoomChanged { delegate?.canvasDidChangeZoom(self) }
         requestFullResolutionIfNeeded()
     }
@@ -586,6 +590,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         watchHeadroom()
         if image != nil, transform.zoom != oldZoom { delegate?.canvasDidChangeZoom(self) }
         onViewChange?()
+        onTextOverlayViewChange?()
         requestFullResolutionIfNeeded()
         if inLiveResize, metalLayer?.presentsWithTransaction == true {
             // Draw now, inside the resize transaction, so the image never
@@ -736,6 +741,7 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         transform = moved
         setNeedsRedraw()
         onViewChange?()
+        onTextOverlayViewChange?()
         delegate?.canvasDidChangeViewInteractively(self)
     }
 

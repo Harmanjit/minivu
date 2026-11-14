@@ -84,6 +84,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private let infoHost = NSHostingView(rootView: InfoPanelView(url: nil))
     /// The histogram and colour count, above the info panel on the right.
     let histogramPanel = HistogramPanelController()
+    /// Selectable text in the picture (ViewerLiveText.swift).
+    let liveText = LiveTextController()
+    private var liveTextSubscription: AnyCancellable?
 
     // Editing (ViewerEditing.swift).
     /// The edit of the image on screen; nil until the user first edits it.
@@ -175,6 +178,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
         hud.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(hud)
+        setUpLiveText()
 
         filmstrip.onSelect = { [weak self] index in self?.showImage(at: index) }
         filmstrip.setImages(model.images, current: model.index)
@@ -235,6 +239,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                 guard let self, let window = self.window else { return }
                 self.applyBackground(background, to: window)
             }
+        // View > Live Text, turned on or off while the viewer is open.
+        liveTextSubscription = Preferences.shared.$liveText
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.updateLiveTextAvailability() }
     }
 
     private func makeControlBar() -> ViewerControlBar {
@@ -462,6 +472,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// times a second, and a work item made and cancelled for each would
     /// pile up in the main queue; one pending item is enough.
     private func pointerMoved() {
+        liveText.pointerMoved()
         lastPointerMove = ProcessInfo.processInfo.systemUptime
         guard isFullScreen, cursorWork == nil else { return }
         scheduleCursorHide(after: Self.cursorHideDelay)
@@ -491,10 +502,13 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func windowMouseDown(_ event: NSEvent) {
         guard let contentView = window?.contentView, let superview = contentView.superview else { return }
         let hit = contentView.hitTest(superview.convert(event.locationInWindow, from: nil))
-        // The crop overlay takes the image's presses while cropping.
-        if hit === canvas || (hit != nil && hit === container.canvasOverlay) {
+        // The crop overlay takes the image's presses while cropping, and
+        // Live Text takes those on text.
+        if hit === canvas || (hit != nil && hit === container.canvasOverlay)
+            || hit?.isDescendant(of: liveText.host) == true {
             flyouts.hideTransientPanels()
         }
+        liveText.mouseDown(atWindowPoint: event.locationInWindow)
     }
 
     // MARK: - Loading
@@ -532,6 +546,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func loadCurrentPage(reloading: Bool = false) {
         guard let shown = current else { return }
         cancelLoads()
+        // Whatever Live Text was doing is for the page on screen until now.
+        liveText.cancelPending()
         let fitSize = canvasFitSize
         let entry = shown.entry
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified,
@@ -857,6 +873,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
                            pages: pages, isPlaying: player?.isPlaying, canEdit: canEdit,
                            toolsShown: flyouts.isPinned(.left))
         if isToolsPanelLoaded { updateAvailability(of: toolsPanel, canEdit: canEdit) }
+        updateLiveTextAvailability()
     }
 
     private func updateAvailability(of panel: ViewerToolsPanel, canEdit: Bool) {
@@ -970,6 +987,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     func canvasDidChangeImage(_ canvas: ImageCanvasView) {
         histogramPanel.show(canvas.image, interval: player?.isPlaying == true
             ? HistogramPanelController.animationInterval : HistogramPanelController.minimumInterval)
+        liveText.show(canvas.image, subject: liveTextSubject)
     }
 
     // MARK: - Keyboard
@@ -1241,6 +1259,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if let enabled = validateEditAction(menuItem.action) { return enabled }
         if let enabled = validateToolAction(menuItem.action) { return enabled }
         if let enabled = validateClipboardAction(menuItem.action) { return enabled }
+        if let enabled = validateLiveTextAction(menuItem.action) { return enabled }
         switch menuItem.action {
         case .nextImage: return model.canGoNext
         case .previousImage: return model.canGoPrevious
@@ -1353,6 +1372,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         summaryTask?.cancel()
         infoTask?.cancel()
         histogramPanel.stop()
+        liveText.stop()
+        liveTextSubscription = nil
         cursorWork?.cancel()
         backgroundSubscription = nil
         hud.cancelFade()

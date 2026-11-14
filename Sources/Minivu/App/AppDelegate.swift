@@ -377,10 +377,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         Preferences.shared.theme = Preferences.Theme.allCases[item.tag]
     }
 
+    /// View > Live Text: text in the viewer's picture can be selected and
+    /// copied. On by default; the viewer follows the setting at once.
+    @objc func toggleLiveText(_ sender: Any?) {
+        Preferences.shared.liveText.toggle()
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(selectTheme(_:)) {
             let current = Preferences.Theme.allCases.firstIndex(of: Preferences.shared.theme)
             menuItem.state = menuItem.tag == current ? .on : .off
+        }
+        if menuItem.action == #selector(toggleLiveText(_:)) {
+            menuItem.state = Preferences.shared.liveText ? .on : .off
         }
         return true
     }

@@ -28,9 +28,23 @@ import MinivuRender
 ///
 /// There is no Paste: nothing sensible can be pasted onto an image being
 /// viewed, and the editing tools own that ground.
+///
+/// Text selected in the picture with Live Text is the one exception to
+/// copying the picture: a selection is the user saying exactly what they
+/// want, as it is in any text, so Copy takes the selected words.
 extension ViewerWindowController {
     @objc func copy(_ sender: Any?) {
+        if copySelectedText(to: .general) { return }
         copyImage(to: .general)
+    }
+
+    /// Puts the text selected with Live Text on `pasteboard`, if any is
+    /// selected, and says whether it did.
+    func copySelectedText(to pasteboard: NSPasteboard) -> Bool {
+        guard let text = liveText.selectedText else { return false }
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        return true
     }
 
     /// Renders the page on screen and puts it on `pasteboard` as an image.

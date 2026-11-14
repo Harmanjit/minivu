@@ -74,6 +74,9 @@ import AppKit
     @objc optional func applySepia(_ sender: Any?)
     @objc optional func applyNegative(_ sender: Any?)
     @objc optional func editComment(_ sender: Any?)
+    /// Edit > Copy Text: all the text Live Text recognises in the viewer's
+    /// picture.
+    @objc optional func copyText(_ sender: Any?)
 
     // MARK: Management (Phase 5)
     /// Toggles the "tagged" flag (FastStone's culling mark) on the selection
@@ -188,6 +191,7 @@ extension Selector {
     static let applySepia = #selector(MinivuActions.applySepia(_:))
     static let applyNegative = #selector(MinivuActions.applyNegative(_:))
     static let editComment = #selector(MinivuActions.editComment(_:))
+    static let copyText = #selector(MinivuActions.copyText(_:))
     static let toggleTag = #selector(MinivuActions.toggleTag(_:))
     static let selectTagged = #selector(MinivuActions.selectTagged(_:))
     static let invertSelection = #selector(MinivuActions.invertSelection(_:))

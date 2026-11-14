@@ -93,6 +93,9 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Cut", #selector(NSText.cut(_:)), "x")
         menu.add("Copy", #selector(NSText.copy(_:)), "c")
+        // ⇧⌘C: free everywhere in minivu (no Colors panel), and beside Copy.
+        // The viewer's key table ignores anything with Command.
+        menu.add("Copy Text", .copyText, "c", [.command, .shift])
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)
@@ -121,6 +124,9 @@ enum MainMenu {
             theme.add(value.title, #selector(AppDelegate.selectTheme(_:))).tag = index
         }
         menu.add("Theme", nil).submenu = theme
+        // Selectable text in the viewer's picture; a checkmark, since it is a
+        // setting that outlasts the viewer.
+        menu.add("Live Text", #selector(AppDelegate.toggleLiveText(_:)))
         menu.addItem(.separator())
 
         // NSSplitViewController and NSWindow retitle these to "Hide Sidebar"
