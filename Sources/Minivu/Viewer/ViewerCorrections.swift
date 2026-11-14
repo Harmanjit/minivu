@@ -32,12 +32,15 @@ extension ViewerWindowController {
         if let tool = activeTool, tool.state != nil { closeToolKeepingChanges() }
         let document = session.document
         let before = document.operations
-        autoEnhanceTask = Task { [weak self] in
+        // The session weakly: a viewer closed meanwhile lets it go at once
+        // rather than when the analysis finishes.
+        autoEnhanceTask = Task { [weak self, weak session] in
             let enhance = try? await EditRenderer.shared.autoEnhancement(for: document)
             guard let self else { return }
             self.autoEnhanceTask = nil
             defer { self.updateChrome() }
-            guard self.editSession === session, document.operations == before, !self.isClosing else { return }
+            guard let session, self.editSession === session, document.operations == before, !self.isClosing
+            else { return }
             guard let enhance, !enhance.isIdentity else {
                 NSSound.beep()
                 return
@@ -60,14 +63,15 @@ extension ViewerWindowController {
         let prepared = editSessionForCurrent()?.document.outputSize != nil
         guard let session = beginOpeningTool(replacing: prepared) else { return }
         let request = toolRequest
-        let open: (CGSize) -> Void = { [weak self] _ in
-            guard let self, self.toolRequest == request, self.editSession === session, self.activeTool == nil else { return }
+        let open: (CGSize) -> Void = { [weak self, weak session] _ in
+            guard let self, let session, self.toolRequest == request, self.editSession === session,
+                  self.activeTool == nil else { return }
             let state = PerspectiveToolState(document: session.document)
             let overlay = PerspectiveOverlayView(canvas: self.canvas, state: state)
             overlay.onApply = { [weak self] in self?.closeTool(applying: true) }
             let inspector = PerspectiveInspectorView(state: state, actions: self.inspectorActions(),
-                                                     detect: { [weak self, weak state] in
-                                                         guard let self, let state else { return }
+                                                     detect: { [weak self, weak state, weak session] in
+                                                         guard let self, let state, let session else { return }
                                                          self.detectPerspective(for: state, in: session)
                                                      })
             self.presentTool(state, inspector: inspector, overlay: overlay,
@@ -86,11 +90,12 @@ extension ViewerWindowController {
     func detectPerspective(for state: PerspectiveToolState, in session: EditSession) {
         guard state.detection != .running else { return }
         state.detection = .running
-        Task { [weak self, weak state] in
-            let image = try? await EditRenderer.shared.renderForAnalysis(session.document,
+        let document = session.document
+        Task { [weak self, weak state, weak session] in
+            let image = try? await EditRenderer.shared.renderForAnalysis(document,
                                                                          maxPixelSize: EditRenderer.analysisPixelSize)
             let quad = await BlockingWork.run { image.flatMap { PerspectiveDetector.detect(in: $0) } }
-            guard let self, let state, self.editSession === session else { return }
+            guard let self, let state, let session, self.editSession === session else { return }
             state.useDetected(quad)
         }
     }
@@ -100,11 +105,15 @@ extension ViewerWindowController {
     @objc func changeCanvasSize(_ sender: Any?) {
         guard let session = beginOpeningTool(), let window else { return }
         let request = toolRequest
-        session.whenPrepared { [weak self] size in
-            guard let self, self.toolRequest == request, self.editSession === session, window.attachedSheet == nil
-            else { return }
-            CanvasSizeSheet.present(size: size, on: window) { [weak self] operation in
-                guard let self, self.editSession === session, let operation else { return }
+        // The session weakly, down to the sheet's completion: a sheet ended
+        // from outside (the viewer closing under it) never calls it, and the
+        // sheet's views can outlive it for a while, which must not keep the
+        // session and its textures.
+        session.whenPrepared { [weak self, weak session] size in
+            guard let self, let session, self.toolRequest == request, self.editSession === session,
+                  window.attachedSheet == nil else { return }
+            CanvasSizeSheet.present(size: size, on: window) { [weak self, weak session] operation in
+                guard let self, let session, self.editSession === session, let operation else { return }
                 session.document.apply(operation)
             }
         }
