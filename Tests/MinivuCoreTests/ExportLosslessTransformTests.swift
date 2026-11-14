@@ -198,13 +198,21 @@ import UniformTypeIdentifiers
         let t = try TemporaryFolder()
         let url = t.url.appendingPathComponent("gainmap.jpg")
         let base = CIImage(cgImage: TestImages.gradient(width: 256, height: 128))
-        let gainMap = CIImage(color: CIColor(red: 0.5, green: 0.5, blue: 0.5)).cropped(to: CGRect(x: 0, y: 0, width: 128, height: 64))
-        try CIContext().writeJPEGRepresentation(of: base, to: url, colorSpace: F.displayP3, options: [.hdrGainMapImage: gainMap])
+        // Core Image is handed the HDR picture and derives the gain map: since
+        // macOS 27.2 a ready-made `.hdrGainMapImage` is silently left out.
+        let hdr = base.applyingFilter("CIExposureAdjust", parameters: [kCIInputEVKey: 2])
+        try CIContext().writeJPEGRepresentation(of: base, to: url, colorSpace: F.displayP3, options: [.hdrImage: hdr])
         try JPEGComment.write("gm", to: url)
+        // Core Image writes an ISO 21496-1 gain map today and Apple's own on
+        // earlier systems. Either is a second image found through the MPF
+        // index, which is what this guards.
         func gainMapData() -> Data? {
             let source = CGImageSourceCreateWithURL(url as CFURL, nil)!
-            let info = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) as? [String: Any]
-            return info?[kCGImageAuxiliaryDataInfoData as String] as? Data
+            for type in [kCGImageAuxiliaryDataTypeHDRGainMap, kCGImageAuxiliaryDataTypeISOGainMap] {
+                if let info = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, type) as? [String: Any],
+                   let data = info[kCGImageAuxiliaryDataInfoData as String] as? Data { return data }
+            }
+            return nil
         }
         let before = try #require(gainMapData())
 
