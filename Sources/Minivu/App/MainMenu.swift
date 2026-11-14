@@ -192,8 +192,10 @@ enum MainMenu {
         menu.add("Flip Vertical", .flipVertical)
         menu.addItem(.separator())
         menu.add("Resize/Resample…", .resizeImage, "i", [.command, .option])
+        menu.add("Canvas Size…", .changeCanvasSize)
         menu.add("Crop…", .cropImage, "k")
         menu.add("Straighten…", .straightenImage)
+        menu.add("Perspective…", .correctPerspective)
         menu.addItem(.separator())
 
         let adjust = NSMenu(title: "Adjust")
@@ -201,9 +203,11 @@ enum MainMenu {
         adjust.add("Colors…", .adjustColors, "c", [.command, .option])
         adjust.add("Curves…", .adjustCurves, "m", [.command, .shift])
         adjust.add("Levels…", .adjustLevels, "l", [.command, .shift])
+        adjust.add("Auto Enhance", .autoEnhance)
         adjust.addItem(.separator())
         adjust.add("Sharpen…", .sharpenImage)
         adjust.add("Blur…", .blurImage)
+        adjust.add("Noise Reduction…", .reduceNoise)
         menu.add("Adjust", nil).submenu = adjust
 
         let effects = NSMenu(title: "Effects")
@@ -217,6 +221,7 @@ enum MainMenu {
         effects.add("Sketch…", .applySketch)
         effects.add("Oil Painting…", .applyOilPaint)
         effects.add("Lens…", .applyLens)
+        effects.add("Vignette…", .addVignette)
         menu.add("Effects", nil).submenu = effects
 
         let retouch = NSMenu(title: "Retouch")
@@ -225,6 +230,7 @@ enum MainMenu {
         retouch.add("Red-Eye Removal…", .removeRedEye)
         menu.add("Retouch", nil).submenu = retouch
         menu.add("Text and Shapes…", .drawAnnotations)
+        menu.add("Watermark…", .addWatermark)
         menu.addItem(.separator())
         menu.add("Edit Comment…", .editComment)
     }

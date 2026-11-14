@@ -48,7 +48,16 @@ extension AppWindowTests {
                 #expect(viewer?.canEditCurrent == true, "round \(round)")
                 for action in actions {
                     autoreleasepool { _ = NSApp.sendAction(action, to: viewer, from: nil) }
-                    if action == .resizeImage {
+                    if action == .autoEnhance {
+                        // One click, no tool: it measures the image and applies.
+                        await TestTiming.waitUntil { viewer?.autoEnhanceTask == nil }
+                        // Taken back, so moving on has no unsaved edit to ask about.
+                        autoreleasepool {
+                            if viewer?.editSession?.document.canUndo == true { viewer?.editSession?.document.undo() }
+                        }
+                        continue
+                    }
+                    if action == .resizeImage || action == .changeCanvasSize {
                         // A sheet rather than a panel tool: cancelled by ending it.
                         await TestTiming.waitUntil { window?.attachedSheet != nil }
                         #expect(window?.attachedSheet != nil, "\(action) did not open")

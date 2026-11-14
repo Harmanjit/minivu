@@ -70,16 +70,17 @@ import MinivuCore
         let titles = image.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
-                           "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "Retouch",
-                           "Text and Shapes…", "-", "Edit Comment…", "-",
+                           "Resize/Resample…", "Canvas Size…", "Crop…", "Straighten…", "Perspective…", "-",
+                           "Adjust", "Effects", "Retouch", "Text and Shapes…", "Watermark…", "-", "Edit Comment…", "-",
                            "Play Animation", "-", "Rating", "Tag", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
-                                                      .sharpenImage, .blurImage])
+                                                      .autoEnhance, .sharpenImage, .blurImage, .reduceNoise])
         let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
         #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative, .addDropShadow,
-                                                       .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens])
+                                                       .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,
+                                                       .addVignette])
         let retouch = try #require(image.items.first { $0.title == "Retouch" }?.submenu)
         #expect(retouch.items.compactMap(\.action) == [.cloneStamp, .healingBrush, .removeRedEye])
         let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
@@ -153,6 +154,7 @@ import MinivuCore
             .compareSelected, .toggleHistogram, .countColors,
             .addDropShadow, .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens, .drawAnnotations,
             .cloneStamp, .healingBrush, .removeRedEye,
+            .autoEnhance, .reduceNoise, .addVignette, .correctPerspective, .changeCanvasSize, .addWatermark,
             .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
             .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
             #selector(NSApplication.runPageLayout(_:)),

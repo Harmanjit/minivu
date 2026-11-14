@@ -35,15 +35,19 @@ final class ViewerToolsPanel: NSView {
     static let groups: [Group] = [
         Group(title: "Adjust", tools: [
             Tool(title: "Resize", symbol: "arrow.up.left.and.arrow.down.right", action: .resizeImage),
+            Tool(title: "Canvas Size", symbol: "square.dashed", action: .changeCanvasSize),
             Tool(title: "Crop", symbol: "crop", action: .cropImage),
             Tool(title: "Rotate & Flip", symbol: "rotate.right", action: showRotateFlipAction),
             Tool(title: "Straighten", symbol: "level", action: .straightenImage),
+            Tool(title: "Perspective", symbol: "perspective", action: .correctPerspective),
+            Tool(title: "Auto Enhance", symbol: "wand.and.stars", action: .autoEnhance),
             Tool(title: "Lighting", symbol: "sun.max", action: .adjustLighting),
             Tool(title: "Colors", symbol: "paintpalette", action: .adjustColors),
             Tool(title: "Curves", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", action: .adjustCurves),
             Tool(title: "Levels", symbol: "slider.horizontal.3", action: .adjustLevels),
             Tool(title: "Sharpen", symbol: "rhombus", action: .sharpenImage),
             Tool(title: "Blur", symbol: "drop.halffull", action: .blurImage),
+            Tool(title: "Noise Reduction", symbol: "circle.dotted", action: .reduceNoise),
         ]),
         Group(title: "Effects", tools: [
             Tool(title: "Color Effects", symbol: "camera.filters", action: showColorEffectsAction),
@@ -53,9 +57,11 @@ final class ViewerToolsPanel: NSView {
             Tool(title: "Sketch", symbol: "pencil.and.scribble", action: .applySketch),
             Tool(title: "Oil Painting", symbol: "paintbrush.pointed", action: .applyOilPaint),
             Tool(title: "Lens", symbol: "circle.dashed", action: .applyLens),
+            Tool(title: "Vignette", symbol: "circle.lefthalf.striped.horizontal", action: .addVignette),
         ]),
         Group(title: "Draw", tools: [
             Tool(title: "Text and Shapes", symbol: "pencil.tip.crop.circle", action: .drawAnnotations),
+            Tool(title: "Watermark", symbol: "c.circle", action: .addWatermark),
         ]),
         Group(title: "Retouch", tools: [
             Tool(title: "Clone Stamp", symbol: "square.on.square", action: .cloneStamp),

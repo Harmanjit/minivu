@@ -325,8 +325,12 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             return canEditCurrent
         // Phase 6 tools: enabled once their file implements the action.
         case .addDropShadow, .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,
-             .drawAnnotations, .cloneStamp, .healingBrush, .removeRedEye:
+             .drawAnnotations, .cloneStamp, .healingBrush, .removeRedEye,
+             .reduceNoise, .addVignette, .correctPerspective, .changeCanvasSize, .addWatermark:
             return canEditCurrent && action.map { responds(to: $0) } == true
+        // One click, whose analysis takes a moment: not again while it runs.
+        case .autoEnhance:
+            return canEditCurrent && autoEnhanceTask == nil && responds(to: .autoEnhance)
         case .editComment:
             guard !isClosing, let entry = model.current else { return false }
             return ["jpg", "jpeg", "jpe"].contains(entry.url.pathExtension.lowercased())
@@ -531,7 +535,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
 
     // MARK: - Tools
 
-    private func openAdjustment(_ kind: AdjustmentKind) {
+    func openAdjustment(_ kind: AdjustmentKind) {
         if case .adjustment(let state)? = activeTool, state.kind == kind { return }
         guard let session = beginOpeningTool(replacing: true) else { return }
         let state = AdjustmentToolState(kind: kind, document: session.document)

@@ -90,6 +90,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var editSession: EditSession?
     /// The tool whose inspector the tools panel shows.
     var activeTool: OpenEditTool?
+    /// Auto Enhance measuring the image (ViewerCorrections.swift); nil when
+    /// it isn't.
+    var autoEnhanceTask: Task<Void, Never>?
     /// The open tool pinned the tools panel (rather than the user), so it
     /// unpins when the tool closes.
     var toolPinnedPanel = false
