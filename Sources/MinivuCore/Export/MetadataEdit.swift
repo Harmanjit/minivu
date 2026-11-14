@@ -62,6 +62,21 @@ public struct WallClock: Hashable, Sendable, Comparable {
             && (0...23).contains(hour) && (0...59).contains(minute) && (0...60).contains(second)
     }
 
+    /// The fields of `date` as a clock in `zone` shows them.
+    init(date: Date, in zone: TimeZone) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let c = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        self.init(year: c.year ?? 1970, month: c.month ?? 1, day: c.day ?? 1, hour: c.hour ?? 0,
+                  minute: c.minute ?? 0, second: c.second ?? 0)
+    }
+
+    /// The date and time as the info panel shows dates taken, in the
+    /// user's locale.
+    public static func formatted(_ clock: WallClock) -> String {
+        clock.date.formatted(Date.FormatStyle(date: .abbreviated, time: .standard, timeZone: TimeZone(secondsFromGMT: 0)!))
+    }
+
     /// "2024:05:01 14:30:00".
     public var exifText: String {
         String(format: "%04d:%02d:%02d %02d:%02d:%02d", year, month, day, hour, minute, second)
