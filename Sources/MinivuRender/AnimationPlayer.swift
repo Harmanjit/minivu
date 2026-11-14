@@ -34,6 +34,10 @@ import MinivuCore
     /// ahead, so one late decode doesn't stall playback.
     nonisolated static let minimumSlots = 4
     nonisolated static let maximumSlots = 8
+    /// Slots kept when a single frame is larger than the whole budget: the
+    /// frame shown before, the frame on screen and one decoding. Fewer would
+    /// leave no slot to decode into that the GPU can't still be reading.
+    nonisolated static let fewestSlots = 3
     /// Decodes queued at once. More would keep the CPU busy after a pause.
     static let maximumPendingDecodes = 2
     /// A frame arriving later than this after it was due restarts the clock
@@ -76,6 +80,7 @@ import MinivuCore
     private let gpu: GPU
     private var maxPixelSize: Int
     private let budgetBytes: Int
+    private let maximumFramePixels: Int
     private var frames: AnimationFrames?
     private var store: FrameStore?
     private let queue = DispatchQueue(label: "minivu.animation", qos: .userInitiated)
@@ -109,15 +114,21 @@ import MinivuCore
     ///     never more than the animation's own.
     ///   - playing: start playing once the first frame is shown.
     public convenience init(url: URL, pixelSize: Int, playing: Bool = true, gpu: GPU = .shared) {
-        self.init(url: url, pixelSize: pixelSize, playing: playing, budgetBytes: Self.preloadBudgetBytes, gpu: gpu)
+        self.init(url: url, pixelSize: pixelSize, playing: playing, budgetBytes: Self.preloadBudgetBytes,
+                  maximumFramePixels: Self.maximumFramePixels(physicalMemory: ProcessInfo.processInfo.physicalMemory),
+                  gpu: gpu)
     }
 
-    /// With a different preload budget, for tests of the decode-ahead path.
-    init(url: URL, pixelSize: Int, playing: Bool, budgetBytes: Int, gpu: GPU) {
+    /// With a different preload budget or frame size limit, for tests of the
+    /// decode-ahead path and of an animation too large to play at full size.
+    init(url: URL, pixelSize: Int, playing: Bool, budgetBytes: Int,
+         maximumFramePixels: Int = AnimationPlayer.maximumFramePixels(physicalMemory: ProcessInfo.processInfo.physicalMemory),
+         gpu: GPU) {
         self.url = url
         self.maxPixelSize = pixelSize
         self.isPlaying = playing
         self.budgetBytes = budgetBytes
+        self.maximumFramePixels = maximumFramePixels
         self.gpu = gpu
         open()
     }
@@ -177,28 +188,59 @@ import MinivuCore
         guard pixelSize != maxPixelSize else { return }
         maxPixelSize = pixelSize
         guard let frames, let store, !isStopped else { return }
-        let size = Self.frameSize(imageSize: frames.pixelSize, maxPixelSize: pixelSize)
+        let size = Self.frameSize(imageSize: frames.pixelSize, maxPixelSize: pixelSize, maximumPixels: maximumFramePixels)
         guard size.width != store.width || size.height != store.height else { return }
         makeStore()
     }
 
     // MARK: - Sizes
 
+    /// The most pixels one decoded frame may have on a Mac with
+    /// `physicalMemory` bytes of RAM, however far the user zooms in.
+    ///
+    /// The size comes from the file's header, and a file of a few kilobytes
+    /// can claim a 65,535 x 65,535 canvas. Decoded at Metal's 16,384 px limit
+    /// that is 1 GiB a frame, held once in each slot and again by each decode
+    /// in flight, so zooming in on it would ask for 5 GiB or more. A frame
+    /// over the preload budget is held in three slots, and each of up to two
+    /// decodes in flight holds one more: about 20 bytes a pixel, so a limit
+    /// of one pixel per 512 bytes of RAM keeps the worst case under 5% of it.
+    /// That is 4096 x 4096 on an 8 GB Mac and 5792 x 5792 on a 16 GB one. An animation made to be watched is far smaller (a 4K one is
+    /// 8.3 megapixels) and still plays at full size everywhere; one over the
+    /// limit plays at the largest size within it instead.
+    nonisolated static func maximumFramePixels(physicalMemory: UInt64) -> Int {
+        Int(physicalMemory / 512)
+    }
+
     /// Frame dimensions for a long edge of `maxPixelSize`, never larger than
-    /// the animation itself or Metal's texture limit.
-    nonisolated static func frameSize(imageSize: CGSize, maxPixelSize: Int) -> (width: Int, height: Int) {
+    /// the animation itself or Metal's texture limit, and with no more than
+    /// `maximumPixels` pixels. Worked in floating point, because the header
+    /// can claim a size whose pixel count an Int multiply would overflow.
+    nonisolated static func frameSize(imageSize: CGSize, maxPixelSize: Int,
+                                      maximumPixels: Int = .max) -> (width: Int, height: Int) {
         let long = max(imageSize.width, imageSize.height, 1)
         let edge = min(CGFloat(max(maxPixelSize, 1)), long, CGFloat(TextureUploader.maximumDimension))
-        let scale = edge / long
+        var scale = edge / long
+        let pixels = max(imageSize.width, 1) * max(imageSize.height, 1) * scale * scale
+        if pixels > CGFloat(max(maximumPixels, 1)) {
+            // Rounded down, so the frame stays within the limit.
+            scale *= (CGFloat(max(maximumPixels, 1)) / pixels).squareRoot()
+            return (max(1, Int((imageSize.width * scale).rounded(.down))),
+                    max(1, Int((imageSize.height * scale).rounded(.down))))
+        }
         return (max(1, Int((imageSize.width * scale).rounded())), max(1, Int((imageSize.height * scale).rounded())))
     }
 
     /// Every frame when they all fit in the budget; otherwise a few slots to
-    /// decode ahead into.
+    /// decode ahead into, and only `fewestSlots` when one frame alone is
+    /// larger than the budget, so a huge frame is never multiplied by four.
     nonisolated static func slotCount(frameCount: Int, bytesPerFrame: Int, budget: Int = preloadBudgetBytes) -> Int {
         guard frameCount > 0 else { return 0 }
-        if frameCount * bytesPerFrame <= budget { return frameCount }
-        return min(frameCount, max(minimumSlots, min(maximumSlots, budget / max(bytesPerFrame, 1))))
+        let bytes = max(bytesPerFrame, 1)
+        let (total, overflow) = frameCount.multipliedReportingOverflow(by: bytes)
+        if !overflow, total <= budget { return frameCount }
+        if bytes > budget { return min(frameCount, fewestSlots) }
+        return min(frameCount, max(minimumSlots, min(maximumSlots, budget / bytes)))
     }
 
     // MARK: - Opening
@@ -228,7 +270,7 @@ import MinivuCore
         guard let frames else { return }
         invalidateWork()
         cancelTick()
-        let size = Self.frameSize(imageSize: frames.pixelSize, maxPixelSize: maxPixelSize)
+        let size = Self.frameSize(imageSize: frames.pixelSize, maxPixelSize: maxPixelSize, maximumPixels: maximumFramePixels)
         let bytes = FrameStore.bytesPerFrame(width: size.width, height: size.height, gpu: gpu)
         let slots = Self.slotCount(frameCount: frames.frameCount, bytesPerFrame: bytes, budget: budgetBytes)
         // Allocating is cheap: the buffer's pages are only touched as frames

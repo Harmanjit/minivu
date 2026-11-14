@@ -67,6 +67,46 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         #expect(AnimationPlayer.slotCount(frameCount: 2, bytesPerFrame: 40 << 20) == 2)
     }
 
+    /// A header can claim a canvas no animation is really made at, such as
+    /// 65,535 x 65,535 in a file of a few kilobytes. Zoomed in, the viewer
+    /// asks for frames at Metal's limit: they must stay within the frame
+    /// limit, and the store must not hold four of them, while an ordinary
+    /// animation still gets its full size. Sizes only: nothing is allocated.
+    @Test func hugeDeclaredCanvasStaysWithinTheMemoryLimit() throws {
+        let gpu = GPU.shared
+        let huge = CGSize(width: 65535, height: 65535)
+        for gib: UInt64 in [8, 16, 64] {
+            let limit = AnimationPlayer.maximumFramePixels(physicalMemory: gib << 30)
+            let size = AnimationPlayer.frameSize(imageSize: huge, maxPixelSize: TextureUploader.maximumDimension,
+                                                 maximumPixels: limit)
+            #expect(size.width * size.height <= limit, "\(size) on \(gib) GB")
+            #expect(size.width == size.height)
+            let bytes = FrameStore.bytesPerFrame(width: size.width, height: size.height, gpu: gpu)
+            let slots = AnimationPlayer.slotCount(frameCount: 100, bytesPerFrame: bytes)
+            // The whole store, and the two decodes that may be in flight, at
+            // about 4% of RAM: far from the 4 GiB and more asked for before.
+            let store = bytes * slots
+            #expect(store + 2 * bytes <= Int(gib << 30) / 20, "\(slots) slots of \(bytes) bytes on \(gib) GB")
+            // An ordinary animation, a 4K one included, is untouched.
+            for normal in [CGSize(width: 400, height: 300), CGSize(width: 3840, height: 2160)] {
+                let full = AnimationPlayer.frameSize(imageSize: normal, maxPixelSize: TextureUploader.maximumDimension,
+                                                     maximumPixels: limit)
+                #expect(full == (Int(normal.width), Int(normal.height)), "\(normal) on \(gib) GB")
+            }
+        }
+        #expect(AnimationPlayer.maximumFramePixels(physicalMemory: 8 << 30) == 4096 * 4096)
+        // A long, thin canvas keeps its shape within the limit.
+        let thin = AnimationPlayer.frameSize(imageSize: CGSize(width: 65535, height: 4096),
+                                             maxPixelSize: TextureUploader.maximumDimension, maximumPixels: 4096 * 4096)
+        #expect(thin.width * thin.height <= 4096 * 4096 && thin.width > 15 * thin.height)
+        // A frame larger than the whole budget is kept in the fewest slots
+        // playback can work with, never in four.
+        #expect(AnimationPlayer.slotCount(frameCount: 100, bytesPerFrame: 1 << 30) == AnimationPlayer.fewestSlots)
+        #expect(AnimationPlayer.fewestSlots < AnimationPlayer.minimumSlots)
+        #expect(AnimationPlayer.slotCount(frameCount: 2, bytesPerFrame: 1 << 30) == 2)
+        #expect(AnimationPlayer.slotCount(frameCount: Int.max / 2, bytesPerFrame: 1 << 20) == AnimationPlayer.maximumSlots)
+    }
+
     @Test func playsFramesInOrderAndReusesTexturesEachLoop() async throws {
         let url = writeAnimatedGIF(colors: Self.rgb, delay: 0.03)
         let player = AnimationPlayer(url: url, pixelSize: 1000)
@@ -183,11 +223,14 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
     }
 
     /// Too big to keep every frame: a few slots, decoded just ahead, still in
-    /// order, and the slots are reused rather than reallocated.
-    @Test func largeAnimationsDecodeAhead() async throws {
+    /// order, and the slots are reused rather than reallocated. With frames
+    /// each larger than the whole budget, the same with only `fewestSlots`.
+    @Test(arguments: [false, true]) func largeAnimationsDecodeAhead(hugeFrames: Bool) async throws {
         let colours: [(CGFloat, CGFloat, CGFloat)] = Array(repeating: Self.rgb, count: 4).flatMap { $0 }
         let url = writeAnimatedGIF(colors: colours, delay: 0.02, width: 64, height: 64)
-        let player = AnimationPlayer(url: url, pixelSize: 64, playing: true, budgetBytes: 1, gpu: .shared)
+        // Room for two frames of the twelve, or for none of them.
+        let budget = hugeFrames ? 1 : 2 * FrameStore.bytesPerFrame(width: 64, height: 64, gpu: .shared)
+        let player = AnimationPlayer(url: url, pixelSize: 64, playing: true, budgetBytes: budget, gpu: .shared)
         let names = ["red", "green", "blue"]
         var shown: [ImageTexture] = []
         var seen: [String] = []   // read as each frame goes up: slots are reused
@@ -207,7 +250,8 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         try #require(shown.count >= 15)
         let expected = (0..<15).map { names[$0 % 3] }
         #expect(Array(seen.prefix(15)) == expected)
-        #expect(Set(shown.map { ObjectIdentifier($0) }).count == AnimationPlayer.minimumSlots)
+        let slots = hugeFrames ? AnimationPlayer.fewestSlots : AnimationPlayer.minimumSlots
+        #expect(Set(shown.map { ObjectIdentifier($0) }).count == slots)
         #expect(torn.isEmpty, "\(torn)")
     }
 
@@ -261,5 +305,28 @@ func writeAnimatedGIF(colors: [(CGFloat, CGFloat, CGFloat)], delay: Double, loop
         let later = try #require(shown.last)
         #expect(later.textureSize == CGSize(width: 400, height: 300))
         #expect(later.isFullResolution)
+    }
+
+    /// Zoomed in on an animation over the frame limit, frames grow only as
+    /// far as the limit allows, and asking again changes nothing.
+    @Test func zoomingStopsAtTheFrameLimit() async throws {
+        let url = writeAnimatedGIF(colors: Self.rgb, delay: 0.03, width: 400, height: 300)
+        let player = AnimationPlayer(url: url, pixelSize: 100, playing: true, budgetBytes: AnimationPlayer.preloadBudgetBytes,
+                                     maximumFramePixels: 200 * 150, gpu: .shared)
+        var shown: [ImageTexture] = []
+        player.onFrame = { shown.append($0) }
+        await waitUntil { !shown.isEmpty }
+        #expect(shown[0].textureSize == CGSize(width: 100, height: 75))
+
+        player.setPixelSize(TextureUploader.maximumDimension)
+        await waitUntil { shown.last?.textureSize.width == 200 }
+        let before = shown.count
+        await waitUntil { shown.count >= before + 2 }
+        player.setPixelSize(TextureUploader.maximumDimension)
+        player.stop()
+        let later = try #require(shown.last)
+        #expect(later.textureSize == CGSize(width: 200, height: 150))
+        #expect(later.imageSize == CGSize(width: 400, height: 300))
+        #expect(!later.isFullResolution && !player.isFullResolution)
     }
 }
