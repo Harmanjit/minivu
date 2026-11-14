@@ -182,6 +182,11 @@ extension TestImages {
         #expect(ImageDecoder.exceedsExportBudget(info(60_000, 60_000), byteLimit: .max))
         #expect(ImageDecoder.exceedsExportBudget(info(1e19, 1e19), byteLimit: .max))
         #expect(!ImageDecoder.exceedsExportBudget(info(32_768, 32_768), byteLimit: .max))
+        // A header that gives no size, or a nonsense one, promises nothing.
+        #expect(ImageDecoder.exceedsExportBudget(info(0, 0), byteLimit: .max))
+        #expect(ImageDecoder.exceedsExportBudget(info(0, 4_000), byteLimit: .max))
+        #expect(ImageDecoder.exceedsExportBudget(info(-1, -1), byteLimit: .max))
+        #expect(ImageDecoder.exceedsExportBudget(info(.nan, 4_000), byteLimit: .max))
     }
 
     /// The decode behind an export refuses a header over the budget before

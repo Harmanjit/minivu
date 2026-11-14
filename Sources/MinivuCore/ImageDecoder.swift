@@ -316,11 +316,15 @@ public enum ImageDecoder {
     /// whole image the header declares before it reads a row, so a file of
     /// a few kilobytes claiming 60000 x 60000 would ask for 14 GB. Instead a
     /// header claiming more than this is refused before anything is
-    /// decoded. A quarter, as Count Colors allows itself, because the export
-    /// holds a second image of about the same size while it renders and
-    /// encodes, so the whole save stays within half of RAM. That is 2 GB on
-    /// an 8 GB Mac: a 100 megapixel photo at 16 bits a channel (800 MB)
-    /// saves with room to spare, and 8-bit images up to 536 megapixels do.
+    /// decoded. A quarter, as Count Colors allows itself. The limit counts
+    /// the decode alone: the export then renders a second image the size of
+    /// the output, about as large again when the depth is kept and twice as
+    /// large when an 8-bit original is saved at 16 bits, before Core Image's
+    /// tiles and the encoder take their share. So an enormous real photo
+    /// near the limit can still make a save swap; what the limit stops is a
+    /// header asking for more than the Mac has. That is 2 GB on an 8 GB
+    /// Mac: a 100 megapixel photo at 16 bits a channel (800 MB) saves with
+    /// room to spare, and 8-bit images up to 536 megapixels do.
     public static func exportDecodeLimit(physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory) -> Int {
         Int(physicalMemory / 4)
     }
@@ -341,7 +345,12 @@ public enum ImageDecoder {
     /// minivu caps its own output at, so nothing over it is anything the app
     /// could have written, and the browser won't thumbnail it either. In
     /// Doubles, because a forged header can claim more than an Int holds.
-    static func exceedsExportBudget(_ info: ImageInfo, byteLimit: Int) -> Bool {
+    ///
+    /// Also true when a side is missing, zero, negative or not a number. A
+    /// header that gives no size makes no promise about the decode: asked
+    /// for a longest side of zero, ImageIO picks the size itself.
+    public static func exceedsExportBudget(_ info: ImageInfo, byteLimit: Int) -> Bool {
+        guard info.pixelSize.width > 0, info.pixelSize.height > 0 else { return true }
         let pixels = info.pixelSize.width * info.pixelSize.height
         return pixels > Double(thumbnailPixelBudget)
             || pixels * Double(decodedBytesPerPixel(info)) > Double(byteLimit)
@@ -358,9 +367,10 @@ public enum ImageDecoder {
     ///
     /// - Parameter byteLimit: for the decodes behind Save, Save As, Batch
     ///   Convert and export, `exportDecodeLimit()`. A full-resolution decode
-    ///   of a raster or RAW file whose header claims more than that (see
-    ///   `exceedsExportBudget`) throws `DecodeError.tooLarge` without
-    ///   decoding anything. Nil checks nothing, as the viewer needs: it never
+    ///   whose header claims more than that, or no size at all (see
+    ///   `exceedsExportBudget`), throws `DecodeError.tooLarge` without
+    ///   decoding anything. A RAW file reaches this only when the RAW path
+    ///   gave up, so `EditRenderer.loadSource` checks RAW headers itself. Nil checks nothing, as the viewer needs: it never
     ///   asks for more than a texture holds.
     public static func decode(_ url: URL, maxPixelSize: Int? = nil, fitting: CGSize? = nil, page: Int = 0,
                               allowHDR: Bool = true, byteLimit: Int? = nil) throws -> DecodedImage {

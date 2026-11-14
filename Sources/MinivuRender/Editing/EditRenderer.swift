@@ -685,8 +685,18 @@ final class EditStage: @unchecked Sendable {
     nonisolated static func loadSource(url: URL, page: Int, kind: ImageKind?, settings: DisplaySettings,
                                        gpu: GPU, forExport: Bool = false,
                                        decodeLimit: Int = ImageDecoder.exportDecodeLimit()) throws -> EditSource {
-        if kind == .raw, let raw = try loadRaw(url: url, settings: settings, gpu: gpu) {
-            return raw
+        if kind == .raw {
+            // The RAW path decodes the embedded preview at the size the header
+            // claims, so an export reads the header first, as `decode` does for
+            // every other file. A header with no size at all is a camera the
+            // RAW engine doesn't know, whose preview is the image: let through.
+            if forExport, let info = ImageDecoder.info(for: url), info.pixelSize != .zero,
+               ImageDecoder.exceedsExportBudget(info, byteLimit: decodeLimit) {
+                throw DecodeError.tooLarge(url)
+            }
+            if let raw = try loadRaw(url: url, settings: settings, gpu: gpu) {
+                return raw
+            }
         }
         let decoded = try ImageDecoder.decode(url, maxPixelSize: forExport ? nil : maximumDimension, page: page,
                                               allowHDR: settings.showHDR, byteLimit: forExport ? decodeLimit : nil)

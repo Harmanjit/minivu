@@ -270,6 +270,27 @@ import UniformTypeIdentifiers
         #expect(rendered.width == 48 && rendered.height == 64)
     }
 
+    /// A RAW file is held to the same limit before the RAW path decodes its
+    /// embedded preview at the size the header claims: with the preview and
+    /// with the RAW engine, a renderer pinned one byte under the NEF's
+    /// 16-bit decode refuses it unread, and one pinned at exactly that size
+    /// still loads it whole.
+    @Test(.enabled(if: FileManager.default.fileExists(atPath: "/Users/harman/latent/TestAssets/HSB_6548.NEF")))
+    func rawHeadersOverTheExportBudgetAreRefused() async throws {
+        let raw = URL(fileURLWithPath: "/Users/harman/latent/TestAssets/HSB_6548.NEF")
+        let info = try #require(ImageDecoder.info(for: raw))
+        #expect(info.bitDepth == 16)
+        let bytes = Int(info.pixelSize.width * info.pixelSize.height) * 8
+        for decoding in [DisplaySettings(), DisplaySettings(rawDecoding: .fullRaw)] {
+            let tight = await BatchConverter(renderer: EditRenderer(exportDecodeLimit: bytes - 1),
+                                             displaySettings: decoding) { [srgb] _, _, _ in srgb }
+            #expect(await isTooLarge { try await tight.encodedData(for: raw, settings: BatchConvertSettings()) })
+        }
+        let whole = try EditRenderer.loadSource(url: raw, page: 0, kind: .raw, settings: DisplaySettings(),
+                                                gpu: .shared, forExport: true, decodeLimit: bytes)
+        #expect(whole.size == info.pixelSize)
+    }
+
     @Test(.enabled(if: FileManager.default.fileExists(atPath: "/Users/harman/latent/TestAssets/HSB_6548.NEF")))
     func convertsACameraRaw() async throws {
         let raw = URL(fileURLWithPath: "/Users/harman/latent/TestAssets/HSB_6548.NEF")
