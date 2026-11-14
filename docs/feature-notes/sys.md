@@ -335,8 +335,8 @@ Intents:
   action ends, except Open in minivu, which keeps it for the session as
   a Finder open does) and write only into minivu's container, except
   Rename, which can rename only in folders minivu could already change.
-- **Prompts.** Shortcuts shows its own permission prompts when a shortcut
-  first passes files to an app or runs from a Quick Action; macOS asks
+- **Prompts.** Shortcuts has its own privacy prompts (for example before
+  a shortcut first shares files with an app); macOS asks
   before any app sends Apple Events to another (Automation privacy), which
   applies to "Run AppleScript" steps but not to minivu's intents, which
   aren't Apple Events. Exactly which prompts appear is for the manual
