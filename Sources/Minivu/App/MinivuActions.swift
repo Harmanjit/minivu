@@ -134,6 +134,9 @@ import AppKit
     @objc optional func openInExternalEditor(_ sender: Any?)
     /// Settings > Editors, from the Open in External Editor submenu.
     @objc optional func manageExternalEditors(_ sender: Any?)
+    /// File > Share…: the system's share sheet (AirDrop, Messages, Mail…)
+    /// for the browser's selected images or the viewer's image.
+    @objc optional func shareFiles(_ sender: Any?)
 }
 
 /// Tags on the View > Sort By direction items. Zero is left out on purpose:
@@ -226,4 +229,5 @@ extension Selector {
     static let captureSelection = #selector(MinivuActions.captureSelection(_:))
     static let openInExternalEditor = #selector(MinivuActions.openInExternalEditor(_:))
     static let manageExternalEditors = #selector(MinivuActions.manageExternalEditors(_:))
+    static let shareFiles = #selector(MinivuActions.shareFiles(_:))
 }

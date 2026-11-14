@@ -46,6 +46,8 @@ extension BrowserWindowController {
             model.imageCount > 0
         case .setAsDesktopPicture, .openInExternalEditor:
             toolLeadImage != nil
+        case .shareFiles:
+            !shareURLs.isEmpty
         default:
             nil
         }

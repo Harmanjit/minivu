@@ -1272,6 +1272,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             return player != nil
         case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
         case .revealInFinder: return model.current != nil
+        // Not while a sheet is up: the unsaved-edits question would have
+        // nowhere to go but a modal alert over it.
+        case .shareFiles: return model.current != nil && window?.attachedSheet == nil
         case .moveToTrash:
             // ⌘⌫ typed in a drawn text box, an inspector's field or a sheet
             // (Resize, the comment editor, Save As) deletes text; it must not

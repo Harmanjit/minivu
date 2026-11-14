@@ -12,15 +12,18 @@ extension NSToolbarItem.Identifier {
     static let browserSearch = NSToolbarItem.Identifier("minivu.browser.search")
     static let browserCompare = NSToolbarItem.Identifier("minivu.browser.compare")
     static let browserSlideshow = NSToolbarItem.Identifier("minivu.browser.slideshow")
+    static let browserShare = NSToolbarItem.Identifier("minivu.browser.share")
 }
 
 /// The browser window's unified toolbar.
 ///
 /// Buttons send the same responder-chain actions as the menu bar, so the
 /// window controller handles and validates both in one place.
-final class BrowserToolbar: NSObject, NSToolbarDelegate {
+final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerToolbarItemDelegate {
     /// The search text changed.
     var onSearch: ((String) -> Void)?
+    /// The files the Share button offers: the browser's `shareURLs`.
+    var shareItems: (() -> [URL])?
     /// A Finder tag was chosen in the filter menu.
     var onFinderTagFilter: ((String?) -> Void)?
 
@@ -66,7 +69,8 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         // sidebar toggle above the sidebar; without the tracking separator
         // the pane's divider ran through the search field.
         [.toggleSidebar, .sidebarTrackingSeparator, .browserNavigation, .browserEnclosingFolder, .flexibleSpace,
-         .browserThumbnailSize, .browserSort, .browserFilter, .browserCompare, .browserSlideshow, .browserSearch,
+         .browserThumbnailSize, .browserSort, .browserFilter, .browserCompare, .browserSlideshow, .browserShare,
+         .browserSearch,
          .inspectorTrackingSeparator,
          .flexibleSpace, .browserPreviewPane]
     }
@@ -95,6 +99,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         case .browserSlideshow:
             button(identifier, "Slideshow", symbol: "play.rectangle", action: .startSlideshow,
                    tip: "Start a slideshow of the selected images, or of the folder (⇧⌘F)")
+        case .browserShare: shareItemMade()
         default: nil
         }
     }
@@ -110,6 +115,22 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate {
         item.isBordered = true
         item.action = action
         return item
+    }
+
+    /// AppKit's own Share button, which shows the share sheet under itself
+    /// for whatever `items(for:)` returns when it is clicked, and greys
+    /// itself out when that is nothing.
+    private func shareItemMade() -> NSToolbarItem {
+        let item = NSSharingServicePickerToolbarItem(itemIdentifier: .browserShare)
+        item.label = "Share"
+        item.toolTip = "Share the selected images with AirDrop, Messages, Mail and more"
+        item.delegate = self
+        item.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Share")
+        return item
+    }
+
+    func items(for pickerToolbarItem: NSSharingServicePickerToolbarItem) -> [Any] {
+        (shareItems?() ?? []).map { $0 as NSURL }
     }
 
     private func navigational(_ item: NSToolbarItem) -> NSToolbarItem {

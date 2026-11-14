@@ -77,6 +77,8 @@ enum MainMenu {
         menu.add("Move To", nil).submenu = RecentDestinationsMenu.make(title: "Move To", action: .moveToFolder)
         menu.addItem(.separator())
         menu.add("Reveal in Finder", .revealInFinder, "r", [.command, .option])
+        // Finder's place for it, and like Finder's without a shortcut.
+        menu.add("Share…", .shareFiles)
         menu.add("Move to Trash", .moveToTrash, Key.backspace)
         menu.addItem(.separator())
         menu.add("Page Setup…", #selector(NSApplication.runPageLayout(_:)), "p", [.command, .shift])
