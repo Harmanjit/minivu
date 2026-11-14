@@ -210,4 +210,17 @@ extension TestImages {
         // A screen-sized decode holds a fraction of it and is never refused.
         #expect(try ImageDecoder.decode(photo, maxPixelSize: 160, allowHDR: false, byteLimit: 1).image.width <= 320)
     }
+
+    /// A RAW whose header gives no size has only its preview to go by. The
+    /// preview is still decoded whole, but never above the largest texture
+    /// minivu can show, so a forged one can't ask for gigabytes. A header
+    /// with a size decodes as before: what was wanted, never above the image.
+    @Test func sizelessRawPreviewIsHeldToTheTextureLimit() {
+        func maxSize(_ options: [CFString: Any]) -> Int? { options[kCGImageSourceThumbnailMaxPixelSize] as? Int }
+        #expect(maxSize(ImageDecoder.rawPreviewOptions(imageLongEdge: 0, wantedLongEdge: nil))
+                == ImageDecoder.rawPreviewMaximumEdge)
+        #expect(maxSize(ImageDecoder.rawPreviewOptions(imageLongEdge: 6000, wantedLongEdge: nil)) == 6000)
+        #expect(maxSize(ImageDecoder.rawPreviewOptions(imageLongEdge: 6000, wantedLongEdge: 1500)) == 1500)
+        #expect(maxSize(ImageDecoder.rawPreviewOptions(imageLongEdge: 6000, wantedLongEdge: 9000)) == 6000)
+    }
 }

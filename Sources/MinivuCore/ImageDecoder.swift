@@ -466,24 +466,40 @@ public enum ImageDecoder {
         guard let source = makeSource(url) else { throw DecodeError.unreadable(url) }
         guard var info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
         let longest = Int(saturating: max(info.pixelSize.width, info.pixelSize.height))
-        // Neither "from image" option: only an image already in the file
-        // may be returned, scaled down if it is larger than asked.
-        var options: [CFString: Any] = [
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-        ]
-        // A camera newer than the RAW engine has no size ImageIO can read,
-        // only its preview. Then the preview is the image, decoded whole so
-        // every texture of the file agrees on its size.
-        if longest > 0 {
-            let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
-            options[kCGImageSourceThumbnailMaxPixelSize] = min(wanted ?? longest, longest)
-        }
+        let wanted = longest > 0
+            ? wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting) : nil
+        let options = rawPreviewOptions(imageLongEdge: longest, wantedLongEdge: wanted)
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, primaryIndex(source), options as CFDictionary)
         else { return nil }
         if longest == 0 { info.pixelSize = CGSize(width: image.width, height: image.height) }
         let full = longest == 0 || isFullSizePreview(longEdge: max(image.width, image.height), imageLongEdge: longest)
         return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: false)
+    }
+
+    /// The long edge a RAW preview is held to when the header gives no size:
+    /// the largest texture minivu can show (`TextureUploader.maximumDimension`).
+    static let rawPreviewMaximumEdge = 16384
+
+    /// `decodeRawPreview`'s options for an image whose header gives
+    /// `imageLongEdge` (0 when it gives none). Neither "from image" option:
+    /// only an image already in the file may be returned, scaled down if it
+    /// is larger than asked.
+    ///
+    /// A camera newer than the RAW engine has no size ImageIO can read, only
+    /// its preview. Then the preview is the image, decoded whole so every
+    /// texture of the file agrees on its size, but held to
+    /// `rawPreviewMaximumEdge`: with nothing else to go by, the preview's own
+    /// header would set the size, and a forged one could ask for gigabytes.
+    /// A real camera's preview is far smaller, so this changes nothing for it.
+    static func rawPreviewOptions(imageLongEdge: Int, wantedLongEdge: Int?) -> [CFString: Any] {
+        var options: [CFString: Any] = [
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+        ]
+        options[kCGImageSourceThumbnailMaxPixelSize] = imageLongEdge > 0
+            ? min(wantedLongEdge ?? imageLongEdge, imageLongEdge)
+            : rawPreviewMaximumEdge
+        return options
     }
 
     /// True when an embedded RAW preview is as good as the sensor image: at
