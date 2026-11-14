@@ -123,12 +123,15 @@ nonisolated enum SavePolicy {
     }
 
     /// Save's options: the ones remembered for the format, in the original's
-    /// colour space and depth, and always keeping metadata, because
-    /// overwriting a photo must never quietly strip its EXIF.
+    /// colour space and depth, and always keeping metadata, location
+    /// included, because overwriting a photo must never quietly strip its
+    /// EXIF. (Save As's Remove location, remembered with these options, is
+    /// for copies.)
     static func inPlaceOptions(remembered: ExportOptions, sourceBitDepth: Int) -> ExportOptions {
         var options = remembered
         options.colorProfile = .original
         options.keepMetadata = options.format.supportsMetadata
+        options.removeLocation = false
         options.sixteenBit = options.format.supports16Bit && sourceBitDepth > 8
         return options
     }

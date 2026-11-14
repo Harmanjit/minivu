@@ -200,7 +200,8 @@ import UniformTypeIdentifiers
         // The upright pixels of a rotated 64 x 48 source.
         let upright = TestImages.gradient(width: 48, height: 64)
 
-        let data = try ImageEncoder.encode(upright, options: options(.jpeg), metadataSource: source)
+        // Location kept here; Remove location (on by default) has its own tests.
+        let data = try ImageEncoder.encode(upright, options: options(.jpeg) { $0.removeLocation = false }, metadataSource: source)
         let props = F.properties(data)
         #expect(props[kCGImagePropertyOrientation as String] as? Int == 1)
         let exif = try #require(props[kCGImagePropertyExifDictionary as String] as? [String: Any])
@@ -219,6 +220,10 @@ import UniformTypeIdentifiers
         #expect(F.metadataValue(data, "tiff:Orientation") == "1")
         #expect(F.metadataValue(data, "crs:Exposure2012") == nil)
         #expect(JPEGComment.commentPayloads(in: data).map(JPEGComment.decode) == ["Carried along"])
+        // By default the location stays behind and the rest comes along.
+        let shared = F.properties(try ImageEncoder.encode(upright, options: options(.jpeg), metadataSource: source))
+        #expect(shared[kCGImagePropertyGPSDictionary as String] == nil)
+        #expect((shared[kCGImagePropertyIPTCDictionary as String] as? [String: Any])?[kCGImagePropertyIPTCKeywords as String] as? [String] == ["paris", "tower"])
 
         // Another profile: the source's "ColorSpace = sRGB" must not survive, or
         // readers would ignore the Adobe RGB profile. (ImageIO drops the

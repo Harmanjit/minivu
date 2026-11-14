@@ -117,7 +117,8 @@ public enum ImageEncoder {
 
         var metadata: CGImageMetadata?
         if options.keepMetadata, format.supportsMetadata, let metadataSource,
-           let carried = CarriedMetadata(source: metadataSource, width: pixels.width, height: pixels.height, colorSpace: space) {
+           let carried = CarriedMetadata(source: metadataSource, width: pixels.width, height: pixels.height, colorSpace: space,
+                                         removeLocation: options.removeLocation) {
             properties.merge(carried.properties) { _, new in new }
             metadata = carried.metadata
         }
@@ -313,7 +314,11 @@ struct CarriedMetadata {
     /// either doesn't have or gets afresh from ImageIO.
     static let droppedPrefixes: Set<String> = ["crs", "hdrgm", "HDRGainMap"]
 
-    init?(source: URL, width: Int, height: Int, colorSpace: CGColorSpace) {
+    /// With `removeLocation`, the GPS dictionary, its XMP mirror and the
+    /// IPTC place names are left out of both views (`LocationMetadata`).
+    /// They must go from both: ImageIO writes a GPS directory from
+    /// `exif:GPS…` XMP tags even when the GPS dictionary is gone.
+    init?(source: URL, width: Int, height: Int, colorSpace: CGColorSpace, removeLocation: Bool = false) {
         guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(imageSource) > 0 else { return nil }
         let index = CGImageSourceGetPrimaryImageIndex(imageSource)
@@ -341,6 +346,7 @@ struct CarriedMetadata {
         for key in Self.structuralTIFF { tiff[key] = nil }
         tiff[kCGImagePropertyTIFFOrientation] = 1
         properties[kCGImagePropertyTIFFDictionary] = tiff
+        if removeLocation { LocationMetadata.strip(properties: &properties) }
         self.properties = properties
 
         if let original = CGImageSourceCopyMetadataAtIndex(imageSource, index, nil),
@@ -363,6 +369,7 @@ struct CarriedMetadata {
             for (dictionary, key, value) in updates {
                 CGImageMetadataSetValueMatchingImageProperty(mutable, dictionary, key, value as CFNumber)
             }
+            if removeLocation { LocationMetadata.strip(mutable) }
             metadata = mutable
         }
     }
