@@ -66,6 +66,19 @@ enum BatchReplaceChoice {
         while renamesRunning > 0 { try? await Task.sleep(for: .milliseconds(20)) }
     }
 
+    /// A rename asked for by a shortcut (`Automation.rename`), which has no
+    /// browser window: it waits for writes queued for either name and is
+    /// counted while it runs, exactly as a window's batch is, so neither a
+    /// save nor quitting can cut across it.
+    static func renameWithoutWindow(_ requests: [BatchRenamer.Request], catalog: Catalog) async -> BatchRenamer.Outcome {
+        renamesRunning += 1
+        defer { renamesRunning -= 1 }
+        await FileWriteQueue.shared.waitForWrites(to: requests.flatMap {
+            [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
+        })
+        return await BlockingWork.run { BatchRenamer.perform(requests, catalog: catalog) }
+    }
+
     /// Everything as the app starts, for tests to put back what they
     /// injected and what a batch left behind.
     static func reset() {

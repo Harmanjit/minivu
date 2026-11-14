@@ -271,6 +271,8 @@ struct BatchToolsReset: SuiteTrait, TestTrait, TestScoping {
     @MainActor static func reset() async {
         await TestTiming.waitUntil { BatchTools.work.isEmpty && BatchTools.renamesRunning == 0 }
         BatchTools.reset()
+        // The Shortcuts actions run Batch Convert and Batch Rename too.
+        Automation.reset()
     }
 }
 
