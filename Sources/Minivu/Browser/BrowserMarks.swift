@@ -161,7 +161,7 @@ nonisolated struct FinderTag: Hashable, Sendable {
     ]
 }
 
-extension FinderTag {
+nonisolated extension FinderTag {
     /// The dot colour; nil for a tag without one, which Finder draws hollow.
     var color: NSColor? {
         switch colorIndex {
