@@ -58,7 +58,7 @@ struct InfoPanelView: View {
                 }
             }
         }
-        .task(id: Subject(url: url, modified: modified)) {
+        .task(id: Subject(url: url, modified: modified, revision: MetadataRevisions.shared.revision(of: url))) {
             guard let url else { sections = []; return }
             let read = await BlockingWork.run {
                 MetadataReader.sections(for: url)
@@ -69,8 +69,11 @@ struct InfoPanelView: View {
         }
     }
 
+    /// What the panel describes. `revision` counts minivu's metadata writes
+    /// to the file: one into an XMP sidecar leaves the file's date alone.
     private struct Subject: Hashable {
         var url: URL?
         var modified: Date?
+        var revision: Int
     }
 }

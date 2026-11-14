@@ -575,6 +575,7 @@ final class GridCollectionView: NSCollectionView {
         menu.addItem(withTitle: "Rotate Left", action: .rotateLeft, keyEquivalent: "")
         menu.addItem(withTitle: "Rotate Right", action: .rotateRight, keyEquivalent: "")
         menu.addItem(withTitle: "Edit Comment…", action: .editComment, keyEquivalent: "")
+        menu.addItem(withTitle: "Edit Metadata…", action: .editMetadata, keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Reveal in Finder", action: .revealInFinder, keyEquivalent: "")
         menu.addItem(withTitle: "Move to Trash", action: .moveToTrash, keyEquivalent: "")

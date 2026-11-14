@@ -63,7 +63,7 @@ public struct WallClock: Hashable, Sendable, Comparable {
     }
 
     /// The fields of `date` as a clock in `zone` shows them.
-    init(date: Date, in zone: TimeZone) {
+    public init(date: Date, in zone: TimeZone) {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = zone
         let c = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
@@ -163,7 +163,7 @@ public enum DateChange: Hashable, Sendable {
 
     /// The new value for a date that is `old` (nil when there is none).
     /// A shift of nothing is still nothing.
-    func applied(to old: WallClock?) -> WallClock? {
+    public func applied(to old: WallClock?) -> WallClock? {
         switch self {
         case .shift(let seconds): old?.adding(seconds: seconds)
         case .set(let value): value

@@ -330,6 +330,8 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         case .editComment:
             guard !isClosing, let entry = model.current else { return false }
             return ["jpg", "jpeg", "jpe"].contains(entry.url.pathExtension.lowercased())
+        case .editMetadata:
+            return canEditMetadata
         default:
             return nil
         }

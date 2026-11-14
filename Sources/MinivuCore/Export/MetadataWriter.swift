@@ -98,6 +98,13 @@ public enum MetadataWriter {
         public var locationLeftInFile = false
         /// A date shift was asked of a file with no date taken to shift.
         public var hadNoDateToShift = false
+
+        public init(written: URL, usedSidecar: Bool, locationLeftInFile: Bool = false, hadNoDateToShift: Bool = false) {
+            self.written = written
+            self.usedSidecar = usedSidecar
+            self.locationLeftInFile = locationLeftInFile
+            self.hadNoDateToShift = hadNoDateToShift
+        }
     }
 
     /// How `url` would be written, by kind and extension only, so it is

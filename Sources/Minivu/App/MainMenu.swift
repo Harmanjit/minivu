@@ -177,9 +177,9 @@ enum MainMenu {
         return menu
     }
 
-    /// Rotate, flip, the edit tools and the comment. The browser rotates,
-    /// flips and comments its selection losslessly; the viewer does all of
-    /// it to the image it shows.
+    /// Rotate, flip, the edit tools, the comment and the metadata. The
+    /// browser rotates, flips, comments and edits the metadata of its
+    /// selection losslessly; the viewer does all of it to the image it shows.
     ///
     /// Shortcuts follow Preview where it has one (⌘L, ⌘R, ⌘K Crop, ⌥⌘C
     /// Adjust Color) and Photoshop's letters otherwise (Image Size ⌥⌘I,
@@ -227,6 +227,9 @@ enum MainMenu {
         menu.add("Text and Shapes…", .drawAnnotations)
         menu.addItem(.separator())
         menu.add("Edit Comment…", .editComment)
+        // ⌘I as Get Info is in Finder and Info in Photos: the image's
+        // details. The viewer's bare I (the HUD) ignores Command.
+        menu.add("Edit Metadata…", .editMetadata, "i")
     }
 
     private static func goMenu(_ viewKeys: DisplayOnlyShortcuts) -> NSMenu {
