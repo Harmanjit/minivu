@@ -1,4 +1,4 @@
-# Feature notes: Live Text and Share (branch feature/sys)
+# Feature notes: Live Text, Share and Shortcuts (branch feature/sys)
 
 Notes for the documentation pass. Nothing here has gone into DESIGN.md,
 the wiki or the help pages yet; the last section of each goal says where
@@ -202,3 +202,236 @@ it should.
   Security-and-Privacy.md (sharing hands file URLs to the system's share
   services; minivu makes no connection), Limitations.md.
 - Help pages: Browser.md and Viewer.md (how to share), Privacy.md.
+
+## G12: Shortcuts actions (automation)
+
+### What the user can do
+
+In the Shortcuts app, minivu now appears in the action library (search
+"minivu", or the Apps tab) with five actions:
+
+| Action | Parameters (defaults) | Result |
+|---|---|---|
+| Convert Images | Images; Format (JPEG; also HEIC, PNG, TIFF, JPEG 2000, GIF, BMP, TGA, ICO); Quality 1-100 (90); Long Side in pixels (empty = keep the size, never enlarges); Remove Location (on) | the converted images |
+| Resize Images | Images; Resize By (Long Side, Width, Height, Percentage); Size (2048); Enlarge Smaller Images (off); Remove Location (on) | the resized images, each in its own format (JPEG where minivu can't write the original's, e.g. RAW) |
+| Rename Images | Images; Pattern (`{date}-{###}`, Batch Rename's tokens); Counter Starts At (1) | the files under their new names |
+| Set Rating | Images; Rating 0-5 (5; 0 clears) | the same files |
+| Open in minivu | Images or Folder | nothing; minivu comes forward |
+
+Three of them (Convert, Resize, Open in minivu) are also offered as ready
+App Shortcuts under minivu in the Shortcuts app (and Spotlight), which ask
+for their images when run.
+
+Finder Quick Actions: a shortcut that receives images "from Quick Actions"
+and uses a minivu action can be turned on as a Quick Action (shortcut
+details > Use as Quick Action > Finder), and then appears in Finder's
+right-click > Quick Actions. minivu can't ship a user shortcut itself, so
+this is a recipe for the docs, not a built-in item. Finder's own Open With
+> minivu already covers opening.
+
+Scripts: `shortcuts run "<name>" --input-path <file>` runs such a shortcut
+from Terminal; Automator can call it through "Run Shortcut". There is no
+AppleScript dictionary (see Decisions).
+
+No menu items, key equivalents or settings were added.
+
+### Feasibility finding (App Intents without Xcode)
+
+The question was whether Shortcuts can see App Intents in an app built by
+plain SwiftPM and scripts/make_app.sh. It can:
+
+- SwiftPM's default build engine since Swift 6.2 is Swift Build (the
+  engine Xcode uses). It already passes the compiler the App Intents
+  protocol list and writes a `.swiftconstvalues` file per source (debug)
+  or per module (release), with no flags added. Measured on a scratch
+  package and on minivu (`minivu-p.build/Objects-normal/arm64/
+  minivu-primary.swiftconstvalues` in release).
+- What Xcode adds is running `appintentsmetadataprocessor` (in the Xcode
+  toolchain) over those records. make_app.sh now does that after copying
+  the resources, writing `Contents/Resources/Metadata.appintents/`
+  (`extract.actionsdata` and `version.json`, tools version 27B52). It
+  lists the five actions with their parameters, defaults and ranges, the
+  two enums, `openAppWhenRun` for Open in minivu only, and the three App
+  Shortcuts. The signature seals it with the other resources; `codesign
+  --verify --strict` passes.
+- make_app.sh names `--build-system swiftbuild` explicitly and stops if
+  the records or the actions are missing, so a toolchain change can't
+  ship an app whose actions have silently vanished.
+- Not done: `appintentsnltrainingprocessor` (Siri phrase training). Tried:
+  without localised phrases (an AppShortcuts.xcstrings) its corpus comes
+  out empty, and its archive step fails outside Xcode. The App Shortcuts
+  still carry their phrases in the metadata; whether Siri accepts the
+  spoken phrase is unverified.
+- What could not be checked here: Shortcuts itself (agents can't launch
+  it). "Works" was defined as the right artefacts in the bundle; the
+  manual checks below are what proves it.
+
+### Decisions
+
+- **App Intents, not an AppleScript dictionary.** App Intents were
+  feasible, so they were used: Shortcuts, Spotlight and Siri use them
+  natively, they pass files with their own sandbox permission, and they
+  add no Apple Events surface. minivu still has no scripting dictionary,
+  no `NSAppleEventsUsageDescription`, and no Services (NSServices)
+  entries; Open With in Finder and a Quick Action shortcut cover Finder.
+- **Convert and Resize never write beside the originals.** A shortcut's
+  files come with permission to read each file, not to write in its
+  folder, and minivu's sandbox would refuse such writes anyway. So they
+  are converted into a folder of minivu's own in its container
+  (`tmp/Automation/<run>/`) and handed back as files; the shortcut's next
+  action (Save File, Move, AirDrop…) puts them where the user wants. Each
+  output is marked `removedOnCompletion`, so Shortcuts deletes it once it
+  has taken it, and run folders older than a day are removed when the
+  next run starts.
+- **Rename works only where minivu may write already**: the Pictures
+  folder and folders added to the sidebar (their bookmarks are opened at
+  launch). Elsewhere it fails, saying exactly that, after Batch Rename's
+  usual checks. Nothing new was granted to make it work.
+- **All or nothing.** Shortcuts has no "partly done" result, so if any
+  file fails to convert the action fails, naming up to eight files, and
+  the files that did convert are removed. A rename is checked whole
+  before anything moves (unknown tokens, clashes); a rename that fails
+  part-way reports the failures (the renamed files keep their new names
+  and their stars, as in Batch Rename).
+- **Files that arrive as data** (from another app, not a disk) are copied
+  into minivu's folder for Convert and Resize, under their own names, and
+  removed afterwards. Rename and Set Rating refuse them: they are about
+  the file itself.
+- **Same engines as the menus.** Convert and Resize run Batch Convert's
+  planner and `BatchConvertJob` (two files at a time, one on 8 GB Macs,
+  one camera RAW at a time; writes through `FileWriteQueue.shared`).
+  Rename runs `RenamePlanner` and `BatchRenamer` through
+  `BatchTools.renameWithoutWindow`, which waits for queued writes and
+  counts in `renamesRunning`, so quitting waits for it. Ratings go
+  through `BrowserModel.catalogWrites` and the action returns once
+  written. Open in minivu calls `AppDelegate.application(_:open:)`, the
+  Finder path.
+- **Remove location** reuses `ExportOptions.removeLocation`, brought over
+  unchanged from feature/meta (commit e5cc1d8 and its
+  LocationMetadata.swift) so both branches merge cleanly. Resize offers
+  it too, on by default, as Batch Convert does.
+- **Colour labels**: the rating is implemented; a `// COLOUR LABEL:` mark
+  in Automation.swift and AutomationIntents.swift says what to add (a
+  `SetColorLabelIntent` with a literal AppEnum of the labels, and
+  `Automation.setColorLabel`) when labels land.
+
+### Security and privacy (for the security review)
+
+The review recorded no Apple Events interface (CWE-352, cross-site
+request forgery's desktop form: another process driving the app). That is
+still true: there is no scripting dictionary and no Apple Events handler
+beyond AppKit's standard open-documents event. The new surface is App
+Intents:
+
+- **Who can run them.** Only the system's intent runtime, on behalf of
+  Shortcuts, Spotlight or Siri: a shortcut the user built or added, or a
+  ready App Shortcut the user runs. Other apps cannot call minivu's
+  intents directly. Scripts can run a user's shortcut (`shortcuts run`),
+  which needs the user's shortcut to exist first.
+- **What they can reach.** The intents run inside minivu's own process,
+  with its sandbox and entitlements unchanged (no network, user-selected
+  files, app-scoped bookmarks, Pictures). They read only the files the
+  shortcut passed (each with its own security scope, released when the
+  action ends, except Open in minivu, which keeps it for the session as
+  a Finder open does) and write only into minivu's container, except
+  Rename, which can rename only in folders minivu could already change.
+- **Prompts.** Shortcuts shows its own permission prompts when a shortcut
+  first passes files to an app or runs from a Quick Action; macOS asks
+  before any app sends Apple Events to another (Automation privacy), which
+  applies to "Run AppleScript" steps but not to minivu's intents, which
+  aren't Apple Events. Exactly which prompts appear is for the manual
+  check.
+- **Nothing leaves the Mac** through minivu: no network code was added,
+  and what a shortcut does with the files next is Shortcuts' business.
+- **Destructive power.** The worst a shortcut can do through minivu is
+  rename images in Pictures or sidebar folders (undoable by renaming
+  back; stars follow) and change ratings. Nothing is deleted or
+  overwritten: Convert and Resize never replace a file.
+
+### How it is built
+
+- `Sources/Minivu/Automation/Automation.swift`: the engine (`convert`,
+  `resize`, `convertSettings`, `rename`, `setRating`, `open`,
+  `makeRunFolder`), with `outputRoot` and `catalog` replaceable in tests.
+- `AutomationFiles.swift`: `AutomationInput`, the shortcut's files made
+  readable for the length of the action, and the files handed back.
+- `AutomationIntents.swift`: the five intents, the two AppEnums
+  (`AutomationFormat`, `AutomationResizeMode`) and `MinivuShortcuts`. Titles,
+  defaults and display names must stay literals: the metadata processor
+  reads them from the compiler's records, not by running the code.
+- `scripts/make_app.sh`: the processor step, after the resources are
+  copied and before signing.
+- Tests: `AutomationTests` (engine on real files, data-only files, each
+  intent's `perform()`), under `.batchToolsReset`, which now also resets
+  `Automation`.
+
+### Limits
+
+- A shortcut run while minivu isn't open launches it in the background;
+  the browser window appears as at any launch.
+- Rename can't reach folders outside Pictures and the sidebar, by design
+  of the sandbox.
+- Set Rating rates the file at the path Shortcuts gives. A shortcut that
+  hands on a temporary copy (some actions do) rates the copy.
+- Converted files use Batch Convert's other defaults (metadata kept,
+  original colour profile, Lanczos 3); the remembered Batch Convert
+  settings are not used, so a shortcut does the same on every Mac.
+- Siri phrases are unverified (no phrase training, see above).
+- English only; the metadata says the phrases are not localised.
+
+### Quick Look extension: assessed, not built
+
+Asked whether a Quick Look preview extension is feasible and adds
+something real. Findings:
+
+- **Buildable: yes.** A scratch SwiftPM executable linked with
+  `-e _NSExtensionMain -application_extension` (unsafe linker flags, which
+  a root package may use) and a `QLPreviewProvider` builds, has
+  `_NSExtensionMain` as its entry point, and wraps into an .appex
+  (`XPC!`, `com.apple.quicklook.preview`) that signs ad hoc with the
+  sandbox and hardened runtime and verifies. Whether PlugInKit loads an
+  ad-hoc-signed extension (no team identifier) could not be tested
+  without registering it with the system, which agents must not do.
+- **Adds little, takes something away:**
+  - minivu's ratings live in its catalog in minivu's own container. A
+    sandboxed extension has a container of its own and cannot read
+    minivu's without an App Group, which needs an entitlement this task
+    does not add and, on macOS 15 and later, a team-signed provisioning
+    profile for a prompt-free group container; ad hoc signing has none.
+  - minivu writes no XMP ratings (DESIGN.md 4.6: stars stay in the
+    catalog), so a rating read from XMP would be Lightroom's, not
+    minivu's.
+  - Finder's preview pane, Get Info and Quick Look's own info already
+    show the camera, lens, exposure and size.
+  - minivu decodes only through Apple's frameworks, so the system preview
+    already shows every format minivu reads. A data-based extension would
+    replace it for the types it claims and lose what it has: HDR
+    highlights, Live Text, Markup, rotation, multi-page PDFs and
+    animations.
+  - It would be a second binary decoding untrusted files, against "lean".
+- **Recommendation:** not worth shipping. Revisit if minivu ever mirrors
+  ratings into XMP (`CatalogMirror`), and even then a Finder column or
+  Spotlight importer would serve better than replacing the preview.
+
+### Where the docs should change
+
+- DESIGN.md section 2 (Platform): the SwiftPM bullet gains "make_app.sh
+  also runs appintentsmetadataprocessor to write
+  Contents/Resources/Metadata.appintents (Shortcuts actions); it relies on
+  Swift Build writing .swiftconstvalues". Section 4.8 (Tools): a new
+  "Automation" paragraph from "Decisions" and "How it is built" above.
+  Section 5: a short "Shortcuts" entry listing the five actions. Section 8
+  (Known limits): the Limits above. Section 1 or 2: App Intents run in
+  minivu's process with its sandbox; no Apple Events interface.
+- Wiki: Tools.md (a "Shortcuts" section with the table and the Quick
+  Action recipe), Security-and-Privacy.md (the security section above),
+  Architecture.md (the Automation folder and the metadata step),
+  Installation.md (building needs the Xcode toolchain for the metadata
+  step, as it already does for xcrun), Limitations.md, Troubleshooting.md
+  ("minivu's actions don't appear in Shortcuts": move the app to
+  /Applications, open it once, restart Shortcuts).
+- Help pages: Tools.md (using minivu in Shortcuts, Quick Action recipe),
+  Privacy.md (what a shortcut can and can't do through minivu).
+- Keyboard shortcuts page: no change (no key equivalents added).
+- docs/SECURITY-REVIEW.md (on another branch): add App Intents as a new
+  surface with the protections above.
