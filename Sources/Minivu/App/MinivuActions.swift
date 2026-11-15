@@ -143,6 +143,9 @@ import AppKit
     @objc optional func startSlideshow(_ sender: Any?)
     @objc optional func batchConvert(_ sender: Any?)
     @objc optional func batchRename(_ sender: Any?)
+    /// Tools > Find Duplicates… (G5): identical files or similar pictures in
+    /// the browser's selection, folder or folder tree.
+    @objc optional func findDuplicates(_ sender: Any?)
     /// Prints with a page layout. Page Setup is AppKit's own
     /// `NSApplication.runPageLayout(_:)`.
     @objc optional func printImages(_ sender: Any?)
@@ -169,6 +172,26 @@ import AppKit
     /// File > Share…: the system's share sheet (AirDrop, Messages, Mail…)
     /// for the browser's selected images or the viewer's image.
     @objc optional func shareFiles(_ sender: Any?)
+
+    // MARK: Finding and organising (G3)
+    // The browser implements these; the viewer works on one image of a list.
+    /// Edit > Find…: search a folder tree by name, marks and metadata.
+    @objc optional func findImages(_ sender: Any?)
+    /// View > Flat View: the folder's images with those of its subfolders.
+    @objc optional func toggleFlatView(_ sender: Any?)
+    /// View > Filter > More Filters…: type, date, camera, lens, exposure,
+    /// keywords, label, location, orientation and size.
+    @objc optional func showMoreFilters(_ sender: Any?)
+    /// File > Save as Smart Folder…: the search shown, kept in the sidebar.
+    @objc optional func saveAsSmartFolder(_ sender: Any?)
+    /// File > New Collection…: an empty collection, or one holding the
+    /// selected images.
+    @objc optional func newCollection(_ sender: Any?)
+    /// File > Add to Collection: the sender's `representedObject` is the
+    /// collection's id (an `NSNumber`).
+    @objc optional func addToCollection(_ sender: Any?)
+    /// File > Remove from Collection, while a collection is shown.
+    @objc optional func removeFromCollection(_ sender: Any?)
 }
 
 /// Tags on the View > Sort By direction items. Zero is left out on purpose:
@@ -264,6 +287,7 @@ extension Selector {
     static let startSlideshow = #selector(MinivuActions.startSlideshow(_:))
     static let batchConvert = #selector(MinivuActions.batchConvert(_:))
     static let batchRename = #selector(MinivuActions.batchRename(_:))
+    static let findDuplicates = #selector(MinivuActions.findDuplicates(_:))
     static let printImages = #selector(MinivuActions.printImages(_:))
     static let extractPages = #selector(MinivuActions.extractPages(_:))
     static let createMultiPageFile = #selector(MinivuActions.createMultiPageFile(_:))
@@ -277,4 +301,11 @@ extension Selector {
     static let openInExternalEditor = #selector(MinivuActions.openInExternalEditor(_:))
     static let manageExternalEditors = #selector(MinivuActions.manageExternalEditors(_:))
     static let shareFiles = #selector(MinivuActions.shareFiles(_:))
+    static let findImages = #selector(MinivuActions.findImages(_:))
+    static let toggleFlatView = #selector(MinivuActions.toggleFlatView(_:))
+    static let showMoreFilters = #selector(MinivuActions.showMoreFilters(_:))
+    static let saveAsSmartFolder = #selector(MinivuActions.saveAsSmartFolder(_:))
+    static let newCollection = #selector(MinivuActions.newCollection(_:))
+    static let addToCollection = #selector(MinivuActions.addToCollection(_:))
+    static let removeFromCollection = #selector(MinivuActions.removeFromCollection(_:))
 }

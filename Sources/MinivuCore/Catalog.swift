@@ -125,7 +125,7 @@ public final class Catalog: @unchecked Sendable {
     /// the folder it went to is opened in minivu.
     static let missingRetention: TimeInterval = 365 * 24 * 3600
 
-    static let schemaVersion = 2
+    static let schemaVersion = 3
 
     let db: SQLiteDatabase
     /// Fixed at construction, never afterwards: this class is `@unchecked
@@ -134,6 +134,8 @@ public final class Catalog: @unchecked Sendable {
     public let storage: Storage
     private let lock = NSLock()
     private var hasPrunedMissing = false
+    private var hasPrunedMetadata = false
+    private var hasPrunedMembers = false
     private var movesInFlight = 0
     private var _mirror: (any CatalogMirror)?
     private var _fileMarksReader: (@Sendable (URL) -> Marks?)?
@@ -230,6 +232,59 @@ public final class Catalog: @unchecked Sendable {
                 // `fileMarksReader`), kept when emptied.
                 try db.executeScript("ALTER TABLE files ADD COLUMN overrides_file INTEGER NOT NULL DEFAULT 0;")
                 version = 2
+            }
+            if version < 3 {
+                // G3. `metadata` caches what the filters and Find read from
+                // a file's header, valid while its size and date are those
+                // recorded (CatalogLibrary.swift). Collections keep each
+                // member's identity, as `files` does, so healing finds a
+                // member moved in Finder; smart folders keep their search as
+                // JSON. No foreign keys: SQLite enforces them only with a
+                // pragma on every connection, and the one place that deletes
+                // a collection deletes its members in the same transaction.
+                try db.executeScript("""
+                    CREATE TABLE metadata (
+                        path TEXT PRIMARY KEY COLLATE NOCASE,
+                        size INTEGER NOT NULL,
+                        modified REAL NOT NULL,
+                        read_at REAL NOT NULL,
+                        date_taken INTEGER,
+                        camera TEXT,
+                        lens TEXT,
+                        iso REAL,
+                        aperture REAL,
+                        focal_length REAL,
+                        keywords TEXT,
+                        has_location INTEGER NOT NULL DEFAULT 0,
+                        width INTEGER,
+                        height INTEGER
+                    ) WITHOUT ROWID;
+                    CREATE TABLE collections (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        created REAL NOT NULL
+                    );
+                    CREATE TABLE collection_items (
+                        collection INTEGER NOT NULL,
+                        path TEXT NOT NULL COLLATE NOCASE,
+                        folder TEXT NOT NULL COLLATE NOCASE,
+                        volume TEXT,
+                        file_id INTEGER,
+                        added REAL NOT NULL,
+                        missing_since REAL,
+                        PRIMARY KEY (collection, path)
+                    );
+                    CREATE INDEX collection_items_path ON collection_items (path);
+                    CREATE INDEX collection_items_folder ON collection_items (folder);
+                    CREATE INDEX collection_items_identity ON collection_items (volume, file_id);
+                    CREATE TABLE smart_folders (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        query TEXT NOT NULL,
+                        created REAL NOT NULL
+                    );
+                    """)
+                version = 3
             }
             try db.setUserVersion(version)
         }
@@ -456,6 +511,7 @@ public final class Catalog: @unchecked Sendable {
             log.error("Moving marks failed: \(String(describing: error), privacy: .public)")
         }
         post(moves.flatMap { [$0.from, $0.to] })
+        postLibraryChange()
     }
 
     private func applyMove(from: URL, to: URL) throws {
@@ -482,6 +538,26 @@ public final class Catalog: @unchecked Sendable {
             UPDATE folder_order SET folder = ?4 || substr(folder, length(?1) + 1)
             WHERE folder = ?1 OR (folder >= ?2 AND folder < ?3)
             """, four)
+        // Collection members and cached metadata follow the item too (G3),
+        // and those of a replaced item at the destination go, as its marks do.
+        try db.execute("""
+            DELETE FROM collection_items WHERE (path = ?4 OR (path >= ?5 AND path < ?6))
+                AND NOT (path = ?1 OR (path >= ?2 AND path < ?3))
+            """, args)
+        try db.execute("UPDATE collection_items SET path = ?4, folder = ?7, missing_since = NULL WHERE path = ?1",
+                       args + [.text(tParent)])
+        try db.execute("""
+            UPDATE collection_items SET path = ?4 || substr(path, length(?1) + 1),
+                folder = ?4 || substr(folder, length(?1) + 1)
+            WHERE path >= ?2 AND path < ?3
+            """, four)
+        try db.execute("""
+            DELETE FROM metadata WHERE (path = ?4 OR (path >= ?5 AND path < ?6))
+                AND NOT (path = ?1 OR (path >= ?2 AND path < ?3))
+            """, args)
+        try db.execute("UPDATE metadata SET path = ?4 WHERE path = ?1", four)
+        try db.execute("UPDATE metadata SET path = ?4 || substr(path, length(?1) + 1) WHERE path >= ?2 AND path < ?3",
+                       four)
         let place: [SQLiteValue] = [.text(fParent), .text(Self.name(ofKey: f)), .text(Self.name(ofKey: t))]
         if fParent.lowercased() == tParent.lowercased() {
             try db.execute("UPDATE OR REPLACE folder_order SET name = ?3 WHERE folder = ?1 AND name = ?2", place)
@@ -545,11 +621,16 @@ public final class Catalog: @unchecked Sendable {
                 try db.execute("DELETE FROM folder_order WHERE folder = ?1 OR (folder >= ?2 AND folder < ?3)", args)
                 try db.execute("DELETE FROM folder_order WHERE folder = ?1 AND name = ?2",
                                [.text(Self.parent(ofKey: k)), .text(Self.name(ofKey: k))])
+                // A file minivu removes leaves its collections, as it loses
+                // its marks (G3).
+                try db.execute("DELETE FROM collection_items WHERE path = ?1 OR (path >= ?2 AND path < ?3)", args)
+                try db.execute("DELETE FROM metadata WHERE path = ?1 OR (path >= ?2 AND path < ?3)", args)
             }
         } catch {
             log.error("Removing marks failed: \(String(describing: error), privacy: .public)")
         }
         post([url])
+        postLibraryChange()
     }
 
     // MARK: - Healing files moved outside minivu
@@ -589,8 +670,7 @@ public final class Catalog: @unchecked Sendable {
     public func heal(folder: URL) -> [URL] {
         guard !isHealingPaused else { return [] }
         let folderKey = Self.folderKey(folder)
-        struct Listed { var name: String; var fileID: Int64? }
-        var listed: [String: Listed] = [:]
+        var listed: [String: ListedItem] = [:]
         do {
             guard let directory = opendir(folder.path) else { return [] }
             defer { closedir(directory) }
@@ -599,10 +679,13 @@ public final class Catalog: @unchecked Sendable {
                 let raw = withUnsafeBytes(of: entry.pointee.d_name) { String(decoding: $0.prefix(length), as: UTF8.self) }
                 guard raw != ".", raw != ".." else { continue }
                 let name = Self.normalized(raw)
-                listed[name.lowercased()] = Listed(name: name, fileID: Int64(bitPattern: UInt64(entry.pointee.d_ino)))
+                listed[name.lowercased()] = ListedItem(name: name, fileID: Int64(bitPattern: UInt64(entry.pointee.d_ino)))
             }
         }
         let volume = try? folder.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString
+        // Collection members first (G3): the marks' pass below returns early
+        // in several places.
+        _ = healCollectionMembers(folder: folder, folderKey: folderKey, listed: listed, volume: volume)
 
         var healed: [URL] = []
         do {
@@ -756,6 +839,27 @@ public final class Catalog: @unchecked Sendable {
             defer { hasPrunedMissing = true }
             return !hasPrunedMissing
         }
+    }
+
+    /// The same for the metadata cache and for collection members.
+    func claimFirstMetadataPrune() -> Bool {
+        lock.withLock {
+            defer { hasPrunedMetadata = true }
+            return !hasPrunedMetadata
+        }
+    }
+
+    func claimFirstMemberPrune() -> Bool {
+        lock.withLock {
+            defer { hasPrunedMembers = true }
+            return !hasPrunedMembers
+        }
+    }
+
+    /// An item of a folder as `heal` lists it: its name and file identifier.
+    struct ListedItem {
+        var name: String
+        var fileID: Int64?
     }
 
     // MARK: - Keys

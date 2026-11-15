@@ -29,10 +29,13 @@ nonisolated struct MarksFilter: Equatable, Sendable {
 nonisolated enum MarksOrdering {
     /// By stars, most first when descending; ties stay in name order (A to Z)
     /// whichever way the stars run, so equal ratings read like the folder.
-    static func byRating(_ images: [FolderEntry], marks: [String: Catalog.Marks], ascending: Bool) -> [FolderEntry] {
+    /// `key` gives what `marks` is keyed by: the name, or in a list from
+    /// many folders the path (G3).
+    static func byRating(_ images: [FolderEntry], marks: [String: Catalog.Marks], ascending: Bool,
+                         key: (FolderEntry) -> String = { $0.name }) -> [FolderEntry] {
         let byName = FolderListing.sorted(images, by: FileSortOrder(key: .name, ascending: true))
         let decorated = byName.enumerated().map { (index: $0.offset, entry: $0.element,
-                                                   rating: marks[$0.element.name]?.rating ?? 0) }
+                                                   rating: marks[key($0.element)]?.rating ?? 0) }
         return decorated.sorted { a, b in
             if a.rating != b.rating { return ascending ? a.rating < b.rating : a.rating > b.rating }
             return a.index < b.index

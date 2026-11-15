@@ -172,8 +172,13 @@ final class ThumbnailCellView: NSView {
         for view in [nameField, detailField, stars, dots, tagBadge] as [NSView] { view.setAccessibilityElement(false) }
     }
 
+    /// The folder the image is in, said after its name, in a list from many
+    /// folders (G3); nil in a folder's own grid.
+    var folderName: String?
+
     override func accessibilityLabel() -> String? {
-        Self.accessibilityText(name: nameField.stringValue, isFolder: !isRatable, rating: stars.rating,
+        let name = folderName.map { "\(nameField.stringValue), in \($0)" } ?? nameField.stringValue
+        return Self.accessibilityText(name: name, isFolder: !isRatable, rating: stars.rating,
                                isTagged: !tagBadge.isHidden, finderTags: dots.tags.map(\.name),
                                dimensions: detailField.stringValue)
     }
@@ -380,6 +385,7 @@ final class ThumbnailCell: NSCollectionViewItem {
             cellView.needsLayout = true
         }
         view.toolTip = entry.name
+        cellView.folderName = nil
         wantedPixelSize = Int((layout.side * backingScale).rounded())
         cellView.isRatable = !entry.isDirectory
         cellView.setMarks(entry.isDirectory ? .none : marks, finderTags: finderTags)

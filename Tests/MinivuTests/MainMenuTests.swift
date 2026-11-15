@@ -184,6 +184,7 @@ import MinivuCore
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
                            "Save", "Save As…", "Revert to Saved", "Save Edits as Preset…", "-", "Rename", "Copy To",
                            "Move To", "-",
+                           "New Collection…", "Add to Collection", "Remove from Collection", "Save as Smart Folder…", "-",
                            "Reveal in Finder", "Share…", "Move to Trash", "-", "Page Setup…", "Print…"])
         let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
         let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)
@@ -194,7 +195,8 @@ import MinivuCore
         let view = try #require(bar.items.first { $0.title == "View" }?.submenu)
         let filter = try #require(view.items.first { $0.title == "Filter" }?.submenu)
         #expect(filter.items.map { $0.isSeparatorItem ? "-" : $0.title }
-            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only"])
+            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only",
+                "-", "More Filters…"])
         #expect(filter.items.filter { $0.action == .filterByRating }.map(\.tag) == [0, 1, 2, 3, 4, 5])
     }
 
@@ -232,7 +234,8 @@ import MinivuCore
     @Test func toolsItems() throws {
         let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
         let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
-        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "Extract Pages…", "-",
+        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "Extract Pages…",
+                           "Find Duplicates…", "-",
                            "Create Multi-Page File…", "Image Strip…", "Contact Sheet…",
                            "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
                            "Open in External Editor"])
@@ -244,6 +247,8 @@ import MinivuCore
         #expect(slideshow.keyEquivalent == "f" && slideshow.keyEquivalentModifierMask == [.command, .shift])
         let rename = try item("Batch Rename…")
         #expect(rename.keyEquivalent == MainMenu.Key.f2 && rename.keyEquivalentModifierMask == [.shift])
+        let duplicates = try item("Find Duplicates…")
+        #expect(duplicates.action == .findDuplicates && duplicates.keyEquivalent.isEmpty)
         let capture = try #require(tools.items.first { $0.title == "Capture" }?.submenu)
         #expect(capture.items.compactMap(\.action) == [.captureScreen, .captureWindow, .captureSelection])
         let editors = try #require(tools.items.last?.submenu)

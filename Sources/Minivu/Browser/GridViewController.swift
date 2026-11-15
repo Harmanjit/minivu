@@ -194,7 +194,10 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
         if changes.contains(.entries) || changes.contains(.state) {
             updateMessage()
         }
-        statusBar.update(text: model.statusText, folder: model.folder)
+        // A list from many folders (G3) shows where the lead image is,
+        // and a click on that path goes there.
+        let path = model.showsManyFolders ? model.lead?.deletingLastPathComponent() ?? model.folder : model.folder
+        statusBar.update(text: model.statusText, folder: path)
     }
 
     /// Pushes the model's selection into the view if they differ (they don't
@@ -247,10 +250,19 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     /// they are configured again.
     private func refreshMarks(names: Set<String>?) {
         for case let cell as ThumbnailCell in collectionView.visibleItems() {
-            guard let entry = cell.entry, names?.contains(entry.name) ?? true else { continue }
+            guard let entry = cell.entry, names?.contains(model.key(of: entry)) ?? true else { continue }
             cell.thumbnailView.setMarks(entry.isDirectory ? .none : model.marks(for: entry.url),
                                         finderTags: model.finderTags(for: entry.url))
         }
+    }
+
+    /// In a list from many folders (G3) two images can share a name, so the
+    /// cell's tooltip and VoiceOver label say which folder each is in.
+    private func nameFolder(of cell: ThumbnailCell, _ entry: FolderEntry) {
+        guard model.showsManyFolders, !entry.isDirectory else { return }
+        let folder = FileManager.default.displayName(atPath: entry.url.deletingLastPathComponent().path)
+        cell.view.toolTip = "\(entry.name)\n\(entry.url.deletingLastPathComponent().path)"
+        cell.thumbnailView.folderName = folder
     }
 
     private func updateMessage() {
@@ -281,6 +293,7 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
             if let entry = cell.entry {
                 cell.configure(entry, layout: layout, backingScale: backingScale, marks: model.marks(for: entry.url),
                                finderTags: model.finderTags(for: entry.url))
+                nameFolder(of: cell, entry)
             }
         }
         scrollLeadIntoView()
@@ -299,6 +312,7 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
             let entry = model.entries[indexPath.item]
             cell.configure(entry, layout: thumbnailLayout, backingScale: backingScale, marks: model.marks(for: entry.url),
                            finderTags: model.finderTags(for: entry.url))
+            nameFolder(of: cell, entry)
             cell.onRate = { [weak self] url, stars in self?.model.setRating(stars, for: [url]) }
             cell.thumbnailView.isRenaming = renameEditor?.url == entry.url
         }
@@ -579,6 +593,9 @@ final class GridCollectionView: NSCollectionView {
         rating.submenu = ratingMenu()
         let label = menu.addItem(withTitle: "Label", action: nil, keyEquivalent: "")
         label.submenu = ColorLabelCommand.menu(withShortcuts: false)
+        let collections = menu.addItem(withTitle: "Add to Collection", action: nil, keyEquivalent: "")
+        collections.submenu = CollectionsMenu.make()
+        menu.addItem(withTitle: "Remove from Collection", action: .removeFromCollection, keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Rotate Left", action: .rotateLeft, keyEquivalent: "")
         menu.addItem(withTitle: "Rotate Right", action: .rotateRight, keyEquivalent: "")

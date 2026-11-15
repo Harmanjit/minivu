@@ -39,7 +39,10 @@ let package = Package(
         .testTarget(
             name: "MinivuCoreTests",
             dependencies: ["MinivuCore"],
-            path: "Tests/MinivuCoreTests"
+            path: "Tests/MinivuCoreTests",
+            // A catalog written by the minivu that had schema version 2,
+            // for the upgrade test.
+            resources: [.copy("Fixtures")]
         ),
         // The app's own logic (menus, launch, snapshot harness). SwiftPM
         // lets tests import an executable target.

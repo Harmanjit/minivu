@@ -18,11 +18,13 @@ import SQLite3
 /// thread. Failures are swallowed on purpose, because a broken cache must
 /// never stop the browser; the worst case is a slower re-decode.
 public final class ThumbnailStore: @unchecked Sendable {
-    private let db: SQLiteDatabase
+    let db: SQLiteDatabase
 
     /// Bump when the table layout or the encoding changes. Old caches are
-    /// dropped, not migrated: they're rebuilt on demand.
-    static let schemaVersion = 1
+    /// dropped, not migrated: they're rebuilt on demand. Version 2 added the
+    /// duplicate finder's `fingerprints` beside the thumbnails, so a version
+    /// 1 cache only gains that table and keeps its thumbnails.
+    static let schemaVersion = 2
 
     /// Reads refresh `accessed` only when it is older than this, so browsing
     /// a cached folder doesn't turn every read into a write.
@@ -62,12 +64,21 @@ public final class ThumbnailStore: @unchecked Sendable {
 
     /// Returns `db` with the current table layout.
     private static func migrated(_ db: SQLiteDatabase) throws -> SQLiteDatabase {
-        guard try db.userVersion() != Self.schemaVersion else { return db }
+        let version = try db.userVersion()
+        guard version != Self.schemaVersion else { return db }
+        if version == 1 {
+            try db.transaction {
+                try db.executeScript(Self.fingerprintsTable)
+                try db.setUserVersion(Self.schemaVersion)
+            }
+            return db
+        }
         // auto_vacuum only takes effect on a database with no tables yet (or
         // after a VACUUM). INCREMENTAL lets prune() hand freed pages back to
         // the file system cheaply instead of leaving the file at its peak size.
         try db.executeScript("""
             DROP TABLE IF EXISTS thumbnails;
+            DROP TABLE IF EXISTS fingerprints;
             PRAGMA auto_vacuum = INCREMENTAL;
             VACUUM;
             """)
@@ -84,6 +95,7 @@ public final class ThumbnailStore: @unchecked Sendable {
                 );
                 CREATE INDEX thumbnails_accessed ON thumbnails (accessed);
                 """)
+            try db.executeScript(Self.fingerprintsTable)
             try db.setUserVersion(Self.schemaVersion)
         }
         return db
@@ -148,8 +160,11 @@ public final class ThumbnailStore: @unchecked Sendable {
         try? db.execute("DELETE FROM thumbnails WHERE path = ?", [.text(file.path)])
     }
 
+    /// Empties the cache: thumbnails and the duplicate finder's fingerprints
+    /// (Settings' Clear Thumbnail Cache).
     public func removeAll() {
         try? db.execute("DELETE FROM thumbnails")
+        try? db.execute("DELETE FROM fingerprints")
         try? db.executeScript("PRAGMA incremental_vacuum")
     }
 

@@ -70,12 +70,14 @@ nonisolated struct SidebarDiff: Equatable {
 /// One row of the sidebar. A class, because NSOutlineView identifies rows
 /// by object identity.
 final class SidebarNode {
-    enum Kind { case header, favorite, folder }
+    enum Kind { case header, favorite, folder, smartFolder, collection }
 
     let kind: Kind
     let title: String
     let url: URL?
     let symbolName: String
+    /// The catalog's id of a smart folder or collection row (G3).
+    var libraryID: Int64?
     /// nil until listed.
     var children: [SidebarNode]?
     /// Whether to draw a disclosure triangle, from a cheap check that stops
@@ -106,6 +108,16 @@ final class SidebarNode {
 
     var isPictures: Bool { kind == .favorite && symbolName == SidebarViewController.picturesSymbol }
 
+    /// The list a smart folder or collection row opens (G3).
+    var list: VirtualList? {
+        guard let libraryID else { return nil }
+        switch kind {
+        case .smartFolder: return VirtualList(kind: .smartFolder(id: libraryID), title: title)
+        case .collection: return VirtualList(kind: .collection(id: libraryID), title: title)
+        default: return nil
+        }
+    }
+
     /// Marks this row and every row below it as gone from the tree.
     func detach() {
         isDetached = true
@@ -113,7 +125,8 @@ final class SidebarNode {
     }
 }
 
-/// The source-list sidebar: Favorites, each expandable into its folder tree.
+/// The source-list sidebar: Favorites, each expandable into its folder tree,
+/// then Smart Folders and Collections (G3) when there are any.
 ///
 /// Children are listed only when a row is expanded, off the main thread,
 /// so a tree over a whole photo library costs nothing until it's opened.
@@ -122,6 +135,18 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     /// A row was chosen by the user.
     var onNavigate: ((URL) -> Void)?
+    /// A smart folder or collection row was chosen (G3).
+    var onOpenList: ((VirtualList) -> Void)?
+    /// A smart folder or collection row's context menu, or files dropped on
+    /// a collection.
+    var onLibraryCommand: ((LibraryCommand) -> Void)?
+
+    enum LibraryCommand: Equatable {
+        case rename(VirtualList)
+        case delete(VirtualList)
+        case editSearch(smartFolder: Int64)
+        case add([URL], toCollection: Int64)
+    }
     /// Files were dropped on a row: (files, the row's folder, move).
     var onDropFiles: (([URL], URL, Bool) -> Void)?
     /// Volume answers for the drag in progress, by folder path.
@@ -132,6 +157,16 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     private let scrollView = NSScrollView()
     private let addButton = NSButton()
     private let header = SidebarNode(kind: .header, title: "Favorites", url: nil, symbolName: "", children: [])
+    private let smartFoldersHeader = SidebarNode(kind: .header, title: "Smart Folders", url: nil, symbolName: "",
+                                                 children: [])
+    private let collectionsHeader = SidebarNode(kind: .header, title: "Collections", url: nil, symbolName: "",
+                                                children: [])
+    /// The top level: Favorites, then the library's sections that have rows.
+    private var roots: [SidebarNode] = []
+    /// The list the browser shows, to select its row.
+    private var currentList: VirtualList?
+    private var libraryObserver: NSObjectProtocol?
+    private let catalog: Catalog
     /// The folder the browser shows, to select its row.
     private var currentFolder: URL?
     /// Set while selecting a row in code, so it isn't taken for a click.
@@ -153,10 +188,17 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     /// The folders are parameters so tests can show a tree of their own.
     init(picturesFolder: URL = BookmarkStore.picturesFolder,
-         favoriteFolders: @escaping () -> [URL] = { BookmarkStore.shared.folders }) {
+         favoriteFolders: @escaping () -> [URL] = { BookmarkStore.shared.folders }, catalog: Catalog = .shared) {
         self.picturesFolder = picturesFolder
         self.favoriteFolders = favoriteFolders
+        self.catalog = catalog
+        roots = [header]
         super.init(nibName: nil, bundle: nil)
+    }
+
+    isolated deinit {
+        if let favoritesObserver { NotificationCenter.default.removeObserver(favoritesObserver) }
+        if let libraryObserver { NotificationCenter.default.removeObserver(libraryObserver) }
     }
 
     @available(*, unavailable)
@@ -214,10 +256,64 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         view = container
 
         reloadFavorites()
+        reloadLibrary()
         favoritesObserver = NotificationCenter.default.addObserver(
             forName: .minivuFavoritesChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reloadFavorites() }
         }
+        libraryObserver = NotificationCenter.default.addObserver(
+            forName: Catalog.libraryDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reloadLibrary() }
+        }
+    }
+
+    // MARK: - Smart folders and collections (G3)
+
+    /// Lists the catalog's smart folders and collections again: one small
+    /// query each, so on the main thread. A section with none is left out
+    /// rather than shown empty. Internal so tests can call it.
+    func reloadLibrary() {
+        let smart = catalog.smartFolders().map { folder -> SidebarNode in
+            let node = SidebarNode(kind: .smartFolder, title: folder.name, url: nil, symbolName: "gearshape")
+            node.libraryID = folder.id
+            return node
+        }
+        let collections = catalog.collections().map { collection -> SidebarNode in
+            let node = SidebarNode(kind: .collection, title: collection.name, url: nil,
+                                   symbolName: "rectangle.stack")
+            node.libraryID = collection.id
+            return node
+        }
+        let old = (smartFoldersHeader.children ?? []) + (collectionsHeader.children ?? [])
+        let new = smart + collections
+        let unchanged = old.map { [$0.kind == .smartFolder ? 0 : 1, $0.libraryID ?? 0] } == new.map {
+            [$0.kind == .smartFolder ? 0 : 1, $0.libraryID ?? 0]
+        } && old.map(\.title) == new.map(\.title)
+        guard !unchanged || roots.isEmpty else { return }
+        smartFoldersHeader.children = smart
+        collectionsHeader.children = collections
+        roots = [header] + (smart.isEmpty ? [] : [smartFoldersHeader]) + (collections.isEmpty ? [] : [collectionsHeader])
+        guard isViewLoaded else { return }
+        isSelectingInCode = true
+        outlineView.reloadData()
+        for root in roots { outlineView.expandItem(root) }
+        isSelectingInCode = false
+        if let currentList { reveal(list: currentList) } else { reveal(currentFolder) }
+    }
+
+    /// Selects the row of the list the browser shows (G3), or none.
+    func reveal(list: VirtualList?) {
+        currentList = list
+        guard let list else { return }
+        currentFolder = nil
+        guard isViewLoaded else { return }
+        let rows = (smartFoldersHeader.children ?? []) + (collectionsHeader.children ?? [])
+        select(rows.first { $0.list?.kind == list.kind })
+    }
+
+    /// Titles of the smart folder and collection rows, for tests.
+    var libraryRows: [String] {
+        ((smartFoldersHeader.children ?? []) + (collectionsHeader.children ?? [])).map(\.title)
     }
 
     // MARK: - Favourites
@@ -234,9 +330,9 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         let favorites = [pictures] + others
         header.children = favorites
         outlineView.reloadData()
-        outlineView.expandItem(header)
+        for root in roots { outlineView.expandItem(root) }
         checkForSubfolders(favorites)
-        reveal(currentFolder)
+        if let currentList { reveal(list: currentList) } else { reveal(currentFolder) }
     }
 
     /// Finds out in the background which favourites can expand.
@@ -495,6 +591,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     func reveal(_ folder: URL?) {
         let isNewFolder = folder.map { new in currentFolder.map { !BrowserModel.samePath($0, new) } ?? true } ?? false
         currentFolder = folder
+        if folder != nil { currentList = nil }
         if isNewFolder { relistedForReveal = [] }
         guard isViewLoaded else { return }
         let favorites = header.children ?? []
@@ -548,12 +645,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     // MARK: - Data source
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        guard let node = item as? SidebarNode else { return 1 }
+        guard let node = item as? SidebarNode else { return roots.count }
         return node.children?.count ?? 0
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        guard let node = item as? SidebarNode else { return header }
+        guard let node = item as? SidebarNode else { return roots.indices.contains(index) ? roots[index] : header }
         return node.children?[index] ?? header
     }
 
@@ -570,6 +667,12 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// between rows: the tree is sorted, there is no "between".
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?,
                      proposedChildIndex index: Int) -> NSDragOperation {
+        if let node = item as? SidebarNode, node.kind == .collection {
+            // Images dropped on a collection join it; nothing moves.
+            guard !Self.collectable(GridViewController.fileURLs(from: info.draggingPasteboard)).isEmpty else { return [] }
+            outlineView.setDropItem(node, dropChildIndex: NSOutlineViewDropOnItemIndex)
+            return .link
+        }
         guard let node = item as? SidebarNode, let folder = node.url else { return [] }
         let (files, operation) = drop(info, into: folder)
         guard !files.isEmpty, !operation.isEmpty else { return [] }
@@ -578,11 +681,22 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
+        if let node = item as? SidebarNode, node.kind == .collection, let id = node.libraryID {
+            let files = Self.collectable(GridViewController.fileURLs(from: info.draggingPasteboard))
+            guard !files.isEmpty else { return false }
+            onLibraryCommand?(.add(files, toCollection: id))
+            return true
+        }
         guard let folder = (item as? SidebarNode)?.url else { return false }
         let (files, operation) = drop(info, into: folder)
         guard !files.isEmpty, !operation.isEmpty else { return false }
         onDropFiles?(files, folder, operation.contains(.move))
         return true
+    }
+
+    /// The images among dropped files: what a collection can hold.
+    nonisolated static func collectable(_ files: [URL]) -> [URL] {
+        files.filter { ImageFormats.isImage($0) && VolumePolicy.isAllowed($0) }
     }
 
     private func drop(_ info: NSDraggingInfo, into folder: URL) -> ([URL], NSDragOperation) {
@@ -631,6 +745,11 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         cell.textField?.stringValue = node.title
         cell.imageView?.image = NSImage(systemSymbolName: node.symbolName, accessibilityDescription: nil)
         cell.toolTip = node.url?.path
+        switch node.kind {
+        case .smartFolder: cell.setAccessibilityLabel("\(node.title), smart folder")
+        case .collection: cell.setAccessibilityLabel("\(node.title), collection")
+        default: cell.setAccessibilityLabel(nil)
+        }
         return cell
     }
 
@@ -668,8 +787,14 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     }
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
-        guard !isSelectingInCode, let node = outlineView.item(atRow: outlineView.selectedRow) as? SidebarNode,
-              let url = node.url else { return }
+        guard !isSelectingInCode, let node = outlineView.item(atRow: outlineView.selectedRow) as? SidebarNode else { return }
+        if let list = node.list {
+            currentList = list
+            currentFolder = nil
+            onOpenList?(list)
+            return
+        }
+        guard let url = node.url else { return }
         if let currentFolder, BrowserModel.samePath(currentFolder, url) { return }
         onNavigate?(url)
     }
@@ -678,6 +803,14 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        if let node = outlineView.item(atRow: outlineView.clickedRow) as? SidebarNode, let list = node.list {
+            if node.kind == .smartFolder, let id = node.libraryID {
+                addLibraryItem("Edit Search…", .editSearch(smartFolder: id), to: menu)
+            }
+            addLibraryItem("Rename…", .rename(list), to: menu)
+            addLibraryItem(node.kind == .smartFolder ? "Delete Smart Folder…" : "Delete Collection…", .delete(list), to: menu)
+            return
+        }
         guard let node = outlineView.item(atRow: outlineView.clickedRow) as? SidebarNode, let url = node.url else { return }
         let reveal = menu.addItem(withTitle: "Reveal in Finder", action: #selector(revealClicked(_:)), keyEquivalent: "")
         reveal.target = self
@@ -688,6 +821,23 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
             remove.target = self
             remove.representedObject = url
         }
+    }
+
+    private func addLibraryItem(_ title: String, _ command: LibraryCommand, to menu: NSMenu) {
+        let item = menu.addItem(withTitle: title, action: #selector(libraryItemClicked(_:)), keyEquivalent: "")
+        item.target = self
+        item.representedObject = LibraryCommandBox(command)
+    }
+
+    @objc private func libraryItemClicked(_ sender: NSMenuItem) {
+        guard let box = sender.representedObject as? LibraryCommandBox else { return }
+        onLibraryCommand?(box.command)
+    }
+
+    /// A command as a menu item's represented object.
+    final class LibraryCommandBox: NSObject {
+        let command: LibraryCommand
+        init(_ command: LibraryCommand) { self.command = command }
     }
 
     @objc private func revealClicked(_ sender: NSMenuItem) {

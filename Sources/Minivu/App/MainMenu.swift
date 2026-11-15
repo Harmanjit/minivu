@@ -79,6 +79,13 @@ enum MainMenu {
         menu.add("Copy To", nil).submenu = RecentDestinationsMenu.make(title: "Copy To", action: .copyToFolder)
         menu.add("Move To", nil).submenu = RecentDestinationsMenu.make(title: "Move To", action: .moveToFolder)
         menu.addItem(.separator())
+        // Collections and smart folders (G3), without shortcuts: commands
+        // for organising, not for every photo.
+        menu.add("New Collection…", .newCollection)
+        menu.add("Add to Collection", nil).submenu = CollectionsMenu.make()
+        menu.add("Remove from Collection", .removeFromCollection)
+        menu.add("Save as Smart Folder…", .saveAsSmartFolder)
+        menu.addItem(.separator())
         menu.add("Reveal in Finder", .revealInFinder, "r", [.command, .option])
         // Finder's place for it, and like Finder's without a shortcut.
         menu.add("Share…", .shareFiles)
@@ -108,6 +115,11 @@ enum MainMenu {
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)
         menu.add("Invert Selection", .invertSelection, "i", [.command, .shift])
+        menu.addItem(.separator())
+        // ⌘F as in Finder, Photos and every Mac app; free in minivu (the
+        // viewer's bare F is the filmstrip and ignores Command, and full
+        // screen and the slideshow have ⌃⌘F and ⇧⌘F).
+        menu.add("Find…", .findImages, "f")
         return menu
     }
 
@@ -124,6 +136,8 @@ enum MainMenu {
         menu.add("Sort By", nil).submenu = sort
 
         menu.add("Show Hidden Files", .toggleHiddenFiles, ".", [.command, .shift])
+        // ⌥⌘F: F for flat, beside Find's ⌘F; no other ⌥⌘F in minivu.
+        menu.add("Flat View", .toggleFlatView, "f", [.command, .option])
         menu.add("Filter", nil).submenu = filterMenu()
         menu.addItem(.separator())
 
@@ -193,6 +207,8 @@ enum MainMenu {
         }
         menu.addItem(.separator())
         menu.add("Tagged Only", .toggleTaggedFilter)
+        menu.addItem(.separator())
+        menu.add("More Filters…", .showMoreFilters)
         return menu
     }
 
@@ -292,6 +308,9 @@ enum MainMenu {
         // The multi-page tools (G17) have no shortcuts, like Contact Sheet:
         // occasional commands, each opening a sheet.
         menu.add("Extract Pages…", .extractPages)
+        // Without a shortcut, as Contact Sheet and Montage are: a tool for
+        // a tidy-up now and then, not for every photo.
+        menu.add("Find Duplicates…", .findDuplicates)
         menu.addItem(.separator())
         menu.add("Create Multi-Page File…", .createMultiPageFile)
         menu.add("Image Strip…", .makeImageStrip)

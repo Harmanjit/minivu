@@ -240,7 +240,11 @@ extension BrowserWindowController {
             // Only the folder shown is listed again: an undo can run after
             // the user has moved on to another folder.
             let renamed = outcome.renamed.map(\.to)
-            if let folder = model.folder, renamed.contains(where: { BrowserModel.samePath($0.deletingLastPathComponent(), folder) }) {
+            if model.showsManyFolders {
+                // A list from many folders (G3) may hold any of them.
+                model.reload(thenSelect: renamed)
+            } else if let folder = model.folder,
+                      renamed.contains(where: { BrowserModel.samePath($0.deletingLastPathComponent(), folder) }) {
                 model.reload(thenSelect: renamed)
             }
             completion?(outcome)
