@@ -141,6 +141,9 @@ import AppKit
     @objc optional func startSlideshow(_ sender: Any?)
     @objc optional func batchConvert(_ sender: Any?)
     @objc optional func batchRename(_ sender: Any?)
+    /// Tools > Find Duplicates… (G5): identical files or similar pictures in
+    /// the browser's selection, folder or folder tree.
+    @objc optional func findDuplicates(_ sender: Any?)
     /// Prints with a page layout. Page Setup is AppKit's own
     /// `NSApplication.runPageLayout(_:)`.
     @objc optional func printImages(_ sender: Any?)
@@ -273,6 +276,7 @@ extension Selector {
     static let startSlideshow = #selector(MinivuActions.startSlideshow(_:))
     static let batchConvert = #selector(MinivuActions.batchConvert(_:))
     static let batchRename = #selector(MinivuActions.batchRename(_:))
+    static let findDuplicates = #selector(MinivuActions.findDuplicates(_:))
     static let printImages = #selector(MinivuActions.printImages(_:))
     static let makeContactSheet = #selector(MinivuActions.makeContactSheet(_:))
     static let makeMontage = #selector(MinivuActions.makeMontage(_:))

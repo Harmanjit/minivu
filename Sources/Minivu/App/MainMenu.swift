@@ -302,6 +302,9 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Batch Convert…", .batchConvert, "b", [.command, .option])
         menu.add("Batch Rename…", .batchRename, Key.f2, [.shift])
+        // Without a shortcut, as Contact Sheet and Montage are: a tool for
+        // a tidy-up now and then, not for every photo.
+        menu.add("Find Duplicates…", .findDuplicates)
         menu.addItem(.separator())
         menu.add("Contact Sheet…", .makeContactSheet)
         menu.add("Montage Wallpaper…", .makeMontage)

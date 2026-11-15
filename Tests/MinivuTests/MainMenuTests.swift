@@ -233,13 +233,16 @@ import MinivuCore
     @Test func toolsItems() throws {
         let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
         let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
-        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "-", "Contact Sheet…",
+        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "Find Duplicates…", "-",
+                           "Contact Sheet…",
                            "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
                            "Open in External Editor"])
         let slideshow = try item("Start Slideshow")
         #expect(slideshow.keyEquivalent == "f" && slideshow.keyEquivalentModifierMask == [.command, .shift])
         let rename = try item("Batch Rename…")
         #expect(rename.keyEquivalent == MainMenu.Key.f2 && rename.keyEquivalentModifierMask == [.shift])
+        let duplicates = try item("Find Duplicates…")
+        #expect(duplicates.action == .findDuplicates && duplicates.keyEquivalent.isEmpty)
         let capture = try #require(tools.items.first { $0.title == "Capture" }?.submenu)
         #expect(capture.items.compactMap(\.action) == [.captureScreen, .captureWindow, .captureSelection])
         let editors = try #require(tools.items.last?.submenu)

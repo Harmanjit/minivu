@@ -252,7 +252,7 @@ extension BrowserWindowController {
                 switch list.kind {
                 case .smartFolder(let id): catalog.renameSmartFolder(id, to: name)
                 case .collection(let id): catalog.renameCollection(id, to: name)
-                case .search: return
+                case .search, .files: return
                 }
                 if self?.model.list?.kind == list.kind {
                     self?.window?.title = name
@@ -266,7 +266,7 @@ extension BrowserWindowController {
                 switch list.kind {
                 case .smartFolder(let id): catalog.deleteSmartFolder(id)
                 case .collection(let id): catalog.deleteCollection(id)
-                case .search: return
+                case .search, .files: return
                 }
                 // The list shown has gone: back to where the window was before.
                 if self?.model.list?.kind == list.kind {

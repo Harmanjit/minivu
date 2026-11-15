@@ -2,7 +2,7 @@ import Foundation
 import MinivuCore
 
 /// A list the browser shows instead of a folder (G3): Find's results, a
-/// smart folder or a collection. It is a list of files from anywhere in the
+/// smart folder, a collection, or files the duplicate finder shows (G5). It is a list of files from anywhere in the
 /// folders the user has granted, and the browser's usual commands work on
 /// it (open, rate, label, move, copy, trash, the batch tools, Edit
 /// Metadata); those that need one folder (New Folder, Paste, Custom Order,
@@ -15,6 +15,9 @@ nonisolated struct VirtualList: Equatable, Sendable {
         /// another window runs as it is now.
         case smartFolder(id: Int64)
         case collection(id: Int64)
+        /// Files picked elsewhere: a group from the duplicate finder (G5).
+        /// Not saved; read again from the files when shown.
+        case files([URL])
     }
 
     var kind: Kind
@@ -66,10 +69,12 @@ nonisolated struct VirtualList: Equatable, Sendable {
             guard catalog.collections().contains(where: { $0.id == id }) else { throw LoadError.collectionGone }
             // Only what the sandbox lets minivu read shows; a member in a
             // folder whose access has gone is left out like a missing one.
-            let images = catalog.collectionMembers(id).compactMap { url -> FolderEntry? in
-                guard let entry = FolderEntry(url: url), !entry.isDirectory, entry.kind != nil else { return nil }
-                return entry
-            }
+            let images = existingImages(catalog.collectionMembers(id))
+            batch(images)
+            return Outcome(images: images, isTruncated: false)
+        case .files(let urls):
+            // Files trashed or moved since are left out.
+            let images = existingImages(urls)
             batch(images)
             return Outcome(images: images, isTruncated: false)
         }
@@ -79,5 +84,13 @@ nonisolated struct VirtualList: Equatable, Sendable {
                                           label: { ColorLabelCommand.label(of: FinderTag.read(from: $0), standardNames: names) },
                                           isCancelled: { cancel.isCancelled }, found: batch)
         return Outcome(images: outcome.matches, isTruncated: outcome.isTruncated)
+    }
+
+    /// The images among `urls` that exist and can be read, in that order.
+    private static func existingImages(_ urls: [URL]) -> [FolderEntry] {
+        urls.compactMap { url -> FolderEntry? in
+            guard let entry = FolderEntry(url: url), !entry.isDirectory, entry.kind != nil else { return nil }
+            return entry
+        }
     }
 }

@@ -48,6 +48,8 @@ extension BrowserWindowController {
             toolLeadImage != nil
         case .shareFiles:
             !shareURLs.isEmpty
+        case .findDuplicates:
+            model.folder != nil || model.list != nil || model.hasSelectedImages
         default:
             nil
         }
