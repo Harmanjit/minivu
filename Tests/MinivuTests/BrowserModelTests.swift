@@ -199,7 +199,7 @@ final class FolderCheckLog: @unchecked Sendable {
         #expect(BrowserModel.samePath(try #require(model.folder), t.url))
         #expect(model.lead?.lastPathComponent == "A")
         #expect(!model.canGoForward)
-        #expect(model.backStack.map { $0.folder.lastPathComponent } == ["A"])
+        #expect(model.backStack.map { $0.folder?.lastPathComponent } == ["A"])
     }
 
     @Test func navigatingToTheSameFolderOnlySelects() async throws {

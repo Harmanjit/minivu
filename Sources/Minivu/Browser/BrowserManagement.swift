@@ -39,6 +39,7 @@ extension BrowserWindowController {
         let minimum = (sender as? NSMenuItem)?.tag ?? 0
         if minimum <= 0 {
             model.marksFilter = MarksFilter()
+            model.metadataFilter = MetadataCriteria()
         } else {
             model.marksFilter.minimumRating = min(minimum, 5)
         }
@@ -100,7 +101,11 @@ extension BrowserWindowController {
                     catalog.setCustomOrder(order, in: folder)
                 }
                 done(true)
-                if let folder = model.folder, BrowserModel.samePath(folder, newURL.deletingLastPathComponent()) {
+                if model.showsManyFolders {
+                    // A list from many folders (G3): the catalog has moved a
+                    // collection's member, and a search runs again.
+                    model.reload(thenSelect: [newURL])
+                } else if let folder = model.folder, BrowserModel.samePath(folder, newURL.deletingLastPathComponent()) {
                     model.reload(thenSelect: [newURL])
                 }
             case .failure(let error):
@@ -236,7 +241,17 @@ extension BrowserWindowController {
     }
 
     private func showTransferred(arrived: [URL], left: [URL], thenSelect next: URL?) {
-        guard let folder = model.folder, !arrived.isEmpty || !left.isEmpty else { return }
+        guard !arrived.isEmpty || !left.isEmpty else { return }
+        if model.showsManyFolders {
+            // A list from many folders (G3) is read again: a collection's
+            // members moved with their files, the flat view's tree changed
+            // and a search may now find them elsewhere.
+            if let next, model.entry(for: next) != nil, arrived.isEmpty { model.select(next) }
+            model.reload(thenSelect: arrived)
+            sidebarFolderChanged(Array(Set((arrived + left).map { $0.deletingLastPathComponent() })))
+            return
+        }
+        guard let folder = model.folder else { return }
         let inFolder = { (url: URL) in BrowserModel.samePath(url.deletingLastPathComponent(), folder) }
         let arrivedHere = arrived.filter(inFolder)
         let leftHere = left.filter(inFolder)
@@ -399,11 +414,11 @@ extension BrowserWindowController {
         case .setRating, .toggleTag, .setColorLabel:
             return model.hasSelectedImages
         case .filterByRating, .toggleTaggedFilter:
-            return model.folder != nil
+            return model.folder != nil || model.list != nil
         case .renameItem:
             return !sheet && model.selection.count == 1 && grid.renameEditor == nil
         case .newFolder:
-            return !sheet && model.state == .loaded
+            return !sheet && model.state == .loaded && model.folder != nil
         case .copyToFolder, .moveToFolder:
             return !sheet && !model.selection.isEmpty && !isTransferring
         default:
