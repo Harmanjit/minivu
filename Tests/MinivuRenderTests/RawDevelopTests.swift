@@ -114,7 +114,7 @@ import Metal
             }
             editing.wait()
             DispatchQueue.global().async {
-                slots.withViewerRender { log.add("viewer") }
+                try? slots.withViewerRender { log.add("viewer") }
                 viewerDone.signal()
             }
             let waited = viewerDone.wait(timeout: .now() + 0.3) == .timedOut
@@ -124,6 +124,48 @@ import Metal
             if waited { viewerDone.wait() }
             #expect(log.all == (shares ? ["editor", "viewer"] : ["viewer", "editor"]), "\(memory >> 30) GB")
         }
+    }
+
+    /// A viewer render stopped while it waits for the editor's slot on an
+    /// 8 GB Mac leaves then, without running, rather than holding its thread
+    /// (and the viewer's one RAW job) until the editor's render is done.
+    @Test nonisolated func aStoppedViewerRenderStopsWaitingForTheSlot() {
+        final class Flag: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value = false
+            func set() { lock.withLock { value = true } }
+            var isSet: Bool { lock.withLock { value } }
+        }
+        let slots = RawRenderer.RenderSlots(physicalMemory: 8 << 30)
+        let editing = DispatchSemaphore(value: 0), finishEdit = DispatchSemaphore(value: 0)
+        let editDone = DispatchSemaphore(value: 0), viewerDone = DispatchSemaphore(value: 0)
+        let stop = Flag(), ran = Flag(), stopped = Flag()
+        DispatchQueue.global().async {
+            slots.withEditRender {
+                editing.signal()
+                finishEdit.wait()
+            }
+            editDone.signal()
+        }
+        editing.wait()
+        DispatchQueue.global().async {
+            do {
+                try slots.withViewerRender(checkStop: { if stop.isSet { throw CancellationError() } }) { ran.set() }
+            } catch is CancellationError {
+                stopped.set()
+            } catch {}
+            viewerDone.signal()
+        }
+        #expect(viewerDone.wait(timeout: .now() + 0.2) == .timedOut)
+        stop.set()
+        // Still inside the editor's render: the viewer leaves on its own.
+        #expect(viewerDone.wait(timeout: .now() + 2) == .success)
+        #expect(stopped.isSet)
+        #expect(!ran.isSet)
+        finishEdit.signal()
+        editDone.wait()
+        // The slot is free again for the next render.
+        #expect((try? slots.withViewerRender { true }) == true)
     }
 
     /// The graph leaves the picture alone: the step acts where the original

@@ -576,8 +576,9 @@ public struct DisplaySettings: Sendable, Equatable {
                                               checkStop: () throws -> Void) throws -> ImageTexture? {
         do {
             // On a Mac with 8 GB or less this waits while the editor renders
-            // a RAW: the app renders one at a time there.
-            return try RawRenderer.withViewerRenderSlot {
+            // a RAW: the app renders one at a time there. A render stopped
+            // while it waits leaves then, not when the slot frees.
+            return try RawRenderer.withViewerRenderSlot(checkStop: checkStop) {
                 try checkStop()
                 return try RawRenderer.render(url: url, maxPixelSize: rawRenderEdge(url: url, target: target),
                                               hdr: rawPlan(settings: settings) == .render(hdr: true),

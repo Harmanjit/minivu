@@ -226,9 +226,11 @@ public enum RawRenderer {
     /// Runs `body`, the viewer's RAW render, in the editor's slot where the
     /// two share one (`viewerSharesEditSlot`), otherwise straight away
     /// (`ImageLoader` already keeps its own renders to one). Blocks its
-    /// thread like `withEditRenderSlot`.
-    static func withViewerRenderSlot<T>(_ body: () throws -> T) rethrows -> T {
-        try slots.withViewerRender(body)
+    /// thread like `withEditRenderSlot`, but calls `checkStop` while it
+    /// waits, so a render the viewer no longer wants leaves as soon as it
+    /// throws rather than when the slot frees.
+    static func withViewerRenderSlot<T>(checkStop: () throws -> Void, _ body: () throws -> T) throws -> T {
+        try slots.withViewerRender(checkStop: checkStop, body)
     }
 
     /// The editor's slots and whether the viewer shares them; an instance
@@ -250,9 +252,16 @@ public enum RawRenderer {
             return try body()
         }
 
-        func withViewerRender<T>(_ body: () throws -> T) rethrows -> T {
+        /// How often a waiting viewer render asks whether it is still wanted.
+        static let stopCheckInterval: DispatchTimeInterval = .milliseconds(50)
+
+        func withViewerRender<T>(checkStop: () throws -> Void = {}, _ body: () throws -> T) throws -> T {
             guard viewerShares else { return try body() }
-            return try withEditRender(body)
+            while semaphore.wait(timeout: .now() + Self.stopCheckInterval) == .timedOut {
+                try checkStop()
+            }
+            defer { semaphore.signal() }
+            return try body()
         }
     }
 
