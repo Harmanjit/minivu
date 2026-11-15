@@ -20,6 +20,18 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         case chosenFolder(bookmark: Data)
     }
 
+    /// What happens to the pages of a multi-page original: a PDF, a
+    /// multi-page TIFF, the frames of an animation.
+    public enum Pages: Codable, Hashable, Sendable {
+        /// The first page or frame only, as Batch Convert has always done.
+        case first
+        /// Every page: into one multi-page file where the format holds pages
+        /// (`holdsPages`: TIFF, GIF), otherwise one file per page.
+        case all
+        /// One file per page, for the pages in the range (Extract Pages).
+        case separate(PageRange)
+    }
+
     public enum Naming: Codable, Hashable, Sendable {
         /// The original's name, with the new format's extension.
         case keep
@@ -50,12 +62,14 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
     /// a gain-map photo HDR. Off, or for any other format, they are tone
     /// mapped to SDR.
     public var keepsHDR: Bool
+    /// The pages of multi-page originals; the first only by default.
+    public var pages: Pages
 
     public init(options: ExportOptions = .defaults(for: .jpeg), destination: Destination = .besideOriginals,
                 naming: Naming = .keep, existingFiles: BatchFileWriter.ExistingFilePolicy = .keepBoth,
                 resize: BatchResize = BatchResize(), quarterTurns: Int = 0, flipHorizontal: Bool = false,
                 flipVertical: Bool = false, edits: [EditOperation] = [], watermark: Watermark? = nil,
-                keepsHDR: Bool = true) {
+                keepsHDR: Bool = true, pages: Pages = .first) {
         self.options = options
         self.destination = destination
         self.naming = naming
@@ -67,11 +81,12 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         self.edits = edits
         self.watermark = watermark
         self.keepsHDR = keepsHDR
+        self.pages = pages
     }
 
     private enum CodingKeys: String, CodingKey {
         case options, destination, naming, existingFiles, resize, quarterTurns, flipHorizontal, flipVertical
-        case edits, watermark, keepsHDR
+        case edits, watermark, keepsHDR, pages
     }
 
     public init(from decoder: any Decoder) throws {
@@ -89,6 +104,15 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         edits = (try? c.decodeIfPresent([EditOperation].self, forKey: .edits)) ?? d.edits
         watermark = (try? c.decodeIfPresent(Watermark.self, forKey: .watermark)) ?? d.watermark
         keepsHDR = (try? c.decodeIfPresent(Bool.self, forKey: .keepsHDR)) ?? d.keepsHDR
+        pages = (try? c.decodeIfPresent(Pages.self, forKey: .pages)) ?? d.pages
+    }
+
+    /// Formats that hold several pages in one file, which "every page"
+    /// writes into: TIFF (pages) and GIF (frames). HEIC is left out: an
+    /// animated HEIC is a different kind of file from the photo HEIC a
+    /// batch is asked for, and every other format holds one picture.
+    public static func holdsPages(_ format: ExportFormat) -> Bool {
+        format == .tiff || format == .gif
     }
 
     /// The settings `output` is converted with. Remove location is for
@@ -122,12 +146,19 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
 
     /// The output name for a source (at `index` in the batch), with the
     /// format's extension.
+    ///
+    /// An output taken from one page of a multi-page original (a source with
+    /// a `page`) is told apart by its page number: where the pattern names
+    /// it (`{page}`) or, failing that, after the name ("scan-03.jpg"), so
+    /// the pages of one file never ask for one name.
     public func outputName(for source: RenameSource, index: Int, namer: RenameNamer?) -> String {
         let ext = options.format.fileExtension
-        guard let namer else {
-            return RenameNamer.split(source.url.lastPathComponent).base + "." + ext
-        }
-        return namer.name(for: source, index: index, newExtension: ext)
+        let name = namer?.name(for: source, index: index, newExtension: ext)
+            ?? RenameNamer.split(source.url.lastPathComponent).base + "." + ext
+        guard let page = source.page, namer?.pattern.usesPageNumber != true else { return name }
+        let (base, nameExtension) = RenameNamer.split(name)
+        let number = RenameNamer.pageLabel(page, of: source.pageCount ?? page)
+        return base + "-" + number + (nameExtension.isEmpty ? "" : "." + nameExtension)
     }
 
     public var pattern: RenamePattern? {

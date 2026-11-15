@@ -30,6 +30,13 @@ import MinivuCore
 /// for that file and goes on. RAW files render through the editor's RAW
 /// slots, and the job runs one at a time.
 ///
+/// **Pages** (`BatchOutput.pages`): an output that is one page of a
+/// multi-page original decodes that page; one that holds every page is
+/// written page by page into a temporary file beside its destination by
+/// `MultiPageWriter` (a multi-page TIFF, an animated GIF keeping the
+/// original's frame delays and loops), one decoded page at a time, and
+/// handed back as that file (`Encoded.file`).
+///
 /// Stateless and `Sendable`: two files convert side by side. Every step
 /// blocks for a long time (a 24 MP render, a HEIC encode), so run them on a
 /// thread that may block, as `BatchWorkExecutor` provides.
@@ -67,7 +74,36 @@ public struct BatchConverter: Sendable {
     /// The converted file's bytes. Metadata comes from the source when
     /// kept (with the orientation reset, the pixels being upright now).
     public func encodedData(for url: URL, settings: BatchConvertSettings) async throws -> Data {
-        let job = try prepare(url, settings: settings, keepingHDR: settings.keepsHDR)
+        try await encodedData(for: url, page: 0, settings: settings)
+    }
+
+    /// A converted file: its bytes, or a file already written in full at a
+    /// hidden temporary name beside the destination (every page of a
+    /// multi-page original), which the caller renames into place or deletes.
+    public enum Encoded: Sendable {
+        case data(Data)
+        case file(URL)
+    }
+
+    /// Converts `output`'s pages of its source. A multi-page output is
+    /// written beside `output.destination` and checks `cancel` before every
+    /// page, throwing `CancellationError` (and deleting what it wrote) once
+    /// it is set.
+    public func encoded(_ output: BatchOutput, settings: BatchConvertSettings,
+                        cancel: CancellationFlag = CancellationFlag()) async throws -> Encoded {
+        switch output.pages {
+        case .primary:
+            return .data(try await encodedData(for: output.source, page: 0, settings: settings))
+        case .page(let index, _):
+            return .data(try await encodedData(for: output.source, page: index, settings: settings))
+        case .all(let count):
+            return .file(try await writeEveryPage(of: output.source, count: count, beside: output.destination,
+                                                  settings: settings, cancel: cancel))
+        }
+    }
+
+    func encodedData(for url: URL, page: Int, settings: BatchConvertSettings) async throws -> Data {
+        let job = try prepare(url, page: page, settings: settings, keepingHDR: settings.keepsHDR)
         if job.keepsHDR, let hdr = try await renderer.renderHDRForExport(job.snapshot(settings: displaySettings)) {
             return try ImageEncoder.encode(hdr, options: settings.options, metadataSource: url, gainMap: true)
         }
@@ -75,34 +111,87 @@ public struct BatchConverter: Sendable {
         return try ImageEncoder.encode(image, options: settings.options, metadataSource: url)
     }
 
+    /// Every page of `url`, converted, into one multi-page file at a hidden
+    /// name beside `destination`: TIFF pages with the chosen compression and
+    /// colour profile, or GIF frames with the original's delays and loops.
+    /// No metadata (TIFF pages each keep their colour profile). An animated
+    /// GIF's frames must fit the export budget together, since ImageIO holds
+    /// them until the file is finished.
+    func writeEveryPage(of url: URL, count: Int, beside destination: URL, settings: BatchConvertSettings,
+                        cancel: CancellationFlag) async throws -> URL {
+        guard let sequence = PageSequence(url: url) else { throw DecodeError.unreadable(url) }
+        let format = settings.options.format
+        let pageSettings = MultiPageSettings(format: format == .gif ? .gif : .tiff,
+                                             tiffCompression: settings.options.tiffCompression,
+                                             loopCount: sequence.kind == .animation ? sequence.loopCount : 0,
+                                             frameSize: nil, colorProfile: settings.options.colorProfile)
+        if format == .gif {
+            let first = EditGraph.outputSize(source: sequence.pixelSize(ofPage: 0),
+                                             operations: settings.operations(sourceSize: sequence.pixelSize(ofPage: 0)))
+            try MultiPageBuilder.checkBudget(pageCount: count, first: first, settings: pageSettings,
+                                             byteLimit: renderer.exportDecodeLimit)
+        }
+        let temporary = BatchFileWriter.temporaryURL(beside: destination)
+        do {
+            let writer = try MultiPageWriter(url: temporary, settings: pageSettings, expectedPages: count)
+            for index in 0..<count {
+                if cancel.isCancelled { throw CancellationError() }
+                let job = try prepare(url, page: index, settings: settings, keepingHDR: false, sequence: sequence)
+                let image = try await sdrImage(job, settings: settings)
+                try writer.add(image, delay: sequence.delay(ofPage: index))
+            }
+            if cancel.isCancelled { throw CancellationError() }
+            try writer.finish()
+            return temporary
+        } catch {
+            try? FileManager.default.removeItem(at: temporary)
+            throw error
+        }
+    }
+
     /// One file's work, worked out before any pixel is decoded.
     struct Job {
         var url: URL
+        var page: Int = 0
         var kind: ImageKind?
         var info: ImageInfo
         var operations: [EditOperation]
         /// Written with a gain map: an HDR original, a format that holds one,
         /// and the settings asking for it.
         var keepsHDR: Bool
+        /// The original's pages, when a page other than the first is wanted.
+        var sequence: PageSequence?
 
         func snapshot(settings: DisplaySettings) -> EditDocument.Snapshot {
-            EditDocument.Snapshot(url: url, page: 0, kind: kind, operations: operations, sourceSize: info.pixelSize,
+            EditDocument.Snapshot(url: url, page: page, kind: kind, operations: operations, sourceSize: info.pixelSize,
                                   source: nil, settings: settings, sourceSignature: nil)
         }
     }
 
     /// Reads the header, checks the memory budget and measures Auto Enhance
-    /// for this image. Blocking (a small decode for the measurement).
-    func prepare(_ url: URL, settings: BatchConvertSettings, keepingHDR: Bool) throws -> Job {
+    /// for this image (page `page` of it). Blocking (a small decode for the
+    /// measurement).
+    func prepare(_ url: URL, page: Int = 0, settings: BatchConvertSettings, keepingHDR: Bool,
+                 sequence: PageSequence? = nil) throws -> Job {
         let kind = ImageFormats.kind(of: url)
-        guard let info = loadInfo(url) else { throw DecodeError.unreadable(url) }
+        var sequence = sequence
+        let info: ImageInfo
+        if page == 0 {
+            guard let read = loadInfo(url) else { throw DecodeError.unreadable(url) }
+            info = read
+        } else {
+            if sequence == nil { sequence = PageSequence(url: url) }
+            guard let sequence, page < sequence.count else { throw DecodeError.noImage(url) }
+            info = sequence.info(ofPage: page)
+        }
         let operations = settings.operations(sourceSize: info.pixelSize)
         let hdr = keepingHDR && info.isHDR && kind == .raster && ImageEncoder.canWriteGainMap(settings.options.format)
         let bits = settings.options.format.supports16Bit && settings.options.sixteenBit ? 16 : 8
         try Self.checkBudget(url, info: info, operations: operations, bytesPerPixel: hdr || bits == 16 ? 8 : 4,
                              limit: renderer.exportDecodeLimit)
-        return Job(url: url, kind: kind, info: info,
-                   operations: try measuringAutoEnhance(operations, url: url, kind: kind, info: info), keepsHDR: hdr)
+        return Job(url: url, page: page, kind: kind, info: info,
+                   operations: try measuringAutoEnhance(operations, url: url, page: page, kind: kind, info: info),
+                   keepsHDR: hdr, sequence: sequence)
     }
 
     func sdrImage(_ job: Job, settings: BatchConvertSettings) async throws -> CGImage {
@@ -110,8 +199,12 @@ public struct BatchConverter: Sendable {
             // Every pixel, as an export keeps; a header claiming more than
             // the renderer's export limit is refused unread (`tooLarge`),
             // which the batch reports for this file and goes on. An HDR
-            // original comes out as ImageIO's SDR rendition.
-            return try ImageDecoder.decode(job.url, maxPixelSize: nil, page: 0, allowHDR: false,
+            // original comes out as ImageIO's SDR rendition. An animation's
+            // later frames come composited, as the viewer plays them.
+            if let sequence = job.sequence, sequence.kind == .animation {
+                return try sequence.page(job.page, byteLimit: renderer.exportDecodeLimit)
+            }
+            return try ImageDecoder.decode(job.url, maxPixelSize: nil, page: job.page, allowHDR: false,
                                            byteLimit: renderer.exportDecodeLimit).image
         }
         let options = settings.options
@@ -151,14 +244,14 @@ public struct BatchConverter: Sendable {
     /// RAW files (never a render of the sensor data, which would need a RAW
     /// slot of its own). A RAW file with no embedded preview leaves the step
     /// out, as does one whose analysis can't be rendered.
-    func measuringAutoEnhance(_ operations: [EditOperation], url: URL, kind: ImageKind?,
+    func measuringAutoEnhance(_ operations: [EditOperation], url: URL, page: Int = 0, kind: ImageKind?,
                               info: ImageInfo) throws -> [EditOperation] {
         guard operations.contains(where: BatchEdits.isAutoEnhance) else { return operations }
         let edge = EditRenderer.analysisPixelSize
         let small: CGImage? = if kind == .raw {
             try ImageDecoder.decodeRawPreview(url, maxPixelSize: edge)?.image
         } else {
-            try ImageDecoder.decode(url, maxPixelSize: edge, page: 0, allowHDR: false).image
+            try ImageDecoder.decode(url, maxPixelSize: edge, page: page, allowHDR: false).image
         }
         var result = operations
         for index in result.indices where BatchEdits.isAutoEnhance(result[index]) {
