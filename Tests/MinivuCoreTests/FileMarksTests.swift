@@ -226,7 +226,7 @@ import UniformTypeIdentifiers
             try db.setUserVersion(1)
         }
         let catalog = try Catalog(url: dbURL)
-        #expect(try catalog.db.userVersion() == 2)
+        #expect(try catalog.db.userVersion() == Catalog.schemaVersion)
         #expect(catalog.marks(for: a) == Marks(rating: 4))
         catalog.fileMarksReader = { _ in Marks(rating: 1) }
         catalog.setRating(0, for: [a])
