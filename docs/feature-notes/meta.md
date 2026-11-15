@@ -1,4 +1,4 @@
-# Feature notes: metadata editing (G1) and Remove location (S4)
+# Feature notes: metadata editing (G1), Remove location (S4), colour labels and keywords (G4), ratings in files (G2)
 
 Branch `feature/meta`. Notes for the documentation pass: what was built,
 why, the limits, and which DESIGN.md, wiki and help sections should change.
@@ -265,3 +265,261 @@ Nothing in DESIGN.md, docs/wiki or the help pages was edited.
   (the unsaved-edits question, restamping).
 - MinivuTests/MainMenuTests: the menu item and ⌘I (and the existing
   duplicate-shortcut check).
+
+## G4: Colour labels and keywords
+
+### What the user can do
+
+- **Image > Label**, a submenu after Tag: **None, Red, Orange, Yellow,
+  Green, Blue, Purple, Gray** on **⌥⌘0 to ⌥⌘7** (None first, then
+  Finder's own order of its colour tags). Each item has a dot in its
+  colour (a ring for None). It works on the browser's selection (images
+  only, as ratings do), the viewer's image and the compare window's
+  focused pane. The grid's right-click menu has the same submenu, after
+  Rating, without shortcuts.
+- The label is the file's **standard Finder colour tag**: choosing Green
+  replaces whichever standard colour tag the file had and keeps every
+  other tag ("Holiday", a blue "Project" tag of the user's own) in its
+  place; None removes the colour tag. The browser's dots and its Finder
+  tag filter follow at once. A checkmark shows the label every selected
+  image shares.
+- **Keywords in the info panel** (the preview pane's and the viewer's
+  right-hand panel): for a file whose metadata can be written, the
+  keywords are a section of their own at the end, each a token with an
+  x button ("Remove keyword Paris" to VoiceOver), then an "Add keywords"
+  field: comma separated, Return adds them. A keyword the file already has
+  in another letter case isn't added again. The Description section then
+  no longer lists them. PDF, SVG and folders show no editor.
+
+### Shortcuts: why ⌥⌘0 to ⌥⌘7
+
+Every key equivalent in MainMenu.swift and the windows' own key handling
+was listed first. ⌃0–⌃5 are the ratings, bare digits rate in the grid, viewer
+and compare window, ⌘0 is Actual Size and ⌘1–⌘4 pick a compare pane
+(only with Command alone, so ⌥⌘1 never reaches them). The ⌥⌘ letters are
+taken (Reveal, Resize, Compare, Lighting, Colors, Preview Pane, Batch
+Convert, Hide Others) but no ⌥⌘ digit is, and the system's own ⌥⌘8
+(Accessibility Zoom) is past the last one. Bridge labels with ⌘6–⌘9 and
+Lightroom with bare 6–9, both of which minivu can't use (⌘ digits pick
+compare panes; bare digits are FastStone's ratings).
+MainMenuTests.noShortcutIsUsedTwice covers it.
+
+### Design decisions
+
+- **Finder tags, not a catalog column.** A Finder tag is the Mac's colour
+  label: Finder, Spotlight, Smart Folders and every app that reads tags
+  see it, and minivu already read and filtered by them. A label is
+  written as Finder writes tags, straight into the
+  `com.apple.metadata:_kMDItemUserTags` attribute as "Name\nN" with the
+  colour number, so it shows in its colour whatever the system's
+  language. The name is Finder's own for that colour
+  (`NSWorkspace.fileLabels`, which follows the language and any renaming
+  in Finder's settings); a tag named as any standard colour (Finder's
+  name or the English one) counts as the colour tag, in any letter case.
+- Tag writes go through `FileWriteQueue` (`touching:`): an image write
+  copies the file's extended attributes to the new file, so a tag set
+  during one could otherwise be lost.
+- **Quick keyword edits reuse Edit Metadata's path** (`MetadataEditor.write`
+  for one file: no progress sheet, a summary alert only on failure, the
+  unsaved-edits question first, `MetadataRevisions` so the panel reads
+  again, sidecars for raws).
+
+### Limits
+
+- Labels apply to images only, not folders (as ratings).
+- Only one colour label per file: choosing one removes the other standard
+  colour tags Finder may have given the file.
+- The viewer and compare window don't draw the label; the browser does.
+  The browser's dots refresh when it becomes key again.
+- A file in a folder minivu may not write extended attributes to beeps
+  and is logged; nothing else is said.
+
+## G2: Ratings and the tag in files
+
+### What the user can do
+
+- **Settings > General > "Write ratings into files (XMP)"**, off by
+  default, with a footer explaining it. While on, every rating, tag and
+  label change made in minivu is also written into the file. While off,
+  nothing is written (tested).
+- **Reading is always on:** a file with no catalog row shows the rating
+  and tag it carries itself (embedded XMP, or for raws and formats minivu
+  writes sidecars for, the XMP sidecar first): marks made in Lightroom,
+  Bridge, digiKam, XnView MP or a camera appear in the grid, the
+  preview pane, the viewer's HUD and the compare window, and sort and
+  filter like minivu's own.
+
+### Why reading isn't a setting
+
+Reading never changes a file, and with the conflict policy below it never
+overrides anything the user did in minivu: it only fills in files minivu
+has no marks for. A setting whose "off" hides real data the user put in
+their photos elsewhere would be a trap, and the cost is a header read per
+file, made lazily. So it is always on.
+
+### Mapping (MinivuCore/FileMarks.swift, `MarksXMP`)
+
+| minivu | XMP | Notes |
+|---|---|---|
+| 0–5 stars | `xmp:Rating` | Read and written by Lightroom, Bridge, Capture One, digiKam, XnView MP and Windows. -1 is Bridge's and digiKam's "Rejected": shown as no stars, never written, and kept when minivu clears a rating. "3.0" is read as 3. |
+| Tagged | `digiKam:PickLabel` = 3 ("Accepted"), namespace `http://www.digikam.org/ns/1.0/` | Lightroom keeps Pick and Reject in its catalog only (never XMP); Bridge has no pick; XnView MP keeps its tag in its own database. digiKam is the only one of the four with an XMP pick, so its "Accepted" is used. Untagging removes a PickLabel of 3 only: digiKam's Rejected (1) and Pending (2) stay. |
+| Colour label | `xmp:Label` = "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Gray" | Lightroom's default label set's names (Red, Yellow, Green, Blue, Purple), which XnView MP also writes. Bridge's defaults are other words ("Select", "Second", "Approved", "Review", "To Do"), so a Bridge user sees a "custom" label. Chosen colour replaces any label; None removes only a label that names a colour (reading "Grey" too), keeping Bridge's text. |
+
+Why the tag isn't `xmp:Label`: that is where all three label-writing
+applications keep the colour label, so a "tagged" label would collide
+with G4's colours. Why colour labels don't fight G4: the **Finder tag is
+the label**; `xmp:Label` is a one-way copy written when the user labels
+in minivu with the setting on. minivu never turns an `xmp:Label` into a
+Finder tag (that would change files just by browsing them) and doesn't
+show it.
+
+### How it is written
+
+- `MarksFileWriter` (Sources/Minivu/Save/MarksFileWriter.swift) is the
+  `CatalogMirror` the catalog was designed with (`CatalogFileMirror`,
+  installed with `Catalog.shared.fileMarksReader` in `AppServices.start`).
+  Each committed change reaches it on the main queue in order; it keeps,
+  per file, the catalog's latest marks and the last label chosen.
+- **Coalesced:** written once changes to the file have been quiet for
+  0.8 s. 1-2-3-4-5 quickly is one write with five stars; T T writes
+  nothing new. Quitting hands pending changes to the queue first
+  (`applicationShouldTerminate`), and quitting waits for the queue.
+- **Through FileWriteQueue** (`enqueue(touching:)`, metadata only, naming
+  the image and its sidecar), off the main thread (`BlockingWork`), one
+  file at a time, by the stage-1 `MetadataWriter`: embedded in JPEG, HEIC,
+  PNG and TIFF (lossless, pixels and gain maps untouched, read back), XMP
+  sidecar for camera raws and every other format. A file that already says
+  what would be written is skipped (no rewrite, no new date); a file gone
+  before its turn is skipped.
+- Afterwards: `ExternalEditWatcher.noteOwnWrite`, `MetadataRevisions`, the
+  viewer restamps its entry, and the file's cache entry is forgotten.
+- **Failures** (read-only folder, sandbox refusing a sidecar) are logged;
+  the first of a session is told as a sheet on the main window ("The
+  rating couldn't be written into …"), later ones only logged, so rating
+  a read-only folder doesn't raise an alert per key press. The marks stay
+  in the catalog.
+
+### How it is read (never slowing browsing)
+
+- `FileMarksCache` (MinivuCore) remembers each file's marks with its size,
+  date and sidecar date; a lookup is one or two `lstat`s, a read is
+  `CGImageSourceCopyMetadataAtIndex` (a header read, no pixels) plus the
+  sidecar for files that use one. 50,000 entries, then it starts again.
+- The browser's listing reads **no file**: it takes what the cache already
+  knows (a stat each, on the listing's background thread).
+- The grid asks for the marks of cells as they are displayed or
+  prefetched (`wantFileMarks`, beside the thumbnail requests): gathered per
+  layout pass, read at utility priority in chunks of 200, one read after
+  another, each chunk applied as it arrives. Files with a catalog row are
+  never read.
+- Sorting by rating, or a rating or Tagged Only filter, needs every image's
+  marks: then the whole folder is read the same way in the background,
+  and the order and filter follow chunk by chunk. Never on the main thread.
+- The viewer and compare window read the shown file's marks in the
+  background when not known, and show the row's or the remembered marks
+  meanwhile.
+
+### Conflict policy: the catalog wins
+
+When the catalog has a row and the file has marks, the **row's marks
+show**, and minivu never rewrites a file just because they differ. Why:
+a mark made in minivu is the user's explicit choice there; file
+timestamps can't say who changed what last (any edit, copy, sync or
+backup restore touches them, and a sidecar has its own date); and with
+writing on, minivu's choices go into the file, so the two agree. A file
+without a row shows its own marks.
+
+Two details make that hold up (Catalog.swift, schema version 2):
+
+- **Adoption:** the first change to a file without a row first copies the
+  file's marks into a new row (`fileMarksReader`, reading the file on the
+  catalog's write queue), so pressing 3 on a file digiKam tagged keeps it
+  tagged instead of the new row silently untagging it (and, with writing
+  on, untagging the file).
+- **Kept empty rows:** a row is normally deleted when it has no marks. A
+  row standing over a file's own marks (`overrides_file`) is kept empty
+  instead, so clearing a Lightroom rating in minivu, with writing off,
+  doesn't bring the file's rating back. Copies carry the flag. A
+  version-1 catalog gains the column on first open and keeps every rating.
+
+Tests: `FileMarksTests.aFilesMarksBecomeTheRowsBeforeAChange`,
+`MarksFileTests.clearingAFilesRatingInMinivuKeepsItCleared` and
+`filesWithoutARowShowTheirOwnMarksOnceShown` (the catalog wins, a file
+with a row isn't even read).
+
+### Limits
+
+- Only changes made while the setting is on are written; turning it on
+  doesn't write the marks already in the catalog.
+- After a rating is written into a JPEG, HEIC, PNG or TIFF, its date
+  changes and its thumbnail is made again, as with any metadata write.
+- To take a file's newer rating over a catalog row, rate it again in
+  minivu: there is no "prefer the file" command.
+- Unsaved viewer edits of a file whose rating is written meanwhile: a
+  later Save writes the pixels with the metadata the edit session loaded,
+  so the rating written into the file is lost from it (the catalog keeps
+  it). Edit Metadata asks about unsaved edits first; a rating key press
+  doesn't.
+- A pending change for a file moved or renamed within the 0.8 s quiet
+  period is skipped (the catalog moves the marks; the file just isn't
+  written).
+- `xmp:Label` is not read or shown; Finder tags are the labels.
+- Windows' EXIF rating tags (0x4746/0x4749) and IPTC StarRating aren't
+  read; `xmp:Rating`, which Windows also writes, is.
+- The mapping above comes from the applications' documented behaviour; it
+  was not checked against the applications themselves on this Mac.
+
+### Documentation to change
+
+- DESIGN.md 4.6 "Catalog": marks can be mirrored into files
+  (`CatalogMirror` now implemented), the conflict policy, adoption and
+  kept empty rows, schema version 2 (`overrides_file`), and reading of
+  file marks (`FileMarksCache`), lazy. Replace "nothing writes them into
+  files".
+- DESIGN.md 4.7 (metadata writing): `MetadataEdit` also carries rating,
+  tag and colour label; the `MarksXMP` mapping table above.
+- DESIGN.md 4.x on the browser model: `wantFileMarks`, the chunked
+  background reads, whole-folder reads for rating sort and filters.
+- DESIGN.md 5, shortcut table (Image section): Label None…Gray, ⌥⌘0–⌥⌘7.
+  DESIGN.md 5 Browser/Viewer/Compare: the Label submenu; the info panel's
+  keyword editor. Settings: the new General toggle.
+- DESIGN.md 8 "Known limits": the G2 and G4 limits above.
+- Wiki Browser.md: Label in the Image menu and context menu lists, the
+  info panel's keywords, ratings from other apps. Wiki Viewer.md: Label,
+  the info panel's keywords. Wiki Compare (or wherever compare is
+  documented): Label. Wiki Settings page: the toggle and its footer. Wiki
+  Keyboard-Shortcuts.md: ⌥⌘0–⌥⌘7. Wiki Limitations.md: the limits. Wiki
+  Security-and-Privacy.md: the setting modifies files only when on; tags
+  are written as extended attributes.
+- Help pages: Browser.md (Label, keywords in the preview pane, ratings
+  from other apps), Viewer.md (Label, keywords in the info panel),
+  Settings (the toggle). The keyboard-shortcuts page is generated from the
+  menu bar, so ⌥⌘0–⌥⌘7 appear without an edit.
+
+## Tests (G4 and G2)
+
+- MinivuCoreTests/FileMarksTests: marks written into JPEG, HEIC, PNG and
+  TIFF with identical pixels and cleared again; a reject, digiKam's other
+  picks and Bridge's label text kept; raws' marks in the sidecar (a
+  Lightroom sidecar with attribute-form values read and merged); a JPEG
+  never reads its raw twin's sidecar; colour label names; the cache reads
+  once until the file or sidecar changes; adoption and kept empty rows,
+  copies included; a version-1 catalog migrated; Finder colour tags set,
+  replaced and removed keeping other tags, localised names, no empty
+  attribute left.
+- MinivuTests/MarksFileTests: nothing written with the setting off (and
+  it defaults off); 1-2-3-4-5 and T T written once with the last value;
+  writes wait behind earlier writes in FileWriteQueue; raws get a sidecar
+  and are never modified; a file that already says it is left alone, a
+  missing file skipped, a failure reported once; labels reach
+  `xmp:Label`; the browser shows files' own ratings only once shown,
+  reads no file while listing, never reads a file with a row (the catalog
+  wins), and reads the whole folder for rating sort and filters; clearing
+  a file's rating in minivu sticks; label logic, the menu's titles,
+  shortcuts and VoiceOver descriptions; the browser and viewer Label
+  commands with checkmarks.
+- MinivuTests/KeywordEditingTests: comma splitting; the viewer's and the
+  browser's quick keyword edits written without a sheet; no editor for a
+  PDF or folder; sections and fields from one read.
+- MinivuTests/MainMenuTests: the Image menu's order with Label (and the
+  existing duplicate-shortcut check).
