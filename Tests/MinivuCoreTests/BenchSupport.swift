@@ -1,5 +1,7 @@
 import Foundation
 import Darwin
+@testable import MinivuCore
+import Testing
 
 /// What the benchmark suites share (docs/feature-notes/perf.md). The same
 /// helper is in MinivuRenderTests and MinivuTests (a test target can't share
@@ -68,13 +70,28 @@ enum Bench {
         Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15
     }
 
+    /// The median of `samples`: the middle one, or the mean of the two
+    /// middle ones; 0 when there are none (a recording another suite
+    /// emptied, a phase that never ran), rather than a crash.
+    static func median(_ samples: [Double]) -> Double {
+        let sorted = samples.sorted()
+        guard !sorted.isEmpty else { return 0 }
+        let middle = sorted.count / 2
+        return sorted.count % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+    }
+
     /// Prints the metric's line: the median and 90th percentile of `samples`.
+    /// No samples is a line of its own saying so, so a metric never goes
+    /// missing without a trace.
     static func report(_ suite: String, _ metric: String, _ samples: [Double], _ extra: String = "") {
         let sorted = samples.sorted()
-        guard !sorted.isEmpty else { return }
-        let median = sorted[sorted.count / 2]
+        guard !sorted.isEmpty else {
+            print("BENCH-EMPTY \(suite).\(metric) no samples")
+            return
+        }
         let p90 = sorted[min(sorted.count - 1, Int((Double(sorted.count) * 0.9).rounded(.up)) - 1)]
-        var line = String(format: "BENCH %@.%@ median_ms=%.2f p90_ms=%.2f runs=%d", suite, metric, median, p90, sorted.count)
+        var line = String(format: "BENCH %@.%@ median_ms=%.2f p90_ms=%.2f runs=%d", suite, metric, median(sorted), p90,
+                          sorted.count)
         if !extra.isEmpty { line += " " + extra }
         print(line)
     }
@@ -120,13 +137,50 @@ enum Bench {
         return samples
     }
 
-    /// Polls `condition` every millisecond until it holds or `seconds` pass.
+    /// Polls `condition` every millisecond until it holds or `seconds` pass,
+    /// and says whether it held. Callers `#expect` it: a condition that
+    /// never comes true is a failure, not a slow sample.
     static func waitUntil(seconds: Double = 60, isolation: isolated (any Actor)? = #isolation,
-                          _ condition: () -> Bool) async {
+                          _ condition: () -> Bool) async -> Bool {
         let end = ContinuousClock.now + .seconds(seconds)
-        while !condition(), ContinuousClock.now < end {
+        while !condition() {
+            guard ContinuousClock.now < end else { return false }
             try? await Task.sleep(for: .milliseconds(1))
         }
+        return true
+    }
+
+    // MARK: - Phases
+
+    /// The signposts' recording (`Perf`) over the timed runs only, not the
+    /// warm-ups or the setup between them: pass `timing` as a
+    /// measurement's `timing` (with a `MainThreadMonitor`'s, if any) and
+    /// read `recording` in its `extra`; totals are then over exactly the
+    /// timed runs. An interval still running when a run ends is lost, and
+    /// one begun in the setup counts if it ends inside a run.
+    final class Phases: @unchecked Sendable {
+        private(set) var recording = Perf.Recording()
+
+        func timing(_ on: Bool) {
+            if on {
+                Perf.startRecording()
+            } else {
+                let run = Perf.stopRecording()
+                for (name, durations) in run.durations { recording.durations[name, default: []] += durations }
+                for (name, count) in run.counts { recording.counts[name, default: 0] += count }
+            }
+        }
+
+        /// Milliseconds in intervals named `name`, per run of `runs`.
+        func perRun(_ name: String, _ runs: Int) -> Double { recording.total(name) / Double(max(runs, 1)) }
+
+        /// How many intervals named `name` (or events, for a count) per run.
+        func countPerRun(_ name: String, _ runs: Int) -> Double {
+            Double(recording.durations[name]?.count ?? recording.counts[name] ?? 0) / Double(max(runs, 1))
+        }
+
+        /// The median interval named `name`.
+        func median(_ name: String) -> Double { Bench.median(recording.durations[name] ?? []) }
     }
 
     // MARK: - Memory
@@ -174,3 +228,11 @@ enum Bench {
         }
     }
 }
+
+/// Every benchmark of this target, and the tests of the signposts'
+/// recording, one at a time even when one `swift test` runs several: a
+/// `Perf` recording is process-wide, so a suite beside another would read
+/// (or empty) the other's, and a benchmark beside another times both.
+/// Swift Testing runs top-level suites side by side; `.serialized` on a
+/// parent holds for everything nested in it.
+@Suite(.serialized) enum Benchmarks {}
