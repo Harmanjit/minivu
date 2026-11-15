@@ -25,7 +25,9 @@ movie.
   filters. "Photos" means everything that isn't a video (RAW, PDF and SVG
   included). Folders always show, as with the other filters, and the
   filter stays as the user moves between folders. The status bar says
-  "3 of 5 shown" as for any filter.
+  "3 of 5 shown" as for any filter. With nothing selected, the status bar
+  and the window's subtitle name videos apart from images ("4 images,
+  2 videos, 1 folder"; a folder of clips reads "10 videos").
 - **Open a video in the viewer** (double-click, Return, ⌘↓) like a photo.
   Its first frame appears on the canvas at once (cached and prefetched
   like a photo, HDR when the video is), with a large play button in the
@@ -71,7 +73,14 @@ Curves, ⌘M Minimize); the shortcut-uniqueness test covers it.
 
 The player view never takes the keyboard (`VideoPlayerView` refuses first
 responder and hands any key it is given to the viewer's table), so
-AVPlayerView's own keys (the arrows stepping frames) never apply.
+AVPlayerView's own keys (the arrows stepping frames) never apply. AVKit's
+scrubber, volume slider and buttons are its own subviews, and with
+System Settings > Keyboard > Keyboard navigation on, a click on one would
+make it first responder. `ViewerWindow.makeFirstResponder` therefore asks
+the controller (`firstResponderRedirect` → `keyboardRedirect(for:)`), and
+anything inside the player that would take the keyboard hands it to the
+canvas instead. The controls still work with the mouse, and VoiceOver
+drives them through accessibility, which needs no first responder.
 
 ### What is turned off for a video, and why
 
@@ -214,6 +223,11 @@ the control bar's edit button follow `canEditCurrent`):
 - Slideshow, Batch Convert, Print, Contact Sheet and Montage skip videos;
   Compare shows only a video's first frame, never plays it.
 - Only internal volumes, as for photos.
+- Follow-ups outside the brief: the app's `CFBundleDocumentTypes`
+  (scripts/make_app.sh) still lists images only, so Finder's Open With and
+  a .mov dropped on the Dock icon don't offer minivu (adding movie types
+  is an Info.plist change, left to Harman's decision); the viewer's
+  filmstrip shows a video's thumbnail without the grid's play mark.
 
 ### Tests
 
@@ -223,11 +237,21 @@ the control bar's edit button follow `canEditCurrent`):
   the thumbnail is from a little in (not the black first frame) and the
   still is the first frame, screen-sized when asked; thumbnails cached in
   memory and in `ThumbnailStore`; the info panel's Video section; Edit
-  Metadata refuses videos and writes no sidecar.
+  Metadata refuses videos and writes no sidecar; `anHDRMovieDecodesAsHDR`
+  (a generated HEVC Main 10 PQ movie: its still decodes as HDR with
+  headroom above 1.5 and deep storage, and as SDR with HDR off).
+- MinivuTests/BrowserModelTests.countTexts: videos named apart from images.
 - MinivuRenderTests/BatchConvertEngineTests.refusesAVideo.
 - MinivuTests/VideoTests: the file type filter (model, menus, checkmarks,
   toggling off); slideshow start mapping; the cell's VoiceOver text and
-  badge frame; the viewer's key table on a video; the Mute item's
+  badge frame; `badgeWidensWhenTheLengthArrivesLate` (a real cell given
+  its thumbnail first and its length later, as after a relaunch, lays the
+  badge out again wide enough for the length); `quickToolValidationAgreesWithTheLists`
+  (the picture tools validate from counts and the selection, never a walk
+  of the folder, and agree with `toolStills` and `slideshowImages` in
+  every selection, a folder of only videos included);
+  `playerControlsNeverKeepTheKeyboard` (a responder inside the player
+  hands the keyboard to the canvas, one outside keeps it); the viewer's key table on a video; the Mute item's
   display-only M; the browser's tools with videos selected (picture tools
   off, file commands on); in a real viewer, the first frame on the canvas,
   the play button, every command that must be off for a video and the
@@ -235,7 +259,9 @@ the control bar's edit button follow `canEditCurrent`):
   on navigation and on close, and mute carrying across videos.
 - Every movie is made in the test with AVAssetWriter (`TestVideos`, in
   both test targets): H.264, silent (no audio track), first frame black,
-  then a flat colour. The player in tests is muted besides.
+  then a flat colour. The player in tests is muted besides. MinivuCoreTests'
+  copy can also write an HDR movie (`hdr: true`: HEVC Main 10, BT.2020,
+  PQ, a flat grey at luma 800 written as 10-bit YCbCr).
 
 ## G18, part 2: describe, copy and save frames, Compare, resources
 
@@ -428,9 +454,11 @@ grayscale, sepia and negative, beside drop shadow ("effect"). Preview
 - **DESIGN.md 4.5 (Memory):** the frame slots and that no player exists
   until asked.
 - **DESIGN.md 5, Browser window / Filter and sort:** the badge and length;
-  Photos Only / Videos Only.
+  Photos Only / Videos Only; the status bar and subtitle count videos
+  apart ("4 images, 2 videos").
 - **DESIGN.md 5, Viewer, Keyboard (viewer):** Space and P play/pause a
-  video, M mutes; the arrows still move.
+  video, M mutes; the arrows still move; the keyboard never stays in
+  AVKit's controls (the window hands it back to the canvas).
 - **DESIGN.md 5, Menu shortcuts table:** Image > Play Video / Pause Video
   shares P with Play Animation; Image > Mute Video, M (display);
   View > Filter > Photos Only, Videos Only (none).
