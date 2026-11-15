@@ -222,8 +222,9 @@ import Foundation
         #expect(catalog.collections().first?.count == 0)
     }
 
-    /// The browser's Move to Trash reports a move into the Trash, so the
-    /// member leaves the list but stays a member until it is put back.
+    /// A move into the Trash that minivu records (every Move to Trash does,
+    /// through `FileWriteQueue.trash`): the member leaves the list and the
+    /// count at once, but stays a member until it is put back.
     @Test func aMemberMinivuMovesToTheTrashIsLeftOutUntilPutBack() throws {
         let t = try TemporaryFolder()
         let a = try t.file("a.jpg")
@@ -234,10 +235,59 @@ import Foundation
         let trashed = trash.appendingPathComponent("a.jpg")
         try FileManager.default.moveItem(at: a, to: trashed)
         catalog.fileMoved(from: a, to: trashed)
-        #expect(catalog.collectionMembers(id).isEmpty && catalog.collections().first?.count == 0)
+        #expect(catalog.collections().first?.count == 0)
+        #expect(catalog.collectionMembers(id).isEmpty)
         try FileManager.default.moveItem(at: trashed, to: a)
         catalog.fileMoved(from: trashed, to: a)
         #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["a.jpg"])
+    }
+
+    /// Trashed where the catalog wasn't told (in Finder, or a Move to Trash
+    /// that failed part way): its identity is found in the Trash, which
+    /// counts as not found. The row keeps its path, so Put Back brings the
+    /// member back, counted again.
+    @Test func aMemberFoundInTheTrashByIdentityIsLeftOut() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let trash = try t.folder(".Trash")
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let trashed = trash.appendingPathComponent("a.jpg")
+        try FileManager.default.moveItem(at: a, to: trashed)
+
+        #expect(catalog.collectionMembers(id).isEmpty)
+        #expect(catalog.collections().first?.count == 0)
+        let stored = try catalog.db.query("SELECT path FROM collection_items").first?.string("path")
+        #expect(stored == Catalog.key(a))
+
+        try FileManager.default.moveItem(at: trashed, to: a)
+        #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["a.jpg"])
+        #expect(catalog.collections().first?.count == 1)
+    }
+
+    /// An identity found where minivu can't read (outside the folders the
+    /// sandbox lets it see; here a file it may not open) counts as not
+    /// found, and the row stays where it was until the file can be read.
+    @Test func aMemberFoundWhereItCantBeReadIsLeftOut() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let elsewhere = try t.folder("Elsewhere")
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let moved = elsewhere.appendingPathComponent("a.jpg")
+        try FileManager.default.moveItem(at: a, to: moved)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: moved.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: moved.path) }
+
+        #expect(catalog.collectionMembers(id).isEmpty)
+        let stored = try catalog.db.query("SELECT path FROM collection_items").first?.string("path")
+        #expect(stored == Catalog.key(a))
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: moved.path)
+        #expect(catalog.collectionMembers(id).map { $0.resolvingSymlinksInPath().path }
+                == [moved.resolvingSymlinksInPath().path])
     }
 
     /// Moved in Finder, not by minivu: found by its identity when the

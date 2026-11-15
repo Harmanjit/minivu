@@ -1,4 +1,5 @@
 import AppKit
+import MinivuCore
 
 /// Every write minivu makes to an image file (Save, Save As, a JPEG
 /// comment, a lossless rotate) runs through here, one at a time, in the
@@ -83,14 +84,23 @@ import AppKit
     }
 
     /// Puts items in the Trash once the writes queued for them are done,
-    /// returning where each went.
+    /// returning where each went. The catalog is told of each move, as for
+    /// any other move minivu makes: marks go with the files (Finder's Put
+    /// Back finds them again by identity), and a collection member in the
+    /// Trash is left out of its collection, and of its count, at once.
     func trash(_ urls: [URL]) async throws -> [URL: URL] {
         await waitForWrites(to: urls)
-        return try await putInTrash(urls)
+        let moved = try await putInTrash(urls)
+        let catalog = self.catalog, moves = moved.map { (from: $0.key, to: $0.value) }
+        await Task.detached(priority: .userInitiated) { catalog.filesMoved(moves) }.value
+        return moved
     }
 
     /// How `trash` puts items away; tests use a folder of their own.
     var putInTrash: @MainActor ([URL]) async throws -> [URL: URL] = { try await NSWorkspace.shared.recycle($0) }
+
+    /// The catalog `trash` records moves in; tests use one of their own.
+    var catalog: Catalog = .shared
 
     /// For tests: waits until everything queued so far has finished.
     func waitUntilIdle() async {

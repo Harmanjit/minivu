@@ -22,8 +22,10 @@ extension AppWindowTests {
             private(set) var names: [String] = []
             private let saved = FileWriteQueue.shared.putInTrash
 
-            init(in scratch: ScratchFolder) throws {
-                folder = try scratch.folder("Trash")
+            /// `name` ".Trash" makes the folder look like the user's Trash
+            /// to the catalog, which leaves collection members there out.
+            init(in scratch: ScratchFolder, name: String = "Trash") throws {
+                folder = try scratch.folder(name)
                 FileWriteQueue.shared.putInTrash = { [unowned self] urls in
                     var moved: [URL: URL] = [:]
                     for url in urls {

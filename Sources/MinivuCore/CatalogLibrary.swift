@@ -139,7 +139,8 @@ extension Catalog {
         let rows = (try? db.query("""
             SELECT c.id AS id, c.name AS name,
                 (SELECT COUNT(*) FROM collection_items AS i
-                 WHERE i.collection = c.id AND i.missing_since IS NULL AND instr(i.path, '/.Trash/') = 0) AS n
+                 WHERE i.collection = c.id AND i.missing_since IS NULL
+                     AND instr(i.path, '/.Trash/') = 0 AND instr(i.path, '/.Trashes/') = 0) AS n
             FROM collections AS c
             """)) ?? []
         return rows.compactMap { row in
@@ -238,10 +239,13 @@ extension Catalog {
     /// that can't be found (deleted, moved to another volume, or somewhere
     /// the sandbox can't see) is stamped missing and left out, and comes
     /// back if healing finds it later; after a year missing it is dropped,
-    /// as marks are. A member minivu moved to the Trash is left out but
-    /// stays a member, as its marks stay with it: minivu's moves out of the
-    /// Trash (undoing a Replace) bring it back. Stats every member: call off
-    /// the main thread.
+    /// as marks are. An identity found in a Trash folder, or at a path minivu
+    /// can't open (outside every folder the user granted), counts as not
+    /// found: the row keeps its path, so Put Back in Finder or a new grant
+    /// brings the member back. A member minivu moved to the Trash (every
+    /// Move to Trash records the move) is left out but stays a member, as
+    /// its marks stay with it: minivu's moves out of the Trash (undoing a
+    /// Replace) bring it back. Stats every member: call off the main thread.
     public func collectionMembers(_ id: Int64) -> [URL] {
         guard let rows = try? db.query("""
             SELECT rowid AS id, path, volume, file_id, missing_since FROM collection_items
@@ -253,7 +257,7 @@ extension Catalog {
         var volumes: [dev_t: String] = [:]
         for row in rows {
             guard let rowID = row.int("id"), let path = row.string("path") else { continue }
-            if path.contains("/.Trash/") { continue }
+            if Self.isInTrash(path) { continue }
             let fileID = row.int("file_id"), volume = row.string("volume")
             let here = Self.identity(ofPath: path, volumes: &volumes)
             // The recorded path still holds a file: the same one, or one saved
@@ -261,9 +265,12 @@ extension Catalog {
             // is the member as far as the user can tell.
             if here.fileID != nil {
                 members.append(URL(fileURLWithPath: path))
+                // Back where it was (put back from the Trash): counted again.
+                if row["missing_since"] != .null { found.append((rowID, path)) }
                 continue
             }
-            if let fileID, let volume, let moved = Self.path(ofFile: fileID, onVolume: volume, near: path) {
+            if let fileID, let volume, let moved = Self.path(ofFile: fileID, onVolume: volume, near: path),
+               !Self.isInTrash(moved), Self.canOpen(moved) {
                 members.append(URL(fileURLWithPath: moved))
                 found.append((rowID, moved))
             } else if row["missing_since"] == .null {
@@ -291,6 +298,23 @@ extension Catalog {
             }
         }
         return members
+    }
+
+    /// A path inside a Trash folder: the user's (~/.Trash) or a volume's
+    /// (/.Trashes/501). Members there are left out of their collections.
+    static func isInTrash(_ path: String) -> Bool {
+        path.contains("/.Trash/") || path.contains("/.Trashes/")
+    }
+
+    /// Whether minivu may read the file at `path`. `fsgetpath` names a file
+    /// anywhere on its volume, but under the App Sandbox only granted
+    /// folders can be read, and a member listed where it can't be opened
+    /// would vanish from the list anyway, its row moved out of reach.
+    /// `access` is asked rather than opening the file, which could make a
+    /// cloud placeholder download; the sandbox answers it as it would an
+    /// open.
+    static func canOpen(_ path: String) -> Bool {
+        access(path, R_OK) == 0
     }
 
     /// Where a file now is, from its identifier and its volume's UUID, or
