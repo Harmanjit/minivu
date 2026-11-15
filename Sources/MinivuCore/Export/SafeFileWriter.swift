@@ -49,15 +49,36 @@ public enum SafeFileWriter {
         defer { if let scratchFolder { try? FileManager.default.removeItem(at: scratchFolder) } }
         do {
             try fill(temp)
-            try synchronize(temp)
-            if FileManager.default.fileExists(atPath: url.path) {
-                _ = try FileManager.default.replaceItemAt(url, withItemAt: temp, backupItemName: nil, options: [])
-            } else {
-                try FileManager.default.moveItem(at: temp, to: url)
-            }
+            try place(temp, at: url)
         } catch {
             try? FileManager.default.removeItem(at: temp)
             throw error
+        }
+    }
+
+    /// Where to make a file that will later replace or become `url`, for
+    /// work too long to hold the app's write queue (a multi-page file made
+    /// page by page): made there first, then put in place with `place`
+    /// inside the queue. Remove `scratchFolder`, when there is one, once the
+    /// file has been placed or abandoned.
+    public static func temporaryFile(for url: URL) -> (url: URL, scratchFolder: URL?) {
+        temporaryLocation(for: url.resolvingSymlinksInPath())
+    }
+
+    /// Flushes a finished temporary file (from `temporaryFile`) to disk and
+    /// puts it in place of `url`, or at `url` when nothing is there, as
+    /// `replace` does. A folder at `url` is refused.
+    public static func place(_ temporary: URL, at url: URL) throws {
+        let url = url.resolvingSymlinksInPath()
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            throw CocoaError(.fileWriteFileExists, userInfo: [NSFilePathErrorKey: url.path])
+        }
+        try synchronize(temporary)
+        if FileManager.default.fileExists(atPath: url.path) {
+            _ = try FileManager.default.replaceItemAt(url, withItemAt: temporary, backupItemName: nil, options: [])
+        } else {
+            try FileManager.default.moveItem(at: temporary, to: url)
         }
     }
 

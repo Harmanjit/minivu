@@ -154,7 +154,7 @@ public enum RenamePlanner {
     /// temporary name.
     public static func plan(_ sources: [RenameSource], pattern: RenamePattern, newExtension: String? = nil,
                             probe: BatchFileProbe = .system) -> RenamePlan {
-        let namer = RenameNamer(pattern: pattern)
+        let namer = RenameNamer(pattern: pattern, allowsPageNumber: false)
         var items = sources.enumerated().map { index, source in
             RenamePlan.Item(source: source.url, newName: namer.name(for: source, index: index, newExtension: newExtension))
         }
