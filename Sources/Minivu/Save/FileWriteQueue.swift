@@ -92,7 +92,8 @@ import MinivuCore
         await waitForWrites(to: urls)
         let moved = try await putInTrash(urls)
         let catalog = self.catalog, moves = moved.map { (from: $0.key, to: $0.value) }
-        await Task.detached(priority: .userInitiated) { catalog.filesMoved(moves) }.value
+        // A database write: on GCD (BlockingWork), not a cooperative thread.
+        await BlockingWork.run { catalog.filesMoved(moves) }
         return moved
     }
 
