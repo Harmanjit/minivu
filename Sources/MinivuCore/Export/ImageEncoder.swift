@@ -43,6 +43,21 @@ public enum ImageEncoder {
                    comments: carriedComments(options: options, metadataSource: metadataSource))
     }
 
+    /// Encodes to memory as `typeIdentifier`, an ImageIO destination type
+    /// that isn't one of the Save As formats (AVIF, for a web gallery),
+    /// following `options.format`'s rules for colour, alpha, quality and
+    /// metadata. The format named should be the nearest one: HEIC for AVIF,
+    /// both being HEIF files that ImageIO fills the same way.
+    public static func encode(_ image: CGImage, typeIdentifier: String, options: ExportOptions,
+                              metadataSource: URL?) throws -> Data {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, typeIdentifier as CFString, 1, nil) else {
+            throw ExportError.cannotCreateDestination(options.format)
+        }
+        try encode(image, into: destination, options: options, metadataSource: metadataSource)
+        return data as Data
+    }
+
     /// Encodes and writes atomically (temp file in the same folder, then
     /// replace), preserving the destination's creation date when overwriting.
     ///
