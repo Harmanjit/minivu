@@ -17,14 +17,23 @@ enum TestVideos {
 
     /// Writes the movie at `url` (its extension picks the container) and
     /// returns `url`. `portrait` stores the frames landscape with a quarter
-    /// turn in the track, as a phone held upright does.
+    /// turn in the track, as a phone held upright does. `metadata` is
+    /// written into the container as text (QuickTime's creation date,
+    /// location, make and model, as an iPhone writes them).
     @discardableResult
     static func make(at url: URL, width: Int = 160, height: Int = 96, seconds: Double = 3,
                      color: (red: UInt8, green: UInt8, blue: UInt8) = (230, 20, 20),
-                     portrait: Bool = false) async throws -> URL {
+                     portrait: Bool = false, metadata: [AVMetadataIdentifier: String] = [:]) async throws -> URL {
         try? FileManager.default.removeItem(at: url)
         let type: AVFileType = url.pathExtension.lowercased() == "mov" ? .mov : .mp4
         let writer = try AVAssetWriter(outputURL: url, fileType: type)
+        writer.metadata = metadata.map { identifier, value in
+            let item = AVMutableMetadataItem()
+            item.identifier = identifier
+            item.value = value as NSString
+            item.dataType = kCMMetadataBaseDataType_UTF8 as String
+            return item
+        }
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: width,

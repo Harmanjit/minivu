@@ -32,6 +32,44 @@ public struct VideoInfo: Sendable, Equatable {
     }
 }
 
+/// What a video says about where and when it was made, and its data rate:
+/// the info panel's extra lines for a video (G18). Read only when the panel
+/// asks, never for the grid.
+public struct VideoMetadata: Sendable, Equatable {
+    /// Bits a second over the whole file: its size over its length, as
+    /// QuickTime Player's inspector gives it.
+    public var dataRate: Double?
+    /// When recording began: the camera's own wall clock and zone where the
+    /// file has them (QuickTime's creation date, as an iPhone writes it),
+    /// else the container's creation time.
+    public var created: Created?
+    public var location: Location?
+    public var make: String?
+    public var model: String?
+
+    public struct Created: Sendable, Equatable {
+        public var date: Date
+        /// The zone the camera's clock was in; nil when the file doesn't say.
+        public var timeZone: TimeZone?
+    }
+
+    /// Degrees, north and east positive; metres above sea level.
+    public struct Location: Sendable, Equatable {
+        public var latitude: Double
+        public var longitude: Double
+        public var altitude: Double?
+    }
+
+    public init(dataRate: Double? = nil, created: Created? = nil, location: Location? = nil, make: String? = nil,
+                model: String? = nil) {
+        self.dataRate = dataRate
+        self.created = created
+        self.location = location
+        self.make = make
+        self.model = model
+    }
+}
+
 /// Reads videos for the browser and the viewer (G18): their size and
 /// length, a thumbnail and the viewer's first frame. Playback itself is
 /// AVKit's, in the app.
@@ -83,6 +121,110 @@ public enum VideoFrames {
                              isPlayable: playable,
                              codec: formats.first.map { fourCharacterCode(CMFormatDescriptionGetMediaSubType($0)) })
         } ?? nil
+    }
+
+    // MARK: - Metadata
+
+    /// The data rate, creation date, location and camera of a video; nil
+    /// for a file AVFoundation can't open. A few reads of the container's
+    /// header, no frame.
+    public static func metadata(for url: URL) -> VideoMetadata? {
+        let asset = asset(url)
+        let bytes = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Double.init)
+        return wait {
+            let (duration, items, creation) = try await asset.load(.duration, .metadata, .creationDate)
+            var metadata = VideoMetadata()
+            let seconds = duration.seconds
+            if let bytes, seconds.isFinite, seconds > 0 { metadata.dataRate = bytes * 8 / seconds }
+            func string(_ identifiers: [AVMetadataIdentifier]) async -> String? {
+                for identifier in identifiers {
+                    for item in AVMetadataItem.metadataItems(from: items, filteredByIdentifier: identifier) {
+                        if let value = try? await item.load(.stringValue), !value.isEmpty { return value }
+                    }
+                }
+                return nil
+            }
+            // An iPhone's creation date keeps the zone it was recorded in;
+            // the container's own is an instant in UTC.
+            if let text = await string([.quickTimeMetadataCreationDate]), let created = parseCreationDate(text) {
+                metadata.created = created
+            } else if let creation, let date = try? await creation.load(.dateValue) {
+                metadata.created = VideoMetadata.Created(date: date, timeZone: nil)
+            }
+            if let text = await string([.quickTimeMetadataLocationISO6709, .quickTimeUserDataLocationISO6709,
+                                        .commonIdentifierLocation]) {
+                metadata.location = parseISO6709(text)
+            }
+            metadata.make = await string([.quickTimeMetadataMake, .commonIdentifierMake, .quickTimeUserDataMake])
+            metadata.model = await string([.quickTimeMetadataModel, .commonIdentifierModel, .quickTimeUserDataModel])
+            return metadata
+        } ?? nil
+    }
+
+    /// QuickTime's creation date, "2024-05-01T14:30:00+0100" (the zone is
+    /// sometimes left out, or written "+01:00" or "Z").
+    static func parseCreationDate(_ text: String) -> VideoMetadata.Created? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 19 else { return nil }
+        let clock = String(trimmed.prefix(19))
+        // Fractions of a second come before the zone and are dropped.
+        let rest = trimmed.dropFirst(19).drop { $0 == "." || $0.isNumber }
+        let offset = rest.isEmpty ? nil : String(rest)
+        guard let parsed = MetadataReader.parseExifDate(clock, offset: offset) else { return nil }
+        return VideoMetadata.Created(date: parsed.date, timeZone: parsed.hasOffset ? parsed.timeZone : nil)
+    }
+
+    /// A point in ISO 6709 as phones and cameras write it: "+37.3349-122.0090+010.000/",
+    /// latitude then longitude then an optional altitude, each signed. The
+    /// whole-number digits tell degrees (±DD, ±DDD), degrees and minutes
+    /// (±DDMM, ±DDDMM) and degrees, minutes and seconds (±DDMMSS, ±DDDMMSS)
+    /// apart, any of them with a decimal fraction.
+    static func parseISO6709(_ text: String) -> VideoMetadata.Location? {
+        var parts: [String] = []
+        var current = ""
+        for character in text {
+            if character == "+" || character == "-" {
+                if !current.isEmpty { parts.append(current) }
+                current = String(character)
+            } else if character.isNumber || character == "." {
+                guard !current.isEmpty else { return nil }
+                current.append(character)
+            } else {
+                break
+            }
+        }
+        if !current.isEmpty { parts.append(current) }
+        guard parts.count >= 2, let latitude = degrees(parts[0], degreeDigits: 2),
+              let longitude = degrees(parts[1], degreeDigits: 3),
+              abs(latitude) <= 90, abs(longitude) <= 180 else { return nil }
+        let altitude = parts.count > 2 ? Double(parts[2]) : nil
+        return VideoMetadata.Location(latitude: latitude, longitude: longitude, altitude: altitude)
+    }
+
+    /// One signed ISO 6709 coordinate in decimal degrees.
+    private static func degrees(_ part: String, degreeDigits: Int) -> Double? {
+        let sign: Double = part.hasPrefix("-") ? -1 : 1
+        let body = part.dropFirst()
+        let whole = body.prefix { $0 != "." }
+        let fraction = body.dropFirst(whole.count)
+        guard !whole.isEmpty, whole.allSatisfy(\.isNumber) else { return nil }
+        let value: Double?
+        switch whole.count - degreeDigits {
+        case 0:
+            value = Double(body)
+        case 2:
+            guard let d = Double(whole.prefix(degreeDigits)), let m = Double(whole.dropFirst(degreeDigits) + fraction),
+                  m < 60 else { return nil }
+            value = d + m / 60
+        case 4:
+            let minutes = whole.dropFirst(degreeDigits).prefix(2)
+            guard let d = Double(whole.prefix(degreeDigits)), let m = Double(minutes),
+                  let s = Double(whole.dropFirst(degreeDigits + 2) + fraction), m < 60, s < 60 else { return nil }
+            value = d + m / 60 + s / 3600
+        default:
+            value = nil
+        }
+        return value.map { sign * $0 }
     }
 
     // MARK: - Frames

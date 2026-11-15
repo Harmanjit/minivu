@@ -124,19 +124,76 @@ import CoreGraphics
     }
 
     /// The info panel's sections: a Video section of size, length, frame
-    /// rate and codec in place of the Image section.
+    /// rate, codec and data rate in place of the Image section.
     @Test func infoPanelDescribesTheVideo() async throws {
         let url = try await TestVideos.make(at: folder.url.appendingPathComponent("clip.mov"), seconds: 2)
         let sections = await BlockingWork.run { MetadataReader.sections(for: url) }
-        #expect(sections.map(\.title) == ["File", "Video"])
-        let video = Dictionary(uniqueKeysWithValues: (sections.last?.items ?? []).map { ($0.label, $0.value) })
+        // The writer stamps the container with when it was made, which is
+        // all the dating a movie without a camera's metadata has.
+        #expect(sections.map(\.title) == ["File", "Video", "Dates"])
+        let video = Dictionary(uniqueKeysWithValues: (sections[1].items).map { ($0.label, $0.value) })
         #expect(video["Dimensions"] == "160 × 96")
         #expect(video["Duration"] == "0:02")
         #expect(video["Frame rate"] == "10 fps")
         #expect(video["Codec"] == "avc1")
         #expect(video["Audio"] == "No")
+        #expect(video["Data rate"]?.hasSuffix("kbit/s") == true)
         let summary = await BlockingWork.run { MetadataReader.summary(for: url) }
         #expect(summary.pixelSize == CGSize(width: 160, height: 96))
+    }
+
+    /// Data rate, the recording date in the camera's own zone, where it
+    /// was made and the camera, as an iPhone writes them into a movie: shown
+    /// in the info panel, and never written (see the next test).
+    @Test func infoPanelShowsDataRateDateAndLocation() async throws {
+        let url = try await TestVideos.make(at: folder.url.appendingPathComponent("phone.mov"), seconds: 2, metadata: [
+            .quickTimeMetadataCreationDate: "2024-05-01T14:30:05+0200",
+            .quickTimeMetadataLocationISO6709: "+48.8584+002.2945+035.000/",
+            .quickTimeMetadataMake: "Apple",
+            .quickTimeMetadataModel: "iPhone 15 Pro",
+        ])
+        let sections = await BlockingWork.run { MetadataReader.sections(for: url) }
+        #expect(sections.map(\.title) == ["File", "Video", "Camera", "Dates", "GPS"])
+        func items(_ title: String) -> [String: String] {
+            Dictionary(uniqueKeysWithValues: (sections.first { $0.title == title }?.items ?? []).map { ($0.label, $0.value) })
+        }
+        let bytes = try #require(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+        #expect(items("Video")["Data rate"] == MetadataReader.formatDataRate(Double(bytes) * 8 / 2))
+        #expect(items("Camera") == ["Make": "Apple", "Model": "iPhone 15 Pro"])
+        // 14:30 on the camera's clock, two hours east of UTC, wherever the
+        // Mac reading it is.
+        let original = try #require(items("Dates")["Original"])
+        #expect(original.contains("2:30:05") && original.hasSuffix("+02:00"), "\(original)")
+        #expect(items("GPS") == ["Latitude": "48° 51′ 30.2″ N", "Longitude": "2° 17′ 40.2″ E", "Altitude": "35 m"])
+        let metadata = try #require(await BlockingWork.run { VideoFrames.metadata(for: url) })
+        #expect(metadata.created?.date == ISO8601DateFormatter().date(from: "2024-05-01T12:30:05Z"))
+    }
+
+    @Test func readsISO6709AndQuickTimeDates() throws {
+        let decimal = try #require(VideoFrames.parseISO6709("+37.3349-122.0090+010.000/"))
+        #expect(decimal == VideoMetadata.Location(latitude: 37.3349, longitude: -122.009, altitude: 10))
+        #expect(VideoFrames.parseISO6709("-33.8568+151.2153/") == VideoMetadata.Location(latitude: -33.8568,
+                                                                                         longitude: 151.2153))
+        // Degrees and minutes, then degrees, minutes and seconds.
+        let minutes = try #require(VideoFrames.parseISO6709("+4851.50+00217.67/"))
+        #expect(abs(minutes.latitude - (48 + 51.5 / 60)) < 1e-9 && abs(minutes.longitude - (2 + 17.67 / 60)) < 1e-9)
+        let seconds = try #require(VideoFrames.parseISO6709("-335124.5+1511255/"))
+        #expect(abs(seconds.latitude + (33 + 51 / 60 + 24.5 / 3600)) < 1e-9)
+        #expect(abs(seconds.longitude - (151 + 12 / 60 + 55 / 3600)) < 1e-9)
+        for bad in ["", "37.3/", "+95.0+010.0/", "+37.3", "+3.3+10.0/", "hello"] {
+            #expect(VideoFrames.parseISO6709(bad) == nil, "\(bad)")
+        }
+
+        let zoned = try #require(VideoFrames.parseCreationDate("2024-05-01T14:30:05+0200"))
+        #expect(zoned.timeZone?.secondsFromGMT() == 7200)
+        #expect(zoned.date == ISO8601DateFormatter().date(from: "2024-05-01T12:30:05Z"))
+        #expect(VideoFrames.parseCreationDate("2024-05-01T14:30:05.123-05:00")?.timeZone?.secondsFromGMT() == -18000)
+        #expect(VideoFrames.parseCreationDate("2024-05-01T14:30:05Z")?.timeZone?.secondsFromGMT() == 0)
+        #expect(VideoFrames.parseCreationDate("2024-05-01T14:30:05")?.timeZone == nil)
+        #expect(VideoFrames.parseCreationDate("2024") == nil)
+
+        #expect(MetadataReader.formatDataRate(12_400_000) == "12.4 Mbit/s")
+        #expect(MetadataReader.formatDataRate(850_400) == "850 kbit/s")
     }
 
     @Test func metadataOfAVideoIsNeitherWrittenNorGivenASidecar() throws {

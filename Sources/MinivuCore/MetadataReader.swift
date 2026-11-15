@@ -107,13 +107,20 @@ public enum MetadataReader {
             if !items.isEmpty { sections.append(MetadataSection(title: title, items: items)) }
         }
         add("File", fileItems(url))
+        // A video's header, read once for the sections below as well.
+        let videoMetadata = ImageFormats.isVideo(url) ? VideoFrames.metadata(for: url) : nil
         if ImageFormats.isVideo(url) {
-            add("Video", videoItems(url))
+            add("Video", videoItems(url, metadata: videoMetadata))
         } else {
             add("Image", imageItems(url, p))
         }
         let writable = MetadataWriter.method(for: url) != .unsupported
         let fields = p != nil || writable ? MetadataFields.read(from: url) : nil
+        if ImageFormats.isVideo(url), let metadata = videoMetadata {
+            add("Camera", videoCameraItems(metadata))
+            add("Dates", videoDateItems(metadata))
+            add("GPS", videoLocationItems(metadata))
+        }
         if let p, let fields {
             add("Camera", cameraItems(p))
             add("Exposure", exposureItems(p))
@@ -164,8 +171,9 @@ public enum MetadataReader {
         return items.list
     }
 
-    /// A video's size, length, frame rate and codec (G18), from its tracks.
-    static func videoItems(_ url: URL) -> [MetadataItem] {
+    /// A video's size, length, frame rate, codec and data rate (G18), from
+    /// its tracks and header.
+    static func videoItems(_ url: URL, metadata: VideoMetadata? = nil) -> [MetadataItem] {
         var items = Items()
         guard let info = VideoFrames.info(for: url) else { return [] }
         let w = Int(saturating: info.pixelSize.width), h = Int(saturating: info.pixelSize.height)
@@ -173,9 +181,48 @@ public enum MetadataReader {
         items.add("Duration", VideoFrames.durationText(info.duration))
         items.add("Frame rate", info.frameRate.map { "\(trimmed(($0 * 100).rounded() / 100)) fps" })
         items.add("Codec", info.codec)
+        items.add("Data rate", metadata?.dataRate.map(formatDataRate))
         items.add("Audio", info.hasAudio ? "Yes" : "No")
         if info.isHDR { items.add("HDR", "Yes") }
         if !info.isPlayable { items.add("Playable", "No") }
+        return items.list
+    }
+
+    /// "12.4 Mbit/s" or "850 kbit/s", in decimal units as QuickTime Player
+    /// gives them.
+    static func formatDataRate(_ bitsPerSecond: Double) -> String {
+        guard bitsPerSecond.isFinite, bitsPerSecond > 0 else { return "0 kbit/s" }
+        if bitsPerSecond >= 1_000_000 { return "\(trimmed(bitsPerSecond / 1_000_000)) Mbit/s" }
+        return "\(Int((bitsPerSecond / 1000).rounded())) kbit/s"
+    }
+
+    static func videoCameraItems(_ m: VideoMetadata) -> [MetadataItem] {
+        var items = Items()
+        items.add("Make", m.make)
+        items.add("Model", m.model)
+        return items.list
+    }
+
+    /// When recording began, on the camera's clock where the file keeps its
+    /// zone (with the offset, as for a photo), otherwise in this Mac's zone.
+    static func videoDateItems(_ m: VideoMetadata) -> [MetadataItem] {
+        var items = Items()
+        items.add("Original", m.created.map {
+            formatExifDate(ExifDate(date: $0.date, timeZone: $0.timeZone ?? .current, hasOffset: $0.timeZone != nil))
+        })
+        return items.list
+    }
+
+    /// Shown only: a video's location can't be removed (see the video
+    /// feature notes).
+    static func videoLocationItems(_ m: VideoMetadata) -> [MetadataItem] {
+        guard let location = m.location else { return [] }
+        var items = Items()
+        items.add("Latitude", formatCoordinate(location.latitude, ref: nil, positive: "N", negative: "S"))
+        items.add("Longitude", formatCoordinate(location.longitude, ref: nil, positive: "E", negative: "W"))
+        if let altitude = location.altitude {
+            items.add("Altitude", altitude < 0 ? "\(trimmed(-altitude)) m below sea level" : "\(trimmed(altitude)) m")
+        }
         return items.list
     }
 
