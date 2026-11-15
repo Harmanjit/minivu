@@ -185,6 +185,51 @@ import MinivuRender
         #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
     }
 
+    /// Planning reads every file's header; Cancel stops it part way, and
+    /// the export then writes nothing.
+    @Test func planningStopsWhenCancelled() async throws {
+        let scratch = try ScratchFolder()
+        let entries = try Self.pictures(in: scratch.url)
+        var generator = SystemRandomNumberGenerator()
+        var read = 0
+        let plan = SlideshowVideoPlanner.plan(images: entries, start: 0, settings: Self.quickShow, music: [],
+                                              enlargeSmallImages: true, display: DisplaySettings(),
+                                              isReadable: { _ in read += 1; return true },
+                                              isCancelled: { read >= 2 }, generator: &generator)
+        // The third header is never read, and nothing is planned once cancelled.
+        #expect(read == 2 && plan.slides.isEmpty)
+
+        let output = try scratch.folder("Out")
+        let cancel = CancellationFlag()
+        cancel.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await SlideshowVideoExport.export(
+                images: entries, start: 0, slideshow: Self.quickShow, video: Self.smallVideo,
+                screen: Self.tinyScreen, destination: output.appendingPathComponent("Show.mp4"), cancel: cancel,
+                display: DisplaySettings(),
+                decode: { _, _, _ in Issue.record("nothing is decoded"); throw CancellationError() },
+                didWrite: { _ in Issue.record("nothing is placed") })
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
+    }
+
+    /// Internal storage only (DESIGN.md 1): a folder on another volume is
+    /// refused before anything is read or written.
+    @Test func refusesAFolderOffTheInternalStorage() async throws {
+        let scratch = try ScratchFolder()
+        let entries = try Self.pictures(in: scratch.url)
+        let output = try scratch.folder("Out")
+        await #expect(throws: ExternalVolumeError(folder: output)) {
+            _ = try await SlideshowVideoExport.export(
+                images: entries, start: 0, slideshow: Self.quickShow, video: Self.smallVideo,
+                screen: Self.tinyScreen, destination: output.appendingPathComponent("Show.mp4"),
+                cancel: CancellationFlag(), isAllowedVolume: { _ in false }, display: DisplaySettings(),
+                decode: { _, _, _ in Issue.record("nothing is decoded"); throw CancellationError() },
+                didWrite: { _ in Issue.record("nothing is placed") })
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
+    }
+
     @Test func dialogSummarisesTheShow() throws {
         let scratch = try ScratchFolder()
         let entries = try Self.pictures(in: scratch.url)
@@ -283,6 +328,30 @@ extension AppWindowTests {
             #expect(dialog.model.start == 0)
             #expect(window.attachedSheet === dialog.sheet)
             #expect(controller.canPerformTools(.exportSlideshowVideo) == false)
+        }
+
+        /// Tools > Export Slideshow Video… in the viewer takes its whole list
+        /// from the picture it shows, and is off while a sheet is up.
+        @Test func viewerCommandOpensTheDialogOnTheWholeList() async throws {
+            _ = NSApplication.shared
+            let scratch = try ScratchFolder()
+            let entries = try SlideshowVideoExportTests.pictures(in: scratch.url)
+            ViewerWindowController.show(images: entries, index: 1, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            let window = try #require(viewer.window)
+
+            #expect(viewer.validateToolAction(.exportSlideshowVideo) == true)
+            viewer.exportSlideshowVideo(nil)
+            let dialog = try #require(SlideshowVideoController.controller(for: window))
+            defer { dialog.close() }
+            #expect(dialog.model.images.map(\.url) == entries.map(\.url))
+            #expect(dialog.model.start == 1)
+            #expect(window.attachedSheet === dialog.sheet)
+            #expect(viewer.validateToolAction(.exportSlideshowVideo) == false)
+            // A second command while the dialog is up stacks nothing.
+            viewer.exportSlideshowVideo(nil)
+            #expect(SlideshowVideoController.controller(for: window) === dialog)
         }
 
         private func waitUntil(_ condition: () -> Bool) async throws {

@@ -110,25 +110,32 @@ nonisolated enum SlideshowVideoPlanner {
 
     /// The plan for `images` from `start`. Pictures `isReadable` turns down
     /// (no image in the file, as a show would find when it came to them) are
-    /// left out. Reads metadata for captions that need it, so call it off
-    /// the main thread.
+    /// left out. Reads each file's header, and metadata for captions that
+    /// need it, so call it off the main thread. Stops early, with the slides
+    /// planned so far, once `isCancelled` says so: a folder of thousands of
+    /// pictures takes a while.
     static func plan(images: [FolderEntry], start: Int, settings: SlideshowSettings, music: [URL],
                      enlargeSmallImages: Bool, display: DisplaySettings,
                      isReadable: (URL) -> Bool = { ImageDecoder.info(for: $0) != nil },
                      summary: (URL) -> MetadataSummary? = { MetadataReader.summary(for: $0) },
+                     isCancelled: () -> Bool = { false },
                      generator: inout some RandomNumberGenerator) -> SlideshowVideoPlan {
-        let ordered = order(count: images.count, start: start, shuffled: settings.order == .shuffle,
-                            generator: &generator)
-            .map { images[$0] }
-            .filter { isReadable($0.url) }
+        var ordered: [FolderEntry] = []
+        for index in order(count: images.count, start: start, shuffled: settings.order == .shuffle,
+                           generator: &generator) {
+            if isCancelled() { break }
+            if isReadable(images[index].url) { ordered.append(images[index]) }
+        }
         let kinds = transitions(count: ordered.count, choice: settings.transition, generator: &generator)
         let style = settings.caption
-        let slides = zip(ordered, kinds).map { entry, kind in
+        var slides: [SlideshowVideoPlan.Slide] = []
+        for (entry, kind) in zip(ordered, kinds) {
+            if isCancelled() { break }
             let summary = SlideshowCaptionText.needsMetadata(style) ? summary(entry.url) : nil
-            return SlideshowVideoPlan.Slide(url: entry.url, transition: kind,
-                                            caption: SlideshowCaptionText.text(style: style, name: entry.name,
-                                                                               modified: entry.modified,
-                                                                               summary: summary))
+            slides.append(SlideshowVideoPlan.Slide(url: entry.url, transition: kind,
+                                                   caption: SlideshowCaptionText.text(style: style, name: entry.name,
+                                                                                      modified: entry.modified,
+                                                                                      summary: summary)))
         }
         return SlideshowVideoPlan(slides: slides, interval: settings.interval,
                                   transitionDuration: settings.transitionDuration,
@@ -151,9 +158,12 @@ enum SlideshowVideoExport {
     /// settings, encoded as `video` says, to `destination` (the file the
     /// save panel named; it already asked before replacing one). `progress`
     /// gets the fraction done on the main actor; `didWrite` is told of the
-    /// file placed. Throws `CancellationError` once `cancel` is set.
+    /// file placed. Throws `CancellationError` once `cancel` is set, and
+    /// `ExternalVolumeError` for a folder `isAllowedVolume` refuses (internal
+    /// storage only, DESIGN.md 1), before anything is read or written.
     static func export(images: [FolderEntry], start: Int, slideshow: SlideshowSettings, video: SlideshowVideoSettings,
                        screen: CGSize?, destination: URL, cancel: CancellationFlag,
+                       isAllowedVolume: @escaping @Sendable (URL) -> Bool = VolumePolicy.isAllowed,
                        enlargeSmallImages: Bool = Preferences.shared.enlargeSmallImages,
                        display: DisplaySettings = AppServices.images.settings,
                        resolveMusic: @escaping @Sendable ([SlideshowSettings.PlaylistItem]) -> ResolvedPlaylist
@@ -168,6 +178,7 @@ enum SlideshowVideoExport {
         let folder = destination.deletingLastPathComponent()
         let accessing = folder.startAccessingSecurityScopedResource()
         defer { if accessing { folder.stopAccessingSecurityScopedResource() } }
+        guard await BlockingWork.run({ isAllowedVolume(folder) }) else { throw ExternalVolumeError(folder: folder) }
 
         // The songs are files the user chose in Settings, reached through
         // their bookmarks, and held only while the video is written.
@@ -182,7 +193,7 @@ enum SlideshowVideoExport {
                                           generator: &generator).tracks
             return SlideshowVideoPlanner.plan(images: images, start: start, settings: slideshow, music: music,
                                               enlargeSmallImages: enlargeSmallImages, display: display,
-                                              generator: &generator)
+                                              isCancelled: { cancel.isCancelled }, generator: &generator)
         }
         guard !cancel.isCancelled else { throw CancellationError() }
 
@@ -223,7 +234,11 @@ enum SlideshowVideoExport {
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
         if let startFolder { panel.directoryURL = startFolder }
+        // The panel holds its delegate weakly; the completion keeps it.
+        let delegate = InternalVolumesOnly()
+        panel.delegate = delegate
         panel.beginSheetModal(for: window) { response in
+            withExtendedLifetime(delegate) {}
             completion(response == .OK ? panel.url : nil)
         }
     }
