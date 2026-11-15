@@ -70,6 +70,17 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         flipVertical = (try? c.decodeIfPresent(Bool.self, forKey: .flipVertical)) ?? d.flipVertical
     }
 
+    /// The settings `output` is converted with. Remove location is for
+    /// copies: a source replaced by its own conversion (beside the originals,
+    /// names and format kept, Replace) is the in-place case, and keeps its GPS
+    /// position and place names as Save does.
+    public func settings(for output: BatchOutput) -> BatchConvertSettings {
+        guard output.replacesOriginal, options.removeLocation else { return self }
+        var settings = self
+        settings.options.removeLocation = false
+        return settings
+    }
+
     /// The edit operations for a source of `sourceSize` (oriented pixels):
     /// turn, then flip, then resize, so a width or long side refers to the
     /// picture as it comes out. Empty when the pixels only change format.

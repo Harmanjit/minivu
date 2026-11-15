@@ -119,6 +119,29 @@ import Foundation
         #expect(names.contains { $0.hasPrefix("catalog.sqlite.damaged-") })
     }
 
+    /// A change the catalog couldn't make (a full disk, a read-only
+    /// catalog) isn't passed to the mirror: the rows' old marks would
+    /// overwrite whatever another application has put in the file since.
+    @Test func aFailedChangeIsNotMirrored() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let catalog = Catalog.inMemory()
+        let mirror = RecordingMirror()
+        catalog.mirror = mirror
+        catalog.setRating(2, for: [a])
+        #expect(mirror.changes == [.rating])
+        try catalog.db.executeScript("""
+            CREATE TRIGGER no_insert BEFORE INSERT ON files BEGIN SELECT RAISE(ABORT, 'disk full'); END;
+            CREATE TRIGGER no_update BEFORE UPDATE ON files BEGIN SELECT RAISE(ABORT, 'disk full'); END;
+            CREATE TRIGGER no_delete BEFORE DELETE ON files BEGIN SELECT RAISE(ABORT, 'disk full'); END;
+            """)
+        catalog.setRating(4, for: [a])
+        catalog.setTagged(true, for: [a])
+        catalog.setRating(0, for: [a])
+        #expect(mirror.changes == [.rating], "nothing more reached the mirror")
+        #expect(catalog.marks(for: a) == Marks(rating: 2))
+    }
+
     // MARK: - What kind of catalog this is
 
     @Test func aCatalogThatOpenedNormallyReportsThatMarksAreKept() throws {
@@ -578,5 +601,16 @@ import Foundation
         print("setRating for 1,000 files: \(elapsed)")
         #expect(catalog.marks(for: files).count == 1_000)
         #expect(elapsed < TestTiming.limit(milliseconds: 50))
+    }
+}
+
+/// The changes a catalog passed to its mirror, in order.
+final class RecordingMirror: CatalogMirror, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [Catalog.MarkField] = []
+    var changes: [Catalog.MarkField] { lock.withLock { recorded } }
+
+    func catalog(_ catalog: Catalog, didChange field: Catalog.MarkField, marks: [URL: Catalog.Marks], of urls: [URL]) {
+        lock.withLock { recorded.append(field) }
     }
 }

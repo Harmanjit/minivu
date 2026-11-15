@@ -110,6 +110,30 @@ extension AppWindowTests {
             #expect(try Data(contentsOf: t.url.appendingPathComponent("late.jpg")) == Data("arrived meanwhile".utf8))
         }
 
+        /// Remove location (on by default) is for copies: an original
+        /// replaced by its own conversion keeps its GPS position and place
+        /// names, as Save keeps them; a new file beside it leaves them out.
+        @Test func originalsReplacedByTheirConversionKeepTheirLocation() async throws {
+            let t = try ScratchFolder()
+            let (trash, _) = try trashFolder(t)
+            let jpeg = try t.jpeg("a.jpg", width: 40, height: 20, properties: ScratchFolder.location)
+            let png = try t.jpeg("b.png", width: 40, height: 20, properties: ScratchFolder.location)   // JPEG data
+            var settings = BatchConvertSettings(options: .defaults(for: .jpeg), existingFiles: .replace)
+            settings.resize = BatchResize(mode: .width, pixels: 20)
+            #expect(settings.options.removeLocation)
+            #expect(plan([jpeg, png], settings).map(\.action) == [.replace(original: true), .write])
+
+            let outcome = await run([jpeg, png], settings, trash: trash)
+            #expect(outcome.written.map(\.lastPathComponent) == ["a.jpg", "b.jpg"])
+            #expect(pixelSize(jpeg) == CGSize(width: 20, height: 10), "the original was converted")
+            #expect(ScratchFolder.location(of: jpeg) == (51.5, "London"), "the original keeps its location")
+            #expect(ScratchFolder.location(of: t.url.appendingPathComponent("b.jpg")) == (nil, nil), "a new file leaves it out")
+
+            settings.options.removeLocation = false
+            let output = BatchOutput(source: jpeg, destination: t.url.appendingPathComponent("c.jpg"), action: .write)
+            #expect(settings.settings(for: output) == settings)
+        }
+
         /// With Replace, a file outside the batch that only shares an
         /// output's name (the camera's JPEG beside a converted RAW) is named
         /// in the question, and nothing goes to the Trash unless the user

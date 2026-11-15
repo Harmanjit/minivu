@@ -49,6 +49,7 @@ extension AppWindowTests {
             #expect(controller.model.focus == 1)
             #expect(window.firstResponder === controller.paneViews[1].canvas)
             try send("3", to: window)
+            BrowserModel.catalogWrites.sync {}
             #expect(catalog.marks(for: all[1].url).rating == 3)
             try send(special(NSRightArrowFunctionKey), to: window)
             #expect(controller.model.panes.map(\.name) == ["a.jpg", "c.jpg"])

@@ -362,9 +362,18 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
 
     // MARK: - Rating and tag
 
-    /// Reads the rating and tag from the catalog (one in-memory lookup).
+    /// Reads the rating and tag from the catalog (one in-memory lookup), or
+    /// for a file without a row the marks it carries (G2), read in the
+    /// background the first time.
     func refreshMarks() {
-        let marks = entry.map { CompareWindowController.catalog.marks(for: $0.url) } ?? .none
+        let catalog = CompareWindowController.catalog
+        let marks = entry.map { FileMarksCache.shared.shownMarks(for: $0.url, in: catalog) } ?? .none
+        if let url = entry?.url, FileMarksCache.shared.needsRead(url, in: catalog) {
+            Task { [weak self] in
+                let read = await BlockingWork.run(qos: .utility) { FileMarksCache.shared.marks(for: url) }
+                if read != nil, self?.entry?.url == url { self?.refreshMarks() }
+            }
+        }
         // The browser's and viewer's stars and tag mark, in the same colours.
         for button in starButtons {
             let filled = button.tag <= marks.rating
@@ -380,7 +389,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     @objc private func starClicked(_ sender: NSButton) {
         guard let entry else { return }
         // Clicking the rating already set clears it, as in Photos and Lightroom.
-        let current = CompareWindowController.catalog.marks(for: entry.url).rating
+        let current = FileMarksCache.shared.shownMarks(for: entry.url, in: CompareWindowController.catalog).rating
         onRate?(self, current == sender.tag ? 0 : sender.tag)
     }
 

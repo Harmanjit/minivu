@@ -23,7 +23,19 @@ private let log = Logger(subsystem: "com.minivu.app", category: "catalog")
 ///
 /// **Size.** A file has a row only while it has a rating or the tag;
 /// clearing both deletes the row, so the database grows with what the user
-/// marked, not with what they browsed.
+/// marked, not with what they browsed. The exception is a file that carries
+/// marks of its own (an `xmp:Rating` from Lightroom, say): its row stays
+/// when emptied, standing for "no marks" over what the file says.
+///
+/// **Marks in the files (G2).** A file without a row shows the marks it
+/// carries itself (`FileMarksCache`), and a file with a row shows the row's:
+/// the catalog wins, because a rating made in minivu is the user's explicit
+/// choice and a file's timestamps can't say who changed what last (any
+/// edit, copy or sync touches them, and a sidecar has its own). The first
+/// change to such a file takes its marks into a new row before applying
+/// the change (`fileMarksReader`), so rating a file keeps the tag it
+/// carries, and the row is kept when emptied, so clearing a rating in
+/// minivu doesn't bring the file's back.
 ///
 /// Thread-safe (SQLiteDatabase serialises every call). Reading a folder's
 /// marks is one indexed query, fine on the main thread; writes stat the
@@ -38,6 +50,11 @@ public final class Catalog: @unchecked Sendable {
             self.isTagged = isTagged
         }
         public static let none = Marks()
+    }
+
+    /// One of the two marks: what a change set.
+    public enum MarkField: Sendable, Equatable {
+        case rating, tagged
     }
 
     /// Where a catalog's marks are being kept, and whether that is what the
@@ -108,7 +125,7 @@ public final class Catalog: @unchecked Sendable {
     /// the folder it went to is opened in minivu.
     static let missingRetention: TimeInterval = 365 * 24 * 3600
 
-    static let schemaVersion = 1
+    static let schemaVersion = 2
 
     let db: SQLiteDatabase
     /// Fixed at construction, never afterwards: this class is `@unchecked
@@ -119,6 +136,7 @@ public final class Catalog: @unchecked Sendable {
     private var hasPrunedMissing = false
     private var movesInFlight = 0
     private var _mirror: (any CatalogMirror)?
+    private var _fileMarksReader: (@Sendable (URL) -> Marks?)?
 
     /// Opens (creating if needed) the catalog at `url`, or a private one in
     /// memory when `url` is nil.
@@ -207,6 +225,12 @@ public final class Catalog: @unchecked Sendable {
                     """)
                 version = 1
             }
+            if version < 2 {
+                // A row standing for marks over a file's own (see
+                // `fileMarksReader`), kept when emptied.
+                try db.executeScript("ALTER TABLE files ADD COLUMN overrides_file INTEGER NOT NULL DEFAULT 0;")
+                version = 2
+            }
             try db.setUserVersion(version)
         }
         return db
@@ -214,22 +238,41 @@ public final class Catalog: @unchecked Sendable {
 
     /// Receives every rating and tag change once committed, for keeping marks
     /// somewhere besides the catalog (XMP sidecars or embedded XMP, so other
-    /// apps see them). None is installed: minivu doesn't write marks into
-    /// image files yet, and when it does the writes must go through the
-    /// app's FileWriteQueue, which lives above this module.
+    /// apps see them). The app installs one that writes them into the files
+    /// while "Write ratings into files (XMP)" is on; its writes go through
+    /// the app's FileWriteQueue, which lives above this module.
     public var mirror: (any CatalogMirror)? {
         get { lock.withLock { _mirror } }
         set { lock.withLock { _mirror = newValue } }
     }
 
+    /// The marks a file carries itself (`FileMarksCache.marks(for:)`), asked
+    /// when a change reaches a file without a row, or would empty a row:
+    /// the file's marks become the row's before the change, and the row is
+    /// kept when emptied, standing for "no marks" over the file's. Nil (the
+    /// default, and in tests that don't set it) treats files as carrying
+    /// none. Called on the writing thread, outside the database lock.
+    public var fileMarksReader: (@Sendable (URL) -> Marks?)? {
+        get { lock.withLock { _fileMarksReader } }
+        set { lock.withLock { _fileMarksReader = newValue } }
+    }
+
     // MARK: - Marks
 
     public func marks(for url: URL) -> Marks {
-        let rows = (try? db.query("SELECT rating, tagged FROM files WHERE path = ?1", [.text(Self.key(url))])) ?? []
-        return rows.first.map(Self.marks(from:)) ?? .none
+        storedMarks(for: url) ?? .none
     }
 
-    /// Marks for the files that have any; files without are left out.
+    /// The row's marks, or nil when the file has no row, which is when a
+    /// file's own marks show instead. An emptied row kept over a file's
+    /// marks gives `.none`.
+    public func storedMarks(for url: URL) -> Marks? {
+        let rows = (try? db.query("SELECT rating, tagged FROM files WHERE path = ?1", [.text(Self.key(url))])) ?? []
+        return rows.first.map(Self.marks(from:))
+    }
+
+    /// Marks for the files that have a row; files without are left out. A
+    /// row kept over a file's own marks is in, as `.none`.
     ///
     /// One statement however many files: the keys travel as a single JSON
     /// array that `json_each` turns into rows joined against the path index.
@@ -263,28 +306,43 @@ public final class Catalog: @unchecked Sendable {
     /// Clamped to 0...5.
     public func setRating(_ rating: Int, for urls: [URL]) {
         let r = min(max(rating, 0), 5)
-        write(urls, column: "rating", value: r)
+        write(urls, field: .rating, value: r)
     }
 
     public func setTagged(_ tagged: Bool, for urls: [URL]) {
-        write(urls, column: "tagged", value: tagged ? 1 : 0)
+        write(urls, field: .tagged, value: tagged ? 1 : 0)
     }
 
     /// Sets one mark column for `urls` in one transaction. A non-zero value
     /// inserts the row (recording the file's identity for healing) or
-    /// updates it; zero deletes rows left with no marks at all.
-    private func write(_ urls: [URL], column: String, value: Int) {
+    /// updates it; zero deletes rows left with no marks at all, unless they
+    /// stand over marks the file carries.
+    private func write(_ urls: [URL], field: MarkField, value: Int) {
         guard !urls.isEmpty else { return }
+        let column = field == .rating ? "rating" : "tagged"
         let keys = Self.keys(for: urls)
-        // Stat before taking the database lock: readers shouldn't wait on
-        // the file system.
-        let identities = value == 0 ? [] : Self.identities(of: keys)
+        // Read the files and stat them before taking the database lock:
+        // readers shouldn't wait on the file system.
+        let fromFiles = marksFromFiles(urls, keys: keys, clearing: value == 0)
+        let identities = value == 0 && fromFiles.isEmpty ? [] : Self.identities(of: keys)
+        let committed: Bool
         do {
             try db.transaction {
                 for (i, key) in keys.enumerated() {
+                    if let file = fromFiles[i] {
+                        // The file's marks become the row's (a row already
+                        // there keeps its own), and the row is kept when emptied.
+                        try db.execute("""
+                            INSERT INTO files (path, folder, volume, file_id, size, modified, rating, tagged, overrides_file)
+                            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 1)
+                            ON CONFLICT (path) DO UPDATE SET overrides_file = 1
+                            """, [.text(key), .text(Self.parent(ofKey: key))] + identities[i].values
+                                + [.integer(Int64(file.rating)), .integer(file.isTagged ? 1 : 0)])
+                    }
                     if value == 0 {
                         try db.execute("UPDATE files SET \(column) = 0 WHERE path = ?1", [.text(key)])
-                        try db.execute("DELETE FROM files WHERE path = ?1 AND rating = 0 AND tagged = 0", [.text(key)])
+                        try db.execute("DELETE FROM files WHERE path = ?1 AND rating = 0 AND tagged = 0 AND overrides_file = 0",
+                                       [.text(key)])
                     } else {
                         try db.execute("""
                             INSERT INTO files (path, folder, volume, file_id, size, modified, \(column))
@@ -298,11 +356,46 @@ public final class Catalog: @unchecked Sendable {
                     }
                 }
             }
+            committed = true
         } catch {
             log.error("Writing marks failed: \(String(describing: error), privacy: .public)")
+            committed = false
         }
-        if let mirror { mirror.catalog(self, didChangeMarks: marks(for: urls), of: urls) }
+        // Only a change that was made is mirrored: after a failed one the
+        // rows still hold their old marks, which would overwrite a value
+        // another application has put in the file since.
+        if committed, let mirror { mirror.catalog(self, didChange: field, marks: marks(for: urls), of: urls) }
         post(urls)
+    }
+
+    /// The marks files carry, by index into `urls`, for those a change
+    /// should take them from: files without a row, and (when `clearing`)
+    /// files whose row could be emptied and doesn't yet stand over the
+    /// file's marks. Empty without a `fileMarksReader`.
+    private func marksFromFiles(_ urls: [URL], keys: [String], clearing: Bool) -> [Int: Marks] {
+        guard let reader = fileMarksReader else { return [:] }
+        var overrides: [Int: Bool] = [:]
+        do {
+            for row in try db.query("""
+                SELECT j.key AS i, f.overrides_file AS overrides
+                FROM json_each(?1) AS j CROSS JOIN files AS f ON f.path = j.value
+                """, [.text(Self.jsonArray(keys))]) {
+                if let i = row.int("i") { overrides[Int(i)] = (row.int("overrides") ?? 0) != 0 }
+            }
+        } catch {
+            log.error("Reading rows failed: \(String(describing: error), privacy: .public)")
+            return [:]
+        }
+        var result: [Int: Marks] = [:]
+        for (i, url) in urls.enumerated() {
+            switch overrides[i] {
+            case nil: break
+            case false?: guard clearing else { continue }
+            case true?: continue
+            }
+            if let marks = reader(url), marks != .none { result[i] = marks }
+        }
+        return result
     }
 
     // MARK: - Custom order
@@ -408,12 +501,13 @@ public final class Catalog: @unchecked Sendable {
             let copied = try db.transaction { () throws -> [SQLiteRow] in
                 try db.execute("DELETE FROM files WHERE path = ?4 OR (path >= ?5 AND path < ?6)", args)
                 try db.execute("""
-                    INSERT INTO files (path, folder, rating, tagged)
-                    SELECT ?4, ?7, rating, tagged FROM files WHERE path = ?1
+                    INSERT INTO files (path, folder, rating, tagged, overrides_file)
+                    SELECT ?4, ?7, rating, tagged, overrides_file FROM files WHERE path = ?1
                     """, args + [.text(Self.parent(ofKey: t))])
                 try db.execute("""
-                    INSERT INTO files (path, folder, rating, tagged)
-                    SELECT ?4 || substr(path, length(?1) + 1), ?4 || substr(folder, length(?1) + 1), rating, tagged
+                    INSERT INTO files (path, folder, rating, tagged, overrides_file)
+                    SELECT ?4 || substr(path, length(?1) + 1), ?4 || substr(folder, length(?1) + 1), rating, tagged,
+                        overrides_file
                     FROM files WHERE path >= ?2 AND path < ?3
                     """, four)
                 try db.execute("DELETE FROM folder_order WHERE folder = ?4 OR (folder >= ?5 AND folder < ?6)", args)
@@ -828,14 +922,17 @@ public final class Catalog: @unchecked Sendable {
     }
 }
 
-/// The extension point for keeping marks outside the catalog as well, such
-/// as XMP (`xmp:Rating`) for Lightroom and Bridge. Off unless installed as
-/// `Catalog.mirror`; nothing implements it yet.
+/// The extension point for keeping marks outside the catalog as well: the
+/// app installs one that writes them into the files as XMP (`xmp:Rating`)
+/// for Lightroom, Bridge and digiKam, while the user has that on (G2).
 public protocol CatalogMirror: AnyObject, Sendable {
     /// Called after a rating or tag change is committed, on the thread that
-    /// made it, with the new marks of the files in `urls` (files left with
-    /// none are absent from `marks`).
-    func catalog(_ catalog: Catalog, didChangeMarks marks: [URL: Catalog.Marks], of urls: [URL])
+    /// made it, with the mark the change set (`field`) and the new marks of
+    /// the files in `urls` (files left with none are absent from `marks`, or
+    /// present as `.none`). A mirror should copy out only `field`: the
+    /// other mark in `marks` may be a stale one that the file has since
+    /// replaced in another application.
+    func catalog(_ catalog: Catalog, didChange field: Catalog.MarkField, marks: [URL: Catalog.Marks], of urls: [URL])
 }
 
 /// Finder tags (the coloured labels) on files, read and written through the
@@ -851,5 +948,82 @@ public enum FinderTags {
     /// setter works on every supported system.
     public static func setTags(_ tags: [String], for url: URL) throws {
         try (url as NSURL).setResourceValue(tags, forKey: .tagNamesKey)
+    }
+
+    // MARK: - Colour labels (G4)
+
+    /// The extended attribute Finder keeps tags in: a property list of
+    /// "Name\nN" strings, N the colour's label number (0 for none).
+    public static let attributeName = "com.apple.metadata:_kMDItemUserTags"
+
+    /// The standard colour tags' names by label number, as an English
+    /// system names them. The app passes Finder's own names
+    /// (`NSWorkspace.fileLabels`), which follow the system's language and
+    /// any renaming in Finder's settings.
+    public static let englishColorNames: [Int: String] = Dictionary(
+        uniqueKeysWithValues: ColorLabel.allCases.filter { $0 != .none }.map { ($0.finderColorIndex, $0.name) })
+
+    /// The file's tags exactly as stored, colours included; empty when it
+    /// has none. Throws when it has tags that can't be read (the attribute
+    /// changed while it was read, or isn't a list of names), so a write
+    /// built on them can't drop the tags it couldn't see.
+    public static func entries(of url: URL) throws -> [String] {
+        let path = url.path
+        let size = getxattr(path, attributeName, nil, 0, 0, 0)
+        if size < 0 {
+            guard errno == ENOATTR else { throw posixError(path) }
+            return []
+        }
+        guard size > 0 else { return [] }
+        var data = Data(count: size)
+        let read = data.withUnsafeMutableBytes { getxattr(path, attributeName, $0.baseAddress, size, 0, 0) }
+        guard read >= 0 else { throw posixError(path) }
+        guard read == size,
+              let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String]
+        else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: path]) }
+        return values
+    }
+
+    /// `entries` with the standard colour tags taken out and `label`'s put
+    /// in (none for `.none`). A standard colour tag is one named as any of
+    /// them (`standardNames`, or the English names), in any letter case;
+    /// every other tag stays as it was, colour and all, in its place.
+    public static func entries(_ entries: [String], settingColorLabel label: ColorLabel,
+                               standardNames: [Int: String] = englishColorNames) -> [String] {
+        let names = Set((Array(standardNames.values) + Array(englishColorNames.values) + ["Grey"]).map { $0.lowercased() })
+        var result = entries.filter { entry in
+            let name = entry.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false).first ?? ""
+            return !names.contains(String(name).lowercased())
+        }
+        if label != .none {
+            let index = label.finderColorIndex
+            result.append("\(standardNames[index] ?? label.name)\n\(index)")
+        }
+        return result
+    }
+
+    /// Gives `url` the colour label `label` (none for `.none`), keeping its
+    /// other tags. Written as Finder writes tags, with the colour beside the
+    /// name, so the label shows in its colour whatever the name. The
+    /// attribute is removed when no tag is left. A file that already says
+    /// this is left alone, and one whose tags can't be read is refused
+    /// (`entries(of:)` throws) rather than left with only the new label.
+    public static func setColorLabel(_ label: ColorLabel, for url: URL,
+                                     standardNames: [Int: String] = englishColorNames) throws {
+        let old = try entries(of: url)
+        let new = entries(old, settingColorLabel: label, standardNames: standardNames)
+        guard new != old else { return }
+        let path = url.path
+        if new.isEmpty {
+            guard removexattr(path, attributeName, 0) == 0 || errno == ENOATTR else { throw posixError(path) }
+            return
+        }
+        let data = try PropertyListSerialization.data(fromPropertyList: new, format: .binary, options: 0)
+        let result = data.withUnsafeBytes { setxattr(path, attributeName, $0.baseAddress, data.count, 0, 0) }
+        guard result == 0 else { throw posixError(path) }
+    }
+
+    private static func posixError(_ path: String) -> Error {
+        NSError(domain: NSPOSIXErrorDomain, code: Int(errno), userInfo: [NSFilePathErrorKey: path])
     }
 }

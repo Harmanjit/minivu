@@ -74,11 +74,17 @@ import AppKit
     @objc optional func applySepia(_ sender: Any?)
     @objc optional func applyNegative(_ sender: Any?)
     @objc optional func editComment(_ sender: Any?)
+    /// Title, caption, keywords, creator, copyright, date taken and location
+    /// of the browser's selection or the viewer's image (G1).
+    @objc optional func editMetadata(_ sender: Any?)
 
     // MARK: Management (Phase 5)
     /// Toggles the "tagged" flag (FastStone's culling mark) on the selection
     /// or the image in the viewer.
     @objc optional func toggleTag(_ sender: Any?)
+    /// Image > Label (G4): the sender's `tag` is a `ColorLabel` raw value,
+    /// 0 (None) to 7 (Gray), set as the standard Finder colour tag.
+    @objc optional func setColorLabel(_ sender: Any?)
     /// Browser grid: selects every tagged image the grid is showing, and
     /// swaps the selection for everything it is not showing as selected.
     @objc optional func selectTagged(_ sender: Any?)
@@ -188,7 +194,9 @@ extension Selector {
     static let applySepia = #selector(MinivuActions.applySepia(_:))
     static let applyNegative = #selector(MinivuActions.applyNegative(_:))
     static let editComment = #selector(MinivuActions.editComment(_:))
+    static let editMetadata = #selector(MinivuActions.editMetadata(_:))
     static let toggleTag = #selector(MinivuActions.toggleTag(_:))
+    static let setColorLabel = #selector(MinivuActions.setColorLabel(_:))
     static let selectTagged = #selector(MinivuActions.selectTagged(_:))
     static let invertSelection = #selector(MinivuActions.invertSelection(_:))
     static let filterByRating = #selector(MinivuActions.filterByRating(_:))

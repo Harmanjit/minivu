@@ -84,6 +84,8 @@ extension BrowserWindowController {
             singleSelectedImage.map { ExportFormat.format(for: $0.url) == .jpeg } ?? false
         case .saveImageAs:
             singleSelectedImage != nil
+        case .editMetadata:
+            canEditMetadata
         default:
             nil
         }

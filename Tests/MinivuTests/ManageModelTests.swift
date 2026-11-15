@@ -78,6 +78,18 @@ import MinivuCore
         model.toggleTag(for: [a, b])
         await settleCatalog(model)
         #expect(!model.marks(for: a).isTagged && !model.marks(for: b).isTagged)
+
+        // A quick T T, before the grid shows the first, tags and untags (as
+        // the compare window does): each is decided after the one before.
+        model.toggleTag(for: [a])
+        model.toggleTag(for: [a])
+        await settleCatalog(model)
+        #expect(!catalog.marks(for: a).isTagged && !model.marks(for: a).isTagged)
+        model.toggleTag(for: [a])
+        model.toggleTag(for: [a])
+        model.toggleTag(for: [a])
+        await settleCatalog(model)
+        #expect(catalog.marks(for: a).isTagged)
     }
 
     @Test func ratingSortFollowsNewRatings() async throws {

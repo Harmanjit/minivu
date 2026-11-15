@@ -272,4 +272,25 @@ import UniformTypeIdentifiers
         #expect(sections.contains { $0.title == "Exposure" })
         #expect(!MetadataReader.allProperties(for: Self.sampleNEF).isEmpty)
     }
+
+    /// A file with an XMP sidecar (Edit Metadata on a GIF or a camera raw)
+    /// shows the sidecar's values, says where they come from, and shows the
+    /// sidecar's date taken in place of the file's own.
+    @Test func sidecarValuesAreShown() throws {
+        let t = try TemporaryFolder()
+        let gif = TestImages.write(TestImages.gradient(), to: t.url.appendingPathComponent("loop.gif"), type: .gif)
+        try MetadataWriter.apply(MetadataEdit(title: "From the sidecar", addedKeywords: ["a", "b"],
+                                              date: .set(WallClock(year: 2003, month: 4, day: 5, hour: 6, minute: 7, second: 8))), to: gif)
+        let sections = MetadataReader.sections(for: gif)
+        func value(_ section: String, _ label: String) -> String? {
+            sections.first { $0.title == section }?.items.first { $0.label == label }?.value
+        }
+        #expect(value("Description", "Title") == "From the sidecar")
+        #expect(value("Description", "Keywords") == "a, b")
+        #expect(value("Description", "Sidecar") == "loop.xmp")
+        #expect(value("Dates", "Original") == WallClock.formatted(WallClock(year: 2003, month: 4, day: 5, hour: 6, minute: 7, second: 8)))
+        // A JPEG of the same name never reads a raw's sidecar.
+        let jpeg = TestImages.write(TestImages.gradient(), to: t.url.appendingPathComponent("loop.jpg"))
+        #expect(MetadataFields.read(from: jpeg).title.isEmpty && MetadataFields.read(from: jpeg).sidecar == nil)
+    }
 }

@@ -71,8 +71,8 @@ import MinivuCore
         #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
                            "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "Retouch",
-                           "Text and Shapes…", "-", "Edit Comment…", "-",
-                           "Play Animation", "-", "Rating", "Tag", "-",
+                           "Text and Shapes…", "-", "Edit Comment…", "Edit Metadata…", "-",
+                           "Play Animation", "-", "Rating", "Tag", "Label", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
@@ -82,6 +82,10 @@ import MinivuCore
                                                        .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens])
         let retouch = try #require(image.items.first { $0.title == "Retouch" }?.submenu)
         #expect(retouch.items.compactMap(\.action) == [.cloneStamp, .healingBrush, .removeRedEye])
+        // ⌘I, free everywhere else (the viewer's bare I ignores Command).
+        let metadata = try item("Edit Metadata…")
+        #expect(metadata.action == .editMetadata && metadata.keyEquivalent == "i"
+            && metadata.keyEquivalentModifierMask == .command)
         let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
         #expect(file.items.compactMap(\.action).filter { [.saveImage, .saveImageAs, .revertToSaved].contains($0) }
             == [.saveImage, .saveImageAs, .revertToSaved])

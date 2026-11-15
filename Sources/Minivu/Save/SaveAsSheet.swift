@@ -173,6 +173,13 @@ struct SaveAsAccessoryView: View {
                         }
                         if format.supportsMetadata {
                             Toggle("Keep metadata (EXIF, GPS, IPTC, XMP)", isOn: $model.options.keepMetadata)
+                            // Indented under the option it qualifies, and
+                            // off-looking while nothing is kept at all.
+                            Toggle("Remove location", isOn: $model.options.removeLocation)
+                                .padding(.leading, 20)
+                                .disabled(!model.options.keepMetadata)
+                                .help("Leave out the GPS position and IPTC place names, keeping the rest. A file written over its original keeps them.")
+                                .accessibilityHint("Leaves out the GPS position and place names, keeping the rest of the metadata")
                         }
                     }
                 }

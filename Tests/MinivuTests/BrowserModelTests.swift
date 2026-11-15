@@ -24,9 +24,16 @@ final class ScratchFolder {
         return file
     }
 
-    /// A real JPEG of one flat colour, cheap to encode at any size.
+    /// A GPS position and an IPTC place name, for `jpeg(_:width:height:properties:)`.
+    static var location: [CFString: Any] {
+        [kCGImagePropertyGPSDictionary: [kCGImagePropertyGPSLatitude: 51.5, kCGImagePropertyGPSLatitudeRef: "N"],
+         kCGImagePropertyIPTCDictionary: [kCGImagePropertyIPTCCity: "London", kCGImagePropertyIPTCKeywords: ["bridge"]]]
+    }
+
+    /// A real JPEG of one flat colour, cheap to encode at any size, with
+    /// `properties` (such as `location`) in its metadata.
     @discardableResult
-    func jpeg(_ name: String, width: Int, height: Int) throws -> URL {
+    func jpeg(_ name: String, width: Int, height: Int, properties: [CFString: Any]? = nil) throws -> URL {
         let file = url.appendingPathComponent(name)
         let context = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
                                              bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
@@ -34,9 +41,18 @@ final class ScratchFolder {
         context.setFillColor(red: 0.8, green: 0.3, blue: 0.1, alpha: 1)
         context.fill(CGRect(x: 0, y: 0, width: width, height: height))
         let destination = try #require(CGImageDestinationCreateWithURL(file as CFURL, "public.jpeg" as CFString, 1, nil))
-        CGImageDestinationAddImage(destination, try #require(context.makeImage()), nil)
+        CGImageDestinationAddImage(destination, try #require(context.makeImage()), properties as CFDictionary?)
         try #require(CGImageDestinationFinalize(destination))
         return file
+    }
+
+    /// The GPS latitude and IPTC city in `url`, nil for each that's absent.
+    static func location(of url: URL) -> (latitude: Double?, city: String?) {
+        let properties = CGImageSourceCreateWithURL(url as CFURL, nil)
+            .flatMap { CGImageSourceCopyPropertiesAtIndex($0, 0, nil) as? [CFString: Any] } ?? [:]
+        let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any]
+        let iptc = properties[kCGImagePropertyIPTCDictionary] as? [CFString: Any]
+        return ((gps?[kCGImagePropertyGPSLatitude] as? NSNumber)?.doubleValue, iptc?[kCGImagePropertyIPTCCity] as? String)
     }
 
     @discardableResult

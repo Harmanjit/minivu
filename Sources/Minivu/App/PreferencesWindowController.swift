@@ -119,15 +119,24 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Picker("Theme", selection: $prefs.theme) {
-                ForEach(Preferences.Theme.allCases) { Text($0.title).tag($0) }
+            Section {
+                Picker("Theme", selection: $prefs.theme) {
+                    ForEach(Preferences.Theme.allCases) { Text($0.title).tag($0) }
+                }
+                Toggle("Show hidden files", isOn: $prefs.showHiddenFiles)
+                Toggle("Wrap around at end of folder", isOn: $prefs.wrapAround)
+                Toggle("Open viewer in full screen", isOn: $prefs.openViewerFullScreen)
+                // The only way back after ticking "Don't ask again" in the
+                // Save confirmation.
+                Toggle("Ask before saving over the original", isOn: $prefs.confirmOverwriteOnSave)
             }
-            Toggle("Show hidden files", isOn: $prefs.showHiddenFiles)
-            Toggle("Wrap around at end of folder", isOn: $prefs.wrapAround)
-            Toggle("Open viewer in full screen", isOn: $prefs.openViewerFullScreen)
-            // The only way back after ticking "Don't ask again" in the
-            // Save confirmation.
-            Toggle("Ask before saving over the original", isOn: $prefs.confirmOverwriteOnSave)
+            // Off by default: it changes the user's files (G2).
+            Section {
+                Toggle("Write ratings into files (XMP)", isOn: $prefs.writeMarksToFiles)
+            } footer: {
+                Text("Stars, the tag and colour labels are also written into each photo as XMP, so Lightroom, Bridge, digiKam and other apps see them. Camera RAW files and formats minivu can’t rewrite get an XMP sidecar beside them instead. Ratings from those apps always show in minivu, for photos you haven’t rated here.")
+                    .paragraphFooter()
+            }
         }
         .settingsForm()
     }

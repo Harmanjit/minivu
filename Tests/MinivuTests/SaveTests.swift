@@ -55,6 +55,8 @@ import MinivuRender
         var remembered = ExportOptions(format: .png, quality: 0.5, colorProfile: .sRGB, keepMetadata: false)
         var options = SavePolicy.inPlaceOptions(remembered: remembered, sourceBitDepth: 16)
         #expect(options.colorProfile == .original && options.keepMetadata && options.sixteenBit)
+        // Save keeps every tag, location included, whatever Save As remembered.
+        #expect(remembered.removeLocation && !options.removeLocation)
         #expect(options.quality == 0.5)
         options = SavePolicy.inPlaceOptions(remembered: remembered, sourceBitDepth: 8)
         #expect(!options.sixteenBit)
@@ -143,6 +145,7 @@ import MinivuRender
             #expect(options.format == .jpeg)
             #expect(options.quality == 0.3)
             #expect(options.keepMetadata)
+            #expect(options.removeLocation)
         }
     }
 
@@ -456,6 +459,29 @@ import MinivuRender
         #expect(type == "public.png")
     }
 
+    /// Remove location (on by default) is for copies: Save As onto the
+    /// original itself, under its own name or another letter case of it,
+    /// keeps the GPS position and place names, as Save does.
+    @Test func saveAsOverTheOriginalKeepsItsLocation() async throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 64, height: 48, properties: ScratchFolder.location)
+        let entry = try #require(FolderEntry(url: url))
+        let options = ExportOptions.defaults(for: .jpeg)
+        #expect(options.removeLocation)
+
+        let copy = t.url.appendingPathComponent("copy.jpg")
+        try await SavePresenter.write(SaveImageSource(entry: entry, document: nil), options: options, to: copy,
+                                      metadataSource: url)
+        #expect(ScratchFolder.location(of: copy) == (nil, nil), "a copy leaves the location out")
+
+        for name in ["photo.jpg", "Photo.JPG"] {
+            let target = t.url.appendingPathComponent(name)
+            try await SavePresenter.write(SaveImageSource(entry: entry, document: nil), options: options, to: target,
+                                          metadataSource: url)
+            #expect(ScratchFolder.location(of: url) == (51.5, "London"), "\(name) is the original: nothing removed")
+        }
+    }
+
     /// Save and Save As of an unedited original keep every pixel, so a
     /// header claiming more than an export may hold is refused before it is
     /// decoded, and the alert names the file. The forged PNG claims 1.2
@@ -663,6 +689,27 @@ import MinivuRender
         try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: sRGB, options: options, to: url,
                                              renderer: .shared)
         #expect(JPEGComment.read(from: url) == "note")
+    }
+
+    /// A rating or keywords written into the file while it has unsaved
+    /// edits (a rating key with "Write ratings into files" on, the info
+    /// panel's keywords) are minivu's own write, and survive the Save: its
+    /// metadata is read from the file on disk as it is written.
+    @Test func saveKeepsMetadataWrittenWhileEditing() async throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 64, height: 48)
+        let document = EditDocument(entry: try #require(FolderEntry(url: url)))
+        try await EditRenderer.shared.prepare(document)
+        defer { EditRenderer.shared.release(document) }
+        document.apply(.flip(horizontal: true))
+        try await Task.sleep(for: .milliseconds(20))
+        try MetadataWriter.apply(MetadataEdit(addedKeywords: ["night"], rating: 4, tagged: true), to: url)
+        #expect(document.snapshot().fileIsUnchangedSinceEditing())
+        let options = SavePolicy.inPlaceOptions(remembered: .defaults(for: .jpeg), sourceBitDepth: 8)
+        try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             options: options, to: url, renderer: .shared)
+        #expect(MarksXMP.readMarks(from: url) == Catalog.Marks(rating: 4, isTagged: true))
+        #expect(MetadataFields.read(from: url).keywords == ["night"])
     }
 }
 

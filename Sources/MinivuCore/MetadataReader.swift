@@ -94,6 +94,13 @@ public enum MetadataReader {
     /// Everything worth showing in the info panel, grouped. Empty sections
     /// and missing values are left out.
     public static func sections(for url: URL) -> [MetadataSection] {
+        sectionsAndFields(for: url).sections
+    }
+
+    /// The sections, and the fields Edit Metadata edits for a file whose
+    /// metadata can be written (nil otherwise): the info panel's keyword
+    /// editor works on them. One read of the file for both.
+    public static func sectionsAndFields(for url: URL) -> (sections: [MetadataSection], fields: MetadataFields?) {
         let p = Properties(url: url)
         var sections: [MetadataSection] = []
         func add(_ title: String, _ items: [MetadataItem]) {
@@ -101,14 +108,16 @@ public enum MetadataReader {
         }
         add("File", fileItems(url))
         add("Image", imageItems(url, p))
-        if let p {
+        let writable = MetadataWriter.method(for: url) != .unsupported
+        let fields = p != nil || writable ? MetadataFields.read(from: url) : nil
+        if let p, let fields {
             add("Camera", cameraItems(p))
             add("Exposure", exposureItems(p))
-            add("Dates", dateItems(p))
+            add("Dates", dateItems(p, sidecarDate: fields.sidecar == nil ? nil : fields.dateTaken))
             add("GPS", gpsItems(p))
-            add("Description", descriptionItems(url, p))
+            add("Description", descriptionItems(url, p, fields))
         }
-        return sections
+        return (sections, writable ? fields : nil)
     }
 
     static func fileItems(_ url: URL) -> [MetadataItem] {
@@ -185,9 +194,16 @@ public enum MetadataReader {
         return items.list
     }
 
-    static func dateItems(_ p: Properties) -> [MetadataItem] {
+    /// `sidecarDate` is the date taken an XMP sidecar gives a file minivu
+    /// doesn't modify (Edit Metadata's date shift of a camera raw), which
+    /// is shown in place of the file's own.
+    static func dateItems(_ p: Properties, sidecarDate: WallClock? = nil) -> [MetadataItem] {
         var items = Items()
-        items.add("Original", p.dateOriginal.map(formatExifDate))
+        if let sidecarDate, sidecarDate != p.dateOriginal.map({ WallClock(date: $0.date, in: $0.timeZone) }) {
+            items.add("Original", WallClock.formatted(sidecarDate))
+        } else {
+            items.add("Original", p.dateOriginal.map(formatExifDate))
+        }
         items.add("Digitized", p.dateDigitized.map(formatExifDate))
         return items.list
     }
@@ -212,22 +228,22 @@ public enum MetadataReader {
         return items.list
     }
 
-    static func descriptionItems(_ url: URL, _ p: Properties) -> [MetadataItem] {
+    /// Title, caption, keywords, creator and copyright as Edit Metadata
+    /// reads them (`MetadataFields`: XMP first, then IPTC and EXIF/TIFF, with
+    /// an XMP sidecar laid over a file that has one), plus the comments and
+    /// software, which it doesn't edit.
+    static func descriptionItems(_ url: URL, _ p: Properties, _ fields: MetadataFields) -> [MetadataItem] {
         var items = Items()
-        items.add("Title", p.string(p.iptc, kCGImagePropertyIPTCObjectName))
-        let descriptions = unique([p.string(p.tiff, kCGImagePropertyTIFFImageDescription),
-                                   p.string(p.iptc, kCGImagePropertyIPTCCaptionAbstract),
-                                   p.string(p.png, kCGImagePropertyPNGDescription)])
-        items.add("Description", descriptions.joined(separator: "\n"))
+        items.add("Title", fields.title)
+        items.add("Description", fields.caption)
         var comments = [p.string(p.exif, kCGImagePropertyExifUserComment), p.string(p.png, kCGImagePropertyPNGComment)]
         if p.type == UTType.jpeg.identifier { comments += jpegComments(url).map(Optional.some) }
         items.add("Comment", unique(comments).joined(separator: "\n"))
-        items.add("Keywords", p.strings(p.iptc, kCGImagePropertyIPTCKeywords).joined(separator: ", "))
-        items.add("Artist", p.string(p.tiff, kCGImagePropertyTIFFArtist)
-                  ?? p.strings(p.iptc, kCGImagePropertyIPTCByline).joined(separator: ", "))
-        items.add("Copyright", p.string(p.tiff, kCGImagePropertyTIFFCopyright)
-                  ?? p.string(p.iptc, kCGImagePropertyIPTCCopyrightNotice))
+        items.add("Keywords", fields.keywords.joined(separator: ", "))
+        items.add("Artist", fields.creator)
+        items.add("Copyright", fields.copyright)
         items.add("Software", p.string(p.tiff, kCGImagePropertyTIFFSoftware))
+        items.add("Sidecar", fields.sidecar?.lastPathComponent)
         return items.list
     }
 

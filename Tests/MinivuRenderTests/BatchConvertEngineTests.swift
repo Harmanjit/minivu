@@ -218,6 +218,32 @@ import UniformTypeIdentifiers
         #expect(colour(rgb(plain, 35, 5)) == "red")
     }
 
+    /// S4: Remove location (on by default) drops the GPS dictionary and the
+    /// IPTC city and keeps the rest; off, the location comes along. Both
+    /// paths: the format-only one and a resize through the renderer.
+    @Test(arguments: [false, true])
+    func removeLocationIsOnByDefault(resized: Bool) async throws {
+        let dir = try folder()
+        let url = dir.appendingPathComponent("located.jpg")
+        try BatchFixtures.writeJPEG(to: url, width: 40, height: 20, dateTaken: "2022:01:02 03:04:05", located: true)
+        var settings = BatchConvertSettings(options: .defaults(for: .jpeg))
+        if resized { settings.resize = BatchResize(mode: .longSide, pixels: 20, filter: .lanczos3) }
+        #expect(settings.options.keepMetadata && settings.options.removeLocation)
+        let converter = await converter()
+        let (_, removed, _) = try decode(try await converter.encodedData(for: url, settings: settings))
+        #expect(removed[kCGImagePropertyGPSDictionary] == nil)
+        let iptc = removed[kCGImagePropertyIPTCDictionary] as? [CFString: Any]
+        #expect(iptc?[kCGImagePropertyIPTCCity] == nil)
+        #expect(iptc?[kCGImagePropertyIPTCKeywords] as? [String] == ["bridge"])
+        #expect((removed[kCGImagePropertyExifDictionary] as? [CFString: Any])?[kCGImagePropertyExifDateTimeOriginal] as? String
+            == "2022:01:02 03:04:05")
+
+        settings.options.removeLocation = false
+        let (_, kept, _) = try decode(try await converter.encodedData(for: url, settings: settings))
+        #expect((kept[kCGImagePropertyGPSDictionary] as? [CFString: Any])?[kCGImagePropertyGPSLatitude] as? Double == 51.5)
+        #expect((kept[kCGImagePropertyIPTCDictionary] as? [CFString: Any])?[kCGImagePropertyIPTCCity] as? String == "London")
+    }
+
     @Test func aFileThatIsNotAnImageFails() async throws {
         let dir = try folder()
         let url = dir.appendingPathComponent("broken.jpg")
@@ -335,7 +361,7 @@ enum BatchFixtures {
     /// bottom-right quadrants as stored, an EXIF orientation and optionally
     /// a date taken.
     static func writeJPEG(to url: URL, width: Int, height: Int, orientation: CGImagePropertyOrientation = .up,
-                          dateTaken: String? = nil) throws {
+                          dateTaken: String? = nil, located: Bool = false) throws {
         let ctx = try #require(CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                          bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue))
@@ -354,6 +380,10 @@ enum BatchFixtures {
                                            kCGImageDestinationLossyCompressionQuality: 1.0]
         if let dateTaken {
             properties[kCGImagePropertyExifDictionary] = [kCGImagePropertyExifDateTimeOriginal: dateTaken]
+        }
+        if located {
+            properties[kCGImagePropertyGPSDictionary] = [kCGImagePropertyGPSLatitude: 51.5, kCGImagePropertyGPSLatitudeRef: "N"]
+            properties[kCGImagePropertyIPTCDictionary] = [kCGImagePropertyIPTCCity: "London", kCGImagePropertyIPTCKeywords: ["bridge"]]
         }
         CGImageDestinationAddImage(destination, image, properties as CFDictionary)
         try #require(CGImageDestinationFinalize(destination))

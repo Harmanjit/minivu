@@ -255,16 +255,25 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         syncPanes()
     }
 
+    /// Ratings and tags are written on the catalog's queue, as the browser
+    /// and viewer write them: a file without a row has its own marks read
+    /// from disk first (G2), which mustn't hold up the window. The panes
+    /// show the change when the catalog reports it.
     private func rate(_ pane: CompareImagePane, _ rating: Int) {
         guard let entry = pane.entry else { return }
-        Self.catalog.setRating(rating, for: [entry.url])
-        pane.refreshMarks()
+        let catalog = Self.catalog, url = entry.url
+        BrowserModel.catalogWrites.async { catalog.setRating(rating, for: [url]) }
     }
 
+    /// Decided on the catalog's queue, after any write still queued, so a
+    /// quick T T tags and untags rather than tagging twice.
     private func toggleTag(of pane: CompareImagePane) {
         guard let entry = pane.entry else { return }
-        Self.catalog.setTagged(!Self.catalog.marks(for: entry.url).isTagged, for: [entry.url])
-        pane.refreshMarks()
+        let catalog = Self.catalog, url = entry.url
+        BrowserModel.catalogWrites.async {
+            let marks = FileMarksCache.shared.shownMarks(for: url, in: catalog)
+            catalog.setTagged(!marks.isTagged, for: [url])
+        }
     }
 
     /// Moves a pane's file to the Trash (the Finder does the move, off the
@@ -348,6 +357,12 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         if let pane = focusedPane { trash(pane) }
     }
 
+    /// Image > Label (⌥⌘0–⌥⌘7): the focused image's Finder colour tag (G4).
+    @objc func setColorLabel(_ sender: Any?) {
+        guard let label = ColorLabelCommand.label(of: sender), let url = focusedPane?.entry?.url else { return }
+        ColorLabelCommand.setLabel(label, for: [url])
+    }
+
     @objc func revealInFinder(_ sender: Any?) {
         guard let url = focusedPane?.entry?.url else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -365,10 +380,17 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         let entry = focusedPane?.entry
         switch menuItem.action {
         case .setRating:
-            menuItem.state = entry.map { Self.catalog.marks(for: $0.url).rating == menuItem.tag } == true ? .on : .off
+            menuItem.state = entry.map { FileMarksCache.shared.shownMarks(for: $0.url, in: Self.catalog).rating == menuItem.tag }
+                == true ? .on : .off
             return entry != nil
         case .toggleTag:
-            menuItem.showTag(isTagged: entry.map { Self.catalog.marks(for: $0.url).isTagged } == true)
+            menuItem.showTag(isTagged: entry.map { FileMarksCache.shared.shownMarks(for: $0.url, in: Self.catalog).isTagged } == true)
+            return entry != nil
+        case .setColorLabel:
+            let label = entry.map {
+                ColorLabelCommand.label(of: FinderTag.read(from: $0.url), standardNames: ColorLabelCommand.standardNames)
+            }
+            ColorLabelCommand.showState(menuItem, shared: label)
             return entry != nil
         case .moveToTrash: return entry.map { !trashing.contains($0.url) } ?? false
         case .revealInFinder: return entry != nil

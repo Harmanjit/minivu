@@ -124,6 +124,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             guard let self, let lead = self.model.leadEntry, !lead.isDirectory else { return }
             self.model.toggleTag(for: [lead.url])
         }
+        preview.onEditKeywords = { [weak self] url, edit in self?.writeKeywords(edit, to: url) }
         grid.onDropFiles = { [weak self] files, destination, move in self?.transfer(files, to: destination, move: move) }
         grid.onRename = { [weak self] url, name in self?.commitRename(url, to: name) }
         sidebar.onDropFiles = { [weak self] files, destination, move in

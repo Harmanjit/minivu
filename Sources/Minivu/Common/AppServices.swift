@@ -32,6 +32,11 @@ enum AppServices {
             Task { await BlockingWork.run(qos: .utility) { store?.removeAll() } }
         })
         updateThumbnailColorSpace()
+        // Marks carried by the files themselves show for files the catalog
+        // has no row for, and are taken into a row before a change; marks
+        // are written into the files while the setting is on (G2).
+        Catalog.shared.fileMarksReader = { FileMarksCache.shared.marks(for: $0) }
+        Catalog.shared.mirror = CatalogFileMirror(writer: .shared)
         // A display's settings changing, a window moving to another display,
         // or the browser appearing may put the browser on a display with
         // another colour space. The first is also posted for every step of

@@ -155,6 +155,11 @@ enum MainMenu {
         menu.add("Rating", nil).submenu = rating
         // ⌘T: no tabs in minivu, and no Fonts panel to show.
         menu.add(MenuStateTitles.tag(isTagged: false), .toggleTag, "t")
+        // ⌥⌘0 to ⌥⌘7, None then Finder's order of its colour tags. Free in
+        // every window: ⌃0–⌃5 rate, ⌘1–⌘4 pick a compare pane, the ⌥⌘
+        // letters are taken but no ⌥⌘ digit is, and the system's own ⌥⌘8
+        // (Zoom) is past the last.
+        menu.add("Label", nil).submenu = ColorLabelCommand.menu(withShortcuts: true)
         menu.addItem(.separator())
         // ⌥⌘K: ⌘K is Crop. ⇧⌘H: ⌘H and ⌥⌘H hide apps.
         menu.add("Compare Selected", .compareSelected, "k", [.command, .option])
@@ -177,9 +182,9 @@ enum MainMenu {
         return menu
     }
 
-    /// Rotate, flip, the edit tools and the comment. The browser rotates,
-    /// flips and comments its selection losslessly; the viewer does all of
-    /// it to the image it shows.
+    /// Rotate, flip, the edit tools, the comment and the metadata. The
+    /// browser rotates, flips, comments and edits the metadata of its
+    /// selection losslessly; the viewer does all of it to the image it shows.
     ///
     /// Shortcuts follow Preview where it has one (⌘L, ⌘R, ⌘K Crop, ⌥⌘C
     /// Adjust Color) and Photoshop's letters otherwise (Image Size ⌥⌘I,
@@ -227,6 +232,9 @@ enum MainMenu {
         menu.add("Text and Shapes…", .drawAnnotations)
         menu.addItem(.separator())
         menu.add("Edit Comment…", .editComment)
+        // ⌘I as Get Info is in Finder and Info in Photos: the image's
+        // details. The viewer's bare I (the HUD) ignores Command.
+        menu.add("Edit Metadata…", .editMetadata, "i")
     }
 
     private static func goMenu(_ viewKeys: DisplayOnlyShortcuts) -> NSMenu {

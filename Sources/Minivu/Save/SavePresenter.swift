@@ -170,9 +170,18 @@ enum SavePresenter {
     }
 
     /// The Save As write: the panel's render for `options`, encoded in the background.
+    ///
+    /// Remove location is for copies. Save As onto the original itself (the
+    /// same name, Replace confirmed in the panel) is a save in place, and
+    /// keeps every piece of metadata as Save does, so the file's GPS
+    /// position and place names are never lost by accident.
     static func write(_ source: SaveImageSource, options: ExportOptions, to url: URL, metadataSource: URL) async throws {
         let image = try await source.image(for: options)
         try await BlockingWork.run {
+            var options = options
+            if options.removeLocation, sameFile(url, metadataSource) || sameItem(url, metadataSource) {
+                options.removeLocation = false
+            }
             try ImageEncoder.write(image, to: url, options: options, metadataSource: metadataSource)
         }
     }

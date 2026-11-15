@@ -28,6 +28,8 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     var onRate: ((Int) -> Void)?
     /// The tag button under the photo was clicked.
     var onToggleTag: (() -> Void)?
+    /// A keyword was added or removed in the info panel (G4).
+    var onEditKeywords: ((URL, MetadataEdit) -> Void)?
 
     /// Stars and the tag for the photo shown, under it.
     let marksBar = NSStackView()
@@ -278,9 +280,16 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
             setInfoVisible(false)
         case .image(let entry, let neighbours):
             setInfoVisible(true)
-            info.rootView = InfoPanelView(url: entry.url, modified: entry.modified)
+            info.rootView = InfoPanelView(url: entry.url, modified: entry.modified, editKeywords: keywordEditing(for: entry.url))
             showImage(entry, neighbours: neighbours)
         }
+    }
+
+    /// The info panel's keyword change for `url`, when its metadata can be
+    /// written; nil shows the keywords read-only.
+    private func keywordEditing(for url: URL) -> ((MetadataEdit) -> Void)? {
+        guard onEditKeywords != nil, MetadataWriter.method(for: url) != .unsupported else { return nil }
+        return { [weak self] edit in self?.onEditKeywords?(url, edit) }
     }
 
     private func setInfoVisible(_ visible: Bool) {
