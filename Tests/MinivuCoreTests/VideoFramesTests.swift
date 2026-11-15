@@ -93,6 +93,28 @@ import CoreGraphics
         #expect(!small.isFullResolution)
     }
 
+    /// An HDR movie's still keeps its highlights: decoded as HDR with
+    /// headroom above SDR white, so the viewer shows it as HDR before and
+    /// apart from the player. With HDR off (Settings > Show HDR) it is tone
+    /// mapped to SDR instead.
+    @Test func anHDRMovieDecodesAsHDR() async throws {
+        let url = try await TestVideos.make(at: folder.url.appendingPathComponent("hdr.mov"), width: 192,
+                                            height: 108, seconds: 1, hdr: true)
+        let info = try #require(await BlockingWork.run { VideoFrames.info(for: url) })
+        #expect(info.isHDR)
+
+        let still = try await BlockingWork.run { try ImageDecoder.decode(url, fitting: CGSize(width: 400, height: 400)) }
+        #expect(still.isHDR)
+        #expect(still.contentHeadroom > 1.5)
+        #expect(still.needsDeepStorage)
+
+        let sdr = try await BlockingWork.run {
+            try ImageDecoder.decode(url, fitting: CGSize(width: 400, height: 400), allowHDR: false)
+        }
+        #expect(!sdr.isHDR)
+        #expect(sdr.contentHeadroom == 1)
+    }
+
     @Test func posterTimeIsALittleIn() {
         #expect(VideoFrames.posterTime(duration: 0) == 0)
         #expect(VideoFrames.posterTime(duration: 3) == 0.3)
