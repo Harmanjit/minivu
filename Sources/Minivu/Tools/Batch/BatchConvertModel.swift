@@ -4,7 +4,8 @@ import MinivuCore
 import MinivuRender
 
 /// The state of the Batch Convert sheet: the settings being chosen, the
-/// destination folder, and the first output's name as a preview.
+/// destination folder, the first output's name as a preview, and the named
+/// presets (G6): edits from the viewer or the whole sheet saved by name.
 ///
 /// Options are kept per format while the sheet is open, as Save As keeps
 /// them, so switching JPEG → PNG → JPEG doesn't lose a quality setting; a
@@ -15,6 +16,7 @@ import MinivuRender
     @ObservationIgnored let store: BatchStore
     @ObservationIgnored let saveOptions: SaveOptionsStore
     @ObservationIgnored let probe: BatchFileProbe
+    let presets: PresetList<BatchConvertPreset>
 
     var settings: BatchConvertSettings {
         didSet { if settings != oldValue { schedulePreview() } }
@@ -41,6 +43,10 @@ import MinivuRender
     /// only be made while the folder is open to the app, which a folder
     /// remembered from an earlier session no longer is.
     @ObservationIgnored private var chosenBookmark: Data?
+    /// The preset last chosen or saved, which the popup shows; nil is None.
+    /// Changing an option afterwards doesn't change the preset until it is
+    /// saved again.
+    private(set) var selectedPresetID: UUID?
     /// "IMG_0001.NEF → IMG_0001.jpg", or why the first file can't convert.
     private(set) var previewText = ""
     private(set) var previewProblem: String?
@@ -75,6 +81,7 @@ import MinivuRender
         self.store = store
         self.saveOptions = saveOptions
         self.probe = probe
+        presets = .convert(store)
         if case .pattern(let saved) = settings.naming {
             pattern = saved
             usesPattern = true
@@ -161,6 +168,89 @@ import MinivuRender
         let kept = stale ? (try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil,
                                                  relativeTo: nil)) ?? bookmark : bookmark
         return (url, kept)
+    }
+
+    // MARK: - Presets and edits
+
+    /// Chooses a preset from the popup: its edits replace the sheet's, and a
+    /// preset saved from Batch Convert brings its output options too. None
+    /// clears the edits and leaves everything else.
+    func choosePreset(_ id: UUID?) {
+        guard let preset = presets.preset(id) else {
+            selectedPresetID = nil
+            settings.edits = []
+            return
+        }
+        selectedPresetID = preset.id
+        if let output = preset.value.output { adopt(output) }
+        // Only steps a preset may carry, whatever a stored preset says.
+        settings.edits = BatchEdits.portable(preset.value.edits).operations
+    }
+
+    /// Saves the sheet as it stands (edits and every option) as `name`,
+    /// over a preset of that name if there is one. False for an empty name.
+    @discardableResult
+    func savePreset(named name: String) -> Bool {
+        var output = settings
+        output.edits = []
+        guard let saved = presets.save(BatchConvertPreset(edits: settings.edits, output: output), as: name) else {
+            return false
+        }
+        selectedPresetID = saved.id
+        return true
+    }
+
+    /// Renames the chosen preset; false when the name is empty or taken.
+    @discardableResult
+    func renameSelectedPreset(to name: String) -> Bool {
+        guard let id = selectedPresetID else { return false }
+        return presets.rename(id, to: name)
+    }
+
+    /// Deletes the chosen preset. The sheet keeps what it took from it.
+    func deleteSelectedPreset() {
+        guard let id = selectedPresetID else { return }
+        presets.delete(id)
+        selectedPresetID = nil
+    }
+
+    func removeEdit(at index: Int) {
+        guard settings.edits.indices.contains(index) else { return }
+        settings.edits.remove(at: index)
+    }
+
+    /// The watermark's line in the Edits section.
+    var watermarkSummary: String {
+        guard let watermark = settings.watermark else { return "None" }
+        switch watermark.kind {
+        case .text: return "“\(watermark.text)”"
+        case .image: return watermark.imageName ?? "Picture"
+        }
+    }
+
+    /// A preset's output options, as the sheet's own: the chosen folder
+    /// resolved again (or beside the originals when it has gone), the
+    /// names' pattern shown, and a format this Mac can't write replaced.
+    private func adopt(_ output: BatchConvertSettings) {
+        var output = output
+        if !output.options.format.isWritable { output.options = saveOptions.options(for: .jpeg) }
+        if case .chosenFolder(let bookmark) = output.destination {
+            if let resolved = Self.resolveRefreshing(bookmark) {
+                chosenFolder = resolved.url
+                chosenBookmark = resolved.bookmark
+                output.destination = .chosenFolder(bookmark: resolved.bookmark)
+            } else {
+                output.destination = .besideOriginals
+            }
+        }
+        optionsByFormat = [:]
+        settings = output
+        if case .pattern(let saved) = output.naming {
+            pattern = saved
+            usesPattern = true
+        } else {
+            usesPattern = false
+        }
     }
 
     // MARK: - Checks and preview

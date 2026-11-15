@@ -123,9 +123,7 @@ extension ViewerWindowController {
 
     /// The watermark tool's state and inspector (from `presentEffect`).
     func presentWatermark(document: EditDocument) -> any EffectTool {
-        var initial = Watermark()
-        initial.text = "© " + String(Calendar(identifier: .gregorian).component(.year, from: Date()))
-        let state = EffectToolState(kind: .watermark, document: document, initial: initial) { .watermark($0) }
+        let state = EffectToolState(kind: .watermark, document: document, initial: Watermark.starting()) { .watermark($0) }
         let inspector = WatermarkInspectorView(state: state, actions: inspectorActions(),
                                                chooseImage: { [weak self, weak state] in
                                                    guard let self, let state else { return }

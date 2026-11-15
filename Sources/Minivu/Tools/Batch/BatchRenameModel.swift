@@ -11,15 +11,20 @@ import MinivuCore
 /// big ones wait for a short pause in typing, so each keystroke in a
 /// 5000-file batch doesn't start a plan. The date taken and pixel size are
 /// read from the files only when the pattern first uses them, several
-/// files at a time, and kept for the life of the sheet.
+/// files at a time, and kept for the life of the sheet. Patterns can be
+/// saved by name and chosen again (G6).
 @MainActor @Observable final class BatchRenameModel {
     let entries: [FolderEntry]
     @ObservationIgnored let store: BatchStore
     @ObservationIgnored let probe: BatchFileProbe
+    let presets: PresetList<RenamePattern>
 
     var pattern: RenamePattern {
         didSet { if pattern != oldValue { schedulePlan() } }
     }
+
+    /// The preset last chosen or saved, which the popup shows; nil is None.
+    private(set) var selectedPresetID: UUID?
 
     /// The plan for `pattern`, once worked out.
     private(set) var plan: RenamePlan?
@@ -43,8 +48,39 @@ import MinivuCore
         self.entries = entries
         self.store = store
         self.probe = probe
+        presets = .rename(store)
         pattern = store.renamePattern
         schedulePlan()
+    }
+
+    // MARK: - Presets
+
+    /// Chooses a preset: its pattern replaces the one being edited. None
+    /// leaves the pattern as it is.
+    func choosePreset(_ id: UUID?) {
+        selectedPresetID = presets.preset(id)?.id
+        if let preset = presets.preset(id) { pattern = preset.value }
+    }
+
+    /// Saves the pattern as `name`, over a preset of that name if there is
+    /// one. False for an empty name.
+    @discardableResult
+    func savePreset(named name: String) -> Bool {
+        guard let saved = presets.save(pattern, as: name) else { return false }
+        selectedPresetID = saved.id
+        return true
+    }
+
+    @discardableResult
+    func renameSelectedPreset(to name: String) -> Bool {
+        guard let id = selectedPresetID else { return false }
+        return presets.rename(id, to: name)
+    }
+
+    func deleteSelectedPreset() {
+        guard let id = selectedPresetID else { return }
+        presets.delete(id)
+        selectedPresetID = nil
     }
 
     var sources: [RenameSource] {

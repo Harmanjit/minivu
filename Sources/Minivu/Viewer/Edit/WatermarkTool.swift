@@ -38,6 +38,16 @@ struct AnchorGrid: View {
     }
 }
 
+extension Watermark {
+    /// What the watermark tool opens with: "© " and this year, in the
+    /// default place and size.
+    static func starting(now: Date = Date()) -> Watermark {
+        var watermark = Watermark()
+        watermark.text = "© " + String(Calendar(identifier: .gregorian).component(.year, from: now))
+        return watermark
+    }
+}
+
 /// The watermark's inspector: text (with font, weight and colour) or a
 /// chosen picture, then its size, opacity, place and tiling.
 struct WatermarkInspectorView: View {

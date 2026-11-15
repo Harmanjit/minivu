@@ -3,9 +3,9 @@ import SwiftUI
 import MinivuCore
 import MinivuRender
 
-/// Batch Convert as a sheet on the browser window: format and options,
-/// size and orientation, destination and names, with the first output's
-/// name as a preview.
+/// Batch Convert as a sheet on the browser window: a preset, format and
+/// options, edits and a watermark, size and orientation, destination and
+/// names, with the first output's name as a preview.
 @MainActor final class BatchConvertSheet {
     let model: BatchConvertModel
     let window: NSWindow
@@ -21,6 +21,7 @@ import MinivuRender
         window.minSize = NSSize(width: 560, height: 480)
         let view = BatchConvertView(model: model,
                                     onChooseFolder: { [weak self] in self?.chooseFolder() },
+                                    onEditWatermark: { [weak self] in self?.editWatermark() },
                                     onCancel: { [weak self] in self?.end() },
                                     onConvert: { [weak self] in self?.convert() })
         window.contentView = NSHostingView(rootView: view)
@@ -65,6 +66,15 @@ import MinivuRender
         }
     }
 
+    /// Adds or changes the watermark in the viewer's inspector, as a sheet
+    /// over this one.
+    func editWatermark() {
+        guard window.attachedSheet == nil else { return NSSound.beep() }
+        BatchWatermarkSheet(watermark: model.settings.watermark).begin(on: window) { [weak self] watermark in
+            self?.model.settings.watermark = watermark
+        }
+    }
+
     private func convert() {
         // A number being typed is committed when its field loses focus.
         window.makeFirstResponder(nil)
@@ -85,6 +95,7 @@ import MinivuRender
 struct BatchConvertView: View {
     @Bindable var model: BatchConvertModel
     var onChooseFolder: () -> Void
+    var onEditWatermark: () -> Void
     var onCancel: () -> Void
     var onConvert: () -> Void
 
@@ -95,7 +106,9 @@ struct BatchConvertView: View {
                 .padding(.top, 16)
 
             Form {
+                presetSection
                 formatSection
+                editsSection
                 sizeSection
                 destinationSection
                 namesSection
@@ -135,6 +148,68 @@ struct BatchConvertView: View {
 
     // MARK: - Sections
 
+    @ViewBuilder private var presetSection: some View {
+        Section {
+            BatchPresetControls(items: model.presets.presets.map { .init(id: $0.id, name: $0.name) },
+                                selection: model.selectedPresetID,
+                                contents: "the edits and every option below",
+                                onChoose: { model.choosePreset($0) },
+                                onSave: { model.savePreset(named: $0) },
+                                onRename: { model.renameSelectedPreset(to: $0) },
+                                onDelete: { model.deleteSelectedPreset() })
+        } footer: {
+            InspectorFootnote("Save a photo’s edits as a preset in the viewer with File > Save Edits as Preset…, or save this sheet as it is.")
+        }
+    }
+
+    @ViewBuilder private var editsSection: some View {
+        Section {
+            if model.settings.edits.isEmpty {
+                LabeledContent("Steps") {
+                    Text("None").foregroundStyle(.secondary)
+                }
+            }
+            ForEach(Array(model.settings.edits.enumerated()), id: \.offset) { index, operation in
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(operation.title)
+                        if let note = BatchEdits.note(for: operation) {
+                            Text(note).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        model.removeEdit(at: index)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Leave this step out of the batch")
+                    .accessibilityLabel("Remove \(operation.title)")
+                }
+                .accessibilityElement(children: .combine)
+            }
+            LabeledContent("Watermark") {
+                HStack(spacing: 8) {
+                    Text(model.watermarkSummary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(model.settings.watermark == nil ? .secondary : .primary)
+                    Button(model.settings.watermark == nil ? "Add…" : "Edit…", action: onEditWatermark)
+                        .accessibilityLabel(model.settings.watermark == nil ? "Add Watermark" : "Edit Watermark")
+                    if model.settings.watermark != nil {
+                        Button("Remove") { model.settings.watermark = nil }
+                            .accessibilityLabel("Remove Watermark")
+                    }
+                }
+            }
+        } header: {
+            Text("Edits")
+        } footer: {
+            InspectorFootnote("Edits are applied to every image first, then the size and orientation below. The watermark is stamped last, at the converted size.")
+        }
+    }
+
     @ViewBuilder private var formatSection: some View {
         let format = model.settings.options.format
         Section("Format") {
@@ -168,6 +243,11 @@ struct BatchConvertView: View {
             }
             if format == .jpeg {
                 Toggle("Progressive", isOn: $model.settings.options.progressive)
+            }
+            if ImageEncoder.canWriteGainMap(format) {
+                Toggle("Keep HDR", isOn: $model.settings.keepsHDR)
+                    .help("HDR photos keep their highlights, written with a gain map. Off, they are tone mapped to SDR.")
+                    .accessibilityHint("HDR photos keep their highlights, written with a gain map")
             }
             if format.supports16Bit {
                 Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.settings.options.sixteenBit)
