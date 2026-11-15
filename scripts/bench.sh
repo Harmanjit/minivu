@@ -51,10 +51,16 @@ else
   test=(swift test -c release -Xswiftc -enable-testing --skip-build)
 fi
 
-# One entry per process, in this order. A suite of window tests runs with
-# the other window suites' serialisation, so it is safe on its own too.
+# One entry per process, in this order. Each is a `swift test --filter`
+# pattern (a regular expression over the test's name) that matches one
+# suite or one test of one target: every test target is in the same test
+# process, and suites of different targets would run side by side. Every
+# benchmark suite is nested in a serialized parent (`Benchmarks` in the
+# Core and Render targets, `AppWindowTests` in the app's), so two that a
+# pattern catches together still run one at a time.
 suites=(
   # MinivuCoreTests
+  StoreLaunchBenchmark
   CatalogBenchmark
   ThumbnailBenchmark
   PhotoInfoBenchmark
@@ -62,19 +68,32 @@ suites=(
   "SearchBenchmark/findWithMetadataColdAndCached"
   "DuplicateBenchmark/exactAndSimilarOnTwoHundred"
   # MinivuRenderTests
+  GPULaunchBenchmark
   EditLatencyBenchmark
   SlideshowVideoBenchmark
   # MinivuTests
-  FolderOpenBenchmark
+  WindowLaunchBenchmark
+  "FolderOpenBenchmark/folderOpen\\("
+  "FolderOpenBenchmark/folderOpenInTheWindow"
+  "FolderOpenBenchmark/firstScreenOfThumbnails"
+  "FolderOpenBenchmark/filterAndRatingSortReadHeaders"
+  "FolderOpenBenchmark/flatViewOfATree"
+  "FolderOpenBenchmark/findInTheBrowser"
   PixelSizeCacheBenchmark
-  FilesBenchmark
+  "FilesBenchmark/copyAndMove"
+  "FilesBenchmark/moveIntoAShownFolder"
+  "FilesBenchmark/batchRename"
+  "FilesBenchmark/moveToTrash"
+  "FilesBenchmark/writeQueueContention"
   "ViewerBenchmark/openPerFormat"
   "ViewerBenchmark/nextAndPrevious"
   "ViewerBenchmark/zoomToActualSize"
   "ViewerBenchmark/memoryFlippingThroughTwenty"
+  CompareBenchmark
   GridScrollBenchmark
   SaveBenchmark
-  "BatchOutputBenchmark/batchConvert"
+  "BatchOutputBenchmark/batchConvert\\("
+  "BatchOutputBenchmark/batchConvertReplacing"
   "BatchOutputBenchmark/webGallery"
 )
 # The benchmarks from before the study: their own print format, log only.
@@ -127,6 +146,17 @@ for suite in "${suites[@]}" ${older[@]+"${older[@]}"}; do
     failed=1
   fi
   grep '^BENCH ' "$log.part" >> "$results" || true
+  # A metric with no samples, and tests skipped (no photos of that kind).
+  grep '^BENCH-EMPTY ' "$log.part" | sed 's/^/# /' >> "$results" || true
+  grep -E 'Test [^ ]+ skipped' "$log.part" | sed -E 's/^.*Test ([^ ]+) skipped.*$/# SKIPPED \1/' >> "$results" || true
+  # A pattern that matched nothing, or whose tests were all skipped, prints
+  # no metric and still exits 0: not a success. The older benchmarks print
+  # in their own format and are left out of this check.
+  if ! grep -q '^BENCH ' "$log.part" && [[ " ${suites[*]} " == *" $suite "* ]]; then
+    echo "  $suite printed no metrics; see $log" >&2
+    echo "# NO METRICS $suite (the filter matched nothing, or every test was skipped)" >> "$results"
+    failed=1
+  fi
   cat "$log.part" >> "$log"
   rm -f "$log.part"
 done
