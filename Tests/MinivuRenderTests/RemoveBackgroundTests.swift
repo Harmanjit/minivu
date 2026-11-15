@@ -70,6 +70,18 @@ import UniformTypeIdentifiers
         #expect(back.mask.image != nil)
     }
 
+    /// Two masks are equal by their bytes, and two different masks of the
+    /// same size and byte count hash apart (the hash covers the bytes).
+    @Test func masksCompareAndHashByTheirBytes() {
+        let a = Self.leftMask(fraction: 0.5), same = Self.leftMask(fraction: 0.5)
+        #expect(a !== same && a == same && a.hashValue == same.hashValue)
+        let b = Self.leftMask(fraction: 0.25)
+        let copy = SubjectMask(width: b.width, height: b.height, png: Data(b.png.reversed()), bounds: b.bounds)
+        #expect(copy.png.count == b.png.count && copy != b)
+        #expect(copy.hashValue != b.hashValue)
+        #expect(a != b)
+    }
+
     // MARK: - The graph
 
     /// What remains keeps its values, HDR included; the rest is transparent,

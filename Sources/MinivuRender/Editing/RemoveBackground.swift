@@ -25,6 +25,11 @@ import MinivuCore
 /// operation (a document's history, an export's snapshot): equality is by
 /// value, the decoded image by reference. Immutable apart from that cache,
 /// which a lock guards.
+///
+/// Operations are compared on the main thread whenever a tool checks for a
+/// change, and a mask is up to a few hundred KB of PNG, so each mask hashes
+/// its bytes once when made (`digest`): two different masks tell each other
+/// apart by that alone, and only masks with the same digest compare bytes.
 public final class SubjectMask: Codable, Hashable, @unchecked Sendable {
     public let width: Int
     public let height: Int
@@ -33,6 +38,8 @@ public final class SubjectMask: Codable, Hashable, @unchecked Sendable {
     /// The subject's bounding box in the picture, normalised, top-left
     /// origin: where more than half of a pixel is subject.
     public let bounds: CGRect
+    /// The PNG's hash, taken once (see the type's notes).
+    let digest: Int
 
     private let lock = NSLock()
     private var decoded: CIImage?
@@ -62,6 +69,9 @@ public final class SubjectMask: Codable, Hashable, @unchecked Sendable {
         self.height = height
         self.png = png
         self.bounds = bounds
+        var hasher = Hasher()
+        hasher.combine(png)
+        digest = hasher.finalize()
     }
 
     private enum CodingKeys: String, CodingKey { case width, height, png, bounds }
@@ -82,13 +92,13 @@ public final class SubjectMask: Codable, Hashable, @unchecked Sendable {
     }
 
     public static func == (a: SubjectMask, b: SubjectMask) -> Bool {
-        a === b || (a.width == b.width && a.height == b.height && a.png == b.png)
+        a === b || (a.digest == b.digest && a.width == b.width && a.height == b.height && a.png == b.png)
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(width)
         hasher.combine(height)
-        hasher.combine(png.count)
+        hasher.combine(digest)
     }
 
     /// Nothing to cut along: a mask that can't be decoded.
