@@ -66,7 +66,7 @@ public enum ColorLabel: Int, CaseIterable, Sendable {
 /// its sidecar (G2), and the mapping minivu uses for each:
 ///
 /// - **Stars:** `xmp:Rating`, 0 to 5, as Lightroom, Bridge, Capture One,
-///   digiKam, XnView MP, Photos and Windows all read and write it. -1 is
+///   digiKam, XnView MP and Windows all read and write it. -1 is
 ///   Bridge's (and digiKam's) "Rejected"; minivu shows it as no stars and
 ///   never writes it, and clearing a rating in minivu leaves a reject alone.
 /// - **The tag** (FastStone's culling flag): `digiKam:PickLabel` 3,
