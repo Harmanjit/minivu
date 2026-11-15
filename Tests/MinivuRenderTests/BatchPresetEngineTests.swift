@@ -231,6 +231,25 @@ import UniformTypeIdentifiers
         return hdr?.contentHeadroom ?? 1
     }
 
+    /// The brightest value of the file decoded for HDR, in extended linear
+    /// Display P3: above 1 only if the highlights really came through (the
+    /// headroom alone is a number in the file, which a clipped render would
+    /// still carry).
+    func brightest(_ data: Data) throws -> Float {
+        let (_, source) = try decode(data)
+        let hdr = try #require(CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR] as CFDictionary))
+        let w = hdr.width, h = hdr.height
+        var values = [Float](repeating: 0, count: w * h * 4)
+        try values.withUnsafeMutableBytes { buffer in
+            let ctx = try #require(CGContext(data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 32,
+                                             bytesPerRow: w * 16, space: CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!,
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                                                 | CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder32Little.rawValue))
+            ctx.draw(hdr, in: CGRect(x: 0, y: 0, width: w, height: h))
+        }
+        return values.max() ?? 0
+    }
+
     static var gainMapFormats: [ExportFormat] { [.jpeg, .heic] + (ExportFormat.avif.isWritable ? [.avif] : []) }
 
     /// An HDR original keeps its highlights in every format that holds a
@@ -243,17 +262,18 @@ import UniformTypeIdentifiers
         var settings = BatchConvertSettings(options: .defaults(for: format))
         let plain = try await converter.encodedData(for: url, settings: settings)
         #expect(try gainMap(plain), "\(format): format change only")
-        #expect(try hdrHeadroom(plain) > 2, "\(format)")
+        #expect(try hdrHeadroom(plain) > 2 && brightest(plain) > 2, "\(format)")
 
         settings.edits = [.colors(hue: 0, saturation: 0.2, lightness: 0, temperature: 0, tint: 0)]
         settings.resize = BatchResize(mode: .longSide, pixels: 128, filter: .lanczos3)
         let edited = try await converter.encodedData(for: url, settings: settings)
         #expect(try gainMap(edited) && hdrHeadroom(edited) > 2, "\(format): edited and resized")
+        #expect(try brightest(edited) > 2, "\(format): the highlights survive the edit and the Lanczos resize")
         #expect(try decode(edited).image.width == 128)
 
         settings.keepsHDR = false
         let sdr = try await converter.encodedData(for: url, settings: settings)
-        #expect(try !gainMap(sdr), "\(format): HDR off")
+        #expect(try !gainMap(sdr) && brightest(sdr) <= 1.01, "\(format): HDR off")
     }
 
     @Test func pngAndPQOriginals() async throws {
@@ -265,7 +285,7 @@ import UniformTypeIdentifiers
         // highlights stay.
         let pq = try Fixtures.pqHEIC()
         let heic = try await converter.encodedData(for: pq, settings: BatchConvertSettings(options: .defaults(for: .heic)))
-        #expect(try gainMap(heic) && hdrHeadroom(heic) > 2)
+        #expect(try gainMap(heic) && hdrHeadroom(heic) > 2 && brightest(heic) > 2)
     }
 
     // MARK: - Memory
