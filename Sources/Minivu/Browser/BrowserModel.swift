@@ -1422,9 +1422,12 @@ nonisolated struct FolderSnapshot: Sendable {
     }
 
     /// Takes entries out at once after they were moved to the Trash, rather
-    /// than waiting for the watcher's reload to notice.
+    /// than waiting for the watcher's reload to notice. A folder's entries
+    /// are found by name, so only an entry at the very path given goes: a
+    /// namesake in a subfolder (a duplicate trashed from Find Duplicates)
+    /// leaves the shown folder's own file in place.
     func removeEntries(_ urls: Set<URL>) {
-        let matched = Set(urls.compactMap { entry(for: $0)?.url })
+        let matched = Set(urls.compactMap { url in entry(for: url).flatMap { Self.samePath($0.url, url) ? $0.url : nil } })
         guard !matched.isEmpty, snapshot != nil else { return }
         for url in matched where entry(for: url)?.isDirectory == false { invalidate(url) }
         snapshot?.remove(matched)

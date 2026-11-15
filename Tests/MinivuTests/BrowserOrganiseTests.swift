@@ -143,25 +143,43 @@ final class HeldTreeWalk: @unchecked Sendable {
         let t = try ScratchFolder()
         let first = try t.file("first.jpg"), second = try t.file("second.jpg")
         let release = CancellationFlag()
+        // The walk holds until the test lets it go (the deadline only keeps
+        // a failing run from hanging), so a loaded Mac can't finish it
+        // before the partial list has been looked at.
+        let deadline = TestTiming.patience(seconds: 60)
         let model = makeModel(treeLister: { _, _, cancel, batch in
             func entry(_ url: URL) -> FolderEntry { FolderEntry(url: url)! }
             batch([entry(first)])
             usleep(UInt32(BrowserModel.partialInterval.components.attoseconds / 1_000_000_000_000) + 50_000)
             batch([entry(second)])
-            let deadline = Date().addingTimeInterval(10)
             while !release.isCancelled, !cancel.isCancelled, Date() < deadline { usleep(2_000) }
             return TreeEnumerator.Result(images: [entry(first), entry(second)], foldersListed: 1, isTruncated: false,
                                          isCancelled: false)
         })
         model.flatView = true
         model.navigate(to: t.url)
-        let deadline = Date().addingTimeInterval(5)
-        while model.entries.count < 2, Date() < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        await TestTiming.waitUntil(seconds: 30) { model.entries.count == 2 && model.state == .loaded }
         #expect(model.entries.count == 2 && model.state == .loaded)
         #expect(model.statusText.hasSuffix("searching…"))
         release.cancel()
         await model.work?.value
         #expect(model.statusText == "2 images")
+    }
+
+    /// A folder's entries are found by name: taking out a namesake from a
+    /// subfolder (trashed from Find Duplicates) leaves the shown file.
+    @Test func removingANamesakeFromASubfolderKeepsTheShownFile() async throws {
+        let t = try ScratchFolder()
+        let sub = try t.folder("Sub")
+        let shown = try t.file("a.jpg"), namesake = try t.file("a.jpg", in: sub)
+        let model = makeModel()
+        model.navigate(to: t.url)
+        await model.work?.value
+        #expect(model.entries.filter { !$0.isDirectory }.map(\.name) == ["a.jpg"])
+        model.removeEntries([namesake])
+        #expect(model.entries.filter { !$0.isDirectory }.map(\.name) == ["a.jpg"])
+        model.removeEntries([shown])
+        #expect(model.entries.filter { !$0.isDirectory }.isEmpty)
     }
 
     // MARK: - Lists

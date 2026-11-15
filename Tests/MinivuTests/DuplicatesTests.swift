@@ -214,6 +214,42 @@ import MinivuCore
         #expect(model.isRunning)
     }
 
+    /// The folder alone compares every image in it: its subfolders were
+    /// never asked for, so no limit is said to be reached.
+    @Test func theFolderScopeSaysNothingOfItsSubfolders() throws {
+        let t = try ScratchFolder()
+        let sub = try t.folder("Sub")
+        try write([1, 2, 3], "a.jpg", in: t.url)
+        try write([1, 2, 3], "b.jpg", in: t.url)
+        try write([1, 2, 3], "c.jpg", in: sub)
+        var request = DuplicatesModel.Request(source: DuplicateSource(selection: [], folder: t.url), scope: .folder,
+                                              mode: .exact, maximumSimilarImages: 10, workers: 1, store: nil)
+        let alone = DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }
+        #expect(alone.note == nil)
+        #expect(alone.scanned == 2 && alone.exactGroups.map { $0.map(\.name) } == [["a.jpg", "b.jpg"]])
+        request.scope = .folderAndSubfolders
+        let tree = DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }
+        #expect(tree.note == nil && tree.scanned == 3)
+    }
+
+    /// Stop after the comparing: the groups found come back at once, without
+    /// reading every grouped image's header for its dimensions.
+    @Test func stopSkipsReadingPixelSizes() throws {
+        let t = try ScratchFolder()
+        let a = try t.jpeg("a.jpg", width: 64, height: 48)
+        try FileManager.default.copyItem(at: a, to: t.url.appendingPathComponent("b.jpg"))
+        let request = DuplicatesModel.Request(source: DuplicateSource(selection: [], folder: t.url), scope: .folder,
+                                              mode: .exact, maximumSimilarImages: 10, workers: 1, store: nil)
+        let whole = DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }
+        #expect(whole.pixelSizes.count == 2)
+        let cancel = CancellationFlag()
+        let stopped = DuplicatesModel.find(request, cancel: cancel) { progress in
+            if progress.total > 0, progress.done == progress.total { cancel.cancel() }
+        }
+        #expect(stopped.isCancelled && stopped.exactGroups.count == 1)
+        #expect(stopped.pixelSizes.isEmpty)
+    }
+
     /// The real search on synthetic pictures: a resized copy groups with its
     /// original, and a different picture doesn't; the note explains a
     /// memory cap.
@@ -369,6 +405,57 @@ extension AppWindowTests {
             #expect(!exists(t.url.appendingPathComponent("b.jpg")))
             // Groups left with one file leave the list.
             #expect(controller.model.groups.isEmpty)
+        }
+
+        /// A copy trashed from a subfolder takes only itself out of the
+        /// browser, never the shown folder's file of the same name, and the
+        /// catalog hears of the move: the copy leaves its collection, and
+        /// the collection's count, at once.
+        @Test func trashingACopyInASubfolderKeepsItsNamesakeAndLeavesItsCollection() async throws {
+            let t = try ScratchFolder()
+            let bin = try AppWindowTests.TrashSafetyTests.Bin(in: t, name: ".Trash")
+            defer { bin.restore() }
+            let savedCatalog = FileWriteQueue.shared.catalog
+            FileWriteQueue.shared.catalog = catalog
+            defer { FileWriteQueue.shared.catalog = savedCatalog }
+            let savedPrompt = DuplicatePrompts.confirmTrash
+            defer { DuplicatePrompts.confirmTrash = savedPrompt }
+            DuplicatePrompts.confirmTrash = { _, _, _, reply in reply(true) }
+            ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in }
+
+            let sub = try t.folder("Sub")
+            let original = t.url.appendingPathComponent("a.jpg"), copy = sub.appendingPathComponent("a.jpg")
+            try Data([1, 2, 3, 4]).write(to: original)
+            try Data([1, 2, 3, 4]).write(to: copy)
+            let id = try #require(catalog.createCollection(named: "Keep"))
+            catalog.addToCollection(id, urls: [original, copy])
+
+            let browser = makeBrowser()
+            defer { browser.close() }
+            browser.open(folder: t.url)
+            await settle(browser)
+            #expect(browser.model.entries.filter { !$0.isDirectory }.map(\.name) == ["a.jpg"])
+
+            let model = DuplicatesModel(source: DuplicateSource(selection: [], folder: t.url),
+                                        store: try ThumbnailStore.inMemory(), defaults: defaults.defaults)
+            model.mode = .exact
+            model.scope = .folderAndSubfolders
+            let controller = DuplicatesWindowController(model: model, browser: browser)
+            defer { controller.close() }
+            model.start()
+            await TestTiming.waitUntil(seconds: 30) { model.state == .finished }
+            #expect(model.groups.map { $0.files.count } == [2])
+            let found = try #require(model.allFiles.first { $0.url.deletingLastPathComponent().lastPathComponent == "Sub" })
+            model.setMarked(found.url, true)
+            controller.moveMarkedToTrash()
+            await TestTiming.waitUntil { !controller.isTrashing && model.marked.isEmpty }
+
+            #expect(bin.names == ["a.jpg"])
+            #expect(exists(original) && !exists(copy))
+            #expect(browser.model.entries.filter { !$0.isDirectory }.map(\.name) == ["a.jpg"])
+            #expect(catalog.collections().first?.count == 1)
+            #expect(catalog.collectionMembers(id).map { $0.resolvingSymlinksInPath().path }
+                    == [original.resolvingSymlinksInPath().path])
         }
 
         /// The selected files, or every file found, open as a list in the

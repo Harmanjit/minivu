@@ -297,13 +297,21 @@ struct DuplicateGroup: Identifiable, Equatable {
         case .selection:
             images = source.selection
         case .folder, .folderAndSubfolders:
-            if let folder = source.folder {
-                let limits = request.scope == .folder
-                    ? TreeEnumerator.Limits(maximumDepth: 0, maximumImages: TreeEnumerator.Limits.standard.maximumImages,
-                                            maximumFolders: 1)
-                    : .standard
+            if let folder = source.folder, request.scope == .folder {
+                // The folder alone, listed directly: a tree walk held to depth
+                // 0 counts the subfolders it leaves out as a limit reached,
+                // and they were never asked for.
+                guard let contents = try? FolderListing.contents(of: folder, includeHidden: source.includeHidden)
+                else { return outcome }
+                images = contents.images
+                let limit = TreeEnumerator.Limits.standard.maximumImages
+                if images.count > limit {
+                    images = Array(FolderListing.sorted(images, by: FileSortOrder()).prefix(limit))
+                    outcome.note = "A folder limit was reached: not every image was compared."
+                }
+            } else if let folder = source.folder {
                 guard let walk = try? TreeEnumerator.images(under: folder, includeHidden: source.includeHidden,
-                                                            limits: limits, isCancelled: { cancel.isCancelled })
+                                                            isCancelled: { cancel.isCancelled })
                 else { return outcome }
                 images = walk.images
                 if walk.isTruncated { outcome.note = "A folder limit was reached: not every image was compared." }
@@ -319,7 +327,8 @@ struct DuplicateGroup: Identifiable, Equatable {
         case .exact:
             outcome.exactGroups = DuplicateFinder.exactGroups(in: images, cache: store,
                                                               isCancelled: { cancel.isCancelled }, progress: progress)
-            outcome.pixelSizes = DuplicateFinder.pixelSizes(of: outcome.exactGroups.flatMap { $0 })
+            outcome.pixelSizes = DuplicateFinder.pixelSizes(of: outcome.exactGroups.flatMap { $0 },
+                                                             isCancelled: { cancel.isCancelled })
         case .similar:
             if images.count > request.maximumSimilarImages {
                 images = Array(images.prefix(request.maximumSimilarImages))
@@ -336,9 +345,11 @@ struct DuplicateGroup: Identifiable, Equatable {
             }
             outcome.similarImages = compared
             outcome.index = index
-            // Sizes of the images in any pair: every one that some threshold can show.
+            // Sizes of the images in any pair: every one that some threshold
+            // can show. Stop skips the rest, so partial results come at once.
             let paired = Set(index.pairs.flatMap { [$0.first, $0.second] })
-            outcome.pixelSizes = DuplicateFinder.pixelSizes(of: paired.sorted().map { compared[$0] })
+            outcome.pixelSizes = DuplicateFinder.pixelSizes(of: paired.sorted().map { compared[$0] },
+                                                             isCancelled: { cancel.isCancelled })
         }
         outcome.isCancelled = cancel.isCancelled
         return outcome
