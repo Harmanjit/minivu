@@ -389,6 +389,40 @@ extension AppWindowTests {
             #expect(second.rate == 0 && second.currentItem == nil)
         }
 
+        /// A control inside the player that would take the keyboard (AVKit's
+        /// scrubber does with Keyboard navigation on) hands it back to the
+        /// canvas, so the arrows and Space keep their viewer meaning. Other
+        /// views, and anything once the player has gone, are left alone.
+        @Test func playerControlsNeverKeepTheKeyboard() async throws {
+            final class Control: NSView {
+                override var acceptsFirstResponder: Bool { true }
+            }
+            let t = try ScratchFolder()
+            let photo = try t.jpeg("a.jpg", width: 320, height: 240)
+            let video = try await TestVideos.make(at: t.url.appendingPathComponent("b.mov"), seconds: 2)
+            defer { closeViewer() }
+            let viewer = try await open([photo, video], at: 1)
+            let window = try #require(viewer.window)
+            viewer.togglePlayback(nil)
+            let playerView = try #require(viewer.videoPlayerView)
+            viewer.togglePlayback(nil)
+
+            let control = Control(frame: NSRect(x: 0, y: 0, width: 40, height: 20))
+            playerView.addSubview(control)
+            #expect(window.makeFirstResponder(control))
+            #expect(window.firstResponder === viewer.canvas)
+
+            let outside = Control(frame: NSRect(x: 0, y: 0, width: 40, height: 20))
+            window.contentView?.addSubview(outside)
+            defer { outside.removeFromSuperview() }
+            #expect(window.makeFirstResponder(outside))
+            #expect(window.firstResponder === outside)
+
+            viewer.previousImage(nil)
+            #expect(viewer.keyboardRedirect(for: control) == nil)
+            window.makeFirstResponder(viewer.canvas)
+        }
+
         /// The picture on a pasteboard of the test's own, as a CGImage.
         func pastedImage(_ board: NSPasteboard) throws -> CGImage {
             let image = try #require(NSImage(pasteboard: board))

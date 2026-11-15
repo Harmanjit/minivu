@@ -92,6 +92,21 @@ extension ViewerWindowController {
         updateChrome()
     }
 
+    /// The canvas, for anything inside the player that would take the
+    /// keyboard; nil otherwise. The player view itself refuses it, but
+    /// AVKit's scrubber, volume slider and buttons are its own subviews, and
+    /// with Keyboard navigation on in System Settings a click on one makes
+    /// it first responder. The arrows and Space would then scrub and step
+    /// frames rather than move between items, so the window hands the
+    /// keyboard back to the canvas instead. The controls still work with
+    /// the mouse, and VoiceOver drives them through accessibility, which
+    /// needs no first responder.
+    func keyboardRedirect(for responder: NSResponder) -> NSResponder? {
+        guard let playerView = videoPlayback?.view, let view = responder as? NSView,
+              view.isDescendant(of: playerView) else { return nil }
+        return canvas
+    }
+
     /// Pauses a playing video; nothing otherwise.
     func pauseVideo() {
         videoPlayback?.pause()

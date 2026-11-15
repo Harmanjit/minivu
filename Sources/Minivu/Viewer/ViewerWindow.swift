@@ -58,6 +58,19 @@ final class ViewerWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 
+    /// Asked whenever something would take the keyboard: an answer other
+    /// than nil goes to it instead. The controller keeps the keyboard out of
+    /// a video player's controls this way (see `ViewerVideo.swift`).
+    var firstResponderRedirect: ((NSResponder) -> NSResponder?)?
+
+    @discardableResult
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        if let responder, let redirect = firstResponderRedirect?(responder), redirect !== responder {
+            return super.makeFirstResponder(redirect)
+        }
+        return super.makeFirstResponder(responder)
+    }
+
     override func sendEvent(_ event: NSEvent) {
         if event.type == .leftMouseDown { onMouseDown?(event) }
         super.sendEvent(event)

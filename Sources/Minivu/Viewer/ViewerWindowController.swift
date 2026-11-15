@@ -387,6 +387,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // the frame must be exactly the screen's.
         window.setFrame(frame, display: false)
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
+        window.firstResponderRedirect = { [weak self] responder in self?.keyboardRedirect(for: responder) }
         window.editUndoTarget = self
         fullScreenWindow = window
         return window
@@ -404,6 +405,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         window.setFrameUsingName(Self.frameAutosaveName)
         window.setFrameAutosaveName(Self.frameAutosaveName)
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
+        window.firstResponderRedirect = { [weak self] responder in self?.keyboardRedirect(for: responder) }
         window.editUndoTarget = self
         windowedWindow = window
         return window
