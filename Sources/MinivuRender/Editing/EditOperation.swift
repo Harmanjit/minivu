@@ -199,6 +199,18 @@ public enum EditOperation: Codable, Hashable, Sendable {
     /// Text or a picture stamped over the image.
     case watermark(Watermark)
 
+    // G10 and G8. Payloads and rendering live in RawDevelop.swift and
+    // RemoveBackground.swift.
+    /// Settings for Apple's RAW engine. Not a change to the picture but to
+    /// how a RAW file's sensor data is developed into it: `EditRenderer`
+    /// develops the original with the last such step's settings, and the
+    /// graph passes the image through it untouched. Ignored for any other
+    /// file.
+    case rawDevelop(RawDevelop)
+    /// Everything but the subject transparent or filled, along a mask Vision
+    /// found once and stored here.
+    case removeBackground(RemoveBackground)
+
     /// For the Edit menu's "Undo Crop" and the history list.
     public var title: String {
         switch self {
@@ -238,6 +250,8 @@ public enum EditOperation: Codable, Hashable, Sendable {
         case .perspective: "Perspective"
         case .canvasSize: "Canvas Size"
         case .watermark: "Watermark"
+        case .rawDevelop: "RAW Adjustments"
+        case .removeBackground: "Remove Background"
         }
     }
 
@@ -301,6 +315,12 @@ public enum EditOperation: Codable, Hashable, Sendable {
         case .perspective(let v): return v.isIdentity
         case .canvasSize(let v): return v.isIdentity
         case .watermark(let v): return v.isIdentity
+        case .rawDevelop:
+            // Never: the step replaces the settings an earlier one made, so
+            // even the camera's own settings change something then. The RAW
+            // tool commits only a change.
+            return false
+        case .removeBackground(let v): return v.isIdentity
         }
     }
 

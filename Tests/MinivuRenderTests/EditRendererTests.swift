@@ -360,7 +360,8 @@ import Metal
     /// still reaches past 2.5 in the ramp's bright end, which each tool here
     /// leaves alone.
     @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing", "sharpen", "blur",
-                      "autoEnhance", "noiseReduction", "vignette", "perspective", "canvasSize", "watermark"])
+                      "autoEnhance", "noiseReduction", "vignette", "perspective", "canvasSize", "watermark",
+                      "rawDevelop", "removeBackground"])
     func hdrHighlightsSurviveEveryKindOfTool(kind: String) async throws {
         let url = try Fixtures.gainMapHEIC(width: 2400, height: 1200)
         let doc = document(url)
@@ -390,6 +391,14 @@ import Metal
                                                           bottomLeft: CGPoint(x: 0.08, y: 0.9)))]
         case "canvasSize": [.canvasSize(CanvasSize(width: 2600, height: 1400, anchor: .left))]
         case "watermark": [.watermark(CorrectionsTests.textWatermark)]
+        // Not a RAW file, so the step is passed over; it must not cost the
+        // highlights on the way. (RawDevelopTests has the RAW engine's own.)
+        case "rawDevelop": [.rawDevelop(RawDevelop(exposure: 1))]
+        // The subject is all but the left tenth, so the ramp's bright end
+        // remains, cut out along a mask stretched over the picture.
+        case "removeBackground":
+            [.removeBackground(RemoveBackground(mask: SubjectMask(coverage: (0..<(80 * 40)).map { $0 % 80 < 8 ? 0 : 255 },
+                                                                  width: 80, height: 40)!))]
         default: [.annotations([line])]
         }
         for op in operations.dropLast() { doc.apply(op) }

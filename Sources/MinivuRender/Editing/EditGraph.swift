@@ -308,6 +308,13 @@ public enum EditGraph {
         case .watermark(let watermark):
             return WatermarkGraph.apply(watermark, to: image, scale: scale)
 
+        case .rawDevelop:
+            // Applied where the original is developed (`EditRenderer`).
+            return image
+
+        case .removeBackground(let remove):
+            return SubjectGraph.removeBackground(image, remove)
+
         case .negative:
             // Inverted on the encoded scale, as a film negative looks: middle
             // grey stays middle grey. `CIColorInvert` unpremultiplies first, so

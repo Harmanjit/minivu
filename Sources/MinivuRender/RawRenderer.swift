@@ -154,7 +154,7 @@ public enum RawRenderer {
     /// it reaches the texture.
     private static let sharedContext = makeContext(gpu: .shared)
 
-    private static func context(for gpu: GPU) -> CIContext {
+    static func context(for gpu: GPU) -> CIContext {
         gpu === GPU.shared ? sharedContext : makeContext(gpu: gpu)
     }
 
@@ -192,8 +192,33 @@ public enum RawRenderer {
         physicalMemory <= 8 << 30 ? 512 : nil
     }
 
+    // MARK: - The editor's renders
+
+    /// How many RAW renders the editor may run at once (the RAW tool's
+    /// previews and full-resolution sources, a RAW being decoded for an
+    /// edit or a save): one on Macs with 8 GB or less, where two at once
+    /// would add their engine buffers together (about 1.6 GB each at full
+    /// size), two elsewhere, so a preview needn't wait behind a full render
+    /// of the same photo. The viewer's own renders have their slot in
+    /// `ImageLoader`.
+    nonisolated static func concurrentEditRenders(physicalMemory: UInt64) -> Int {
+        physicalMemory <= 8 << 30 ? 1 : 2
+    }
+
+    private static let editRenderSlots = DispatchSemaphore(
+        value: concurrentEditRenders(physicalMemory: ProcessInfo.processInfo.physicalMemory))
+
+    /// Runs `body`, a render through the RAW engine for the editor, in one
+    /// of the editor's slots, waiting for one to free. Blocks its thread:
+    /// call it from GCD (`BlockingWork`), never the cooperative pool.
+    static func withEditRenderSlot<T>(_ body: () throws -> T) rethrows -> T {
+        editRenderSlots.wait()
+        defer { editRenderSlots.signal() }
+        return try body()
+    }
+
     /// The largest channel value anywhere in `texture`.
-    private static func peakValue(of texture: MTLTexture, gpu: GPU) -> Float? {
+    static func peakValue(of texture: MTLTexture, gpu: GPU) -> Float? {
         let space = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
         guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: space]) else { return nil }
         let maximum = image.applyingFilter("CIAreaMaximum", parameters: [kCIInputExtentKey: CIVector(cgRect: image.extent)])

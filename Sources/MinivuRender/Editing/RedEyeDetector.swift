@@ -106,15 +106,16 @@ public enum RedEyeDetector {
 }
 
 extension EditRenderer {
-    /// The committed edit (no preview) rendered small, 8-bit sRGB, for
-    /// analysis such as face detection: the long edge at most
-    /// `maxPixelSize`, from the proxy when it has enough pixels. HDR values
-    /// are clipped, which detection doesn't mind.
-    public func renderForAnalysis(_ document: EditDocument, maxPixelSize: Int) async throws -> CGImage {
-        try await prepare(document)
-        guard let source = document.source else { throw EditRenderError.renderFailed }
-        let operations = document.operations
-        let proxy = document.proxy
+    /// The committed edit (no preview), or the picture `operations` make,
+    /// rendered small, 8-bit sRGB, for analysis such as face detection: the
+    /// long edge at most `maxPixelSize`, from the proxy when it has enough
+    /// pixels and shows the same RAW settings. HDR values are clipped, which
+    /// detection doesn't mind.
+    public func renderForAnalysis(_ document: EditDocument, operations: [EditOperation]? = nil,
+                                  maxPixelSize: Int) async throws -> CGImage {
+        let operations = operations ?? document.operations
+        let source = try await source(for: document, showing: operations)
+        let proxy = document.proxy.flatMap { $0.develop == source.develop ? $0 : nil }
         let context = self.context
         // Core Image's readback waits for the GPU: on GCD (BlockingWork).
         return try await BlockingWork.run {
@@ -129,5 +130,36 @@ extension EditRenderer {
             else { throw EditRenderError.renderFailed }
             return result
         }
+    }
+
+    /// The document's original, prepared if need be, and for a RAW file
+    /// developed again first when it doesn't show the RAW settings of
+    /// `operations` (right after the RAW tool's Apply, before the
+    /// full-resolution render that would make it). A new original for the
+    /// committed settings replaces the document's; one for others (a tool's
+    /// live settings) serves this caller only.
+    func source(for document: EditDocument, showing operations: [EditOperation]) async throws -> EditSource {
+        try await prepare(document)
+        guard let source = document.source else { throw EditRenderError.renderFailed }
+        let kind = document.entry.kind
+        let develop = Self.rawDevelop(kind: kind, operations: operations)
+        guard source.develop != develop else { return source }
+        let url = document.entry.url, page = document.page, settings = ImageLoader.shared.settings
+        let expected = document.sourceSignature, rawFilter = document.rawFilter, gpu = self.gpu
+        let token = document.preparationToken
+        let (developed, filter) = try await BlockingWork.run { () throws -> (EditSource, RawDevelopFilter?) in
+            if let expected, FileSignature.read(url) != expected { throw EditRenderError.sourceChanged(url) }
+            let filter = develop == nil ? rawFilter : rawFilter ?? RawDevelopFilter(url: url)
+            let developed = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu,
+                                                develop: develop, rawFilter: filter)
+            return (developed, filter)
+        }
+        guard document.preparationToken == token else { return developed }
+        if document.rawFilter == nil { document.rawFilter = filter }
+        if document.source === source, develop == Self.rawDevelop(kind: kind, operations: document.operations) {
+            document.source = developed
+            document.sourceSize = developed.size
+        }
+        return developed
     }
 }
