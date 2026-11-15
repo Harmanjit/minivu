@@ -202,3 +202,179 @@ resolution.
   "Watermark"; docs/wiki/Security-and-Privacy.md: the watermark keeps a
   read-only bookmark to the chosen picture. Help: Effects.md, a new
   "Watermark" section after "Text and Shapes"; Privacy.md, the bookmark.
+
+## G10: RAW Adjustments
+
+DESIGN.md says minivu is not a RAW developer; Harman has now asked for a
+light set of RAW controls, so this widens that scope on purpose. They are
+the RAW engine's own settings, nothing more: no curves, masks, profiles or
+lens corrections of minivu's own.
+
+- **What the user does.** Image > Adjust > RAW Adjustments… (the first
+  item, above a separator), or RAW Adjustments in the tools panel's Adjust
+  group (symbol `camera.aperture`). Enabled only for camera RAW files
+  (`ImageKind.raw`); a RAW file whose camera Apple's RAW engine doesn't
+  know beeps when the tool is asked for. No key equivalent. The inspector:
+  - Exposure, −4…+4 EV (default 0, on top of the camera's baseline).
+  - Boost, 0–100% (default 100%): how much of the engine's contrast curve
+    is applied; lower is flatter.
+  - Recover highlights, a toggle (on by default), shown only on macOS 26
+    and later and only when the engine supports it for the camera.
+  - White Balance: Temperature, 2000–20000 K on a logarithmic slider, and
+    Tint, −150…+150; both start at the white balance the camera recorded.
+  - Noise Reduction: Luminance Noise and Color Noise, 0–100%, starting at
+    what the engine picks for the photo (it depends on the ISO); each shown
+    only when the engine supports it for the camera.
+  The tool opens on the settings in effect (the last RAW step's) or, with
+  none, the camera's, and shows the engine's rendering at once, so the
+  canvas switches from the camera's embedded JPEG (if that is what the
+  viewer showed) to what the sliders change. Reset and a slider's
+  double-click return to the camera's settings ("as shot"); Cancel returns
+  to what was there before. Apply commits only a change, as one step,
+  "Undo RAW Adjustments". Settings can be changed again later: reopening
+  the tool starts from them, and the new step replaces them.
+- **How: an operation that changes the source.** `EditOperation.rawDevelop
+  (RawDevelop)` stores every setting the tool shows (nil only for settings
+  the engine can't make for that camera, or a document from a later
+  version). `EditGraph` passes the image through it untouched; instead,
+  every `EditSource` (the decoded original) and `EditProxy` records the
+  settings it was developed with (`develop`, nil for a decode by the
+  viewer's rules), and each render compares them with what its operations
+  ask for, `RawDevelop.inEffect` (the last RAW step's; files that aren't RAW
+  ignore the step):
+  - a full-resolution render, or any render once no RAW step is left (all
+    undone), first makes the original again with those settings (the
+    engine at full size, or the viewer's rules for none) and puts it on the
+    document in place of the old one, which frees it; stages made from the
+    old one go too;
+  - a preview whose original doesn't match (the tool's sliders moving)
+    doesn't wait for that: the engine develops the file at exactly the
+    preview's size through `CIRAWFilter.scaleFactor`, resampled with the
+    HDR-safe Lanczos to the exact working size if it is a pixel off, and
+    that image becomes the proxy for this and later previews with the same
+    settings. A proxy is only used when its settings match.
+  - So undo and redo are just a change of operations; the renders after
+    them bring the original back in line. Save As renders from an original
+    with the committed settings, developing one if the document's doesn't
+    have them (`exportSource`); a document prepared again after a release
+    develops straight away. Analysis renders (Auto Enhance, red-eye,
+    perspective, the subject) develop first too (`source(for:showing:)`).
+- **Live preview.** The file is opened in the engine once per document and
+  kept (`RawDevelopFilter`, on `EditDocument.rawFilter`, freed with the
+  document's original): opening a 24 MP NEF took 130–300 ms on M4, and a
+  half-size render after it about 110 ms, while the same filter given new
+  settings rendered again at half size in 65–78 ms. Draft mode measured no
+  faster at those sizes, so it is off. Slider frames coalesce in the
+  preview lane as for every tool, so a drag runs at roughly 10–15 updates a
+  second at screen size.
+- **HDR.** Developed images follow the viewer's RAW settings exactly as the
+  first decode does: with "Render RAW files with extended dynamic range" on
+  (and HDR display on), the engine renders with
+  `extendedDynamicRangeAmount` from the RAW headroom setting into half
+  float, and each developed proxy or original measures its own peak for
+  the canvas's headroom (exposure +1 measured a peak of 2.16 against 1.27).
+  With it off the result is SDR, as the viewer's renders are.
+- **Memory.** Every engine render the editor makes (developed proxies and
+  originals, and the existing full-size RAW decode for editing) takes one
+  of the editor's RAW slots (`RawRenderer.withEditRenderSlot`, policy
+  `concurrentEditRenders(physicalMemory:)`: one at a time on Macs with 8 GB
+  or less, two elsewhere so a preview needn't queue behind a full render)
+  and runs on the RAW Core Image context, so `RawRenderer.memoryTarget`'s
+  512 MB limit applies on small Macs. Developed originals are half float
+  (192 MB for 24 MP, twice an 8-bit SDR render), since later edits work in
+  half float anyway. The editor's slots are separate from `ImageLoader`'s
+  RAW slot, so a viewer prefetch and an edit render can overlap (rare: the
+  viewer prefetches no renders on 8 GB Macs).
+- **Limits.** Save can't write RAW files (as before), so the settings reach
+  a file through Save As (or Copy). The engine's white balance picker
+  (`neutralLocation`), sharpness, local contrast, detail, moiré and lens
+  correction aren't offered. The canvas shows the engine's rendering while
+  the tool is open even for a document that used the camera's embedded
+  JPEG, and a RAW step makes every later render use the engine. If the
+  engine's size differs from the embedded preview's by a few pixels, the
+  first developed original changes the document's size by that much;
+  normalised operations follow, absolute ones (Canvas Size) keep their
+  pixels. The open filter's own memory (the RAW data it holds) stays while
+  the document is edited. A full-resolution render while zoomed in during
+  a drag costs a full development (about 0.6 s for 24 MP) each time the
+  slider settles.
+- **DESIGN.md, wiki and help changes.** DESIGN.md 1: the non-goals should
+  say minivu is not a full RAW developer but offers the RAW engine's own
+  settings. 4.2 (decode path): a RAW being edited can be developed with the
+  RAW tool's settings. 4.5 (memory): the editor's RAW slots
+  (`concurrentEditRenders`) beside the viewer's, and the kept
+  `RawDevelopFilter`. 4.7 Editing: a new paragraph "RAW settings" (the
+  operation that changes the source, developed proxies, how undo and Save
+  follow; see `EditRenderer`'s documentation), and the operation list. 5,
+  the menu-shortcut table: Image > Adjust > RAW Adjustments… (none).
+  docs/wiki/Editing.md "Tone and colour" (or a new "RAW files" section),
+  "The tools panel"; docs/wiki/Motivation.md's "not a RAW developer" line;
+  docs/wiki/Limitations.md (what is and isn't offered, Save As only).
+  Help: Editing.md "The tools" (RAW Adjustments, RAW files only); Settings.md
+  could note that the HDR RAW setting also governs the RAW tool.
+
+## G8: Remove Background and Copy Subject
+
+- **What the user does.**
+  - Image > Remove Background… (after Watermark…), or Remove Background in
+    the tools panel's Retouch group (symbol `person.and.background.dotted`).
+    The inspector opens at once with "Finding the subject…"; when Vision
+    has found it the cut-out previews ("Subject found"), and otherwise it
+    says "No subject found" with a hint, and Apply does nothing. Background:
+    Transparent (default) or a colour well (opaque colours). Apply commits
+    one step, "Undo Remove Background"; Reset returns to transparent.
+  - Edit > Copy Subject (after Copy): the subject of the picture on screen,
+    an open tool's change included, cut out and cropped to it, goes on the
+    clipboard as PNG and TIFF; the document is not changed. Disabled while
+    it works; beeps when there is no subject or the render fails, leaving
+    the clipboard as it was. Enabled whenever Copy is in the viewer;
+    disabled in the browser (nothing there implements it).
+  - No key equivalents. ⌥⌘C is Colors; ⇧⌘C is free in the menus and
+    could become Copy Subject if wanted, but none of the editing tools has
+    a key, so none was added.
+- **How.** `VNGenerateForegroundInstanceMaskRequest` (on device, macOS 14+;
+  minivu needs 15) runs on a rendering of the picture as it stands at the
+  operation's place, at most 1536 px (`EditRenderer.subjectPixelSize`):
+  Vision's own instance mask is 512 px square (measured), so three times
+  that keeps everything it has. Every instance counts (a person and their
+  dog together). `generateScaledMaskForImage` gives coverage at the
+  rendering's size, which is stored in the operation as an 8-bit greyscale
+  PNG (`SubjectMask`, with the subject's bounding box). The document keeps
+  the last answer per operation list (`subjectMaskCache`), so reopening
+  the tool or copying after looking costs nothing, and no render ever runs
+  Vision: the graph decodes the PNG once (cached in the mask object, shared
+  by every copy of the operation) and stretches it over the image's working
+  size with bilinear sampling, its edge pixels repeated first, then
+  `CIBlendWithMask` mixes the image with transparency or the fill. Because
+  the mask covers the whole picture it was found in, it lines up at every
+  scale (tested at 1.0, 0.37 and 0.1, and preview against full
+  resolution). Copy Subject appends the cut-out and a crop to the mask's
+  bounds to the shown snapshot (`Snapshot.appending`) and renders through
+  `renderForExport` in Copy's colour space.
+- **HDR.** The blend is a per-pixel mix with no clamp, so what remains
+  keeps values above 1 (in `hdrHighlightsSurviveEveryKindOfTool`, preview
+  and full resolution). Copy Subject is SDR, tone mapped as Copy is.
+- **Design decisions.** The mask is stored in the operation (tens of KB of
+  PNG) rather than looked up by key, so undo, redo, Save, a snapshot taken
+  for a background save and a reload all render the same cut without
+  Vision. The analysis sees the committed edit (or the shown one for Copy
+  Subject) at 8 bits, which detection doesn't mind. A step made before a
+  geometry change keeps its mask (it was found for its own input); a new
+  Remove Background after a crop finds the subject again.
+- **Limits.** All instances or nothing: no picking one subject, no brush to
+  refine the edge, no feathering control. The edge is as soft as Vision
+  makes it, stretched to the full size (soft rather than blocky on a
+  24 MP photo, but not hair-accurate). A colour fill is opaque only. Vision
+  may find no subject in landscapes and textures. Copying from a RAW with
+  a live RAW tool change develops a full-size original for it first.
+- **DESIGN.md, wiki and help changes.** DESIGN.md 4.7 "Effects, drawing and
+  retouching" (or a new paragraph): the subject mask, found once, stored as
+  PNG in the operation, stretched at render. 7 "Selection and the
+  clipboard": Copy Subject (PNG and TIFF, cropped, the shown picture,
+  document untouched). 5, the menu table: Image > Remove Background… (none),
+  Edit > Copy Subject (none). docs/wiki/Editing.md "Retouch" (Remove
+  Background) and the tools panel list; docs/wiki/Viewer.md wherever Copy
+  is described; docs/wiki/Security-and-Privacy.md: Vision's subject
+  lifting runs on the Mac, nothing leaves it. Help: Editing.md "The tools"
+  (Remove Background), Viewer.md (Copy Subject), Privacy.md (on-device
+  Vision). The keyboard shortcuts page needs nothing.
