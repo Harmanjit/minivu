@@ -6,7 +6,10 @@ the wiki or the help pages yet; the last section says where it should.
 There is nothing new for the user to do: no menu, shortcut, setting or
 default changes. The work removes a deadlock that hung the whole
 MinivuCoreTests run, makes sure the app cannot reach the same state, and
-adds a debug-build check and regression tests that catch it coming back.
+adds a debug-build check, a run watchdog and regression tests that catch
+it coming back. For developers there is one new environment variable for
+`swift test`: `MINIVU_TEST_WATCHDOG=<seconds>` sets the watchdog's stall
+limit and `MINIVU_TEST_WATCHDOG=0` turns it off.
 
 ## The symptom
 
@@ -86,12 +89,25 @@ at), 20 AVIF encodes and feature prints run through `BlockingWork`
 `BlockingWork` is not a shield on its own: the rule is that these calls
 must never block a cooperative thread at all, at any QoS.
 
+**5. Confirmed independently in review** with a fresh probe: 10 default-QoS
+cooperative threads held, a `.default` or `.utility` global item never ran;
+9 held, `.default` ran; 10 held, `.userInitiated` ran. The same probe showed
+that inside `DispatchQueue.concurrentPerform` started from a cooperative
+task, every iteration, the one on the calling cooperative thread included,
+sees the queue label `com.apple.root.default-qos`, so the debug check below
+can't see the caller there (the relabelled threads in the hung sample are
+the same effect).
+
 ## The fix
 
 ### Production (goals 2 and 3)
 
 - **`BlockingWork` documents the deadlock** next to the existing reason
-  (slowness), so the rule is where people look for it.
+  (slowness), so the rule is where people look for it, and says that it
+  protects only because its queue's QoS (user-initiated by default) is
+  above the blocked pool's: a `qos:` at or below the blocked threads' QoS
+  protects nothing (finding 5), and a blocked user-initiated pool starves
+  user-initiated work too (finding 4).
 - **`BlockingWork.isOnCooperativeThread`**: true on a thread of the
   cooperative pool, read from the current dispatch queue's label
   (`com.apple.root.<qos>.cooperative`). Cheap (a pointer and a string
@@ -109,6 +125,19 @@ must never block a cooperative thread at all, at any QoS.
   `RedEyeDetector.detect(in:)`, `ImageEncoder`'s encode for `.heic` and
   `.avif`, `MultiPageWriter.finish` for animated HEIC, and `VideoFrames`'
   two AVFoundation waits.
+- **The check is blind inside `concurrentPerform`** (finding 5), so the
+  helpers that fan out that way call it *before* they fan out, where it
+  still sees the caller: `DuplicateFinder.featurePrints(for:)` (the exact
+  shape of the hung duplicate tests: a task calling it reported
+  `FeaturePrint.make` from none of its iterations),
+  `RenameSource.withImageMetadata(_:)` and `LayoutRenderer.drawPage` (print
+  and contact sheet pages). `PrintPageView`'s preview fan-out runs inside
+  its own serial `previewQueue`, always a GCD thread, so it needs none.
+  Every production caller of the three already runs off the pool
+  (`DuplicatesModel` and the batch tools through `BlockingWork`, Automation
+  under `BlockingWork`, print on the main thread, the contact sheet on its
+  worker); `BatchRenamePatternTests` called `withImageMetadata` from the pool
+  and now goes through `BlockingWork` like the app.
 - **`BatchConverter.encodedData`** encodes through `BlockingWork`. The app
   already ran Batch Convert, the Shortcuts Convert and Resize actions and
   Create Web Gallery under `BatchWorkExecutor` (GCD), so they were safe;
@@ -184,19 +213,64 @@ function or Task reaches the call without `BlockingWork` or another GCD hop.
   check can't see (direct ImageIO calls in test code) with one line per
   suite. The production fixes are what make the app safe; the trait is
   only for tests that block on purpose.
-- **`CooperativeStarvationTests.blockingWorkFinishesWhileEveryCooperativeThreadIsBlocked`**
-  (the regression test, goal 4): holds every default-QoS cooperative thread
-  blocked (the state of the hung run), then starts 2 × cores jobs through
-  `BlockingWork`, half AVIF encodes (HEIC where AVIF isn't writable) and
-  half feature prints, and waits for them on a plain thread with the
-  `TestTiming.patience` deadline (10 s × slack). Healthy: 20 of 20 in about
-  0.14 s. Checked against two simulated regressions: `BlockingWork` at the
-  default QoS (0 of 20 by the deadline; the watchdog lets the pool go, the
-  test records an issue, the run carries on) and the jobs run on the pool
-  itself (the pool can't come back; 30 s after the deadline the watchdog
-  stops the process with "The cooperative pool is deadlocked: … see
-  docs/feature-notes/coop-starvation.md", so the run fails with a reason
-  instead of hanging at 0% CPU).
+- **The run watchdog** (new test-only C target `MinivuTestWatchdog`, in
+  `Tests/MinivuTestWatchdog`, a dependency of all three test targets). This
+  is goal 4's real guard. No test can catch the run hanging: review showed
+  that with `.offCooperativePool` taken off `ExportAVIFTests` and
+  `DuplicateFinderTests` (the actual fix), the run hung again for over 10
+  minutes and the regression test below never got a thread, so its own
+  deadline never started. The watchdog doesn't need one. A C
+  `__attribute__((constructor))` (Swift has no load-time initialiser; the
+  `@section`/`@used` route doesn't link on this toolchain) starts a plain
+  pthread when the test bundle loads, before Swift Testing runs anything.
+  Once a second it queues a trivial item on GCD's default-QoS global queue
+  and waits for it: microseconds in a healthy run, never while the pool is
+  starved (findings 3 and 5). After the stall limit, 30 s × `TestTiming`'s
+  slack (120 s in debug builds), it prints what happened and where to look
+  on standard error and ends the process with a failure: `swift test`
+  reports "Some test targets reported failures: MinivuCoreTests (Swift
+  Testing)" and exits 1 instead of hanging at 0% CPU. The limit is well
+  beyond the longest the regression tests hold the pool on purpose (about
+  55 s on their failure path). `MINIVU_TEST_WATCHDOG=<seconds>` overrides
+  it; `=0` turns it off, for attaching `sample` to a hung run. Checked: the
+  reviewer's revert (trait off the two suites) with
+  `--filter "ExportAVIFTests|DuplicateFinderTests|CooperativeStarvationTests"`
+  now ends after 120 s with the watchdog's message and exit 1, the debug
+  check having named `ImageEncoder HEIF/AVIF encode`, `FeaturePrint.make`
+  and `DuplicateFinder.featurePrints` above it. Cost: one sleeping thread
+  and one empty GCD item a second, in test runs only; the app never links
+  the target.
+- **`CooperativeStarvationTests.theRunWatchdogStartedWhenTheTestsLoaded`**:
+  the watchdog is running with the documented limit (so the constructor
+  linked and ran, and debug builds see `DEBUG`).
+- **`theWatchdogsCheckSeesAStarvedPool`**: with every default-QoS
+  cooperative thread held, the watchdog's check fails (a default-QoS item
+  doesn't run within 1 s); once the pool is free it passes. So a starved
+  run is exactly what trips the watchdog.
+- **`blockingWorkFinishesWhileEveryCooperativeThreadIsBlocked`**: holds every
+  default-QoS cooperative thread blocked (the state of the hung run), then
+  starts 2 × cores jobs through `BlockingWork`, half AVIF encodes (HEIC where
+  AVIF isn't writable) and half feature prints, and waits for them on a
+  plain thread with the `TestTiming.patience` deadline (10 s × slack). What
+  it guards is narrower than first claimed: the invariant the app's
+  protection rests on, `BlockingWork` running above the held pool's QoS. It
+  passes on main too (main never broke that); it fails when `BlockingWork`'s
+  default QoS is lowered to `.default` (0 of 20 by the deadline; the pool is
+  let go, an issue is recorded and the run carries on, about 40 s in debug),
+  and when the jobs themselves block the pool its watchdog stops the
+  process 30 s after the deadline. A test elsewhere blocking the pool is
+  the run watchdog's to catch, not this test's. Timing: about 0.15 s on a
+  quiet Mac, a few seconds beside another suite holding the pool. With
+  fewer than all cooperative threads held (other tests running beside it),
+  GCD still starts default-QoS work and a pass would prove nothing, so it
+  tries up to three times and is then skipped (`Test.cancel`) with a
+  message saying how many it held; late jobs are still a failure.
+- **`fanOutHelpersAreReportedBeforeTheyFanOut`**: inside `concurrentPerform`
+  the label check answers false (if Apple changes that, the test says the
+  note is stale); `featurePrints` and `withImageMetadata` called from a task
+  are reported, and not through `BlockingWork`. Fails without the new checks.
+- **`PrintTests.drawingAPageFromTheCooperativePoolIsReported`** (MinivuTests):
+  the same for `LayoutRenderer.drawPage`.
 - **`directCallsFromATaskAreLoggedAndBlockingWorkCallsAreNot`**: the
   check itself works (a direct `FeaturePrint.make` in a task is logged,
   the same through `BlockingWork` isn't), so a silent log means something.
@@ -207,7 +281,21 @@ function or Task reaches the call without `BlockingWork` or another GCD hop.
 ## Limits
 
 - The check is debug-only and covers the helpers listed; a new framework
-  call that waits on GCD needs its own `expectOffCooperativePool` line.
+  call that waits on GCD needs its own `expectOffCooperativePool` line, and
+  a new helper that fans out with `concurrentPerform` needs one before the
+  fan-out, since the check is blind inside it.
+- A new suite that blocks the pool without the trait is no longer silent,
+  but it is caught late: the run fails at the watchdog's limit (120 s in
+  debug) rather than at the offending test, and only once enough such tests
+  line up to starve the pool. The debug check's "blocked a cooperative
+  thread" lines on standard error usually name the culprit long before.
+- `BlockingWork` below user-initiated QoS is starvable by a blocked
+  default-QoS pool. Some production calls choose it:
+  `EditRenderer.renderForExport` and `renderHDRForExport` use `.utility`
+  when `Task.currentPriority` is below user-initiated, and the full-size
+  `renderPreview` uses `.utility`. Not caused by this branch and safe today
+  (the audit found no cooperative thread blocked in the app), but they
+  depend on the rule that nothing blocks the pool, not on `BlockingWork`.
   Direct ImageIO, Vision or AVFoundation calls in test code aren't seen;
   the rule for tests is to use `.offCooperativePool` or `BlockingWork`.
 - `isOnCooperativeThread` relies on GCD's queue labels. Should Apple rename
@@ -217,8 +305,8 @@ function or Task reaches the call without `BlockingWork` or another GCD hop.
   *decoding* and other frameworks may behave the same; the general rule
   (never block a cooperative thread) covers them, and decoding already goes
   through GCD everywhere in the app.
-- The regression test holds the default-QoS pool for its duration (about
-  0.15 s when healthy), so tests running beside it pause that long.
+- The regression tests hold the default-QoS pool for their duration (about
+  0.15 s and 1 s when healthy), so tests running beside them pause that long.
 - The trait's executor is shared by all marked suites in a target: at most
   one test case per core runs on it at once.
 
@@ -239,10 +327,15 @@ function or Task reaches the call without `BlockingWork` or another GCD hop.
 - **docs/wiki/Architecture.md, "Concurrency"**: extend the `BlockingWork`
   bullet with the deadlock and the debug check; **"Tests"**: tests that call
   Vision or HEIF/AVIF encoders directly, or write HEIC fixtures, use the
-  `.offCooperativePool` trait; mention the regression test and update the
-  test count.
+  `.offCooperativePool` trait; the run watchdog (`MinivuTestWatchdog`), what
+  its message means and `MINIVU_TEST_WATCHDOG`; mention the regression tests
+  and update the test count. Wherever the package's targets are listed (the
+  Architecture page's module list, DESIGN.md §4 if it lists them), add the
+  test-only C target `MinivuTestWatchdog`.
 - **docs/wiki/Troubleshooting.md** (developer section, if any): "the test
   run hangs at 0% CPU" → a test blocking cooperative threads on Vision or
   HEIF/AVIF; look for `minivu: … blocked a cooperative thread` on standard
-  error.
+  error. The run now ends at the watchdog's limit with "minivu test
+  watchdog: GCD ran nothing at the default QoS…"; `MINIVU_TEST_WATCHDOG=0`
+  lets it hang for `sample`.
 - No help page or keyboard-shortcuts change: nothing user-visible.
