@@ -201,9 +201,9 @@ resolution.
   preset editor can reuse `WatermarkInspectorView` with a state of its own.
 - **Limits.** One line of text, no rotation, no outline or shadow for
   legibility over busy photos. A text or picture too large for the photo
-  is shown smaller than the Size slider says (fitted inside the margins). Tiles form a straight grid (no diagonal or
-  staggered rows). The picture is drawn at 8 bits, so an HDR logo is shown
-  SDR.
+  is shown smaller than the Size slider says (fitted inside the margins).
+  Tiles form a straight grid (no diagonal or staggered rows). The picture
+  is drawn at 8 bits, so an HDR logo is shown SDR.
 - **DESIGN.md, wiki and help changes.** DESIGN.md 4.7 "Effects, drawing and
   retouching": the watermark's rendering and its bookmark; 5, the menu
   table row (Image > Watermark…, none); 4.8 Batch Convert once the later
@@ -261,7 +261,10 @@ lens corrections of minivu's own.
     second waits for the first's decode instead of running its own. A
     render that finishes after the original was replaced keeps neither the
     stage nor the proxy it built from the old one, so no second full-size
-    original stays in memory;
+    original stays in memory. A remake is put on the document only if its
+    operations (committed, or a live preview's) still ask for its settings
+    when it finishes; one for settings undone meanwhile serves the render
+    that asked for it and is then freed;
   - a preview whose original doesn't match (the tool's sliders moving)
     doesn't wait for that: the engine develops the file at exactly the
     preview's size through `CIRAWFilter.scaleFactor`, resampled with the
@@ -272,8 +275,15 @@ lens corrections of minivu's own.
     them bring the original back in line. Save As renders from an original
     with the committed settings, developing one if the document's doesn't
     have them (`exportSource`); a document prepared again after a release
-    develops straight away. Analysis renders (Auto Enhance, red-eye,
-    perspective, the subject) develop first too (`source(for:showing:)`).
+    develops straight away. Analysis renders (`renderForAnalysis`: Auto
+    Enhance, red-eye, Perspective's Auto, Remove Background and Copy
+    Subject) never decode a full-size original of their own: when the
+    original doesn't show their settings (right after Apply in the RAW
+    tool), the engine develops the file at the analysis size only (at most
+    1600 px), as a slider preview is, or a developed proxy with enough
+    pixels serves. Once no RAW step is left they take the plain original
+    from the remake the lanes share, which the lanes need anyway. Either
+    way the document's original and the lanes' stages are left alone.
 - **Live preview.** The file is opened in the engine once per document and
   kept (`RawDevelopFilter`, on `EditDocument.rawFilter`, freed with the
   document's original): opening a 24 MP NEF took 130–300 ms on M4, and a
@@ -303,7 +313,10 @@ lens corrections of minivu's own.
   `viewerSharesEditSlot(physicalMemory:)`), so the whole app renders one RAW
   at a time there: opening RAW Adjustments while the viewer is still
   rendering the photo waits for it, and the viewer's next photo waits for
-  an edit render. Batch Convert renders RAW files through the editor's
+  an edit render. A viewer render stopped while it waits (the user moved
+  on) checks its stop flag every 50 ms and leaves then, freeing its thread
+  and the viewer's RAW job for the next photo, rather than when the slot
+  frees. Batch Convert renders RAW files through the editor's
   path, so it shares the slot as well. On larger Macs the viewer keeps its
   own slot, so a photo shown while the editor renders doesn't wait.
   `RawDevelopFilter` hands out the engine's image under a lock and renders
@@ -327,8 +340,9 @@ lens corrections of minivu's own.
   pixels off. The RAW step still reports `changesGeometry == false`, since
   the change depends on the camera, not the settings. Fixing it would mean
   making every RAW original with the engine once a RAW step exists, or
-  storing absolute operations relative to the size they were made at. The open filter's own memory (the RAW data it holds) stays while
-  the document is edited. A full-resolution render while zoomed in during
+  storing absolute operations relative to the size they were made at. The
+  open filter's own memory (the RAW data it holds) stays while the
+  document is edited. A full-resolution render while zoomed in during
   a drag costs a full development (about 0.6 s for 24 MP) each time the
   slider settles.
 - **DESIGN.md, wiki and help changes.** DESIGN.md 1: the non-goals should
