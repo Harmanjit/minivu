@@ -9,7 +9,8 @@ it should.
 ### What the user can do
 
 - **Select text in the picture**, as in Preview. In the viewer, move the
-  pointer over the image; a moment later text in it can be selected by
+  pointer over the image (over the picture itself: not over the
+  filmstrip, a panel or the control bar); a moment later text in it can be selected by
   dragging over it (the pointer becomes an I-beam over text). The text's
   own context menu (right-click on selected text) keeps Copy, Look Up in
   the dictionary and Services.
@@ -17,7 +18,9 @@ it should.
   selection, and the picture (as before) when there isn't.
 - **Edit > Copy Text (⇧⌘C)** copies all the text recognised in the
   picture, analysing it first if the pointer hasn't already caused that.
-  A picture with no text beeps and leaves the clipboard alone. Greyed out
+  A picture with no text beeps and leaves the clipboard alone. Moving to
+  another picture before the text is read ends the copy silently (no
+  beep: nobody found out the picture had no text). Greyed out
   in the browser, while Live Text is off, and before a picture is shown.
 - **View > Live Text** (checkmark, no shortcut) turns the feature on or
   off. On by default. Off means nothing is analysed at all, the overlay is
@@ -41,13 +44,31 @@ it should.
   happens after the tone map, so the macOS 27 clamp issue cannot clip it).
 - **Lazily.** Flipping through a folder with the keyboard analyses
   nothing, however long each picture stays up. The pointer moving over the
-  viewer asks for an analysis (the user might select something), as does
-  Copy Text. It starts only once the picture has been on screen for 0.4 s,
+  picture asks for an analysis (the user might select something), as does
+  Copy Text. Only movement over the canvas counts, with nothing in front
+  of it (`ViewerWindowController.isOverCanvas(windowPoint:)`, a hit test
+  of the window point): the filmstrip, the info and histogram panel and
+  the control bar ask for nothing. It starts only once the picture has been on screen for 0.4 s,
   runs off the main thread (texture readback on a GCD thread, recognition
   in VisionKit), at most one at a time, and is cancelled as soon as the
-  user moves to another image or page. A picture is analysed once: zoom,
-  pan, full screen and sharper textures keep the analysis, because it is in
-  the picture's own coordinates. An idle viewer does nothing.
+  user moves to another image or page. Zoom, pan and full screen keep the
+  analysis, because it is in the picture's own coordinates. An idle viewer
+  does nothing.
+- **Sharper copies.** A picture is read at the resolution shown when its
+  text was first asked for, usually fitted to the window (1 to 2 kpx for a
+  24 to 50 MP photo), where small text can't be read. When a texture at
+  least **twice as sharp** as the one analysed replaces it (the user zoomed
+  in), the picture is analysed once more, with sizes counted up to the
+  4096 px cap, and only if its text was already asked for (analysed or
+  being analysed). The first analysis stays selectable until the second is
+  ready. So the most a picture costs is about three readings (fit, about
+  2x, the cap), and only while the user is zooming into it. Copy Text
+  waits for the sharper reading when one is due.
+- **An edit tool opened and closed** without changing the picture brings
+  the analysis back instead of reading the picture again: putting Live
+  Text aside (a tool, playback, the setting) stops all work and hides the
+  overlay, but keeps the analysis of the picture on screen; any other
+  picture drops it.
 - A `LiveTextController.Subject` names the picture (file, date, page, the
   edit operations drawn, the animation frame) and is taken when each
   texture arrives, not when analysis starts: an edit changes the document
@@ -108,11 +129,11 @@ it should.
   text, pan with the arrow keys, a trackpad or the scroll wheel, or turn
   Live Text off.
 - A playing animation has no Live Text; pause it (P) first.
-- Text is recognised in what is shown at screen size; very small text in a
-  large photo is read better after zooming in (the sharper texture is not
-  re-analysed automatically, since the picture is the same; Copy Text
-  after zooming in uses the analysis already made). Recognition languages
-  are the system's.
+- Text is recognised in what is shown, up to 4096 px on the long side.
+  Small text in a large photo becomes selectable after zooming in (see
+  "Sharper copies"); text too small to read even at 4096 px (a tiny
+  caption in a 100 MP scan) is not, where Preview, which reads the whole
+  file, might. Recognition languages are the system's.
 - Not in the browser's preview pane or the compare window.
 
 ### Where the docs should change
@@ -121,7 +142,8 @@ it should.
   View gains "Live Text | none". Section 5 Viewer: a paragraph on Live
   Text. Section 4.4 (canvas): the text overlay beside `canvasOverlay`.
   Section 6/1 "idle means idle": Live Text analyses only on pointer
-  movement or Copy Text. "Selection and the clipboard" (section 7): ⌘C in
+  movement over the picture or Copy Text, and once more when a texture
+  twice as sharp arrives for a picture already read. "Selection and the clipboard" (section 7): ⌘C in
   the viewer copies selected Live Text before the picture. Section 8:
   the limits above. A note under 4.3 that Live Text tone maps HDR for
   recognition only.
@@ -257,6 +279,13 @@ plain SwiftPM and scripts/make_app.sh. It can:
 - make_app.sh names `--build-system swiftbuild` explicitly and stops if
   the records or the actions are missing, so a toolchain change can't
   ship an app whose actions have silently vanished.
+- The processor's target triple and deployment target come from the
+  built binary (`lipo -archs`) and Package.swift (`.macOS(.vNN)`), not
+  literals. Only this build's records go in: the whole module's
+  `minivu-primary.swiftconstvalues` when no newer record lies beside it,
+  otherwise one record for each file in `minivu.SwiftFileList`, so the
+  record of a deleted or renamed source file, or one left by a build of
+  the other kind, can't bring back an action minivu no longer has.
 - Not done: `appintentsnltrainingprocessor` (Siri phrase training). Tried:
   without localised phrases (an AppShortcuts.xcstrings) its corpus comes
   out empty, and its archive step fails outside Xcode. The App Shortcuts
@@ -264,7 +293,7 @@ plain SwiftPM and scripts/make_app.sh. It can:
   spoken phrase is unverified.
 - What could not be checked here: Shortcuts itself (agents can't launch
   it). "Works" was defined as the right artefacts in the bundle; the
-  manual checks below are what proves it.
+  checks by hand below are what prove it.
 
 ### Decisions
 
@@ -283,16 +312,53 @@ plain SwiftPM and scripts/make_app.sh. It can:
   output is marked `removedOnCompletion`, so Shortcuts deletes it once it
   has taken it, and run folders older than a day are removed when the
   next run starts.
+- **Internal storage only**, as everywhere else in minivu (DESIGN.md 1).
+  Every file on disk a shortcut passes is checked with `VolumePolicy` as
+  it arrives (`AutomationInput.make`, with the file's access started,
+  since the sandbox may hide its volume until then). One file on an
+  external drive, a memory card or a network share fails the whole
+  action before anything is read, converted or rated: "“IMG_0001.JPG”
+  isn't on this Mac's internal storage, so minivu did nothing…", with the
+  same advice the Finder open path gives (copy the photos to this Mac
+  first). Files that arrive as data are copied into minivu's container,
+  which is internal. Open in minivu was already covered by
+  `application(_:open:)` and now refuses the same way, as an error the
+  shortcut shows.
 - **Rename works only where minivu may write already**: the Pictures
   folder and folders added to the sidebar (their bookmarks are opened at
-  launch). Elsewhere it fails, saying exactly that, after Batch Rename's
-  usual checks. Nothing new was granted to make it work.
+  launch). Nothing new was granted to make it work.
 - **All or nothing.** Shortcuts has no "partly done" result, so if any
   file fails to convert the action fails, naming up to eight files, and
   the files that did convert are removed. A rename is checked whole
-  before anything moves (unknown tokens, clashes); a rename that fails
-  part-way reports the failures (the renamed files keep their new names
-  and their stars, as in Batch Rename).
+  before anything moves: Batch Rename's checks (unknown tokens, two files
+  getting one name, a name held by another file), then **every folder a
+  file would be renamed in must be one minivu may change**
+  (`Automation.unwritableFolders`, access(2) with W_OK, which the sandbox
+  answers as well as the permissions). One folder minivu may not change
+  (for example the Desktop, when it is not in the sidebar) and nothing is
+  renamed anywhere, and the error names the folders and says where Rename
+  works. What can still fail part-way is a file that changes or goes away
+  between the checks and the move (another app renaming it meanwhile);
+  then the error lists those files and says the others were renamed (they
+  keep their new names and stars, as in Batch Rename). The action
+  registers no undo (there is no window to hold it); renaming back with
+  another shortcut or Batch Rename is the way back.
+- **One rename at a time, app-wide.** Every batch rename, from any
+  browser window or any shortcut, joins one queue
+  (`BatchTools.queueRename`) and moves files only once the rename before
+  it has finished; a window's renames and undos already ran one after
+  another, and now also wait for other windows' and for shortcuts'. Two
+  renames never meet in a folder half way (the swap step steps a file
+  aside under a hidden name), and each sees the folder the previous one
+  left. A rename takes milliseconds a file, so the wait is short. The
+  plan itself is still made before queuing, so a rename planned against
+  a folder another rename then changes turns a clash into a per-file
+  failure (exclusive renames), never an overwrite.
+- **Nothing on the main thread.** Taking the shortcut's files (reading a
+  file that came as data and writing its copy, the volume checks) and
+  making or clearing run folders run on a GCD thread
+  (`BlockingWork.run`), so a shortcut handing Convert several large
+  images from Photos never stalls an open viewer.
 - **Files that arrive as data** (from another app, not a disk) are copied
   into minivu's folder for Convert and Resize, under their own names, and
   removed afterwards. Rename and Set Rating refuse them: they are about
@@ -301,8 +367,9 @@ plain SwiftPM and scripts/make_app.sh. It can:
   planner and `BatchConvertJob` (two files at a time, one on 8 GB Macs,
   one camera RAW at a time; writes through `FileWriteQueue.shared`).
   Rename runs `RenamePlanner` and `BatchRenamer` through
-  `BatchTools.renameWithoutWindow`, which waits for queued writes and
-  counts in `renamesRunning`, so quitting waits for it. Ratings go
+  `BatchTools.renameWithoutWindow`, which queues behind other renames,
+  waits for queued writes and counts in `renamesRunning`, so quitting
+  waits for it. Ratings go
   through `BrowserModel.catalogWrites` and the action returns once
   written. Open in minivu calls `AppDelegate.application(_:open:)`, the
   Finder path.
@@ -334,7 +401,10 @@ Intents:
   shortcut passed (each with its own security scope, released when the
   action ends, except Open in minivu, which keeps it for the session as
   a Finder open does) and write only into minivu's container, except
-  Rename, which can rename only in folders minivu could already change.
+  Rename, which can rename only in folders minivu could already change
+  and checks that for every folder before anything moves. Files on
+  external, removable or network volumes are refused outright
+  (`VolumePolicy`), as in the rest of the app.
 - **Prompts.** Shortcuts has its own privacy prompts (for example before
   a shortcut first shares files with an app); macOS asks
   before any app sends Apple Events to another (Automation privacy), which
@@ -353,8 +423,9 @@ Intents:
 - `Sources/Minivu/Automation/Automation.swift`: the engine (`convert`,
   `resize`, `convertSettings`, `rename`, `setRating`, `open`,
   `makeRunFolder`), with `outputRoot` and `catalog` replaceable in tests.
-- `AutomationFiles.swift`: `AutomationInput`, the shortcut's files made
-  readable for the length of the action, and the files handed back.
+- `AutomationFiles.swift`: `AutomationInput` (made with `make(_:originalsOnly:)`,
+  off the main thread), the shortcut's files checked and made readable for
+  the length of the action, and the files handed back.
 - `AutomationIntents.swift`: the five intents, the two AppEnums
   (`AutomationFormat`, `AutomationResizeMode`) and `MinivuShortcuts`. Titles,
   defaults and display names must stay literals: the metadata processor
@@ -362,15 +433,29 @@ Intents:
 - `scripts/make_app.sh`: the processor step, after the resources are
   copied and before signing.
 - Tests: `AutomationTests` (engine on real files, data-only files, each
-  intent's `perform()`), under `.batchToolsReset`, which now also resets
-  `Automation`.
+  intent's `perform()`, the volume refusal, a read-only folder among
+  writable ones renaming nothing, a shortcut's rename waiting behind one
+  under way), under `.batchToolsReset`, which now also resets
+  `Automation` and the rename queue.
 
 ### Limits
 
-- A shortcut run while minivu isn't open launches it in the background;
-  the browser window appears as at any launch.
+- **A shortcut run while minivu isn't open launches minivu with its
+  normal browser window and Dock icon**, and minivu stays running
+  afterwards. The intents (other than Open in minivu) declare
+  `openAppWhenRun = false`, but they run in the app's own process, and
+  the app opens its browser window at every launch. So a Finder Quick
+  Action that converts photos becomes a visible app launch the first
+  time. Not a correctness problem; **a decision for Harman**: whether a
+  launch made only to run an intent should skip the browser window (and
+  perhaps quit after a while). It was left as is because telling such a
+  launch apart reliably needs testing in Shortcuts, which agents can't
+  run.
 - Rename can't reach folders outside Pictures and the sidebar, by design
-  of the sandbox.
+  of the sandbox; it refuses the whole set up front when any file is in
+  such a folder.
+- Files on external drives, memory cards and network shares are refused,
+  as in the rest of minivu.
 - Set Rating rates the file at the path Shortcuts gives. A shortcut that
   hands on a temporary copy (some actions do) rates the copy.
 - Converted files use Batch Convert's other defaults (metadata kept,
@@ -378,6 +463,26 @@ Intents:
   settings are not used, so a shortcut does the same on every Mac.
 - Siri phrases are unverified (no phrase training, see above).
 - English only; the metadata says the phrases are not localised.
+
+### Checks by hand (agents can't run Shortcuts or the sandboxed app)
+
+- Install build/minivu.app in /Applications, open it once, open
+  Shortcuts: the five actions appear under minivu, and the three App
+  Shortcuts under minivu's app tile.
+- Convert Images on two photos from Pictures, then Save File: converted
+  copies, originals untouched.
+- **Volumes**: the same shortcut as a Quick Action on photos on a USB
+  stick or memory card: it fails with "isn't on this Mac's internal
+  storage, so minivu did nothing", and Set Rating on them rates nothing.
+- **Rename**: three photos in Pictures plus two on the Desktop (Desktop
+  not in minivu's sidebar): it fails naming the Desktop folder, and
+  nothing is renamed, in Pictures either. With only the Pictures photos
+  it renames them. (This confirms access(2) reflects the sandbox, which
+  the tests can only show with POSIX permissions.)
+- Run a shortcut's rename while a browser window's Batch Rename of other
+  files runs: both finish, one after the other.
+- With minivu quit, run Convert from a Finder Quick Action: minivu
+  launches with its browser window (see Limits) and the action completes.
 
 ### Quick Look extension: assessed, not built
 
@@ -422,7 +527,10 @@ something real. Findings:
   "Automation" paragraph from "Decisions" and "How it is built" above.
   Section 5: a short "Shortcuts" entry listing the five actions. Section 8
   (Known limits): the Limits above. Section 1 or 2: App Intents run in
-  minivu's process with its sandbox; no Apple Events interface.
+  minivu's process with its sandbox; no Apple Events interface; "internal
+  volumes only" covers the intents too. Section 4.8, Batch Rename: all
+  renames, from any window or shortcut, run one at a time
+  (`BatchTools.queueRename`).
 - Wiki: Tools.md (a "Shortcuts" section with the table and the Quick
   Action recipe), Security-and-Privacy.md (the security section above),
   Architecture.md (the Automation folder and the metadata step),
