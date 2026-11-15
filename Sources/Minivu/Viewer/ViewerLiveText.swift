@@ -31,10 +31,11 @@ extension ViewerWindowController {
     /// Live Text is offered while it is on, no edit tool is open (the tool
     /// owns the pointer, and its picture changes with every slider step)
     /// and no animation plays (the text would move under the pointer).
-    /// Runs with every chrome update, so it compares and returns.
+    /// Never on a video, whose still is only its first frame (G18). Runs
+    /// with every chrome update, so it compares and returns.
     func updateLiveTextAvailability() {
         liveText.setActive(Preferences.shared.liveText && !isClosing && activeTool == nil
-                           && player?.isPlaying != true)
+                           && player?.isPlaying != true && !isShowingVideo)
     }
 
     /// Edit > Copy Text (⇧⌘C): all the text recognised in the picture.

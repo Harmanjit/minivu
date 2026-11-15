@@ -3,6 +3,7 @@ import ImageIO
 import CoreGraphics
 import PDFKit
 import AppKit
+import UniformTypeIdentifiers
 
 public enum DecodeError: Error, CustomStringConvertible {
     case unreadable(URL)
@@ -101,7 +102,17 @@ public enum ImageDecoder {
         case .raster, .raw:
             guard let source = makeSource(url) else { return nil }
             return info(source: source, kind: kind)
+        case .video:
+            return VideoFrames.info(for: url).map { info(video: $0, url: url) }
         }
+    }
+
+    /// A video described as an image: its displayed size, one page, no
+    /// alpha. Ten bits for HDR, which is what every HDR codec stores.
+    static func info(video: VideoInfo, url: URL) -> ImageInfo {
+        ImageInfo(kind: .video, pixelSize: video.pixelSize, orientation: .up, pageCount: 1, isAnimated: false,
+                  hasAlpha: false, bitDepth: video.isHDR ? 10 : 8, colorModel: "RGB", profileName: nil,
+                  isHDR: video.isHDR, uti: UTType(filenameExtension: url.pathExtension)?.identifier)
     }
 
     /// - Parameter index: the image to describe; nil for the primary one.
@@ -193,6 +204,8 @@ public enum ImageDecoder {
                 kCGImageSourceShouldCacheImmediately: true,
             ]
             return CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary)
+        case .video:
+            return VideoFrames.thumbnail(for: url, maxPixelSize: maxPixelSize)
         }
     }
 
@@ -448,6 +461,19 @@ public enum ImageDecoder {
                 throw wantsFull && pixels > Double(thumbnailPixelBudget)
                     ? DecodeError.tooLarge(url) : DecodeError.noImage(url)
             }
+            let full = max(image.width, image.height) >= longest
+            return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: hdr)
+        case .video:
+            // The viewer's still: the very first frame, as the player will
+            // start from it. A video is never exported, so `byteLimit` has
+            // nothing to guard.
+            guard let video = VideoFrames.info(for: url) else { throw DecodeError.unreadable(url) }
+            let info = info(video: video, url: url)
+            let longest = Int(saturating: max(info.pixelSize.width, info.pixelSize.height))
+            let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
+            let hdr = allowHDR && info.isHDR
+            guard let image = VideoFrames.frame(of: url, at: 0, maxPixelSize: wanted.map { min($0, longest) },
+                                                allowHDR: hdr) else { throw DecodeError.noImage(url) }
             let full = max(image.width, image.height) >= longest
             return makeDecoded(image: image, orientation: .up, info: info, full: full, hdr: hdr)
         }

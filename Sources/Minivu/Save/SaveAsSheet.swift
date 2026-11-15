@@ -38,7 +38,7 @@ import MinivuCore
         panel.accessoryView = hostingView
         let format = model.options.format
         panel.allowedContentTypes = [format.utType]
-        panel.nameFieldStringValue = SaveAsNaming.renamed(model.entry.url.lastPathComponent, to: format)
+        panel.nameFieldStringValue = SaveAsNaming.renamed(model.suggestedName, to: format)
         let folder = model.store.lastFolder.flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
         panel.directoryURL = folder ?? model.entry.url.deletingLastPathComponent()
 
@@ -171,7 +171,7 @@ struct SaveAsAccessoryView: View {
                         if format.supports16Bit {
                             Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.options.sixteenBit)
                         }
-                        if format.supportsMetadata {
+                        if format.supportsMetadata, model.carriesMetadata {
                             Toggle("Keep metadata (EXIF, GPS, IPTC, XMP)", isOn: $model.options.keepMetadata)
                             // Indented under the option it qualifies, and
                             // off-looking while nothing is kept at all.
@@ -208,7 +208,7 @@ struct SaveAsAccessoryView: View {
     }
 
     private func hasOptions(_ format: ExportFormat) -> Bool {
-        format == .jpeg || format.supports16Bit || format.supportsMetadata
+        format == .jpeg || format.supports16Bit || (format.supportsMetadata && model.carriesMetadata)
     }
 
     private var backgroundColor: Binding<CGColor> {

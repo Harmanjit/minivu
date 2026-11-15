@@ -60,7 +60,7 @@ extension ViewerWindowController {
     func copyImage(to pasteboard: NSPasteboard) -> Task<Void, Never>? {
         // `displayed`, not `current`: the picture on screen is the one to
         // copy, even in the moment a newly chosen image is still decoding.
-        guard let shown = displayed, canvas.image != nil else { return nil }
+        guard let shown = displayed, canvas.image != nil, shown.entry.kind != .video else { return nil }
         // The session's document when its edits are this page's, and
         // otherwise a document of this page alone, which renders the file
         // as it stands.
@@ -100,8 +100,11 @@ extension ViewerWindowController {
     func validateClipboardAction(_ action: Selector?) -> Bool? {
         // Copy Subject finds the subject first, which takes a moment: not
         // again while it does (ViewerSubject.swift).
-        if action == .copySubject { return displayed != nil && canvas.image != nil && copySubjectTask == nil }
+        if action == .copySubject {
+            return displayed != nil && canvas.image != nil && copySubjectTask == nil && !isShowingVideo
+        }
         guard action == #selector(NSText.copy(_:)) else { return nil }
-        return displayed != nil && canvas.image != nil
+        // A video's first frame is not the video (G18).
+        return displayed != nil && canvas.image != nil && !isShowingVideo
     }
 }

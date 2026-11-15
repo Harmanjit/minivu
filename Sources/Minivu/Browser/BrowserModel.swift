@@ -194,6 +194,9 @@ nonisolated struct FolderSnapshot: Sendable {
     private(set) var backStack: [Location] = []
     private(set) var forwardStack: [Location] = []
     private(set) var imageCount = 0
+    /// How many of `imageCount` are videos (G18), for the tools that
+    /// leave them out.
+    private(set) var videoCount = 0
     private(set) var folderCount = 0
 
     var sortOrder: FileSortOrder {
@@ -487,6 +490,7 @@ nonisolated struct FolderSnapshot: Sendable {
         visibleKeys = []
         indexByKey = [:]
         imageCount = 0
+        videoCount = 0
         folderCount = 0
         selection = []
         lead = nil
@@ -1259,6 +1263,7 @@ nonisolated struct FolderSnapshot: Sendable {
             visibleKeys = []
             indexByKey = [:]
             imageCount = 0
+            videoCount = 0
             folderCount = 0
             pruneSelection()
             return
@@ -1296,6 +1301,7 @@ nonisolated struct FolderSnapshot: Sendable {
         indexByKey = index
         folderCount = entries.prefix { $0.isDirectory }.count
         imageCount = entries.count - folderCount
+        videoCount = entries.reduce(0) { $0 + ($1.kind == .video ? 1 : 0) }
         pruneSelection()
     }
 
@@ -1484,23 +1490,30 @@ nonisolated struct FolderSnapshot: Sendable {
 
     // MARK: - Text
 
-    /// Window subtitle: "123 images, 4 folders".
+    /// Window subtitle: "123 images, 2 videos, 4 folders".
     var subtitle: String {
         guard state == .loaded else { return "" }
-        return Self.countText(images: imageCount, folders: folderCount)
+        return Self.countText(images: imageCount, videos: videoCount, folders: folderCount)
     }
 
-    nonisolated static func countText(images: Int, folders: Int) -> String {
+    /// `images` counts every file shown, `videos` those of them that are
+    /// videos (G18), which are named as such rather than counted as images.
+    nonisolated static func countText(images: Int, videos: Int = 0, folders: Int) -> String {
         var parts: [String] = []
-        if images > 0 || folders == 0 { parts.append(images == 1 ? "1 image" : "\(images.formatted()) images") }
+        let stills = images - videos
+        if stills > 0 || (videos == 0 && folders == 0) {
+            parts.append(stills == 1 ? "1 image" : "\(stills.formatted()) images")
+        }
+        if videos > 0 { parts.append(videos == 1 ? "1 video" : "\(videos.formatted()) videos") }
         if folders > 0 { parts.append(folders == 1 ? "1 folder" : "\(folders.formatted()) folders") }
         return parts.joined(separator: ", ")
     }
 
     /// Status bar: "12 of 340 selected — 84.1 MB", or the counts when
     /// nothing is selected.
-    nonisolated static func selectionText(selected: Int, total: Int, bytes: Int64, images: Int, folders: Int) -> String {
-        guard selected > 0 else { return countText(images: images, folders: folders) }
+    nonisolated static func selectionText(selected: Int, total: Int, bytes: Int64, images: Int, videos: Int = 0,
+                                          folders: Int) -> String {
+        guard selected > 0 else { return countText(images: images, videos: videos, folders: folders) }
         let count = "\(selected.formatted()) of \(total.formatted()) selected"
         return bytes > 0 ? "\(count) — \(bytes.formatted(.byteCount(style: .file)))" : count
     }
@@ -1517,7 +1530,7 @@ nonisolated struct FolderSnapshot: Sendable {
             text = Self.shownText(shown: entries.count, total: totalCount)
         } else {
             text = Self.selectionText(selected: selection.count, total: entries.count, bytes: selectedBytes,
-                                      images: imageCount, folders: folderCount)
+                                      images: imageCount, videos: videoCount, folders: folderCount)
         }
         guard showsManyFolders else { return text }
         if isListing { return text + " — searching…" }

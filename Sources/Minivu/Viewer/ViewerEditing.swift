@@ -53,7 +53,9 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     var canEditCurrent: Bool {
         guard !isClosing, let shown = current, displayed == shown, canvas.image != nil, errorLabel.isHidden,
               player == nil, structureRead == shown.entry else { return false }
-        return true
+        // A video's still is only its first frame: there is nothing to edit
+        // or save as a picture (G18).
+        return shown.entry.kind != .video
     }
 
     /// The session for the image and page on screen, made on first use; nil

@@ -66,6 +66,15 @@ nonisolated struct ThumbnailLayout: Equatable {
                width: Self.badgeSize, height: Self.badgeSize)
     }
 
+    /// The video badge, over the picture's bottom-right corner, never wider
+    /// than the picture.
+    func videoBadgeFrame(imageFrame: CGRect, width: CGFloat) -> CGRect {
+        let width = min(width, max(imageFrame.width - 2 * Self.badgeInset, 0))
+        return CGRect(x: imageFrame.maxX - Self.badgeInset - width,
+                      y: imageFrame.maxY - Self.badgeInset - VideoBadgeView.height,
+                      width: width, height: VideoBadgeView.height)
+    }
+
     /// Where a picture of `pixels` sits in the square: as large as fits,
     /// centred, snapped to whole points so edges stay crisp.
     func imageFrame(for pixels: CGSize) -> CGRect {
@@ -103,6 +112,8 @@ final class ThumbnailCellView: NSView {
     let stars = StarRatingView(starSize: 10)
     let dots = TagDotsView()
     let tagBadge = TagBadge.makeView(pointSize: 14)
+    /// The play mark and length over a video's picture (G18).
+    let videoBadge = VideoBadgeView()
 
     var layoutInfo = ThumbnailLayout(side: 150) {
         didSet { if layoutInfo != oldValue { needsLayout = true } }
@@ -163,7 +174,8 @@ final class ThumbnailCellView: NSView {
         stars.isHidden = true
         tagBadge.isHidden = true
         dots.isHidden = true
-        for view in [stars, dots, tagBadge] as [NSView] { addSubview(view) }
+        videoBadge.isHidden = true
+        for view in [stars, dots, tagBadge, videoBadge] as [NSView] { addSubview(view) }
 
         // VoiceOver reads the cell as one item (name, stars, tag, Finder
         // tags, size) rather than five scraps of it.
@@ -180,16 +192,24 @@ final class ThumbnailCellView: NSView {
         let name = folderName.map { "\(nameField.stringValue), in \($0)" } ?? nameField.stringValue
         return Self.accessibilityText(name: name, isFolder: !isRatable, rating: stars.rating,
                                isTagged: !tagBadge.isHidden, finderTags: dots.tags.map(\.name),
-                               dimensions: detailField.stringValue)
+                               dimensions: detailField.stringValue,
+                               video: videoBadge.isHidden ? nil : videoBadge.duration.map(VideoFrames.durationText) ?? "")
     }
 
     override func isAccessibilitySelected() -> Bool { isSelected }
 
     /// "IMG_2.jpg, 3 stars, tagged, Finder tags: Red, 6032 × 4032". Unrated
-    /// and untagged say nothing, as the cell shows nothing.
+    /// and untagged say nothing, as the cell shows nothing. `video` is a
+    /// video's length ("0:12"), empty while it is unread, and nil for
+    /// everything else: "clip.mov, video, 0:12, …".
     nonisolated static func accessibilityText(name: String, isFolder: Bool, rating: Int, isTagged: Bool,
-                                              finderTags: [String], dimensions: String) -> String {
+                                              finderTags: [String], dimensions: String,
+                                              video: String? = nil) -> String {
         var parts = [name]
+        if let video {
+            parts.append("video")
+            if !video.isEmpty { parts.append(video) }
+        }
         if isFolder {
             parts.append("folder")
         } else {
@@ -283,6 +303,22 @@ final class ThumbnailCellView: NSView {
 
     var hasImage: Bool { imageLayer.contents != nil }
 
+    /// Shows or hides the video badge, with the length once it is known.
+    /// The badge's frame is set in `layout()` from its intrinsic width, so a
+    /// length arriving after the badge is shown (the thumbnail often comes
+    /// from the disk cache before the length is read) lays the cell out
+    /// again, or the capsule would stay narrow with no room for the text.
+    func setVideo(_ isVideo: Bool, duration: Double?) {
+        let newDuration = isVideo ? duration : nil
+        let changed = videoBadge.isHidden == isVideo || videoBadge.duration != newDuration
+        videoBadge.duration = newDuration
+        videoBadge.isHidden = !isVideo
+        if changed { needsLayout = true }
+    }
+
+    /// The badge's frame, for tests.
+    var videoBadgeFrame: CGRect? { videoBadge.isHidden ? nil : videoBadge.frame }
+
     override func layout() {
         super.layout()
         let info = layoutInfo
@@ -292,6 +328,9 @@ final class ThumbnailCellView: NSView {
         if isIcon { frame = frame.insetBy(dx: (frame.width * 0.08).rounded(), dy: (frame.height * 0.08).rounded()) }
         imageLayer.frame = frame
         tagBadge.frame = info.badgeFrame(imageFrame: frame)
+        if !videoBadge.isHidden {
+            videoBadge.frame = info.videoBadgeFrame(imageFrame: frame, width: videoBadge.intrinsicContentSize.width)
+        }
         if dots.isHidden {
             nameField.frame = info.nameFrame
         } else {
@@ -398,6 +437,7 @@ final class ThumbnailCell: NSCollectionViewItem {
             cancelLoading()
             cellView.setImage(Self.folderIcon, isIcon: true)
             cellView.detailField.stringValue = ""
+            cellView.setVideo(false, duration: nil)
             return
         }
         if !sameFile {
@@ -408,6 +448,7 @@ final class ThumbnailCell: NSCollectionViewItem {
             // one loads (after the size slider moved, say).
             cellView.setImage(AppServices.thumbnails.cachedImage(for: entry, pixelSize: 1), isIcon: false)
             cellView.detailField.stringValue = PixelSizeCache.shared.cachedSize(for: entry).map(Self.dimensions) ?? ""
+            cellView.setVideo(entry.kind == .video, duration: PixelSizeCache.shared.cachedDuration(for: entry))
         }
         loadIfNeeded()
     }
@@ -447,6 +488,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         guard let entry, sizeRequest == nil, cellView.detailField.stringValue.isEmpty else { return }
         if let size = PixelSizeCache.shared.cachedSize(for: entry) {
             cellView.detailField.stringValue = Self.dimensions(size)
+            cellView.setVideo(entry.kind == .video, duration: PixelSizeCache.shared.cachedDuration(for: entry))
             return
         }
         let generation = self.generation
@@ -454,6 +496,8 @@ final class ThumbnailCell: NSCollectionViewItem {
             guard let self, self.generation == generation else { return }
             self.sizeRequest = nil
             self.cellView.detailField.stringValue = size.map(Self.dimensions) ?? ""
+            // A video's length is read with its size.
+            self.cellView.setVideo(entry.kind == .video, duration: PixelSizeCache.shared.cachedDuration(for: entry))
         }
     }
 
@@ -472,6 +516,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         shownPixelSize = 0
         cellView.setImage(nil, isIcon: false)
         cellView.detailField.stringValue = ""
+        cellView.setVideo(false, duration: nil)
         cellView.resetHover()
         cellView.isRenaming = false
     }

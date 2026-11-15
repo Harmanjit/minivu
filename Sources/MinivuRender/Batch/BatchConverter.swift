@@ -181,6 +181,9 @@ public struct BatchConverter: Sendable {
     func prepare(_ url: URL, page: Int = 0, settings: BatchConvertSettings, keepingHDR: Bool,
                  sequence: PageSequence? = nil) throws -> Job {
         let kind = ImageFormats.kind(of: url)
+        // A movie is never turned into a picture (G18): Batch Convert leaves
+        // videos out, and a shortcut handed one gets this file's failure.
+        guard kind != .video else { throw DecodeError.noImage(url) }
         var sequence = sequence
         let info: ImageInfo
         if page == 0 {

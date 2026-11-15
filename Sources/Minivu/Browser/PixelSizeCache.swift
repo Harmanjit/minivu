@@ -2,17 +2,32 @@ import Foundation
 import ImageIO
 import MinivuCore
 
-/// Pixel dimensions for the grid's detail line ("6016 × 4016").
+/// Pixel dimensions for the grid's detail line ("6016 × 4016"), and a
+/// video's length for its badge (G18).
 ///
 /// Reading them means opening each file and parsing its header, which is
 /// cheap (no pixels are decoded) but still disk work, so it happens here:
 /// one file at a time on a utility queue, newest request first, cancelled
 /// requests skipped, results remembered by file, date and size. One file
-/// at a time keeps it from competing with thumbnail decoding.
+/// at a time keeps it from competing with thumbnail decoding. A video's
+/// size and length come from one read of its tracks.
 nonisolated final class PixelSizeCache: @unchecked Sendable {
     static let shared = PixelSizeCache()
 
-    private let memory = NSCache<NSString, NSValue>()
+    /// What one read found. A zero size records "no dimensions", so a file
+    /// isn't read twice.
+    private final class Detail {
+        let size: CGSize
+        /// Seconds, for videos; nil for everything else.
+        let duration: Double?
+
+        init(size: CGSize, duration: Double?) {
+            self.size = size
+            self.duration = duration
+        }
+    }
+
+    private let memory = NSCache<NSString, Detail>()
     private let queue = DispatchQueue(label: "minivu.pixel-sizes", qos: .utility)
     private let lock = NSLock()
     // Guarded by `lock`.
@@ -31,8 +46,14 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
 
     /// Known dimensions, or nil if not read yet or not available.
     func cachedSize(for entry: FolderEntry) -> CGSize? {
-        guard let size = memory.object(forKey: key(entry))?.sizeValue, size != .zero else { return nil }
+        guard let size = memory.object(forKey: key(entry))?.size, size != .zero else { return nil }
         return size
+    }
+
+    /// A video's length in seconds once read; nil before, and for anything
+    /// that isn't a video.
+    func cachedDuration(for entry: FolderEntry) -> Double? {
+        memory.object(forKey: key(entry))?.duration
     }
 
     /// Reads the dimensions in the background; `completion` runs on the
@@ -40,7 +61,7 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
     @discardableResult
     func request(_ entry: FolderEntry, completion: @escaping @MainActor @Sendable (CGSize?) -> Void) -> CancellationFlag {
         let request = CancellationFlag()
-        if let value = memory.object(forKey: key(entry))?.sizeValue {
+        if let value = memory.object(forKey: key(entry))?.size {
             deliver(value == .zero ? nil : value, to: Job(entry: entry, request: request, completion: completion))
             return request
         }
@@ -57,12 +78,12 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
         while let job = nextJob() {
             let cacheKey = key(job.entry)
             let size: CGSize
-            if let known = memory.object(forKey: cacheKey)?.sizeValue {
+            if let known = memory.object(forKey: cacheKey)?.size {
                 size = known
             } else {
-                // .zero records "no dimensions", so a file isn't read twice.
-                size = Self.readPixelSize(of: job.entry.url) ?? .zero
-                memory.setObject(NSValue(size: size), forKey: cacheKey)
+                let detail = Self.readDetail(of: job.entry.url)
+                size = detail.size
+                memory.setObject(detail, forKey: cacheKey)
             }
             deliver(size == .zero ? nil : size, to: job)
         }
@@ -89,6 +110,14 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
 
     private func key(_ entry: FolderEntry) -> NSString {
         "\(entry.modified.timeIntervalSinceReferenceDate)|\(entry.fileSize)|\(entry.url.path)" as NSString
+    }
+
+    /// A video's displayed size and length from its tracks; anything else's
+    /// size from `readPixelSize`.
+    private static func readDetail(of url: URL) -> Detail {
+        guard ImageFormats.isVideo(url) else { return Detail(size: readPixelSize(of: url) ?? .zero, duration: nil) }
+        guard let info = VideoFrames.info(for: url) else { return Detail(size: .zero, duration: nil) }
+        return Detail(size: info.pixelSize, duration: info.duration)
     }
 
     /// Oriented width and height from the file's properties, without

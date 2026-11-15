@@ -361,7 +361,8 @@ import Metal
     /// leaves alone.
     @Test(arguments: ["geometry", "resize", "adjustment", "effect", "retouch", "drawing", "sharpen", "blur",
                       "autoEnhance", "noiseReduction", "vignette", "perspective", "canvasSize", "watermark",
-                      "rawDevelop", "removeBackground"])
+                      "rawDevelop", "removeBackground", "bumpMap", "sketch", "oilPaint", "lens", "frame", "grayscale",
+                      "sepia", "negative"])
     func hdrHighlightsSurviveEveryKindOfTool(kind: String) async throws {
         let url = try Fixtures.gainMapHEIC(width: 2400, height: 1200)
         let doc = document(url)
@@ -399,14 +400,42 @@ import Metal
         case "removeBackground":
             [.removeBackground(RemoveBackground(mask: SubjectMask(coverage: (0..<(80 * 40)).map { $0 % 80 < 8 ? 0 : 255 },
                                                                   width: 80, height: 40)!))]
+        // Every effect. Bump map, lens and oil paint read the picture with
+        // its edges repeated outward, the shape a sampling kernel brings
+        // back clipped on macOS 27.
+        case "bumpMap": [.bumpMap(BumpMap())]
+        case "oilPaint": [.oilPaint(OilPaint())]
+        case "lens": [.lens(LensEffect())]
+        case "frame": [.frame(FrameStyle())]
+        case "grayscale": [.grayscale]
+        case "sepia": [.sepia(intensity: 1)]
+        // A drawing on white paper and a film negative don't keep a
+        // highlight as one: see below.
+        case "sketch": [.sketch(Sketch())]
+        case "negative": [.negative]
         default: [.annotations([line])]
         }
         for op in operations.dropLast() { doc.apply(op) }
         doc.preview = operations.last
         for texture in [await preview(doc, 700), await fullResolution(doc)] {
-            let peak = F.pixels(texture.texture).data.max() ?? 0
+            let values = F.pixels(texture.texture).data
+            let peak = values.max() ?? 0
+            let lane = texture.isFullResolution ? "full" : "preview"
             #expect(texture.isHDR && texture.contentHeadroom > 3, "\(kind): flagged SDR")
-            #expect(peak > 2.5, "\(kind), \(texture.isFullResolution ? "full" : "preview"): brightest \(peak)")
+            switch kind {
+            case "sketch":
+                // The paper is white, never brighter, but the highlights
+                // must reach it rather than stop short.
+                #expect(peak > 0.95 && peak < 1.01, "\(kind), \(lane): brightest \(peak)")
+            case "negative":
+                // Above white comes out below black, as far below as the
+                // highlight was above; a highlight clipped to 1 first would
+                // stop at black.
+                let darkest = values.min() ?? 0
+                #expect(darkest < -0.2, "\(kind), \(lane): darkest \(darkest)")
+            default:
+                #expect(peak > 2.5, "\(kind), \(lane): brightest \(peak)")
+            }
         }
         renderer.release(doc)
     }

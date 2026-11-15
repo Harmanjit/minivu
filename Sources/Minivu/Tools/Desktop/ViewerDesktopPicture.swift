@@ -5,7 +5,7 @@ import AppKit
 /// screen the viewer is on.
 extension ViewerWindowController {
     @objc func setAsDesktopPicture(_ sender: Any?) {
-        guard let entry = model.current, let screen = window?.screen ?? NSScreen.main else { return }
+        guard let entry = model.current, entry.kind != .video, let screen = window?.screen ?? NSScreen.main else { return }
         let edits = editSession.flatMap { $0.document.isDirty ? $0.document.snapshot() : nil }
         DesktopPictureSetter.shared.run(url: entry.url, edits: edits, screen: screen, window: window)
     }

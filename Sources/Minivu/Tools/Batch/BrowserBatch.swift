@@ -273,7 +273,9 @@ extension BrowserWindowController {
     /// ⌥⌘B: the convert sheet over the images.
     @objc func batchConvert(_ sender: Any?) {
         guard let window = canStartBatch() else { return NSSound.beep() }
-        let entries = toolImages
+        // Videos are left out: a movie is not converted to a picture (G18).
+        let entries = toolStills
+        guard !entries.isEmpty else { return NSSound.beep() }
         let model = BatchConvertModel(entries: entries, store: BatchTools.store)
         let sheet = BatchConvertSheet(model: model)
         sheet.begin(on: window) { [weak self] settings in
@@ -466,7 +468,7 @@ extension BrowserWindowController {
     @objc func debugBatchConvertOptions(_ sender: Any?) {
         guard let window = canStartBatch() else { return }
         // Nothing here is remembered: only Convert commits settings.
-        let model = BatchConvertModel(entries: toolImages, store: BatchTools.store)
+        let model = BatchConvertModel(entries: toolStills, store: BatchTools.store)
         model.format = .heic
         model.settings.resize = BatchResize(mode: .longSide, pixels: 2048, filter: .lanczos3)
         model.settings.quarterTurns = 1

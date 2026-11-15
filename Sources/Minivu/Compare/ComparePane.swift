@@ -9,6 +9,13 @@ import MinivuRender
 /// `AppServices.images` (so a texture the browser or viewer already made is
 /// reused), and a sharper one when the canvas asks, as the viewer does. The
 /// window controller decides what it shows and keeps panes in step.
+///
+/// A video (G18) is compared by its still: the first frame, the one the
+/// viewer shows before it plays, through the same loader and cache. The
+/// pane never plays it (Compare is for judging pictures side by side, and
+/// it would mean up to four players at once); its second line says
+/// "Video, 0:12" where a photo's gives the exposure, so the still is never
+/// taken for a photo.
 final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     static let headerHeight: CGFloat = 42
     static let footerHeight: CGFloat = 30
@@ -339,10 +346,18 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         canvas.setImage(nil, preserveView: false)
     }
 
+    /// The line under the name: the exposure or camera of a photo, "Video,
+    /// 0:12" for a video.
+    var secondLine: String { exposureLabel.stringValue }
+
     /// Pixel size and exposure come from the file's headers: a few
     /// milliseconds of disk, so off the main thread.
     private func readSummary(of entry: FolderEntry) {
         let url = entry.url
+        if entry.kind == .video {
+            readVideoSummary(of: entry)
+            return
+        }
         summaryTask = Task { [weak self] in
             let summary = await BlockingWork.run { MetadataReader.summary(for: url) }
             guard !Task.isCancelled, let self, self.entry?.url == url else { return }
@@ -352,6 +367,19 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
             self.detailLabel.stringValue = parts.joined(separator: "  ·  ")
             let exposure = [summary.exposure, summary.camera].compactMap { $0 }.first
             self.exposureLabel.stringValue = exposure ?? summary.formatName
+        }
+    }
+
+    /// A video's size and length, from its tracks in one read.
+    private func readVideoSummary(of entry: FolderEntry) {
+        let url = entry.url
+        exposureLabel.stringValue = "Video"
+        summaryTask = Task { [weak self] in
+            let info = await BlockingWork.run { VideoFrames.info(for: url) }
+            guard !Task.isCancelled, let self, self.entry?.url == url, let info else { return }
+            self.detailLabel.stringValue = "\(Int(info.pixelSize.width)) × \(Int(info.pixelSize.height))  ·  "
+                + Self.fileSizeText(entry.fileSize)
+            self.exposureLabel.stringValue = "Video, " + VideoFrames.durationText(info.duration)
         }
     }
 

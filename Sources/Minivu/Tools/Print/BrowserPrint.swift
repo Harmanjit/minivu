@@ -6,7 +6,7 @@ import MinivuCore
 extension BrowserWindowController {
     @objc func printImages(_ sender: Any?) {
         guard let window, window.attachedSheet == nil else { return }
-        let images = toolImages
+        let images = toolStills
         guard !images.isEmpty else { return }
         let items = images.map { LayoutItem(entry: $0) }
         PrintPresenter.present(items: items, title: PrintPresenter.jobTitle(for: items), on: window)
@@ -45,7 +45,7 @@ extension BrowserWindowController {
     /// `MINIVU_DEBUG_PRINT_PAGE` (default /tmp/minivu-print-page.png).
     /// Decodes on a background queue; no menu item or key sends it.
     @objc func debugRenderPrintPage(_ sender: Any?) {
-        let items = toolImages.map { LayoutItem(entry: $0) }
+        let items = toolStills.map { LayoutItem(entry: $0) }
         guard !items.isEmpty else { return }
         let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["MINIVU_DEBUG_PRINT_PAGE"]
             ?? "/tmp/minivu-print-page.png")

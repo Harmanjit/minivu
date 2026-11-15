@@ -6,7 +6,7 @@ import MinivuCore
 extension BrowserWindowController {
     @objc func makeContactSheet(_ sender: Any?) {
         guard let window, window.attachedSheet == nil else { return }
-        let images = toolImages
+        let images = toolStills
         guard !images.isEmpty else { return }
         let folderName = model.folder.map { FileManager.default.displayName(atPath: $0.path) }
         let controller = ContactSheetController(items: images.map { LayoutItem(entry: $0) }, folderName: folderName,

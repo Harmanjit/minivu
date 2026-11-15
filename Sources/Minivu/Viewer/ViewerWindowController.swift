@@ -145,6 +145,14 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var current: Shown? { model.current.map { Shown(entry: $0, page: model.page) } }
     /// Plays the current image when it is animated; nil otherwise.
     private(set) var player: AnimationPlayer?
+    /// The current video's player once the user has asked it to play;
+    /// nil otherwise, and again as soon as they move on (ViewerVideo.swift).
+    var videoPlayback: VideoPlayback?
+    /// The play button over a video's still, and later its player view.
+    let videoStage = VideoStageView()
+    /// The current video's length and HDR, read off the main thread.
+    var videoInfo: (url: URL, info: VideoInfo?)?
+    var videoInfoTask: Task<Void, Never>?
     /// The HUD's exposure line, and which file it belongs to.
     private var exposure: (url: URL, text: String?)?
     /// Files the Finder is moving to the Trash right now.
@@ -379,6 +387,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         // the frame must be exactly the screen's.
         window.setFrame(frame, display: false)
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
+        window.firstResponderRedirect = { [weak self] responder in self?.keyboardRedirect(for: responder) }
         window.editUndoTarget = self
         fullScreenWindow = window
         return window
@@ -396,6 +405,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         window.setFrameUsingName(Self.frameAutosaveName)
         window.setFrameAutosaveName(Self.frameAutosaveName)
         window.onMouseDown = { [weak self] event in self?.windowMouseDown(event) }
+        window.firstResponderRedirect = { [weak self] responder in self?.keyboardRedirect(for: responder) }
         window.editUndoTarget = self
         windowedWindow = window
         return window
@@ -641,6 +651,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// neighbours are prefetched again once the new texture is up.
     @objc private func displaySettingsChanged(_ notification: Notification) {
         guard !isClosing, let shown = current else { return }
+        videoDisplaySettingsChanged()
         if let session = editSession {
             // The original decodes again under the new settings; an edited
             // render on screen is replaced by a new one, not by the file.
@@ -673,8 +684,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if infoHost.window != nil, !infoHost.isHiddenOrHasHiddenAncestor {
             infoHost.rootView = infoPanel(for: entry)
         }
-        histogramPanel.setEntry(entry)
+        histogramPanel.setEntry(entry.kind == .video ? nil : entry)
         stopAnimation()
+        videoEntryChanged(entry)
         readFileMarks(of: entry)
         readExposure(for: entry)
         readStructure(of: entry)
@@ -825,6 +837,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc private func occlusionChanged(_ notification: Notification) {
         guard let window, notification.object as? NSWindow === window else { return }
         updateAnimationVisibility()
+        // A video doesn't play on where nobody can see it (G18).
+        if !window.occlusionState.contains(.visible) { pauseVideo() }
     }
 
     private func updateAnimationVisibility() {
@@ -864,6 +878,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if let player, !player.isPlaying, player.frameCount > 0 {
             part = "Frame \(player.currentFrame + 1) / \(player.frameCount)"
         }
+        if isShowingVideo { part = videoHUDText }
         let document = editSession?.document
         let dirty = document?.isDirty == true
         if let window, window.isDocumentEdited != dirty { window.isDocumentEdited = dirty }
@@ -879,10 +894,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let canEdit = canEditCurrent
         controlBar?.update(zoomPercent: zoom, canGoPrevious: model.canGoPrevious, canGoNext: model.canGoNext,
                            isFullScreen: isFullScreen, infoShown: flyouts.isPinned(.right),
-                           pages: pages, isPlaying: player?.isPlaying, canEdit: canEdit,
+                           pages: pages, isPlaying: isShowingVideo ? isVideoPlaying : player?.isPlaying, canEdit: canEdit,
                            toolsShown: flyouts.isPinned(.left))
         if isToolsPanelLoaded { updateAvailability(of: toolsPanel, canEdit: canEdit) }
         updateLiveTextAvailability()
+        updateVideoChrome()
     }
 
     private func updateAvailability(of panel: ViewerToolsPanel, canEdit: Bool) {
@@ -994,7 +1010,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     func canvasDidChangeImage(_ canvas: ImageCanvasView) {
-        histogramPanel.show(canvas.image, interval: player?.isPlaying == true
+        histogramPanel.show(isShowingVideo ? nil : canvas.image, interval: player?.isPlaying == true
             ? HistogramPanelController.animationInterval : HistogramPanelController.minimumInterval)
         liveText.show(canvas.image, subject: liveTextSubject)
     }
@@ -1008,7 +1024,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         } ?? false
         if handleToolKey(event) { return true }
         guard let command = ViewerKeyCommand.command(characters: event.charactersIgnoringModifiers ?? "",
-                                                     modifiers: event.modifierFlags, zoomedIn: zoomedIn)
+                                                     modifiers: event.modifierFlags, zoomedIn: zoomedIn,
+                                                     isVideo: model.current?.kind == .video)
         else { return false }
         // Swallowed rather than passed on, which would beep.
         if event.isARepeat, !command.repeats { return true }
@@ -1022,6 +1039,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .pageForward: pageStep { $0.pageForward() }
         case .pageBackward: pageStep { $0.pageBackward() }
         case .togglePlayback: togglePlayback(nil)
+        case .toggleMute: toggleMute(nil)
         case .pan(let x, let y):
             // The content moves opposite to where the user wants to look.
             let step = ViewerKeyCommand.panFraction
@@ -1078,17 +1096,20 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     @objc func nextPage(_ sender: Any?) { turnPage { $0.nextPage() } }
     @objc func previousPage(_ sender: Any?) { turnPage { $0.previousPage() } }
 
-    /// Plays or pauses an animated image; P and the control bar's button.
+    /// Plays or pauses an animated image or a video; P, Space on a video,
+    /// and the control bar's button.
     @objc func togglePlayback(_ sender: Any?) {
+        if model.current?.kind == .video { return toggleVideoPlayback() }
         guard let player else { return }
         player.togglePlayback()   // its state change updates the chrome
         hud.flash()
     }
 
-    @objc func fitToWindow(_ sender: Any?) { canvas.fit() }
-    @objc func actualSize(_ sender: Any?) { canvas.actualSize(at: nil) }
-    @objc func zoomIn(_ sender: Any?) { canvas.zoomIn() }
-    @objc func zoomOut(_ sender: Any?) { canvas.zoomOut() }
+    // A video is shown fitted, as its player shows it (G18).
+    @objc func fitToWindow(_ sender: Any?) { if !isShowingVideo { canvas.fit() } }
+    @objc func actualSize(_ sender: Any?) { if !isShowingVideo { canvas.actualSize(at: nil) } }
+    @objc func zoomIn(_ sender: Any?) { if !isShowingVideo { canvas.zoomIn() } }
+    @objc func zoomOut(_ sender: Any?) { if !isShowingVideo { canvas.zoomOut() } }
 
     @objc func toggleFullScreenViewer(_ sender: Any?) {
         setFullScreen(!isFullScreen)
@@ -1291,6 +1312,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if let enabled = validateClipboardAction(menuItem.action) { return enabled }
         if let enabled = validateLiveTextAction(menuItem.action) { return enabled }
         if let enabled = validateBatchPresetAction(menuItem.action) { return enabled }
+        if let enabled = validateVideoFrameAction(menuItem.action) { return enabled }
         switch menuItem.action {
         case .nextImage: return model.canGoNext
         case .previousImage: return model.canGoPrevious
@@ -1299,9 +1321,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .nextPage: return model.canGoNextPage
         case .previousPage: return model.canGoPreviousPage
         case .togglePlayback:
+            if let enabled = validateVideoPlayback(menuItem) { return enabled }
             menuItem.showPlayback(isPlaying: player?.isPlaying == true)
             return player != nil
-        case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil
+        case .toggleMute:
+            return validateVideoMute(menuItem)
+        case .fitToWindow, .actualSize, .zoomIn, .zoomOut: return canvas.image != nil && !isShowingVideo
         case .revealInFinder: return model.current != nil
         // Not while a sheet is up: the unsaved-edits question would have
         // nowhere to go but a modal alert over it.
@@ -1328,10 +1353,14 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             menuItem.state = isFullScreen ? .on : .off
             return true
         case .moveToNextDisplay: return Displays.provider.displays.count > 1
-        case ViewerControlBar.toggleInfoAction, .toggleHistogram:
+        case ViewerControlBar.toggleInfoAction:
             menuItem.state = flyouts.isPinned(.right) ? .on : .off
             return true
-        case .countColors: return model.current != nil
+        // A video's frames have no histogram or colours worth counting.
+        case .toggleHistogram:
+            menuItem.state = flyouts.isPinned(.right) ? .on : .off
+            return model.current?.kind != .video
+        case .countColors: return model.current.map { $0.kind != .video } ?? false
         case ViewerControlBar.toggleToolsAction:
             menuItem.state = flyouts.isPinned(.left) ? .on : .off
             return true
@@ -1410,6 +1439,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         canvas.delegate = nil
         cancelLoads()
         stopAnimation()
+        stopVideo()
         summaryTask?.cancel()
         infoTask?.cancel()
         histogramPanel.stop()
