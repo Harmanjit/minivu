@@ -52,6 +52,8 @@ public struct SimilarityIndex: Sendable {
     ///     found so far.
     public init(prints: [FeaturePrint], maximumDistance: Float, neighbours: Int = 16,
                 isCancelled: () -> Bool = { false }, progress: (Int, Int) -> Void = { _, _ in }) {
+        let indexing = Perf.begin("duplicates.index")
+        defer { indexing.end() }
         count = prints.count
         self.maximumDistance = maximumDistance
         guard let reference = prints.first, prints.count > 1 else {

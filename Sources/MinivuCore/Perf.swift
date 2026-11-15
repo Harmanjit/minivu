@@ -8,12 +8,14 @@ import Synchronization
 /// `com.minivu.app`, category `perf`, so Instruments (the os_signpost and
 /// Points of Interest tracks) shows the phases of each user-facing operation
 /// on the threads that ran them. A signposter that nobody is recording costs
-/// a flag check per call, so the intervals stay in release builds.
+/// little per call (its begin and end, or its event, return almost at once),
+/// so the intervals stay in release builds; they are per phase, never per
+/// pixel or per row, to keep it that way.
 ///
 /// Benchmarks need the same phases without Instruments: between
 /// `startRecording()` and `stopRecording()` every interval's duration and
-/// every `count` is also kept in memory. Outside a recording the only cost is
-/// one atomic load.
+/// every `count` is also kept in memory. Outside a recording that adds one
+/// atomic load per call to the signposter's own cost.
 ///
 /// Names are a dotted phase, the operation first: `folder.heal`,
 /// `thumb.decode`, `viewer.upload`. One name per phase, never one per file,
@@ -101,6 +103,8 @@ public enum Perf {
         /// they ended.
         public var durations: [String: [Double]] = [:]
         public var counts: [String: Int] = [:]
+
+        public init() {}
 
         /// Total milliseconds spent in intervals named `name`.
         public func total(_ name: String) -> Double { durations[name]?.reduce(0, +) ?? 0 }

@@ -453,7 +453,9 @@ public struct DisplaySettings: Sendable, Equatable {
             // waiting for it. The wait blocks a GCD thread, which grows
             // threads for that, until the decode ends.
             job.escalated = true
-            DispatchQueue.global(qos: .userInitiated).async { work.item.wait() }
+            DispatchQueue.global(qos: .userInitiated).async {
+                Perf.measure("loader.escalationWait") { work.item.wait() }
+            }
         }
     }
 

@@ -317,13 +317,17 @@ public final class ThumbnailService: @unchecked Sendable {
         // Encoded from the decode, not the display copy: an opaque photo
         // stays a JPEG rather than becoming a PNG for its alpha channel.
         if let store, let data = Perf.measure("thumb.encode", { ThumbnailStore.encode(decoded) }) {
-            let write = Perf.begin("thumb.storeWrite")
-            defer { write.end() }
+            // The wait for the other workers' writes apart from the write
+            // itself, so contention and SQLite's cost each have a number.
+            let waiting = Perf.begin("thumb.diskLockWait")
             diskLock.withLock {
+                waiting.end()
                 // Invalidated while decoding: this picture may be of the old file.
                 guard lock.withLock({ generations[path] ?? 0 }) == generation else { return }
-                store.store(encoded: data, for: entry.url, modified: entry.modified, fileSize: entry.fileSize,
-                            tier: job.key.tier)
+                Perf.measure("thumb.storeWrite") {
+                    store.store(encoded: data, for: entry.url, modified: entry.modified, fileSize: entry.fileSize,
+                                tier: job.key.tier)
+                }
             }
         }
         return image

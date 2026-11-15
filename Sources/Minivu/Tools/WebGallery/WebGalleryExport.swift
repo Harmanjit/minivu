@@ -135,7 +135,9 @@ enum WebGalleryExport {
         if items.isEmpty, let firstError { throw firstError }
 
         let pages = items
-        try await BlockingWork.run { try writePages(title: title, items: pages, settings: settings, into: gallery) }
+        try await BlockingWork.run {
+            try Perf.measure("gallery.pages") { try writePages(title: title, items: pages, settings: settings, into: gallery) }
+        }
         progress(steps, steps)
         guard !cancel.isCancelled else { throw CancellationError() }
 
@@ -170,16 +172,20 @@ enum WebGalleryExport {
                                           converter: BatchConverter, into gallery: URL) async throws -> WebGalleryItem {
         var convert = BatchConvertSettings(options: settings.exportOptions)
         convert.resize = BatchResize(mode: .longSide, pixels: settings.largeSize, doesNotEnlarge: true)
-        let large = try await converter.image(for: item.source, settings: convert)
-        let thumbnail = try scaled(large, longSide: settings.thumbnailPixels)
+        let large = try await Perf.measure("gallery.render") { try await converter.image(for: item.source, settings: convert) }
+        let thumbnail = try Perf.measure("gallery.scale") { try scaled(large, longSide: settings.thumbnailPixels) }
 
         let format = settings.format, ext = settings.format.fileExtension
-        let largeData = try encode(large, format: format, options: settings.exportOptions, metadataSource: item.source)
-        let thumbnailData = try encode(thumbnail, format: format, options: settings.thumbnailOptions, metadataSource: nil)
-        try largeData.write(to: gallery.appendingPathComponent(WebGalleryHTML.imagesFolder)
-            .appendingPathComponent(item.stem + "." + ext), options: .withoutOverwriting)
-        try thumbnailData.write(to: gallery.appendingPathComponent(WebGalleryHTML.thumbnailsFolder)
-            .appendingPathComponent(item.stem + "." + ext), options: .withoutOverwriting)
+        let (largeData, thumbnailData) = try Perf.measure("gallery.encode") {
+            (try encode(large, format: format, options: settings.exportOptions, metadataSource: item.source),
+             try encode(thumbnail, format: format, options: settings.thumbnailOptions, metadataSource: nil))
+        }
+        try Perf.measure("gallery.write") {
+            try largeData.write(to: gallery.appendingPathComponent(WebGalleryHTML.imagesFolder)
+                .appendingPathComponent(item.stem + "." + ext), options: .withoutOverwriting)
+            try thumbnailData.write(to: gallery.appendingPathComponent(WebGalleryHTML.thumbnailsFolder)
+                .appendingPathComponent(item.stem + "." + ext), options: .withoutOverwriting)
+        }
 
         var made = item
         if let original = item.originalName {

@@ -120,7 +120,7 @@ public enum BatchFileWriter {
                 NSFilePathErrorKey: url.path,
             ])
         }
-        let trashed = try trash(url)
+        let trashed = try Perf.measure("batch.trash") { try trash(url) }
         do {
             try FileOperations.moveExclusively(temporary, to: url)
         } catch {
@@ -137,11 +137,11 @@ public enum BatchFileWriter {
             // Marks are kept by path, so under the same name they stay put;
             // a name that changed only in letter case takes them along.
             if original.standardizedFileURL.path != url.standardizedFileURL.path {
-                catalog.fileMoved(from: original, to: url)
+                Perf.measure("batch.catalogMoved") { catalog.fileMoved(from: original, to: url) }
             }
         } else {
             // The marks go with the old file, as they do when Copy replaces one.
-            catalog.fileMoved(from: url, to: trashed)
+            Perf.measure("batch.catalogMoved") { catalog.fileMoved(from: url, to: trashed) }
         }
         return trashed
     }

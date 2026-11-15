@@ -535,7 +535,9 @@ final class EditStage: @unchecked Sendable {
                         newProxy = workingProxy
                         plan = Plan(scale: scale, maximumScale: plan.maximumScale, useProxy: true, rebuildProxy: false)
                     } else if plan.rebuildProxy {
-                        workingProxy = try Self.makeProxy(renderSource, scale: plan.scale, context: context, gpu: gpu)
+                        workingProxy = try Perf.measure("edit.render.proxyRebuild") {
+                            try Self.makeProxy(renderSource, scale: plan.scale, context: context, gpu: gpu)
+                        }
                         newProxy = workingProxy
                     }
                     if developPreview, let workingProxy {

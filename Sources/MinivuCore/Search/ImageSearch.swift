@@ -64,6 +64,8 @@ public enum ImageSearch {
     public static func filter(_ images: [FolderEntry], query: SearchQuery, catalog: Catalog,
                               fileMarks: ((URL) -> Catalog.Marks?)? = nil, label: (URL) -> ColorLabel = { _ in .none },
                               isCancelled: () -> Bool = { false }) -> [FolderEntry] {
+        let filtering = Perf.begin("search.filter")
+        defer { filtering.end() }
         let name = MetadataCriteria.folded(query.name)
         let criteria = query.criteria
         var candidates = images.filter { entry in

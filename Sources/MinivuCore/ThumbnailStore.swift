@@ -175,7 +175,10 @@ public final class ThumbnailStore: @unchecked Sendable {
     /// oldest access, and every row whose running total passes the budget
     /// goes. SQLite has had window functions since 3.25; macOS 15 ships 3.43.
     public func prune(maxBytes: Int) {
-        guard totalBytes > maxBytes else { return }
+        // At every launch; the total alone is a scan of every row.
+        let pruning = Perf.begin("thumb.prune")
+        defer { pruning.end() }
+        guard Perf.measure("thumb.pruneTotal", { totalBytes }) > maxBytes else { return }
         try? db.execute("""
             DELETE FROM thumbnails WHERE rowid IN (
                 SELECT rowid FROM (

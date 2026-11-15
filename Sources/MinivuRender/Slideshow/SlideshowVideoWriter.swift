@@ -4,6 +4,7 @@ import CoreImage
 import CoreText
 import CoreVideo
 import Metal
+import MinivuCore
 
 /// Writes a slideshow as a video file (H.264 or HEVC through
 /// `AVAssetWriter`), with the music, if any, as its sound.
@@ -231,7 +232,7 @@ private final class VideoPump: @unchecked Sendable {
                 }
                 last = (moment, buffer)
                 let time = CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(timeline.frameRate))
-                guard adaptor.append(buffer, withPresentationTime: time) else {
+                guard Perf.measure("video.append", { adaptor.append(buffer, withPresentationTime: time) }) else {
                     throw SlideshowVideoWriter.Failure.cannotEncode("a frame was refused")
                 }
             } catch {
@@ -252,8 +253,10 @@ private final class VideoPump: @unchecked Sendable {
         CVPixelBufferPoolCreatePixelBuffer(nil, pool, &made)
         guard let buffer = made else { throw GPUError.allocationFailed("a video frame") }
         if let to = moment.to { slides.arriving(to) }
-        let from = moment.from.flatMap(slides.texture)
-        let to = moment.to.flatMap(slides.texture)
+        // Waiting here means the decode-ahead fell behind the encoder.
+        let (from, to) = Perf.measure("video.slideWait") {
+            (moment.from.flatMap(slides.texture), moment.to.flatMap(slides.texture))
+        }
         // The first slide fades in from black and the last fades to black,
         // as the live show's first slide does; between them each slide
         // comes on with its own transition.
@@ -263,7 +266,9 @@ private final class VideoPump: @unchecked Sendable {
                                    direction: .forward, displayHeadroom: 1,
                                    enlargeSmallImages: plan.enlargeSmallImages)
         let caption = moment.caption.flatMap { plan.slides[$0].caption }
-        try frames.draw(frame, caption: caption, captionOpacity: CGFloat(moment.captionOpacity), into: buffer)
+        try Perf.measure("video.frameDraw") {
+            try frames.draw(frame, caption: caption, captionOpacity: CGFloat(moment.captionOpacity), into: buffer)
+        }
         return buffer
     }
 }
@@ -538,7 +543,7 @@ final class SlideshowVideoSlides: @unchecked Sendable {
         guard isNew else { return }
         let url = plan.slides[index].url, size = size, settings = plan.display
         queue.async { [self] in
-            let texture = isCancelled() ? nil : try? decode(url, size, settings)
+            let texture = isCancelled() ? nil : try? Perf.measure("video.slideDecode") { try decode(url, size, settings) }
             condition.lock()
             textures[index] = .some(texture)
             peak = max(peak, textures.count)
@@ -603,7 +608,9 @@ final class SlideshowVideoFrames {
         context.render(image, to: output, bounds: CGRect(x: 0, y: 0, width: width, height: height),
                        colorSpace: Self.rec709)
         CVMetalTextureCacheFlush(textureCache, 0)
-        if let caption, captionOpacity > 0 { drawCaption(caption, opacity: captionOpacity, into: output) }
+        if let caption, captionOpacity > 0 {
+            Perf.measure("video.caption") { drawCaption(caption, opacity: captionOpacity, into: output) }
+        }
     }
 
     /// The live caption (`SlideshowCaptionView`) at the video's scale: white
