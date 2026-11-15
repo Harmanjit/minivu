@@ -51,7 +51,17 @@ it should.
     read-only bookmark as the viewer, and refuses removable/network volumes.
   - **Keep HDR** (Format section, only for JPEG, HEIC and AVIF; on by
     default): HDR originals keep their highlights as an ISO gain map. Off,
-    they are written SDR as before.
+    they are written SDR as before. A gain map's base is always ImageIO's
+    8-bit Display P3 rendition, so Keep HDR applies only with Color profile
+    "Keep original" or "Display P3" and the 10-bit toggle off
+    (`ImageEncoder.canWriteGainMap(_ options:)`). With sRGB or Adobe RGB
+    chosen, or 10 bits, HDR photos are written SDR in that profile and
+    depth, and a caption under the toggle says so ("HDR photos are written
+    SDR in sRGB: a gain map needs Display P3."). Decided over silently
+    tagging HDR files Display P3 in an sRGB batch: an explicit profile is a
+    deliberate choice (usually for the web) and must hold for every file.
+    The Shortcuts Convert Images action follows the same rule (it goes
+    through the same `BatchConverter`).
 - **Tools > Batch Rename…** gains the same **Preset** row above the pattern:
   a preset keeps the pattern text, counter start/step/digits, find and
   replace and letter cases (the whole `RenamePattern`). None leaves the
@@ -59,7 +69,10 @@ it should.
 - Settings: none in Settings. Presets live in UserDefaults
   (`batchConvertPresets`, `batchRenamePresets`). The sheets still remember
   their last state as before, now including the edits, watermark and Keep
-  HDR.
+  HDR, and Batch Convert remembers which preset the popup showed
+  (`batchConvertPresetID`), so a reopened sheet shows that preset beside the
+  edits it brought rather than None (None when the preset has been deleted
+  since).
 
 ### Order of operations
 
@@ -78,7 +91,7 @@ place among the edits.
 | Sharpen, Blur, Noise Reduction | yes | radii in full-resolution pixels suit any photo |
 | Drop Shadow, Frame, Bump Map, Sketch, Oil Paint, Lens, Vignette, Watermark | yes | fractions of the short side, normalised positions, pixel radii |
 | Rotate (quarter turns and any angle), Flip | yes | no coordinates |
-| Crop, Perspective | yes, with a note | stored normalised: the same part of each photo |
+| Crop, Perspective | yes, with a note | stored normalised: the same part of each photo; left out (with the reason) when they come after a Canvas Size that is left out, since their fractions were measured on that canvas |
 | Auto Enhance | yes, measured again on each photo | see below |
 | RAW Adjustments | yes, with a note | the RAW engine's settings; ignored for non-RAW files (as `EditOperation.rawDevelop` already is) |
 | Resize | left out | a size in pixels for this photo; Batch Convert's own Resize works from each photo's size |
@@ -87,6 +100,11 @@ place among the edits.
 | Clone Stamp, Healing Brush | left out | strokes painted on this photo's content |
 | Red-Eye Removal | left out | spots on this photo's eyes |
 | Remove Background | left out | the subject mask was found in this photo |
+
+A left-out Resize doesn't affect later crops: scaling each side keeps every
+fraction where it was. A left-out Canvas Size does (a crop back to the
+photo inside a border would cut into the bare photo), so a Crop or
+Perspective after one stays behind too (`BatchEdits.afterCanvasSize`).
 
 Steps that change nothing are dropped without a word (the document doesn't
 record them either). Choosing a stored preset filters its edits through the
@@ -133,7 +151,11 @@ milliseconds. A RAW file with no embedded preview gets no Auto Enhance
   80 characters). Each change re-reads the store first, so a viewer's sheet
   and a Batch Convert sheet on another window never write back a list that
   lacks the other's preset (found by a test). A stored preset that can't be
-  decoded is skipped; the rest load.
+  decoded is skipped; the rest load. Writing the list back keeps such a
+  preset's JSON unchanged after the readable ones (`BatchStore.encodeEach`),
+  so saving, renaming or deleting here never destroys a preset a later
+  minivu wrote (pinned by `oldSettingsAndUnreadablePresetsStillLoad`). It
+  can't be renamed or deleted from this minivu, since it isn't shown.
 - **Sheets.** `BatchPresetViews.swift` holds `BatchPresetControls` (both
   batch sheets) and `BatchWatermarkSheet`. `EditsPresetSheet.swift` holds
   the viewer's sheet and its model; `Viewer/ViewerBatchPreset.swift` the
@@ -170,7 +192,15 @@ milliseconds. A RAW file with no embedded preview gets no Auto Enhance
 - The watermark editor in the batch has no preview (there is no photo
   open); the viewer's Watermark tool previews.
 - HDR is kept only as a gain map (JPEG, HEIC, AVIF); a PQ/HLG original
-  becomes a gain-map file, not PQ/HLG.
+  becomes a gain-map file, not PQ/HLG. Only with Keep original or Display
+  P3 and 8 bits (see Keep HDR above).
+- Save Edits as Preset… applies an open tool's pending change to the photo
+  before the sheet appears, as Save As does, and Cancel in the sheet
+  doesn't take it back (Undo does). Kept deliberately: the preset is made
+  of what the photo shows, and a tool's pending state is not an operation
+  list until it is applied (brush tools hold strokes, Colors stages two
+  sections); undoing on Cancel would close the tool and push its change to
+  Redo, which is more surprising.
 
 ### Where the docs should change
 
@@ -178,7 +208,8 @@ milliseconds. A RAW file with no embedded preview gets no Auto Enhance
   table's rule, Auto Enhance re-measured per image, `BatchEdits`).
 - DESIGN.md 4.8 "Batch Convert": operations now run edits, turn, flip,
   resize, watermark; "always SDR" becomes "SDR, or HDR with a gain map for
-  JPEG/HEIC/AVIF when Keep HDR is on"; the budget check of the output before
+  JPEG/HEIC/AVIF when Keep HDR is on and the profile is Keep original or
+  Display P3 at 8 bits"; the budget check of the output before
   decoding; presets stored under their own keys.
 - DESIGN.md 4.8 "Batch Rename": named patterns.
 - DESIGN.md 5, menu-shortcut table: File > Save Edits as Preset… (none).
@@ -188,7 +219,7 @@ milliseconds. A RAW file with no embedded preview gets no Auto Enhance
   HDR), Batch Rename (Preset row). docs/wiki/Editing.md: "Save Edits as
   Preset". docs/wiki/Limitations.md.
 - Help pages: Tools.md (Batch Convert and Batch Rename presets, watermark,
-  Keep HDR), Editing.md (Save Edits as Preset…, after Revert to Saved).
+  Keep HDR and when it writes SDR: sRGB/Adobe RGB or 10 bits), Editing.md (Save Edits as Preset…, after Revert to Saved).
 - Keyboard shortcuts page: nothing (no new keys).
 
 ## G14: AVIF export
@@ -203,7 +234,8 @@ milliseconds. A RAW file with no embedded preview gets no Auto Enhance
   **"10 bits per channel"** toggle (the existing "16 bits" option, titled
   with the depth the format holds: "16 bits per channel" for PNG and TIFF).
 - **HDR**: Save As stays SDR, as for every format. Batch Convert (Keep HDR)
-  and Convert Images keep HDR originals as an AVIF with an ISO gain map. An
+  and Convert Images keep HDR originals as an AVIF with an ISO gain map
+  (with Keep original or Display P3 and 10 bits off; 10 bits writes SDR). An
   AVIF original with a gain map is saved in place with a new one, like HEIC.
 - **Save (⌘S) of an AVIF** now writes in place where AVIF is writable (it
   used to fall back to Save As), with the usual confirmation; a PQ/HLG AVIF
@@ -460,8 +492,19 @@ there).
   renders a PDF page at full resolution: actual size at 144 dpi, at least
   4096 px and at most 16384 px on the long edge.
 - No new Core Image operation and no new edit operation, so nothing was
-  added to `hdrHighlightsSurviveEveryKindOfTool`; every page and strip
-  output is SDR (an HDR original's page is ImageIO's SDR rendition).
+  added to `hdrHighlightsSurviveEveryKindOfTool`; every multi-page and
+  strip output is SDR (an HDR original's page is ImageIO's SDR rendition).
+  The sheets say so: the Image Strip's File footnote ("HDR photos come out
+  SDR: a strip keeps no gain map.") and the Multi-Page TIFF and Animated
+  HEIC footnotes (GIF and PDF are SDR by nature). Keeping a gain map in a
+  strip saved as HEIC/AVIF/JPEG would mean drawing the strip in half floats
+  (twice the memory of an already large bitmap) and is left for later.
+- **Extracting frames shares the source.** Batch Convert's job keeps the
+  pages of the file it is working through (`PageSequences`, the latest
+  source only) for all of that file's page outputs, so extracting every
+  frame of an N-frame animation composites each frame from the one before
+  (ImageIO keeps the previous composited frame) instead of from frame 0
+  on a fresh source each time: O(N) frame decodes rather than O(N²).
 - `CancellationFlag` moved from the app to MinivuCore (public), so the
   engine's jobs can check it.
 
