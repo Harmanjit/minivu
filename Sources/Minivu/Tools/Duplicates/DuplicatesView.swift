@@ -170,8 +170,9 @@ struct DuplicatesView: View {
             .fixedSize()
             .help("Which file of each group is suggested to keep")
             Button("Mark Suggested") { model.markSuggested() }
-                .help("Marks every file but the one suggested to keep in each group")
-                .disabled(model.groups.isEmpty)
+                .help(model.isWaitingForSizes ? "Waiting for the images' dimensions"
+                      : "Marks every file but the one suggested to keep in each group")
+                .disabled(model.groups.isEmpty || model.isWaitingForSizes)
             Button("Clear Marks") { model.clearMarks() }
                 .disabled(model.marked.isEmpty)
             Spacer()

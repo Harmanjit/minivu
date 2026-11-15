@@ -250,6 +250,49 @@ import MinivuCore
         #expect(stopped.pixelSizes.isEmpty)
     }
 
+    /// After Stop the model reads the shown files' dimensions itself, so
+    /// Highest Resolution keeps the bigger picture, not the bigger file,
+    /// and suggests nothing (Mark Suggested waits) until they are read.
+    @Test func highestResolutionAfterStopReadsTheShownSizes() async throws {
+        let t = try ScratchFolder()
+        let urls = [try t.jpeg("a.jpg", width: 64, height: 48), try t.jpeg("b.jpg", width: 32, height: 24),
+                    try t.jpeg("c.jpg", width: 16, height: 12), try t.jpeg("d.jpg", width: 16, height: 12)]
+        // The smaller picture is the bigger file, as a PNG of a half-size copy can be.
+        let images = zip(urls, [10, 40, 20, 30] as [Int64]).map { url, size in
+            FolderEntry(url: url, name: url.lastPathComponent, isDirectory: false, kind: .raster, fileSize: size,
+                        modified: Date(timeIntervalSince1970: 1000), created: Date(timeIntervalSince1970: 1000))
+        }
+        let model = try makeModel(DuplicateSource(selection: images, folder: nil)) { _, _, _ in
+            var outcome = Self.similarOutcome(images)
+            outcome.isCancelled = true
+            return outcome
+        }
+        model.mode = .similar
+        model.keepRule = .highestResolution
+        model.threshold = 0.2
+        model.start()
+        await finish(model)
+        let group = try #require(model.groups.first)
+        #expect(group.files.map(\.name) == ["a.jpg", "b.jpg"])
+        // Never a guess by file size while the headers are read.
+        if !model.sizesBeingRead.isEmpty {
+            #expect(model.isWaitingForSizes && model.keeper(of: group) == nil)
+            model.markSuggested()
+            #expect(model.marked.isEmpty)
+        }
+        await TestTiming.waitUntil(seconds: 10) { model.sizesBeingRead.isEmpty }
+        #expect(!model.isWaitingForSizes)
+        #expect(model.pixelSizes.count == 2)
+        #expect(model.keeper(of: group) == images[0].url)
+        model.markSuggested()
+        #expect(model.marked == [images[1].url])
+
+        // A wider threshold shows c.jpg, whose size is read in turn.
+        model.threshold = 0.5
+        await TestTiming.waitUntil(seconds: 10) { model.sizesBeingRead.isEmpty }
+        #expect(model.pixelSizes[images[2].url] == CGSize(width: 16, height: 12))
+    }
+
     /// The real search on synthetic pictures: a resized copy groups with its
     /// original, and a different picture doesn't; the note explains a
     /// memory cap.

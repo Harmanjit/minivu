@@ -122,6 +122,9 @@ struct DuplicateGroup: Identifiable, Equatable {
     /// The rows selected in the list.
     var selection: Set<URL> = []
     private(set) var pixelSizes: [URL: CGSize] = [:]
+    /// Shown files whose dimensions are being read after a stopped run,
+    /// which skips the header reads so its results come at once.
+    private(set) var sizesBeingRead: Set<URL> = []
     private(set) var note: String?
     private(set) var scanned = 0
     /// The mode of the results shown, which the picker may since have left.
@@ -130,6 +133,8 @@ struct DuplicateGroup: Identifiable, Equatable {
     private var outcome: Outcome?
     /// Trashed since the run: left out however the threshold moves.
     private var removed: Set<URL> = []
+    /// Files whose dimensions a stopped run has since asked for, read or not.
+    private var sizesAsked: Set<URL> = []
     private var cancel: CancellationFlag?
     private var generation = 0
     private let engine: Engine
@@ -187,6 +192,8 @@ struct DuplicateGroup: Identifiable, Equatable {
         selection = []
         note = nil
         removed = []
+        sizesAsked = []
+        sizesBeingRead = []
         let relay = ProgressRelay { [weak self] progress in
             guard let self, self.generation == run, self.isRunning else { return }
             self.state = .running(progress)
@@ -233,20 +240,52 @@ struct DuplicateGroup: Identifiable, Equatable {
         let shown = Set(groups.flatMap { $0.files.map(\.url) })
         marked.formIntersection(shown)
         selection.formIntersection(shown)
+        readMissingSizes()
+    }
+
+    /// Reads the dimensions a stopped run skipped, for the files shown only
+    /// (a header read each, off the main thread), so the keeper badge, the
+    /// rows and Mark Suggested don't rank by file size under Highest
+    /// Resolution. A threshold that shows more files reads theirs too.
+    private func readMissingSizes() {
+        guard outcome?.isCancelled == true else { return }
+        let wanted = groups.flatMap(\.files).filter { pixelSizes[$0.url] == nil && !sizesAsked.contains($0.url) }
+        guard !wanted.isEmpty else { return }
+        let urls = wanted.map(\.url)
+        sizesAsked.formUnion(urls)
+        sizesBeingRead.formUnion(urls)
+        let run = generation
+        Task {
+            let sizes = await BlockingWork.run(qos: .userInitiated) { DuplicateFinder.pixelSizes(of: wanted) }
+            guard self.generation == run else { return }
+            self.pixelSizes.merge(sizes) { have, _ in have }
+            self.sizesBeingRead.subtract(urls)
+        }
+    }
+
+    /// Whether Mark Suggested has to wait for dimensions still being read.
+    var isWaitingForSizes: Bool {
+        keepRule == .highestResolution && !sizesBeingRead.isEmpty
     }
 
     // MARK: - Marks
 
-    /// The file the keep rule suggests keeping in `group`.
+    /// The file the keep rule suggests keeping in `group`; nil under Highest
+    /// Resolution while a file's dimensions are still being read, rather
+    /// than a guess by file size.
     func keeper(of group: DuplicateGroup) -> URL? {
-        keepRule.keeper(of: group.files, pixelSizes: pixelSizes)?.url
+        if keepRule == .highestResolution, group.files.contains(where: { sizesBeingRead.contains($0.url) }) {
+            return nil
+        }
+        return keepRule.keeper(of: group.files, pixelSizes: pixelSizes)?.url
     }
 
     /// Marks every file but each group's suggested keeper, replacing the
-    /// marks there were. Never marks a whole group.
+    /// marks there were. Never marks a whole group: a group without a
+    /// suggestion yet is left unmarked.
     func markSuggested() {
         marked = Set(groups.flatMap { group -> [URL] in
-            let keep = keeper(of: group)
+            guard let keep = keeper(of: group) else { return [] }
             return group.files.map(\.url).filter { $0 != keep }
         })
     }
