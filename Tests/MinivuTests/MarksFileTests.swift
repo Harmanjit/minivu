@@ -287,56 +287,62 @@ import MinivuCore
         #expect(menu.items.allSatisfy { $0.image?.accessibilityDescription == $0.title })
         #expect(ColorLabelCommand.menu(withShortcuts: false).items.allSatisfy { $0.keyEquivalent.isEmpty })
     }
+}
 
-    @Test func theBrowserLabelsItsSelection() async throws {
-        _ = NSApplication.shared
-        let t = try ScratchFolder()
-        let a = try t.jpeg("a.jpg", width: 20, height: 20)
-        let b = try t.jpeg("b.jpg", width: 20, height: 20)
-        try FinderTags.setTags(["Keep"], for: b)
-        let controller = BrowserWindowController()
-        defer { controller.window?.close() }
-        _ = controller.grid.view
-        controller.open(folder: t.url)
-        await controller.model.work?.value
-        await controller.model.finderTagWork?.value
+extension AppWindowTests {
+    /// The Label commands in the browser and the viewer (G4). They open the
+    /// app's windows, so they run with the other window suites.
+    @MainActor @Suite(.serialized) struct LabelWindowTests {
+        @Test func theBrowserLabelsItsSelection() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let a = try t.jpeg("a.jpg", width: 20, height: 20)
+            let b = try t.jpeg("b.jpg", width: 20, height: 20)
+            try FinderTags.setTags(["Keep"], for: b)
+            let controller = BrowserWindowController()
+            defer { controller.window?.close() }
+            _ = controller.grid.view
+            controller.open(folder: t.url)
+            await controller.model.work?.value
+            await controller.model.finderTagWork?.value
 
-        func item(_ label: ColorLabel) -> NSMenuItem {
-            let item = NSMenuItem(title: label.name, action: .setColorLabel, keyEquivalent: "")
-            item.tag = label.rawValue
-            return item
+            func item(_ label: ColorLabel) -> NSMenuItem {
+                let item = NSMenuItem(title: label.name, action: .setColorLabel, keyEquivalent: "")
+                item.tag = label.rawValue
+                return item
+            }
+            controller.model.setSelection([t.url.appendingPathComponent("missing")], lead: nil)
+            #expect(!controller.validateMenuItem(item(.green)))
+            controller.model.setSelection([a, b], lead: a)
+            #expect(controller.validateMenuItem(item(.green)))
+            controller.setColorLabel(item(.green))
+            await ColorLabelCommand.work?.value
+            await TestTiming.waitUntil { controller.model.selectedLabel == .green }
+            #expect(FinderTags.tags(for: a) == ["Green"] && FinderTags.tags(for: b) == ["Keep", "Green"])
+            let green = item(.green), red = item(.red)
+            _ = controller.validateMenuItem(green)
+            _ = controller.validateMenuItem(red)
+            #expect(green.state == .on && red.state == .off)
         }
-        controller.model.setSelection([t.url.appendingPathComponent("missing")], lead: nil)
-        #expect(!controller.validateMenuItem(item(.green)))
-        controller.model.setSelection([a, b], lead: a)
-        #expect(controller.validateMenuItem(item(.green)))
-        controller.setColorLabel(item(.green))
-        await ColorLabelCommand.work?.value
-        await TestTiming.waitUntil { controller.model.selectedLabel == .green }
-        #expect(FinderTags.tags(for: a) == ["Green"] && FinderTags.tags(for: b) == ["Keep", "Green"])
-        let green = item(.green), red = item(.red)
-        _ = controller.validateMenuItem(green)
-        _ = controller.validateMenuItem(red)
-        #expect(green.state == .on && red.state == .off)
-    }
 
-    @Test func theViewerLabelsItsImage() async throws {
-        let folder = try ScratchFolder()
-        let url = try folder.jpeg("a.jpg", width: 300, height: 200)
-        let entry = try #require(FolderEntry(url: url))
-        ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
-        defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
-        let viewer = try #require(ViewerWindowController.current)
-        await TestTiming.waitUntil { viewer.model.current != nil }
+        @Test func theViewerLabelsItsImage() async throws {
+            let folder = try ScratchFolder()
+            let url = try folder.jpeg("a.jpg", width: 300, height: 200)
+            let entry = try #require(FolderEntry(url: url))
+            ViewerWindowController.show(images: [entry], index: 0, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            await TestTiming.waitUntil { viewer.model.current != nil }
 
-        let blue = NSMenuItem(title: "Blue", action: .setColorLabel, keyEquivalent: "")
-        blue.tag = ColorLabel.blue.rawValue
-        #expect(viewer.validateMenuItem(blue) && blue.state == .off)
-        viewer.setColorLabel(blue)
-        await ColorLabelCommand.work?.value
-        #expect(FinderTags.tags(for: url) == ["Blue"])
-        _ = viewer.validateMenuItem(blue)
-        #expect(blue.state == .on)
+            let blue = NSMenuItem(title: "Blue", action: .setColorLabel, keyEquivalent: "")
+            blue.tag = ColorLabel.blue.rawValue
+            #expect(viewer.validateMenuItem(blue) && blue.state == .off)
+            viewer.setColorLabel(blue)
+            await ColorLabelCommand.work?.value
+            #expect(FinderTags.tags(for: url) == ["Blue"])
+            _ = viewer.validateMenuItem(blue)
+            #expect(blue.state == .on)
+        }
     }
 }
 
