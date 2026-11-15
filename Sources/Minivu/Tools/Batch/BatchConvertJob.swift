@@ -53,6 +53,9 @@ import MinivuRender
     var onEncoded: ((Int) -> Void)?
 
     private var nextIndex = 0
+    /// The pages of the file being worked through, shared by its page
+    /// outputs (Extract Pages, every page as separate files).
+    private let sequences = PageSequences()
     private var results: [Int: FileResult] = [:]
     private let rawSlot = AsyncSlot()
 
@@ -155,9 +158,9 @@ import MinivuRender
             let encoded: BatchConverter.Encoded
             do {
                 let converter = self.converter, settings = self.settings.settings(for: output)
-                let cancel = progress.cancellation
+                let cancel = progress.cancellation, sequences = self.sequences
                 encoded = try await withTaskExecutorPreference(BatchWorkExecutor.shared) {
-                    try await converter.encoded(output, settings: settings, cancel: cancel)
+                    try await converter.encoded(output, settings: settings, cancel: cancel, sequences: sequences)
                 }
                 if isRaw { rawSlot.release() }
             } catch is CancellationError {

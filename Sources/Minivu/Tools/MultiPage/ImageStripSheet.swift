@@ -243,7 +243,7 @@ struct ImageStripView: View {
         } header: {
             Text("File")
         } footer: {
-            InspectorFootnote("The strip is saved as a new file and opens in the viewer, where it can be edited like any photo.")
+            InspectorFootnote("The strip is saved as a new file and opens in the viewer, where it can be edited like any photo. HDR photos come out SDR: a strip keeps no gain map.")
         }
     }
 

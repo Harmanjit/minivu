@@ -89,21 +89,28 @@ public struct BatchConverter: Sendable {
     /// written beside `output.destination` and checks `cancel` before every
     /// page, throwing `CancellationError` (and deleting what it wrote) once
     /// it is set.
+    ///
+    /// `sequences` keeps the source's pages open from one page output to the
+    /// next, so extracting every frame of an animation composites each frame
+    /// from the one before rather than from the first again.
     public func encoded(_ output: BatchOutput, settings: BatchConvertSettings,
-                        cancel: CancellationFlag = CancellationFlag()) async throws -> Encoded {
+                        cancel: CancellationFlag = CancellationFlag(),
+                        sequences: PageSequences = PageSequences()) async throws -> Encoded {
         switch output.pages {
         case .primary:
             return .data(try await encodedData(for: output.source, page: 0, settings: settings))
         case .page(let index, _):
-            return .data(try await encodedData(for: output.source, page: index, settings: settings))
+            return .data(try await encodedData(for: output.source, page: index, settings: settings,
+                                               sequence: index == 0 ? nil : sequences.sequence(for: output.source)))
         case .all(let count):
             return .file(try await writeEveryPage(of: output.source, count: count, beside: output.destination,
                                                   settings: settings, cancel: cancel))
         }
     }
 
-    func encodedData(for url: URL, page: Int, settings: BatchConvertSettings) async throws -> Data {
-        let job = try prepare(url, page: page, settings: settings, keepingHDR: settings.keepsHDR)
+    func encodedData(for url: URL, page: Int, settings: BatchConvertSettings,
+                     sequence: PageSequence? = nil) async throws -> Data {
+        let job = try prepare(url, page: page, settings: settings, keepingHDR: settings.keepsHDR, sequence: sequence)
         if job.keepsHDR, let hdr = try await renderer.renderHDRForExport(job.snapshot(settings: displaySettings)) {
             return try ImageEncoder.encode(hdr, options: settings.options, metadataSource: url, gainMap: true)
         }
@@ -308,5 +315,27 @@ public final class BatchWorkExecutor: TaskExecutor {
         let job = UnownedJob(job)
         let executor = asUnownedTaskExecutor()
         queue.async { job.runSynchronously(on: executor) }
+    }
+}
+
+/// The pages of the source a batch is working through, kept from one page
+/// output to the next (`BatchConverter.encoded`). Only the latest source is
+/// held: a batch takes one file's pages in order before the next file's.
+public final class PageSequences: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: PageSequence?
+    /// For tests: the number of times a file's pages were opened.
+    public private(set) var opened = 0
+
+    public init() {}
+
+    /// The pages of `url`, opened again only when the file changes; nil when
+    /// it can't be read.
+    func sequence(for url: URL) -> PageSequence? {
+        lock.lock(); defer { lock.unlock() }
+        if let current, current.url == url { return current }
+        current = PageSequence(url: url)
+        opened += 1
+        return current
     }
 }

@@ -186,6 +186,30 @@ import UniformTypeIdentifiers
         #expect(near(centre(try #require(frames.frame(at: 1, maxPixelSize: 20))), [0, 255, 0]))
     }
 
+    /// Extracting every frame opens the animation once, not once per frame
+    /// (each fresh source would composite frame N from the first again), and
+    /// each frame still comes out as itself; the next file opens its own.
+    @Test func extractedFramesShareOneSource() async throws {
+        let dir = try folder()
+        let gif = write([solid(1, 0, 0), solid(0, 1, 0), solid(0, 0, 1)], to: dir.appendingPathComponent("a.gif"), type: .gif)
+        let doc = write([solid(1, 0, 0), solid(0, 0, 1)], to: dir.appendingPathComponent("doc.tif"), type: .tiff)
+        let converter = await converter()
+        let settings = BatchConvertSettings(options: .defaults(for: .png), pages: .separate(.all))
+        let sequences = PageSequences()
+        var colours: [[Int]] = []
+        for (source, index, count) in [(gif, 0, 3), (gif, 1, 3), (gif, 2, 3), (doc, 1, 2)] {
+            let output = BatchOutput(source: source, destination: dir.appendingPathComponent("out-\(colours.count).png"),
+                                     action: .write, pages: .page(index: index, of: count))
+            guard case .data(let data) = try await converter.encoded(output, settings: settings, sequences: sequences) else {
+                Issue.record("a page is encoded to data")
+                return
+            }
+            colours.append(centre(try #require(ImageEncoderTestDecode.image(data))))
+        }
+        #expect(zip(colours, [[255, 0, 0], [0, 255, 0], [0, 0, 255], [0, 0, 255]]).allSatisfy { near($0, $1) })
+        #expect(sequences.opened == 2, "the GIF once for its later frames, then the TIFF")
+    }
+
     /// Cancel set while every page is written stops before the next page
     /// and leaves no temporary file.
     @Test func cancellingEveryPageLeavesNothing() async throws {

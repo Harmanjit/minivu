@@ -264,10 +264,10 @@ struct MultiPageView: View {
 
     private func footnote(_ format: MultiPageFormat) -> String {
         switch format {
-        case .tiff: "Each page keeps its size and colour profile. Metadata isn’t carried over."
+        case .tiff: "Each page keeps its size and colour profile. Metadata isn’t carried over, and HDR photos come out SDR."
         case .pdf: "One picture per page. Metadata isn’t carried over."
         case .gif: "Every frame is fitted into one size, centred. Frames of animations keep their own timing."
-        case .heics: "Every frame is fitted into one size, centred. Animated HEIC files play once, and the last frame shows as long as the one before it."
+        case .heics: "Every frame is fitted into one size, centred. Animated HEIC files play once, and the last frame shows as long as the one before it. HDR photos come out SDR."
         }
     }
 

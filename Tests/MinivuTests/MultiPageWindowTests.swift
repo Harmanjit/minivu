@@ -114,7 +114,7 @@ extension AppWindowTests {
 
             controller.runBatchConvert([try #require(FolderEntry(url: doc))], settings: settings)
             await controller.batchWork?.value
-            await controller.model.work?.value
+            await TestTiming.waitUntil { Set(controller.model.selection.map(\.lastPathComponent)) == ["doc-2.png", "doc-3.png"] }
             #expect(visibleNames(t.url) == ["doc-2.png", "doc-3.png", "doc.tif"])
             let third = try #require(pages(t.url.appendingPathComponent("doc-3.png")).first)
             #expect(third.width == 20 && third.height == 50 && near(centre(third), [0, 0, 255]))
@@ -213,7 +213,9 @@ extension AppWindowTests {
             #expect(sheets.shown.isEmpty)
             await TestTiming.waitUntil { controller.batchWork != nil }
             await controller.batchWork?.value
-            await controller.model.work?.value
+            // The reload that selects the new file starts after the write and
+            // may not be under way yet: wait for the selection itself.
+            await TestTiming.waitUntil { controller.model.selection.map(\.lastPathComponent) == ["Joined.tif"] }
             #expect(asked?.0 == "b.tif" && asked?.1 == .tiff)
             let written = pages(destination)
             #expect(written.count == 4)
