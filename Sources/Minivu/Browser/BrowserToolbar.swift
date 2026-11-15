@@ -229,6 +229,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
         }
         menu.addItem(.separator())
         menu.addItem(withTitle: "Tagged Only", action: .toggleTaggedFilter, keyEquivalent: "")
+        menu.addItem(withTitle: "More Filters…", action: .showMoreFilters, keyEquivalent: "")
         var tags = state.finderTags
         // A tag filtered on stays listed, so it can be turned off in a
         // folder that doesn't use it.

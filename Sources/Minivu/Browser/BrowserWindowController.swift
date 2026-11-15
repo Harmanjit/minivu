@@ -13,7 +13,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: BrowserModel
 
     private let splitController = NSSplitViewController()
-    private let sidebar = SidebarViewController()
+    let sidebar: SidebarViewController
     let grid: GridViewController
     let preview = PreviewPaneController()
     let toolbarController = BrowserToolbar()
@@ -22,7 +22,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     let previewItem: NSSplitViewItem
     private var subscriptions: Set<AnyCancellable> = []
     /// A file opened from Finder, shown in the viewer once its folder is listed.
-    private var pendingViewerFile: URL?
+    var pendingViewerFile: URL?
     private var isAnimatingPreview = false
     /// A folder just made, whose name is edited once it's listed.
     var pendingRename: URL?
@@ -34,11 +34,16 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     var transferConflictResolver: FileTransfer.ConflictResolver?
     /// Where Replace and the Undo of a copy put items; tests use a folder.
     var transferTrash: FileTransfer.Trasher = TransferChecks.trash
+    /// The Find or More Filters sheet up on the window (G3), for tests.
+    var formSheet: FormSheet?
+    /// The last search, which Find starts from (G3).
+    var lastSearch: SearchQuery?
 
     /// - Parameter catalog: where ratings and tags live; tests pass their own.
     init(catalog: Catalog = .shared) {
         model = BrowserModel(sortOrder: Preferences.shared.sortOrder,
                              showHiddenFiles: Preferences.shared.showHiddenFiles, catalog: catalog)
+        sidebar = SidebarViewController(catalog: catalog)
         grid = GridViewController(model: model)
         sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
         gridItem = NSSplitViewItem(viewController: grid)
@@ -112,6 +117,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         model.onChange = { [weak self] changes in self?.modelChanged(changes) }
         model.onFolderChangedOnDisk = { [weak self] folder in self?.sidebar.folderChangedOnDisk(folder) }
         sidebar.onNavigate = { [weak self] url in self?.navigate(to: url) }
+        sidebar.onOpenList = { [weak self] list in self?.open(list: list) }
+        sidebar.onLibraryCommand = { [weak self] command in self?.perform(command) }
         grid.onOpen = { [weak self] entry in self?.open(entry) }
         grid.onNavigate = { [weak self] url in self?.navigate(to: url) }
         preview.onOpenViewer = { [weak self] in self?.openInViewer(nil) }
@@ -223,10 +230,15 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             UserDefaults.standard.set(folder.path, forKey: AppDelegate.lastFolderKey)
             sidebar.reveal(folder)
             pendingRename = nil
+        } else if changes.contains(.folder), let list = model.list {
+            window?.title = list.title
+            sidebar.reveal(list: list)
+            pendingRename = nil
         }
         grid.modelChanged(changes)
         if changes.contains(.entries) || changes.contains(.state) {
-            window?.subtitle = model.subtitle
+            window?.subtitle = model.flatView && model.list == nil && !model.subtitle.isEmpty
+                ? "\(model.subtitle), with subfolders" : model.subtitle
         }
         if changes.contains(.entries) || changes.contains(.selection) {
             preview.show(previewContent())
@@ -239,7 +251,8 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
             pendingRename = nil
             grid.beginRename(url)
         }
-        toolbarController.updateFilter(isActive: model.marksFilter.isActive, finderTags: model.finderTagsInFolder,
+        toolbarController.updateFilter(isActive: model.marksFilter.isActive || model.metadataFilter.isActive,
+                                       finderTags: model.finderTagsInFolder,
                                        selectedTag: model.marksFilter.finderTag)
         // History changes arrive after a listing, with no event to trigger
         // the toolbar's own validation.
@@ -428,6 +441,10 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
             menuItem.state = Preferences.shared.showHiddenFiles ? .on : .off
         case .togglePreviewPane:
             menuItem.title = previewItem.isCollapsed ? "Show Preview Pane" : "Hide Preview Pane"
+        case .toggleFlatView:
+            menuItem.state = model.flatView ? .on : .off
+        case .showMoreFilters:
+            menuItem.state = model.metadataFilter.isActive ? .on : .off
         default:
             updateManagementState(menuItem)
         }
@@ -458,8 +475,8 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .zoomIn: Preferences.shared.thumbnailSize < ThumbnailLayout.sizeRange.upperBound
         case .zoomOut: Preferences.shared.thumbnailSize > ThumbnailLayout.sizeRange.lowerBound
         case #selector(selectAll(_:)): !model.entries.isEmpty
-        default: canPerformSelection(action) ?? canPerformClipboard(action)
-            ?? canPerformManagement(action) ?? canPerformEditing(action) ?? canPerformTools(action) ?? true
+        default: canPerformSelection(action) ?? canPerformClipboard(action) ?? canPerformManagement(action)
+            ?? canPerformEditing(action) ?? canPerformTools(action) ?? canPerformOrganising(action) ?? true
         }
     }
 

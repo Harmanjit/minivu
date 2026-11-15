@@ -183,6 +183,7 @@ import MinivuCore
         let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
                            "Save", "Save As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
+                           "New Collection…", "Add to Collection", "Remove from Collection", "Save as Smart Folder…", "-",
                            "Reveal in Finder", "Share…", "Move to Trash", "-", "Page Setup…", "Print…"])
         let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
         let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)
@@ -193,7 +194,8 @@ import MinivuCore
         let view = try #require(bar.items.first { $0.title == "View" }?.submenu)
         let filter = try #require(view.items.first { $0.title == "Filter" }?.submenu)
         #expect(filter.items.map { $0.isSeparatorItem ? "-" : $0.title }
-            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only"])
+            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only",
+                "-", "More Filters…"])
         #expect(filter.items.filter { $0.action == .filterByRating }.map(\.tag) == [0, 1, 2, 3, 4, 5])
     }
 
