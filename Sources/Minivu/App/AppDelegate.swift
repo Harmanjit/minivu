@@ -201,6 +201,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let viewer = ViewerWindowController.current
         let hasEdits = viewer?.hasUnsavedEdits == true
         let writes = FileWriteQueue.shared
+        // Ratings waiting out their quiet period go into the queue now.
+        MarksFileWriter.shared.flush()
         guard hasEdits || writes.pendingCount > 0 || FileTransfer.isActive || BatchTools.renamesRunning > 0 else {
             return .terminateNow
         }

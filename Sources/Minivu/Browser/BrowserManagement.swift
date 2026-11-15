@@ -22,6 +22,15 @@ extension BrowserWindowController {
         model.toggleTag(for: model.selectedImageURLs)
     }
 
+    /// Image > Label (⌥⌘0–⌥⌘7) and the context menu (G4): the selected
+    /// images' standard Finder colour tag. The dots follow once it's written.
+    @objc func setColorLabel(_ sender: Any?) {
+        guard let label = ColorLabelCommand.label(of: sender) else { return }
+        ColorLabelCommand.setLabel(label, for: model.selectedImageURLs) { [weak self] labelled in
+            self?.model.refreshFinderTags(of: labelled)
+        }
+    }
+
     // MARK: - Filters
 
     /// "Show All" (tag 0) clears every filter; 1 to 5 shows images rated at
@@ -387,7 +396,7 @@ extension BrowserWindowController {
     func canPerformManagement(_ action: Selector) -> Bool? {
         let sheet = window?.attachedSheet != nil
         switch action {
-        case .setRating, .toggleTag:
+        case .setRating, .toggleTag, .setColorLabel:
             return model.hasSelectedImages
         case .filterByRating, .toggleTaggedFilter:
             return model.folder != nil
@@ -416,6 +425,8 @@ extension BrowserWindowController {
             menuItem.state = model.selectedMarks.sharedRating == menuItem.tag ? .on : .off
         case .toggleTag:
             menuItem.showTag(isTagged: model.selectedMarks.allTagged)
+        case .setColorLabel:
+            ColorLabelCommand.showState(menuItem, shared: model.selectedLabel)
         default:
             break
         }

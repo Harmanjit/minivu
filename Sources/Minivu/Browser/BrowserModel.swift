@@ -88,7 +88,14 @@ nonisolated struct FolderSnapshot: Sendable {
         /// Files whose cached thumbnails and textures are out of date.
         var changed: [URL]
         /// Read with the listing; nil for a re-sort, which keeps the marks.
+        /// What each image shows: its catalog row's marks, or its own.
         var marks: [String: Catalog.Marks]?
+        /// The catalog's rows and the files' own marks (G2) the listing
+        /// knew of, with `marks`.
+        var catalogRows: [String: Catalog.Marks] = [:]
+        var fileMarks: [String: Catalog.Marks] = [:]
+        /// Images whose own marks were found in the cache, with or without any.
+        var fileMarksKnown: Set<String> = []
         /// Read with the listing while a Finder tag filter is on, so the
         /// filter has them; nil when the usual asynchronous read will do.
         var finderTags: [String: [FinderTag]]?
@@ -117,10 +124,10 @@ nonisolated struct FolderSnapshot: Sendable {
     private(set) var state: State = .empty
     /// Visible entries: sorted, then filtered by `filter`.
     private(set) var entries: [FolderEntry] = [] {
-        didSet { cachedSelectedBytes = nil; cachedSelectedMarks = nil }
+        didSet { cachedSelectedBytes = nil; cachedSelectedMarks = nil; cachedSelectedLabel = nil }
     }
     private(set) var selection: Set<URL> = [] {
-        didSet { cachedSelectedBytes = nil; cachedSelectedMarks = nil }
+        didSet { cachedSelectedBytes = nil; cachedSelectedMarks = nil; cachedSelectedLabel = nil }
     }
     /// The item the preview pane shows and the viewer opens: the one most
     /// recently clicked or moved to.
@@ -152,14 +159,32 @@ nonisolated struct FolderSnapshot: Sendable {
             guard marksFilter != oldValue else { return }
             applyFilter()
             onChange?([.entries, .selection])
+            readEveryFileMarksIfNeeded()
         }
     }
 
-    /// The catalog's stars and tag for each image of the folder, by name.
-    /// Only marked files have an entry.
+    /// The stars and tag each image of the folder shows, by name: its
+    /// catalog row's, or for an image without one the marks the file
+    /// carries itself (G2). Only marked files have an entry.
     private(set) var marks: [String: Catalog.Marks] = [:] {
         didSet { cachedSelectedMarks = nil }
     }
+    /// The catalog's rows by name, including an emptied row kept over a
+    /// file's own marks: a row's marks win over the file's.
+    private var catalogRows: [String: Catalog.Marks] = [:]
+    /// Marks the files carry themselves (`xmp:Rating`, a pick), by name,
+    /// for the images read so far that have any.
+    private(set) var fileMarks: [String: Catalog.Marks] = [:]
+    /// Images whose own marks are known, or being read, since the listing.
+    private var fileMarksKnown: Set<String> = []
+    /// Images to read the marks of, gathered from one layout pass.
+    private var fileMarksWanted: [URL] = []
+    private var fileMarksCancel = CancellationFlag()
+    /// The marks read in flight; reads run one after another, so this is
+    /// the last. For tests to await.
+    private(set) var fileMarksWork: Task<Void, Never>?
+    /// Reads the marks files carry; nil reads none (tests that don't care).
+    let fileMarksCache: FileMarksCache?
     /// Finder tags by name (folders too), read after each listing.
     private(set) var finderTags: [String: [FinderTag]] = [:]
     /// Every Finder tag used in the folder, one per name, sorted: the filter menu.
@@ -230,7 +255,7 @@ nonisolated struct FolderSnapshot: Sendable {
          invalidate: @escaping @MainActor (URL) -> Void = BrowserModel.invalidateCaches,
          watchesFolder: Bool = true,
          isReadableFolder: @escaping FolderCheck = BrowserModel.canOpenFolder,
-         catalog: Catalog = .shared) {
+         catalog: Catalog = .shared, fileMarksCache: FileMarksCache? = .shared) {
         self.sortOrder = sortOrder
         self.showHiddenFiles = showHiddenFiles
         self.lister = lister
@@ -238,6 +263,7 @@ nonisolated struct FolderSnapshot: Sendable {
         self.invalidate = invalidate
         self.watchesFolder = watchesFolder
         self.catalog = catalog
+        self.fileMarksCache = fileMarksCache
         // Any catalog's change names its files, so a model can listen to all
         // of them and pick out its own folder's.
         catalogObserver = NotificationCenter.default.addObserver(forName: Catalog.didChange, object: nil,
@@ -332,6 +358,12 @@ nonisolated struct FolderSnapshot: Sendable {
         selection = []
         lead = nil
         marks = [:]
+        catalogRows = [:]
+        fileMarks = [:]
+        fileMarksKnown = []
+        fileMarksWanted = []
+        fileMarksCancel.cancel()
+        fileMarksCancel = CancellationFlag()
         finderTags = [:]
         finderTagsInFolder = []
         changedMarkNames = nil
@@ -389,6 +421,7 @@ nonisolated struct FolderSnapshot: Sendable {
         let lister = self.lister, hidden = showHiddenFiles, order = sortOrder
         let previous = snapshot.flatMap { Self.samePath($0.folder, folder) ? $0.entries : nil } ?? []
         let parent = parentToCheck, isReadableFolder = self.isReadableFolder, catalog = self.catalog
+        let fileMarksCache = self.fileMarksCache
         let needsFinderTags = marksFilter.finderTag != nil
         work = Task { [weak self] in
             let (result, parentIsReadable) = await BlockingWork.run(qos: .userInitiated) {
@@ -399,8 +432,12 @@ nonisolated struct FolderSnapshot: Sendable {
                     // (matched by file identifier) before the marks are read.
                     catalog.heal(folder: folder)
                     // One catalog read for the folder, with the listing, so a
-                    // grid sorted by rating arrives in its order.
-                    let marks = Self.marksByName(contents.images, in: catalog)
+                    // grid sorted by rating arrives in its order. Files
+                    // without a row show the marks they carry, as far as the
+                    // cache knows them (a stat each, no reads).
+                    let rows = Self.marksByName(contents.images, in: catalog)
+                    let own = fileMarksCache.map { Self.cachedFileMarks(contents.images, without: rows, in: $0) }
+                    let marks = Self.shownMarks(rows: rows, files: own?.marks ?? [:])
                     let custom = order.key == .custom ? catalog.customOrder(in: folder) : []
                     let snapshot = FolderSnapshot(contents: contents, order: order, marks: marks, customOrder: custom)
                     // A Finder tag filter hides every image until the tags
@@ -410,7 +447,8 @@ nonisolated struct FolderSnapshot: Sendable {
                     // marks in this same hop rather than following later.
                     let tags = needsFinderTags ? Self.finderTagsByName(snapshot.entries) : nil
                     return Listing(snapshot: snapshot, changed: Self.changedFiles(old: previous, new: snapshot.entries),
-                                   marks: marks, finderTags: tags)
+                                   marks: marks, catalogRows: rows, fileMarks: own?.marks ?? [:],
+                                   fileMarksKnown: own?.known ?? [], finderTags: tags)
                 }
                 return (result, parent.map(isReadableFolder))
             }
@@ -452,12 +490,36 @@ nonisolated struct FolderSnapshot: Sendable {
         }
     }
 
+    /// The catalog's rows for the images, by name, an emptied row kept
+    /// over a file's own marks included.
     nonisolated static func marksByName(_ images: [FolderEntry], in catalog: Catalog) -> [String: Catalog.Marks] {
         guard !images.isEmpty else { return [:] }
         var result: [String: Catalog.Marks] = [:]
-        for (url, marks) in catalog.marks(for: images.map(\.url)) where marks != .none {
+        for (url, marks) in catalog.marks(for: images.map(\.url)) {
             result[url.lastPathComponent] = marks
         }
+        return result
+    }
+
+    /// The marks the cache already knows for images without a row: those
+    /// with marks, and every image it knows about either way.
+    nonisolated static func cachedFileMarks(_ images: [FolderEntry], without rows: [String: Catalog.Marks],
+                                            in cache: FileMarksCache) -> (marks: [String: Catalog.Marks], known: Set<String>) {
+        var marks: [String: Catalog.Marks] = [:], known = Set<String>()
+        for image in images where rows[image.name] == nil {
+            guard let cached = cache.cachedMarks(for: image.url) else { continue }
+            known.insert(image.name)
+            if let cached { marks[image.name] = cached }
+        }
+        return (marks, known)
+    }
+
+    /// What each image shows: its row's marks, else its own. Only marked
+    /// images have an entry.
+    nonisolated static func shownMarks(rows: [String: Catalog.Marks],
+                                       files: [String: Catalog.Marks]) -> [String: Catalog.Marks] {
+        var result = files.filter { rows[$0.key] == nil }
+        for (name, marks) in rows where marks != .none { result[name] = marks }
         return result
     }
 
@@ -484,6 +546,9 @@ nonisolated struct FolderSnapshot: Sendable {
             if let marks = listing.marks {
                 if marks != self.marks { changedMarkNames = nil }
                 self.marks = marks
+                catalogRows = listing.catalogRows
+                fileMarks = listing.fileMarks
+                fileMarksKnown = listing.fileMarksKnown
                 if let tags = listing.finderTags {
                     // In place before the filter runs below, so the grid is
                     // never momentarily empty. A read still in flight would
@@ -527,6 +592,7 @@ nonisolated struct FolderSnapshot: Sendable {
             catalogChangesDuringListing = []
             catalogChanged(urls)
         }
+        readEveryFileMarksIfNeeded()
     }
 
     #if DEBUG
@@ -599,6 +665,7 @@ nonisolated struct FolderSnapshot: Sendable {
         var changed = Set<String>()
         for name in Set(tags.keys).union(finderTags.keys) where tags[name] != finderTags[name] { changed.insert(name) }
         finderTags = tags
+        cachedSelectedLabel = nil
         var seen = Set<String>()
         finderTagsInFolder = tags.values.joined()
             .filter { seen.insert($0.name).inserted }
@@ -686,18 +753,38 @@ nonisolated struct FolderSnapshot: Sendable {
             }
         }
         var changed = Set<String>()
+        var unread: [URL] = []
         if !files.isEmpty {
             // Marking a file is a moment the user is looking at it: its
             // Finder tags may have changed too, unseen by the watcher.
             refreshFinderTags(of: files)
             let fresh = catalog.marks(for: files)
             for url in files {
-                let name = url.lastPathComponent, value = fresh[url] ?? .none
-                guard (marks[name] ?? .none) != value else { continue }
-                marks[name] = value == .none ? nil : value
-                changed.insert(name)
+                let name = url.lastPathComponent
+                catalogRows[name] = fresh[url]
+                // Without a row, what the file carries shows; read it if
+                // that isn't known yet.
+                if fresh[url] == nil, !fileMarksKnown.contains(name) { unread.append(url) }
+                if updateShownMarks(of: name) { changed.insert(name) }
             }
         }
+        wantFileMarks(for: unread)
+        marksChanged(changed, orderChanged: orderChanged, movesSelection: true)
+    }
+
+    /// Recomputes what `name` shows from its row and its own marks; true
+    /// when that changed.
+    private func updateShownMarks(of name: String) -> Bool {
+        let value = catalogRows[name] ?? fileMarks[name] ?? .none
+        guard (marks[name] ?? .none) != value else { return false }
+        marks[name] = value == .none ? nil : value
+        return true
+    }
+
+    /// Redoes only what changed marks affect: the cells, the filter, or the
+    /// order. `movesSelection`: a mark the user set that hides everything
+    /// selected moves the selection on; marks arriving from the files don't.
+    private func marksChanged(_ changed: Set<String>, orderChanged: Bool = false, movesSelection: Bool) {
         let resorts = (!changed.isEmpty && sortOrder.key == .rating) || (orderChanged && sortOrder.key == .custom)
         let refilters = !changed.isEmpty && marksFilter.isActive
         guard !changed.isEmpty || resorts else { return }
@@ -706,7 +793,7 @@ nonisolated struct FolderSnapshot: Sendable {
         // A mark that hides everything selected moves the selection on, as
         // the Trash does, so culling with a filter up keeps going.
         var next: URL?
-        if refilters, !selection.isEmpty {
+        if movesSelection, refilters, !selection.isEmpty {
             let hidden = selection.filter { url in
                 guard let entry = entry(for: url) else { return false }
                 return !marksFilter.passes(entry, marks: marks(for: url), finderTags: finderTags(for: url))
@@ -724,6 +811,83 @@ nonisolated struct FolderSnapshot: Sendable {
         } else {
             onChange?(.marks)
         }
+    }
+
+    // MARK: - Marks the files carry (G2)
+
+    /// The grid shows these images, or is about to: the marks they carry
+    /// themselves (`xmp:Rating` from Lightroom, Bridge or a camera, embedded
+    /// or in a sidecar) are read, unless the catalog has a row for them,
+    /// whose marks win, or they are known already. Off the main thread, at
+    /// utility priority, together with the other cells of the same layout
+    /// pass, in turn after reads already asked for: browsing never waits
+    /// for them, and they arrive with the thumbnails.
+    func wantFileMarks(for urls: [URL]) {
+        guard fileMarksCache != nil, state == .loaded else { return }
+        for url in urls {
+            let name = url.lastPathComponent
+            guard catalogRows[name] == nil, !fileMarksKnown.contains(name), containsImage(named: name) else { continue }
+            fileMarksKnown.insert(name)
+            fileMarksWanted.append(url)
+        }
+        guard !fileMarksWanted.isEmpty, !fileMarksReadIsScheduled else { return }
+        fileMarksReadIsScheduled = true
+        DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.readWantedFileMarks() } }
+    }
+
+    private var fileMarksReadIsScheduled = false
+
+    /// Sorting by rating and the rating and tag filters need every image's
+    /// marks, so then the whole folder's are read, in the background, a
+    /// chunk at a time, the order and filter following as they arrive.
+    private func readEveryFileMarksIfNeeded() {
+        guard state == .loaded, let snapshot else { return }
+        let filter = marksFilter
+        guard sortOrder.key == .rating || filter.minimumRating > 0 || filter.taggedOnly else { return }
+        wantFileMarks(for: snapshot.entries.filter { !$0.isDirectory }.map(\.url))
+    }
+
+    /// Reads what was asked for, in chunks, each applied as it arrives.
+    private func readWantedFileMarks() {
+        fileMarksReadIsScheduled = false
+        guard let cache = fileMarksCache, let folder, !fileMarksWanted.isEmpty else { return }
+        let wanted = fileMarksWanted
+        fileMarksWanted = []
+        let cancel = fileMarksCancel
+        let previous = fileMarksWork
+        fileMarksWork = Task { [weak self] in
+            await previous?.value
+            for start in stride(from: 0, to: wanted.count, by: Self.fileMarksChunk) {
+                let chunk = Array(wanted[start..<min(start + Self.fileMarksChunk, wanted.count)])
+                // Header reads block: on GCD (BlockingWork), with a flag in
+                // place of task cancellation.
+                let read = await BlockingWork.run(qos: .utility) { () -> [String: Catalog.Marks?]? in
+                    var read: [String: Catalog.Marks?] = [:]
+                    for url in chunk {
+                        if cancel.isCancelled { return nil }
+                        read[url.lastPathComponent] = .some(cache.marks(for: url))
+                    }
+                    return read
+                }
+                guard let self, let read, !cancel.isCancelled, let current = self.folder,
+                      Self.samePath(current, folder) else { return }
+                self.applyFileMarks(read)
+            }
+        }
+    }
+
+    /// Images read per hop to the main actor: enough that a big folder
+    /// isn't re-sorted for every few files, few enough that the first
+    /// cells' stars come quickly.
+    nonisolated static let fileMarksChunk = 200
+
+    private func applyFileMarks(_ read: [String: Catalog.Marks?]) {
+        var changed = Set<String>()
+        for (name, value) in read {
+            fileMarks[name] = value
+            if updateShownMarks(of: name) { changed.insert(name) }
+        }
+        marksChanged(changed, movesSelection: false)
     }
 
     /// The images that changed size or date, or vanished, between two
@@ -861,6 +1025,21 @@ nonisolated struct FolderSnapshot: Sendable {
         return result
     }
     private var cachedSelectedMarks: SelectionMarks?
+
+    /// The colour label every selected image has (G4), the Label menu's
+    /// checkmark; nil when they differ or no image is selected. Kept like
+    /// `selectedMarks`, until the selection, the entries or the tags change.
+    var selectedLabel: ColorLabel? {
+        if let cachedSelectedLabel { return cachedSelectedLabel }
+        let tags = selection.compactMap { url -> [FinderTag]? in
+            guard let entry = entry(for: url), !entry.isDirectory else { return nil }
+            return finderTags[entry.name] ?? []
+        }
+        let result = tags.isEmpty ? nil : ColorLabelCommand.sharedLabel(tags, standardNames: ColorLabelCommand.standardNames)
+        cachedSelectedLabel = .some(result)
+        return result
+    }
+    private var cachedSelectedLabel: ColorLabel??
 
     /// The selection as the grid reports it. URLs not visible are ignored.
     func setSelection(_ urls: Set<URL>, lead newLead: URL?) {

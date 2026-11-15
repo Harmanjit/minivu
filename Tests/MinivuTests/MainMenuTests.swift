@@ -72,7 +72,7 @@ import MinivuCore
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
                            "Resize/Resample…", "Crop…", "Straighten…", "-", "Adjust", "Effects", "Retouch",
                            "Text and Shapes…", "-", "Edit Comment…", "Edit Metadata…", "-",
-                           "Play Animation", "-", "Rating", "Tag", "-",
+                           "Play Animation", "-", "Rating", "Tag", "Label", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,

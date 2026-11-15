@@ -155,6 +155,11 @@ enum MainMenu {
         menu.add("Rating", nil).submenu = rating
         // ⌘T: no tabs in minivu, and no Fonts panel to show.
         menu.add(MenuStateTitles.tag(isTagged: false), .toggleTag, "t")
+        // ⌥⌘0 to ⌥⌘7, None then Finder's order of its colour tags. Free in
+        // every window: ⌃0–⌃5 rate, ⌘1–⌘4 pick a compare pane, the ⌥⌘
+        // letters are taken but no ⌥⌘ digit is, and the system's own ⌥⌘8
+        // (Zoom) is past the last.
+        menu.add("Label", nil).submenu = ColorLabelCommand.menu(withShortcuts: true)
         menu.addItem(.separator())
         // ⌥⌘K: ⌘K is Crop. ⇧⌘H: ⌘H and ⌥⌘H hide apps.
         menu.add("Compare Selected", .compareSelected, "k", [.command, .option])

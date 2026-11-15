@@ -118,6 +118,14 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(confirmOverwriteOnSave, forKey: Keys.confirmOverwriteOnSave) }
     }
 
+    /// Write ratings, the tag and colour labels into the files as XMP
+    /// (G2): embedded where minivu rewrites a file losslessly, in an XMP
+    /// sidecar otherwise. Off by default, because it modifies the user's
+    /// files; the catalog keeps the marks either way.
+    @Published var writeMarksToFiles: Bool {
+        didSet { defaults.set(writeMarksToFiles, forKey: Keys.writeMarksToFiles) }
+    }
+
     /// The decoding settings the image loader follows.
     var displaySettings: DisplaySettings {
         DisplaySettings(rawDecoding: rawDecoding, showHDR: showHDR, hdrRaw: hdrRaw,
@@ -144,6 +152,7 @@ final class Preferences: ObservableObject {
         hdrRawAmount = d.object(forKey: Keys.hdrRawAmount) as? Double ?? 1
         rawDecoding = RawDecoding(rawValue: d.string(forKey: Keys.rawDecoding) ?? "") ?? .embeddedPreview
         confirmOverwriteOnSave = d.object(forKey: Keys.confirmOverwriteOnSave) as? Bool ?? true
+        writeMarksToFiles = d.bool(forKey: Keys.writeMarksToFiles)
         // Before anything loads: the app delegate reads the theme at launch,
         // well ahead of the first image.
         ImageLoader.shared.settings = displaySettings
@@ -177,5 +186,6 @@ final class Preferences: ObservableObject {
         static let hdrRawAmount = "hdrRawAmount"
         static let rawDecoding = "rawDecoding"
         static let confirmOverwriteOnSave = "confirmOverwriteOnSave"
+        static let writeMarksToFiles = "writeMarksToFiles"
     }
 }

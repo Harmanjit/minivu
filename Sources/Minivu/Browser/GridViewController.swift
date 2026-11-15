@@ -313,6 +313,8 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
         // the cell scrolled away and cancelled: every photo flown past
         // would still be decoded, long after the scrolling stopped.
         if let url = cell.entry?.url { prefetches.removeValue(forKey: url)?.request.cancel() }
+        // Stars from Lightroom and the like (G2), read with the thumbnail.
+        if let entry = cell.entry, !entry.isDirectory { model.wantFileMarks(for: [entry.url]) }
     }
 
     func collectionView(_ collectionView: NSCollectionView, didEndDisplaying item: NSCollectionViewItem,
@@ -326,6 +328,9 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     /// with the cells rather than after them.
     func collectionView(_ collectionView: NSCollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
         dropDistantPrefetches()
+        model.wantFileMarks(for: indexPaths.compactMap {
+            model.entries.indices.contains($0.item) && !model.entries[$0.item].isDirectory ? model.entries[$0.item].url : nil
+        })
         let pixelSize = Int((thumbnailLayout.side * backingScale).rounded())
         for indexPath in indexPaths where model.entries.indices.contains(indexPath.item) {
             let entry = model.entries[indexPath.item]
@@ -571,6 +576,8 @@ final class GridCollectionView: NSCollectionView {
         menu.addItem(withTitle: MenuStateTitles.tag(isTagged: false), action: .toggleTag, keyEquivalent: "")
         let rating = menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "")
         rating.submenu = ratingMenu()
+        let label = menu.addItem(withTitle: "Label", action: nil, keyEquivalent: "")
+        label.submenu = ColorLabelCommand.menu(withShortcuts: false)
         menu.addItem(.separator())
         menu.addItem(withTitle: "Rotate Left", action: .rotateLeft, keyEquivalent: "")
         menu.addItem(withTitle: "Rotate Right", action: .rotateRight, keyEquivalent: "")

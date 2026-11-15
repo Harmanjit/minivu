@@ -651,6 +651,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         }
         histogramPanel.setEntry(entry)
         stopAnimation()
+        readFileMarks(of: entry)
         readExposure(for: entry)
         readStructure(of: entry)
         updateChrome()
@@ -1149,6 +1150,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         writeMarks { Catalog.shared.setTagged(tagged, for: [entry.url]) }
     }
 
+    /// Image > Label (⌥⌘0–⌥⌘7): the image's Finder colour tag (G4).
+    @objc func setColorLabel(_ sender: Any?) {
+        guard let label = ColorLabelCommand.label(of: sender), let entry = model.current else { return }
+        ColorLabelCommand.setLabel(label, for: [entry.url])
+    }
+
     private func rate(_ stars: Int) {
         guard let entry = model.current else { return }
         var marks = marks(for: entry)
@@ -1179,9 +1186,24 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     private func marks(for entry: FolderEntry) -> Catalog.Marks {
         if let shownMarks, shownMarks.url == entry.url { return shownMarks.marks }
-        let marks = Catalog.shared.marks(for: entry.url)
+        // A file without a row shows the marks it carries (G2).
+        let marks = FileMarksCache.shared.shownMarks(for: entry.url, in: Catalog.shared)
         shownMarks = (entry.url, marks)
         return marks
+    }
+
+    /// Reads the marks the file carries (G2) in the background when the
+    /// catalog has no row for it and they aren't remembered; the HUD shows
+    /// them once they are in.
+    private func readFileMarks(of entry: FolderEntry) {
+        guard FileMarksCache.shared.needsRead(entry.url, in: Catalog.shared) else { return }
+        Task { [weak self] in
+            let marks = await BlockingWork.run(qos: .utility) { FileMarksCache.shared.marks(for: entry.url) }
+            guard let self, marks != nil, !self.isClosing, self.model.current?.url == entry.url,
+                  self.pendingMarkWrites == 0 else { return }
+            self.shownMarks = nil
+            self.updateChrome()
+        }
     }
 
     /// The HUD shows the new stars at once, flashing up so a key press in
@@ -1264,6 +1286,13 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             menuItem.state = marks?.rating == menuItem.tag ? .on : .off
             if menuItem.action == .toggleTag { menuItem.showTag(isTagged: marks?.isTagged == true) }
             return marks != nil
+        case .setColorLabel:
+            // One extended attribute of one file, read as the menu opens.
+            let label = model.current.map {
+                ColorLabelCommand.label(of: FinderTag.read(from: $0.url), standardNames: ColorLabelCommand.standardNames)
+            }
+            ColorLabelCommand.showState(menuItem, shared: label)
+            return label != nil && !isClosing
         case .toggleFullScreenViewer:
             menuItem.state = isFullScreen ? .on : .off
             return true
