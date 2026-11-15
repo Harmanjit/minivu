@@ -1,4 +1,4 @@
-# Feature notes: batch presets (G6), AVIF export (G14), Set Colour Label (branch feature/batch)
+# Feature notes: batch presets (G6), AVIF export (G14), Set Colour Label, multi-page tools (G17) (branch feature/batch)
 
 Notes for the documentation pass. Nothing here has gone into DESIGN.md,
 the wiki or the help pages yet; the last section of each goal says where
@@ -287,6 +287,227 @@ ratings into files" is on), through `ColorLabelCommand.write`, which
   photos in Pictures works; photos passed for reading only (Desktop, not in
   the sidebar) fail with "minivu may not change these files".
 
+## G17: multi-page files, Extract Pages, Image Strip, every page in Batch Convert
+
+### What the user can do
+
+All four work in the browser on `toolImages` (the selection, or every image
+shown when nothing is selected), in the browser's order. The Tools menu
+gains three items, none with a key equivalent (occasional commands that
+open a sheet, like Contact Sheet; no shortcut was taken):
+
+```
+Batch Convert…            ⌥⌘B
+Batch Rename…             ⇧F2
+Extract Pages…            (new)
+─────
+Create Multi-Page File…   (new)
+Image Strip…              (new)
+Contact Sheet…
+Montage Wallpaper…
+Set as Desktop Picture
+```
+
+They are enabled when the folder has images, and disabled while a batch
+sheet is up and while a batch, a copy or one of these jobs runs in the
+window (`canPerformTools`). The viewer doesn't implement them (disabled
+there).
+
+- **Tools > Create Multi-Page File…** opens a sheet:
+  - **Pages**: the images as a numbered list (a file with several pages
+    says "12 pages", or "12 frames" for an animation format), reordered by
+    dragging, **Move Up** / **Move Down** on the selected rows, or
+    **Reverse**. **Include every page of multi-page files** (on by
+    default): every page of a PDF or multi-page TIFF, and every frame of an
+    animation, goes in; off, only the first.
+  - **Format**: **Multi-Page TIFF** (default; Compression: None, LZW
+    (default), PackBits), **PDF** (Page size: Same as Each Image (default),
+    A4, US Letter; Margin in points for paper, default 36; Lossless (larger
+    file), off by default; Quality slider, default 85), **Animated GIF**
+    (Frame delay in seconds, default 0.5; Play: Forever (default) or a
+    number of times; Frame size: long side in px, default 800, or Same as
+    the first image; Background: Transparent (default) or a colour), and
+    **Animated HEIC** where ImageIO lists `public.heics` (as GIF, without
+    the Play row, plus Quality, default 80).
+  - The line by the buttons gives the page count, or in red why the file
+    can't be made (a setting out of range; an animation whose frames would
+    not fit in memory). **Save…** (default button) ends the sheet and asks
+    for the file in a save panel (the first image's name with the format's
+    extension, in the folder shown); the panel asks before replacing. A
+    progress sheet with Cancel follows; the new file is selected when it is
+    in the folder shown. Pages that couldn't be read are left out and
+    listed afterwards ("1 page was left out.").
+- **Tools > Extract Pages…** opens the Batch Convert sheet in its Extract
+  Pages mode ("Extract Pages from 3 Files"; button **Extract**): no Preset
+  row and no Edits section; a **Pages** section with **All pages**
+  (default) or **A range** (From / To, counted from 1). Each page of a PDF
+  or multi-page TIFF, or each frame of an animation (GIF, APNG, WebP,
+  animated HEIC), is written as a file of its own in the chosen format
+  (PNG by default, every Batch Convert format and option available),
+  with resize, turn and flip, destination, existing-file policy and
+  names exactly as in Batch Convert. Names default to the pattern
+  `{name}-{page}` ("scan-03.png"). Files with one page are skipped ("It
+  has only one page."), as are files shorter than the range's start. Its
+  settings and pattern are remembered apart from Batch Convert's.
+- **Batch Convert…** gains a **Pages** section after Format: **Multi-page
+  files: First page only** (default, as before) or **Every page**. Every
+  page writes all pages into one file for TIFF (pages) and GIF (frames,
+  keeping the original's delays and loop count), and one file per page,
+  numbered, for every other format; the footnote says which.
+- **Tools > Image Strip…** opens a sheet: the same order list; **Arrange**:
+  Side by Side (default), One Above Another, Grid; **Height** / **Width** /
+  **Cell height** in px (default 1080); **Columns** (grid, default 3);
+  **Spacing** and **Margin** in px (default 0); **Background**: white by
+  default, a colour, or Transparent where the format keeps alpha; **File**:
+  any writable format but ICO, with Quality, Color profile, TIFF
+  compression and 16/10 bits as in Save As. The line by the buttons shows
+  the strip's size ("5,120 × 1,080 pixels") or why it can't be made.
+  **Save…** asks for the file (the first name plus " Strip"), makes it with
+  progress and Cancel, selects it, and opens it in the viewer.
+- Names: a new token **`{page}`** (also `{frame}`): the page or frame
+  number from 1, zero-padded to the file's page count. Offered in the
+  Insert Token menu of Batch Convert and Extract Pages; Batch Rename
+  refuses it as an unknown token (it renames whole files). An output that
+  is one page of a file and whose pattern lacks `{page}` gets "-NN" after
+  its name, so pages of one file never ask for one name.
+- Settings: none in Settings. UserDefaults keys `extractPagesSettings`,
+  `extractPagesPattern`, `multiPageSettings`, `imageStripSettings`; Batch
+  Convert's remembered settings gain `pages` (missing in older settings:
+  First page only).
+
+### Design decisions and why
+
+- **Measured on macOS 27 (ImageIO writing):** `public.heics` is a
+  destination type; `public.avis` isn't, and a `public.avif` destination
+  for more than one image can't be created, so **animated AVIF is not
+  offered** (pinned by `MultiPageTests.noAnimatedAVIF`). Animated HEIC
+  keeps every frame's delay but the last, which reads back as the one
+  before it, and records no loop count (files read back as playing once),
+  so the sheet offers no loop choice for HEIC and says so (pinned by
+  `MultiPageTests.animatedHEIC`, so a change in ImageIO shows).
+- **Memory: one page at a time where ImageIO allows it.** ImageIO's own
+  multi-page TIFF keeps every image and decodes them all at the end (eight
+  12 MP pages: 386 MB over the start, the same with lazily decoded pages
+  from files). So minivu encodes each TIFF page by itself with ImageIO
+  (compression, profile) and joins them with **`TIFFPageWriter`**
+  (MinivuCore/Export), which appends each page's bytes with its offsets
+  moved and links the directories: one decoded page in memory at a time.
+  It follows the same tags as `TIFFScrubber` and refuses rather than guess
+  (BigTIFF, unknown types, past 4 GB). **PDF** goes through a Core
+  Graphics PDF context, which writes each page as it ends; JPEG pages are
+  encoded first and handed over as JPEG data, embedded unchanged (eight
+  12 MP pages with a flat footprint, the file the size of the JPEGs).
+  **GIF and animated HEIC** encoders keep every frame until finalize
+  (16 frames of 1000 × 750 px peak at 133 MB as GIF; a 12 MP HEIC frame
+  adds about 48 MB as it is added), and there is no way round that in
+  ImageIO; so frames are made at the frame size (default 800 px) and the
+  whole animation is checked before anything is decoded: frames × width ×
+  height × 4 × 3 must fit the export limit (a quarter of RAM;
+  `MultiPageBuilder.checkBudget`). The sheet shows the refusal live.
+- **Writes:** the multi-page file and the strip are made at
+  `SafeFileWriter.temporaryFile` (a hidden sibling, or the volume's
+  item-replacement folder when the save panel granted only the file) and
+  put in place with `SafeFileWriter.place` inside
+  `FileWriteQueue.enqueue(replacing:)`, so the long work doesn't hold the
+  queue and only a whole file ever appears; `OwnWrites` and
+  `SavePresenter.didWrite` as for Save. Batch Convert's every-page files
+  are written to a hidden sibling and committed with the new
+  `BatchFileWriter.commit(fileAt:)` (same exclusive rename, policies and
+  Replace-to-Trash as before). Cancel is checked before every page; a
+  cancelled file is deleted, so only whole files remain.
+- **Extract Pages is Batch Convert.** Splitting is converting with one
+  output per page, so it reuses the planner (clashes numbered, existing
+  files by policy, Replace confirmed), the job (2 at a time, 1 RAW, progress,
+  Cancel, summary) and the sheet. The planner reads each source's page
+  count from its header only when pages are asked for. **A page never
+  replaces its own original**: it is numbered like a clash with another
+  source ("scan-2 2.png"), even under Replace, and never appears in the
+  Replace question.
+- **Every page in Batch Convert:** only TIFF and GIF hold several pages
+  among Batch Convert's formats. HEIC is left out on purpose (an animated
+  HEIC is a different kind of file from the photo HEIC a batch is asked
+  for). Batch Convert has no PDF output format (it never had; ExportFormat
+  has none), so PDFs are handled as sources; a PDF output is made with
+  Create Multi-Page File.
+- **No metadata in multi-page outputs** (TIFF, PDF, GIF, HEIC, and Batch
+  Convert's every-page files): pages come from different files, and one
+  file's EXIF and location on the whole document would be wrong. TIFF
+  pages keep their own colour profile (or Batch Convert's chosen one).
+  Single-page outputs (Extract Pages, every page as JPEG) keep metadata
+  as Batch Convert does.
+- **Image strip: saved, then opened in the viewer (decided).** An unsaved
+  document in the viewer was the other choice, but every viewer document
+  is a file (Save, Revert, marks, info panel, filmstrip, the change
+  watcher all work from its URL), and a strip of 20 photos up to 32768 px
+  long would sit in memory only until saved. Saved first, it is safe at
+  full resolution, opens like any photo (shown fitted to the 16384 px
+  texture limit, as any large image), and can be edited non-destructively.
+  The strip is one bitmap (8 bits, 16 with the 16-bit option, Display P3)
+  checked before drawing against 32768 px a side (as Resize and Batch
+  Convert) and the export limit; each picture is decoded at about its
+  frame's size by the codec and drawn in turn (strip + one picture in
+  memory). Grid cells take the pictures' middle aspect ratio; pictures are
+  fitted and centred in them.
+- **PDF page size "Same as Each Image"** is the picture at the resolution
+  its file records (72 dpi when none, as Preview does), at most 14,400 pt
+  a side (the PDF limit). Paper sizes turn to the picture's shape and fit
+  it inside the margin, enlarging small pictures as a print would.
+- **Animation frames** are fitted into one canvas (the first picture fitted
+  into the frame size, never enlarged), centred over the background. An
+  animation's own frames keep their delays; other pictures get the frame
+  delay. Delays below 20 ms are refused (browsers show ≤ 10 ms at 100 ms).
+- **PDF page images** (Extract Pages, every page) render as the viewer
+  renders a PDF page at full resolution: actual size at 144 dpi, at least
+  4096 px and at most 16384 px on the long edge.
+- No new Core Image operation and no new edit operation, so nothing was
+  added to `hdrHighlightsSurviveEveryKindOfTool`; every page and strip
+  output is SDR (an HDR original's page is ImageIO's SDR rendition).
+- `CancellationFlag` moved from the app to MinivuCore (public), so the
+  engine's jobs can check it.
+
+### Limits
+
+- Animated GIF and HEIC are limited by memory as a whole (see above);
+  TIFF and PDF only by one page.
+- Animated HEIC: no loop count, and the last frame's delay is the one
+  before it (ImageIO, macOS 27). No animated AVIF.
+- Multi-page outputs carry no metadata; Batch Convert's every-page option
+  writes multi-page output only for TIFF and GIF.
+- A PDF's pages are rendered, not the images embedded in them extracted.
+- Multi-page TIFFs are classic TIFF: at most 4 GB (refused past it).
+- The image strip opens in the viewer after saving; it is never an unsaved
+  document. No live preview of the strip or of the multi-page file in the
+  sheets (the size and page count are shown).
+- Not available from the viewer or Shortcuts. (A Batch Convert preset
+  saves the Pages choice with the sheet's other options.)
+
+### Where the docs should change
+
+- DESIGN.md 3 "Formats": a line that minivu writes multi-page TIFF, PDF,
+  animated GIF and animated HEIC (where ImageIO can), not animated AVIF.
+- DESIGN.md 4.5 "Memory": the multi-page rule (one page at a time for TIFF
+  via `TIFFPageWriter` and for PDF; GIF/HEIC frames checked as a whole at
+  frames × w × h × 12 bytes against the export limit; strips one bitmap
+  plus one picture, checked against 32768 px and the export limit).
+- DESIGN.md 4.8 "Tools": a "Multi-page files, Extract Pages, Image
+  Strip" paragraph (the decisions above: `PageSequence`, `MultiPageWriter`,
+  `MultiPageBuilder`, `TIFFPageWriter`, `ImageStripLayout`/`Renderer`, the
+  temporary-file-then-place write path); "Batch Convert": the Pages
+  setting, `BatchOutput.pages`, `commit(fileAt:)`, pages never replace
+  their original, Extract Pages as a mode of the sheet. "Batch Rename":
+  the `{page}` token exists but is refused there.
+- DESIGN.md 5 "User interface", Tools menu table: Extract Pages…, Create
+  Multi-Page File…, Image Strip… (no shortcuts); the Batch Convert sheet's
+  Pages section.
+- DESIGN.md 8 "Known limits": the limits above.
+- docs/wiki/Tools.md: sections for Create Multi-Page File, Extract Pages
+  and Image Strip; Batch Convert's Pages option; the `{page}` token in the
+  rename token table. docs/wiki/Limitations.md: HEIC loop/last delay, no
+  animated AVIF, no metadata in multi-page files.
+- Help pages: Tools.md (the three new commands, Batch Convert's Pages
+  option, `{page}`).
+- Keyboard shortcuts page: nothing (no new keys).
+
 ## Tests
 
 - MinivuCoreTests/ExportAVIFTests (skipped where AVIF isn't writable):
@@ -307,3 +528,21 @@ ratings into files" is on), through `ColorLabelCommand.write`, which
 - MinivuTests/AutomationTests: Convert Images to AVIF, Set Colour Label
   (tags kept, None, read-only file refused, data-only refused, volume
   refused, labels list). MainMenuTests: the new File item.
+- G17: MinivuCoreTests/MultiPageTests (TIFF pages joined in order with
+  their sizes, compressions and profiles; refusals past 4 GB and of
+  non-TIFF pages; reading TIFF, PDF, GIF and single files as pages; page
+  ranges; PDF page sizes and lossless vs JPEG; GIF frame size, delays and
+  loops; animated HEIC as measured; no animated AVIF; builder order,
+  every page and unreadable files; Cancel leaves no file for TIFF, PDF and
+  GIF; the animation budget; settings decoding; strip layouts, rendering,
+  transparency, Cancel and budget; the `{page}` token and Batch Rename's
+  refusal). MinivuRenderTests/BatchPagesEngineTests (old settings load;
+  first / every / separate pages planned into outputs and names; a page
+  never replaces its original; a page decoded and an every-page TIFF;
+  every-frame GIF timing; Cancel; the GIF budget).
+  MinivuTests/MultiPageWindowTests (Extract Pages from the browser with a
+  range and its own remembered settings; Batch Convert's every page as
+  JPEG and TIFF; Cancel leaves whole files; Create Multi-Page File's sheet,
+  order and save; pages left out and reported; the sheet's checks; order
+  moves; Image Strip's sheet, save and opening). MainMenuTests and
+  BatchRenameWindowTests: the new Tools items and their validation.
