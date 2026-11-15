@@ -279,10 +279,12 @@ enum MainMenu {
     /// Slideshow, batch work, sheets and wallpaper, capture and external
     /// editors (Phase 7). ⇧⌘F starts a slideshow as in Preview; Batch
     /// Rename is ⇧F2 beside Rename's F2. The system keeps ⇧⌘3 to ⇧⌘5 for
-    /// its own screenshots, so Capture has no shortcuts.
+    /// its own screenshots, so Capture has no shortcuts. Export Slideshow
+    /// Video, like the other dialogs that make files, has none.
     private static func toolsMenu() -> NSMenu {
         let menu = NSMenu(title: "Tools")
         menu.add("Start Slideshow", .startSlideshow, "f", [.command, .shift])
+        menu.add("Export Slideshow Video…", .exportSlideshowVideo)
         menu.addItem(.separator())
         menu.add("Batch Convert…", .batchConvert, "b", [.command, .option])
         menu.add("Batch Rename…", .batchRename, Key.f2, [.shift])

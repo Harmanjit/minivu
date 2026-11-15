@@ -38,11 +38,13 @@ extension BrowserWindowController {
     /// Rename and Convert also stay off while a batch or a copy is still
     /// running without its sheet.
     func canPerformTools(_ action: Selector) -> Bool? {
-        let opensSheet: [Selector] = [.batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage]
+        let opensSheet: [Selector] = [.batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
+                                      .exportSlideshowVideo]
         if opensSheet.contains(action), let window, BatchTools.hasSheet(on: window) { return false }
         if [.batchConvert, .batchRename].contains(action), isRunningBatch || isTransferring { return false }
         return switch action {
-        case .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage:
+        case .startSlideshow, .exportSlideshowVideo, .batchConvert, .batchRename, .printImages, .makeContactSheet,
+             .makeMontage:
             model.imageCount > 0
         case .setAsDesktopPicture, .openInExternalEditor:
             toolLeadImage != nil

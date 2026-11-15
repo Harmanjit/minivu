@@ -139,6 +139,8 @@ import AppKit
     // none is selected (`BrowserWindowController.toolImages`); the viewer on
     // the image it shows (the slideshow on its whole list, from that image).
     @objc optional func startSlideshow(_ sender: Any?)
+    /// A video of what the slideshow would play, with its settings (G9).
+    @objc optional func exportSlideshowVideo(_ sender: Any?)
     @objc optional func batchConvert(_ sender: Any?)
     @objc optional func batchRename(_ sender: Any?)
     /// Prints with a page layout. Page Setup is AppKit's own
@@ -251,6 +253,7 @@ extension Selector {
     static let removeBackground = #selector(MinivuActions.removeBackground(_:))
     static let copySubject = #selector(MinivuActions.copySubject(_:))
     static let startSlideshow = #selector(MinivuActions.startSlideshow(_:))
+    static let exportSlideshowVideo = #selector(MinivuActions.exportSlideshowVideo(_:))
     static let batchConvert = #selector(MinivuActions.batchConvert(_:))
     static let batchRename = #selector(MinivuActions.batchRename(_:))
     static let printImages = #selector(MinivuActions.printImages(_:))
