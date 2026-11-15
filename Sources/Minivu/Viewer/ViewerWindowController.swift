@@ -199,7 +199,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         flyouts.add(FlyoutPanelView(edge: .right) { [unowned self] in
             histogramPanel.makePanel(with: infoHost, width: Self.infoPanelWidth)
         }, edge: .right, thickness: Self.infoPanelWidth)
-        flyouts.onPointerMoved = { [weak self] in self?.pointerMoved() }
+        flyouts.onPointerMoved = { [weak self] point in self?.pointerMoved(atWindowPoint: point) }
         flyouts.onVisibilityChange = { [weak self] edge, visible in self?.panelVisibilityChanged(edge, visible) }
 
         let hudTop = hud.topAnchor.constraint(equalTo: container.topAnchor, constant: Self.hudMargin)
@@ -470,9 +470,11 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
 
     /// A movement only notes the time. Pointer events arrive over a hundred
     /// times a second, and a work item made and cancelled for each would
-    /// pile up in the main queue; one pending item is enough.
-    private func pointerMoved() {
-        liveText.pointerMoved()
+    /// pile up in the main queue; one pending item is enough. Live Text
+    /// hears of movements over the picture only (`point` in window
+    /// coordinates; nil when the window itself changed).
+    private func pointerMoved(atWindowPoint point: CGPoint? = nil) {
+        if let point, liveText.isActive, isOverCanvas(windowPoint: point) { liveText.pointerMoved() }
         lastPointerMove = ProcessInfo.processInfo.systemUptime
         guard isFullScreen, cursorWork == nil else { return }
         scheduleCursorHide(after: Self.cursorHideDelay)

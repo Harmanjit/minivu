@@ -61,14 +61,19 @@ final class VisionLiveTextAnalyzer: LiveTextAnalyzing {
 /// texture (`LiveTextImage`): the page shown, an edit's render, the frame a
 /// paused animation stopped on. A `Subject` names it, so a sharper copy of
 /// the same picture (the user zoomed in) keeps its analysis and anything
-/// that changes the picture drops it. The subject is taken when each
+/// that changes the picture drops it. A copy at least twice as sharp as the
+/// one analysed (counted up to `LiveTextImage.maximumLongEdge`) is
+/// analysed once more, the first analysis staying until the second is
+/// ready: text too small to read in a picture fitted to the window becomes
+/// selectable when the user zooms in to read it, as in Preview, which reads
+/// the whole image. The subject is taken when each
 /// texture arrives rather than when the analysis starts: an edit changes
 /// the document at once but its render comes a moment later, and the
 /// picture still on screen meanwhile must not be filed under the edit.
 ///
 /// **When** is lazily. Flipping through a folder with the keyboard analyses
 /// nothing, however long each image stays up. Analysis is asked for when
-/// the pointer moves over the viewer, which is when the user might select
+/// the pointer moves over the picture, which is when the user might select
 /// something, or by Copy Text, and it starts only once the picture has been
 /// on screen for `settleDelay`, so passing over an image on the way to the
 /// next one costs nothing. It runs off the main thread, at most one at a
@@ -111,9 +116,10 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
 
     /// The texture on the canvas and the picture it shows.
     private(set) var shown: (texture: ImageTexture, subject: Subject)?
-    /// The analysis of a picture, kept while that picture is on screen.
-    private(set) var result: (subject: Subject, value: LiveTextResult)?
-    private var running: (subject: Subject, task: Task<LiveTextResult?, Never>, number: Int)?
+    /// The analysis of a picture, kept while that picture is on screen, and
+    /// the long side of the image it was read from (`analysedSide(of:)`).
+    private(set) var result: (subject: Subject, value: LiveTextResult, side: Int)?
+    private var running: (subject: Subject, side: Int, task: Task<LiveTextResult?, Never>, number: Int)?
     /// Counts analyses started, so one cancelled and replaced by another of
     /// the same picture can't report in its place.
     private var started = 0
@@ -138,7 +144,7 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
 
     /// The canvas shows another texture, or none. Called for every texture,
     /// sharper copies and animation frames included, so it does no work
-    /// beyond comparing subjects.
+    /// beyond comparing subjects and sizes.
     func show(_ texture: ImageTexture?, subject: Subject?) {
         guard let texture, let subject else {
             shown = nil
@@ -147,7 +153,14 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
         }
         let changed = shown?.subject != subject
         shown = (texture, subject)
-        guard changed else { return }
+        guard changed else {
+            // A sharper copy of a picture whose text the user has asked for
+            // already (it is analysed, or being analysed): read it again
+            // if it is at least twice as sharp. Nothing else asks, since the
+            // user may zoom with the keyboard and never move the pointer.
+            if result != nil || running != nil, needsAnalysis { requestAnalysis() }
+            return
+        }
         shownSince = ProcessInfo.processInfo.systemUptime
         if result?.subject != subject { forget() }
         if let running, running.subject != subject {
@@ -169,16 +182,20 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
     }
 
     /// Whether analysis may run and the overlay take the pointer. Turning
-    /// it off drops everything, so turning Live Text off really stops it.
+    /// it off stops all work and takes the overlay away. The analysis of
+    /// the picture on screen is kept and comes back with Live Text for that
+    /// same picture, so closing an edit tool that changed nothing doesn't
+    /// read the picture again; any other picture drops it (`show`).
     func setActive(_ active: Bool) {
         guard active != isActive else { return }
         isActive = active
         host.isHidden = !active
         if !active {
             cancelPending()
-            forget()
+            if overlay.analysis != nil { overlay.analysis = nil }
         } else if let result, result.subject == shown?.subject {
             overlay.analysis = result.value.analysis
+            overlay.setContentsRectNeedsUpdate()
         }
     }
 
@@ -186,6 +203,7 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
     func stop() {
         setActive(false)
         shown = nil
+        forget()
     }
 
     private func forget() {
@@ -195,7 +213,24 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
 
     // MARK: - Analysis
 
-    /// The pointer moved over the viewer: the user may be about to select
+    /// The long side of the image analysing `texture` hands the recogniser:
+    /// the texture's own, up to `LiveTextImage.maximumLongEdge`.
+    static func analysedSide(of texture: ImageTexture) -> Int {
+        min(max(texture.texture.width, texture.texture.height), LiveTextImage.maximumLongEdge)
+    }
+
+    /// Whether the picture on screen wants analysing: nothing is made or
+    /// under way for it, or only from a copy less than half as sharp as
+    /// the one shown now.
+    private var needsAnalysis: Bool {
+        guard let shown else { return false }
+        let side = Self.analysedSide(of: shown.texture)
+        if let result, result.subject == shown.subject, side < 2 * result.side { return false }
+        if let running, running.subject == shown.subject, side < 2 * running.side { return false }
+        return true
+    }
+
+    /// The pointer moved over the picture: the user may be about to select
     /// text, so the picture is analysed once it has settled.
     func pointerMoved() {
         requestAnalysis()
@@ -204,8 +239,7 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
     /// Analyses the picture on screen once it has been there for
     /// `settleDelay`, unless that is done, running or already waiting.
     func requestAnalysis() {
-        guard isActive, analyzer.isSupported, let shown, result?.subject != shown.subject,
-              running?.subject != shown.subject, settleWork == nil else { return }
+        guard isActive, analyzer.isSupported, needsAnalysis, settleWork == nil else { return }
         let wait = shownSince + settleDelay - ProcessInfo.processInfo.systemUptime
         guard wait > 0 else {
             start()
@@ -219,19 +253,40 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: work)
     }
 
+    /// What Copy Text gets from `recognisedText()`.
+    enum Recognition: Equatable {
+        /// All the text read; empty when the picture has none.
+        case text(String)
+        /// Nothing could be read: no picture, or the analysis failed.
+        case failed
+        /// The user moved on before the analysis finished: another picture,
+        /// or Live Text put aside. Nothing to report.
+        case cancelled
+    }
+
     /// All the text recognised in the picture on screen, analysing it now
     /// if that hasn't been done (Copy Text doesn't wait for the picture to
-    /// settle: the user asked). Nil when there is nothing to analyse, the
-    /// analysis failed, or the picture left the screen meanwhile.
-    func recognisedText() async -> String? {
-        guard isActive, analyzer.isSupported, let subject = shown?.subject else { return nil }
-        if let result, result.subject == subject { return result.value.transcript }
-        settleWork?.cancel()
-        settleWork = nil
-        if running?.subject != subject { start() }
-        guard let task = running?.task, let value = await task.value,
-              shown?.subject == subject else { return nil }
-        return value.transcript
+    /// settle: the user asked), or if only a much less sharp copy was read.
+    func recognisedText() async -> Recognition {
+        guard isActive, analyzer.isSupported, let subject = shown?.subject else { return .failed }
+        if needsAnalysis {
+            settleWork?.cancel()
+            settleWork = nil
+            start()
+        }
+        // The analysis under way, and any sharper one that replaces it
+        // meanwhile (a texture twice as sharp arrived).
+        var cancelled = false
+        while let task = running?.task, running?.subject == subject {
+            let value = await task.value
+            guard isActive, shown?.subject == subject else { return .cancelled }
+            if let value { return .text(value.transcript) }
+            cancelled = task.isCancelled
+            if running?.task == task { break }
+        }
+        // A sharper reading that didn't finish leaves the first one.
+        if result?.subject == subject, let result { return .text(result.value.transcript) }
+        return cancelled ? .cancelled : .failed
     }
 
     /// Reads the texture back off the main thread, recognises its text and
@@ -242,22 +297,23 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
         let analyzer = analyzer
         started += 1
         let number = started
+        let side = Self.analysedSide(of: texture)
         let task = Task { [weak self] () -> LiveTextResult? in
             let image = await BlockingWork.run { LiveTextImage.render(texture) }
             guard !Task.isCancelled else { return nil }
             let value: LiveTextResult? = if let image { try? await analyzer.analyze(image) } else { nil }
             guard !Task.isCancelled else { return nil }
-            self?.finished(value, number: number, for: subject)
+            self?.finished(value, side: side, number: number, for: subject)
             return value
         }
-        running = (subject, task, number)
+        running = (subject, side, task, number)
     }
 
-    private func finished(_ value: LiveTextResult?, number: Int, for subject: Subject) {
+    private func finished(_ value: LiveTextResult?, side: Int, number: Int, for subject: Subject) {
         guard running?.number == number else { return }
         running = nil
         guard isActive, let value, shown?.subject == subject else { return }
-        result = (subject, value)
+        result = (subject, value, side)
         overlay.analysis = value.analysis
         overlay.setContentsRectNeedsUpdate()
     }

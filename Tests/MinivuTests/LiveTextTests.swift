@@ -1,9 +1,10 @@
 import Testing
 import AppKit
 import ImageIO
+import Metal
 import VisionKit
 import MinivuCore
-import MinivuRender
+@testable import MinivuRender
 @testable import Minivu
 
 /// Recognises nothing and records what it was asked, so the tests decide
@@ -13,10 +14,22 @@ import MinivuRender
     var transcript = "Twenty minutes past nine"
     /// The size of each picture analysed, in order.
     private(set) var sizes: [CGSize] = []
+    /// Holds each analysis until `release()`, for a test to act while one
+    /// is under way.
+    var holds = false
+    private var held: [CheckedContinuation<Void, Never>] = []
+    var isHolding: Bool { !held.isEmpty }
 
     func analyze(_ image: CGImage) async throws -> LiveTextResult {
         sizes.append(CGSize(width: image.width, height: image.height))
+        if holds { await withCheckedContinuation { held.append($0) } }
         return LiveTextResult(transcript: transcript, analysis: nil)
+    }
+
+    func release() {
+        let waiting = held
+        held = []
+        for continuation in waiting { continuation.resume() }
     }
 }
 
@@ -58,9 +71,15 @@ extension AppWindowTests {
             try? await Task.sleep(for: .seconds(seconds))
         }
 
-        /// The pointer moving over the viewer, as its tracking area reports it.
+        /// The pointer moving over the middle of the picture's canvas, as the
+        /// viewer's tracking area reports it.
         func movePointer(_ viewer: ViewerWindowController) {
-            viewer.flyouts.onPointerMoved?()
+            let canvas = viewer.canvasView
+            movePointer(viewer, to: canvas.convert(CGPoint(x: canvas.bounds.midX, y: canvas.bounds.midY), to: nil))
+        }
+
+        func movePointer(_ viewer: ViewerWindowController, to windowPoint: CGPoint) {
+            viewer.flyouts.onPointerMoved?(windowPoint)
         }
 
         // MARK: - When
@@ -109,6 +128,95 @@ extension AppWindowTests {
             await pause()
             #expect(fake.sizes.isEmpty)
             #expect(viewer.liveText.result == nil)
+        }
+
+        /// Only the pointer over the picture asks for an analysis: moving it
+        /// over something in front of the canvas (a panel, the control bar,
+        /// the filmstrip; a plain view stands in for them), or outside the
+        /// canvas, reads nothing.
+        @Test func thePointerOverAPanelAnalysesNothing() async throws {
+            let t = try ScratchFolder()
+            let (viewer, fake) = try await openViewer(t, count: 1)
+            defer { closeViewer() }
+            let canvas = viewer.canvasView
+            let canvasFrame = canvas.convert(canvas.bounds, to: nil)
+            let middle = CGPoint(x: canvasFrame.midX, y: canvasFrame.midY)
+            let panel = NSView(frame: viewer.container.convert(canvasFrame.insetBy(dx: canvasFrame.width / 4, dy: 0),
+                                                               from: nil))
+            viewer.container.addSubview(panel)
+            movePointer(viewer, to: middle)
+            movePointer(viewer, to: CGPoint(x: canvasFrame.midX, y: canvasFrame.maxY + 400))
+            await pause()
+            #expect(fake.sizes.isEmpty && !viewer.liveText.isWaitingToSettle && viewer.liveText.runningTask == nil)
+
+            panel.removeFromSuperview()
+            movePointer(viewer, to: middle)
+            await TestTiming.waitUntil { fake.sizes.count == 1 }
+            #expect(fake.sizes.count == 1)
+        }
+
+        /// A picture analysed fitted to the window is read again, once, when
+        /// a copy at least twice as sharp replaces it (the user zoomed in to
+        /// read small text), whether or not the pointer moves; a copy less
+        /// sharp than that, or past the recogniser's limit, is not.
+        @Test func aMuchSharperCopyIsAnalysedAgain() async throws {
+            let controller = LiveTextController()
+            let fake = FakeTextAnalyzer()
+            controller.analyzer = fake
+            controller.settleDelay = 0
+            controller.setActive(true)
+            let subject = LiveTextController.Subject(url: URL(fileURLWithPath: "/sign.jpg"), modified: nil, page: 0,
+                                                     operations: [], frame: nil)
+            func texture(_ width: Int, _ height: Int) throws -> ImageTexture {
+                let descriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm_srgb, width: width,
+                                                                          height: height, mipmapped: false)
+                descriptor.storageMode = .private
+                let metal = try #require(GPU.shared.device.makeTexture(descriptor: descriptor))
+                return ImageTexture(texture: metal, imageSize: CGSize(width: 6000, height: 3000),
+                                    isFullResolution: false, isHDR: false, contentHeadroom: 1)
+            }
+            func settle() async { _ = await controller.runningTask?.value }
+
+            controller.show(try texture(1000, 500), subject: subject)
+            await pause(0.05)
+            #expect(fake.sizes.isEmpty, "shown, with no one asking, nothing is read")
+            controller.pointerMoved()
+            await settle()
+            #expect(fake.sizes == [CGSize(width: 1000, height: 500)])
+
+            controller.show(try texture(1900, 950), subject: subject)
+            await settle()
+            #expect(fake.sizes.count == 1, "less than twice as sharp")
+            controller.show(try texture(2000, 1000), subject: subject)
+            await settle()
+            #expect(fake.sizes.last == CGSize(width: 2000, height: 1000))
+            #expect(controller.result?.side == 2000)
+
+            // Past the limit counts as the limit: 4096 is at least twice 2000.
+            controller.show(try texture(5000, 10), subject: subject)
+            await settle()
+            #expect(fake.sizes.count == 3 && fake.sizes.last?.width == CGFloat(LiveTextImage.maximumLongEdge))
+            controller.show(try texture(8000, 10), subject: subject)
+            await settle()
+            #expect(fake.sizes.count == 3, "no sharper than what was read")
+            controller.stop()
+        }
+
+        /// Closing an edit tool that changed nothing brings the analysis back
+        /// rather than reading the same picture again.
+        @Test func closingAToolKeepsTheAnalysis() async throws {
+            let t = try ScratchFolder()
+            let (viewer, fake) = try await openViewer(t, count: 1)
+            defer { closeViewer() }
+            movePointer(viewer)
+            await TestTiming.waitUntil { viewer.liveText.result != nil }
+            viewer.adjustLighting(nil)
+            await TestTiming.waitUntil { viewer.activeTool != nil }
+            viewer.closeTool()
+            #expect(viewer.liveText.isActive && viewer.liveText.result != nil)
+            movePointer(viewer)
+            await pause()
+            #expect(fake.sizes.count == 1)
         }
 
         /// An analysis cancelled (the page reloaded under new settings) and
@@ -241,6 +349,31 @@ extension AppWindowTests {
             #expect(told == 1)
         }
 
+        /// Copy Text the user moves on from (the next picture before the text
+        /// is read) ends silently: no beep, and the pasteboard as it was.
+        @Test func copyTextCancelledByMovingOnSaysNothing() async throws {
+            let t = try ScratchFolder()
+            let (viewer, fake) = try await openViewer(t)
+            defer { closeViewer() }
+            var told = 0
+            let hook = ViewerWindowController.noTextToCopy
+            ViewerWindowController.noTextToCopy = { told += 1 }
+            defer { ViewerWindowController.noTextToCopy = hook }
+            let board = scratchboard()
+            defer { board.releaseGlobally() }
+            board.clearContents()
+            board.setString("copied before", forType: .string)
+
+            fake.holds = true
+            let copy = try #require(viewer.copyText(to: board))
+            await TestTiming.waitUntil { fake.isHolding }
+            viewer.nextImage(nil)
+            fake.release()
+            await copy.value
+            #expect(told == 0)
+            #expect(board.string(forType: .string) == "copied before")
+        }
+
         /// The browser has no picture to read, so Copy Text is not offered
         /// there.
         @Test func copyTextIsTheViewersAlone() {
@@ -276,8 +409,9 @@ extension AppWindowTests {
             viewer.liveText.settleDelay = 0
             await TestTiming.waitUntil { viewer.canEditCurrent && viewer.liveText.shown != nil }
 
-            let text = await viewer.liveText.recognisedText()
-            #expect(text?.uppercased().contains("MINIVU") == true, "read: \(text ?? "nothing")")
+            let recognised = await viewer.liveText.recognisedText()
+            guard case .text(let text) = recognised else { Issue.record("read: \(recognised)"); return }
+            #expect(text.uppercased().contains("MINIVU"), "read: \(text)")
             let overlay = viewer.liveText.overlay
             #expect(overlay.analysis != nil)
 

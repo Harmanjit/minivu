@@ -49,18 +49,33 @@ extension ViewerWindowController {
     ///
     /// Written only when there is text, as Copy writes only when its render
     /// worked: a picture with no text in it leaves whatever was copied
-    /// before, and beeps rather than going quiet.
+    /// before, and beeps rather than going quiet. A copy the user moved on
+    /// from (another picture before the text was read) ends without a word:
+    /// a beep would say the picture had no text, which nobody found out.
     @discardableResult
     func copyText(to pasteboard: NSPasteboard) -> Task<Void, Never>? {
         guard validateLiveTextAction(.copyText) == true else { return nil }
         return Task {
-            guard let text = await liveText.recognisedText(), !text.isEmpty else {
+            switch await liveText.recognisedText() {
+            case .text(let text) where !text.isEmpty:
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+            case .cancelled:
+                break
+            case .text, .failed:
                 Self.noTextToCopy()
-                return
             }
-            pasteboard.clearContents()
-            pasteboard.setString(text, forType: .string)
         }
+    }
+
+    /// Whether `windowPoint` is over the picture's canvas and nothing in
+    /// front of it (a panel, the control bar, the filmstrip): only there
+    /// does a pointer movement ask Live Text to read the picture.
+    func isOverCanvas(windowPoint: CGPoint) -> Bool {
+        guard let contentView = window?.contentView, let superview = contentView.superview,
+              canvas.bounds.contains(canvas.convert(windowPoint, from: nil)) else { return false }
+        let hit = contentView.hitTest(superview.convert(windowPoint, from: nil))
+        return hit === canvas || hit?.isDescendant(of: liveText.host) == true
     }
 
     /// Copy Text found nothing to copy. A hook so tests can tell without a
