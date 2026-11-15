@@ -1,6 +1,7 @@
 import Testing
 import AppKit
 import AVFoundation
+import ImageIO
 import MinivuCore
 import MinivuRender
 @testable import Minivu
@@ -296,6 +297,69 @@ extension AppWindowTests {
             #expect(second.rate == 0 && second.currentItem == nil)
         }
 
+        /// The picture on a pasteboard of the test's own, as a CGImage.
+        func pastedImage(_ board: NSPasteboard) throws -> CGImage {
+            let image = try #require(NSImage(pasteboard: board))
+            return try #require(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
+        }
+
+        /// Copy Frame and Save Frame As take the frame on screen, at the
+        /// video's own size: the first frame (black) before anything plays,
+        /// later where the player stands. Never for a photo.
+        @Test func copyFrameAndSaveFrameAsTakeTheFrameOnScreen() async throws {
+            let t = try ScratchFolder()
+            let photo = try t.jpeg("a.jpg", width: 320, height: 240)
+            let video = try await TestVideos.make(at: t.url.appendingPathComponent("b.mov"), width: 480, height: 288,
+                                                  seconds: 3, color: (20, 30, 230))
+            let board = NSPasteboard(name: NSPasteboard.Name("minivu-video-tests-\(UUID().uuidString)"))
+            defer {
+                board.releaseGlobally()
+                closeViewer()
+            }
+            let viewer = try await open([photo, video], at: 1)
+            #expect(viewer.validateMenuItem(item(.copyFrame)) && viewer.validateMenuItem(item(.saveFrameAs)))
+            #expect(!viewer.validateMenuItem(item(#selector(NSText.copy(_:)))), "⌘C stays off for a video")
+
+            // Nothing played: the still on screen, which is the first frame.
+            await viewer.copyVideoFrame(to: board)?.value
+            let first = try pastedImage(board)
+            #expect(first.width == 480 && first.height == 288)
+            let black = TestVideos.centreColor(of: first)
+            #expect(black.red < 30 && black.green < 30 && black.blue < 30, "\(black)")
+
+            // Played, paused and moved to 1.5 s: that frame.
+            viewer.togglePlayback(nil)
+            let playback = try #require(viewer.videoPlayback)
+            viewer.pauseVideo()
+            await playback.player.seek(to: CMTime(seconds: 1.5, preferredTimescale: 600), toleranceBefore: .zero,
+                                       toleranceAfter: .zero)
+            #expect(abs(viewer.shownVideoFrameTime - 1.5) < 0.01)
+            await viewer.copyVideoFrame(to: board)?.value
+            let later = TestVideos.centreColor(of: try pastedImage(board))
+            #expect(later.blue > 180 && later.red < 80, "\(later)")
+
+            // Save Frame As hands the same time to Save As, and pauses a
+            // playing video so the panel saves what is on screen.
+            var asked: (name: String, seconds: Double)?
+            let present = ViewerWindowController.presentSaveFrameAs
+            ViewerWindowController.presentSaveFrameAs = { entry, seconds, _, completion in
+                asked = (entry.name, seconds)
+                completion(nil)
+            }
+            defer { ViewerWindowController.presentSaveFrameAs = present }
+            playback.play()
+            viewer.saveFrameAs(nil)
+            #expect(playback.player.rate == 0)
+            #expect(asked?.name == "b.mov")
+            #expect(abs((asked?.seconds ?? -1) - viewer.shownVideoFrameTime) < 0.01)
+
+            // A photo has no frame to take.
+            viewer.previousImage(nil)
+            await TestTiming.waitUntil { viewer.canvasTexture?.imageSize == CGSize(width: 320, height: 240) }
+            #expect(!viewer.validateMenuItem(item(.copyFrame)) && !viewer.validateMenuItem(item(.saveFrameAs)))
+            #expect(viewer.copyVideoFrame(to: board) == nil)
+        }
+
         @Test func muteFollowsTheUserAcrossVideos() async throws {
             let t = try ScratchFolder()
             let video = try await TestVideos.make(at: t.url.appendingPathComponent("a.mov"))
@@ -313,5 +377,42 @@ extension AppWindowTests {
             viewer.toggleMute(nil)
             #expect(VideoPlayback.mutedByUser)
         }
+    }
+}
+
+/// Save Frame As (G18) through the Save As machinery, without the panel:
+/// the frame at the time asked, at the video's own size, named after the
+/// video and the time, and without the movie's metadata.
+@MainActor @Suite struct VideoFrameSaveTests {
+    @Test func savesTheFrameAtItsOwnSize() async throws {
+        let t = try ScratchFolder()
+        let video = try await TestVideos.make(at: t.url.appendingPathComponent("clip.mov"), width: 480, height: 288,
+                                              seconds: 3, color: (20, 200, 40))
+        let entry = try #require(FolderEntry(url: video))
+        let scratchDefaults = ScratchDefaults("minivu-video-tests")
+        defer { scratchDefaults.remove() }
+        let model = SaveAsModel(videoFrameOf: entry, seconds: 1.2, store: SaveOptionsStore(defaults: scratchDefaults.defaults))
+        defer { model.cancel() }
+        #expect(model.suggestedName == "clip frame 0.01")
+        #expect(SaveAsNaming.renamed(model.suggestedName, to: .png) == "clip frame 0.01.png")
+        #expect(!model.carriesMetadata && model.source.metadataSource == nil)
+        #expect(SaveAsModel.frameName(of: video, seconds: 3725) == "clip frame 1.02.05")
+
+        let output = t.url.appendingPathComponent("frame.png")
+        try await SavePresenter.write(model.source, options: .defaults(for: .png), to: output,
+                                      metadataSource: model.source.metadataSource)
+        let source = try #require(CGImageSourceCreateWithURL(output as CFURL, nil))
+        let image = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        #expect(image.width == 480 && image.height == 288)
+        let green = TestVideos.centreColor(of: image)
+        #expect(green.green > 150 && green.red < 80, "\(green)")
+        // The movie itself is untouched.
+        #expect(FileManager.default.fileExists(atPath: video.path))
+
+        // The first frame of the same clip is black: the time was honoured.
+        let start = SaveImageSource(videoFrame: video, seconds: 0)
+        let first = try await start.image(for: .defaults(for: .png))
+        let black = TestVideos.centreColor(of: first)
+        #expect(black.red < 30 && black.green < 30, "\(black)")
     }
 }

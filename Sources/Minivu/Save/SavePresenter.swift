@@ -21,7 +21,24 @@ enum SavePresenter {
 
     static func presentSaveAs(entry: FolderEntry, document: EditDocument?, on window: NSWindow,
                               store: SaveOptionsStore, completion: @escaping (URL?) -> Void) {
-        let model = SaveAsModel(entry: entry, document: document, store: store)
+        presentSaveAs(model: SaveAsModel(entry: entry, document: document, store: store), document: document,
+                      on: window, completion: completion)
+    }
+
+    /// Save Frame As (G18): the frame of the video `entry` at `seconds`, at
+    /// the video's own size, through the same panel, options and write
+    /// queue as Save As. The movie itself is never touched.
+    static func presentSaveFrameAs(entry: FolderEntry, seconds: Double, on window: NSWindow,
+                                   completion: @escaping (URL?) -> Void) {
+        let store = SaveOptionsStore()
+        presentSaveAs(model: SaveAsModel(videoFrameOf: entry, seconds: seconds, store: store), document: nil,
+                      on: window, completion: completion)
+    }
+
+    private static func presentSaveAs(model: SaveAsModel, document: EditDocument?, on window: NSWindow,
+                                      completion: @escaping (URL?) -> Void) {
+        let store = model.store
+        let entry = model.entry
         let panel = SaveAsPanel(model: model)
         let savedOperations = document?.operations
         panel.begin(on: window) { [weak window] url, options in
@@ -36,8 +53,9 @@ enum SavePresenter {
             // In line with every other write, so a Save of the same file
             // asked for just before can't land after this one.
             let original = entry.url
+            let metadataSource = source.metadataSource
             let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
-                try await write(source, options: options, to: url, metadataSource: original)
+                try await write(source, options: options, to: url, metadataSource: metadataSource)
                 // Asked of the disk once written: "Photo.JPG" chosen for
                 // "photo.jpg" is the same file on a case-insensitive volume.
                 return await BlockingWork.run { sameFile(url, original) || sameItem(url, original) }
@@ -175,11 +193,12 @@ enum SavePresenter {
     /// same name, Replace confirmed in the panel) is a save in place, and
     /// keeps every piece of metadata as Save does, so the file's GPS
     /// position and place names are never lost by accident.
-    static func write(_ source: SaveImageSource, options: ExportOptions, to url: URL, metadataSource: URL) async throws {
+    static func write(_ source: SaveImageSource, options: ExportOptions, to url: URL, metadataSource: URL?) async throws {
         let image = try await source.image(for: options)
         try await BlockingWork.run {
             var options = options
-            if options.removeLocation, sameFile(url, metadataSource) || sameItem(url, metadataSource) {
+            if options.removeLocation, let metadataSource,
+               sameFile(url, metadataSource) || sameItem(url, metadataSource) {
                 options.removeLocation = false
             }
             try ImageEncoder.write(image, to: url, options: options, metadataSource: metadataSource)

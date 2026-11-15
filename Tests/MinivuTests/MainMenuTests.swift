@@ -83,6 +83,9 @@ import MinivuCore
         let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
         let copy = try #require(edit.items.firstIndex { $0.action == #selector(NSText.copy(_:)) })
         #expect(edit.items[copy + 2].action == .copySubject && edit.items[copy + 2].keyEquivalent.isEmpty)
+        // A video's frame (G18): Copy Frame after them, Save Frame As after
+        // Save As, neither with a key.
+        #expect(edit.items[copy + 3].action == .copyFrame && edit.items[copy + 3].keyEquivalent.isEmpty)
         let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
         #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative, .addDropShadow,
                                                        .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,
@@ -94,8 +97,9 @@ import MinivuCore
         #expect(metadata.action == .editMetadata && metadata.keyEquivalent == "i"
             && metadata.keyEquivalentModifierMask == .command)
         let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
-        #expect(file.items.compactMap(\.action).filter { [.saveImage, .saveImageAs, .revertToSaved].contains($0) }
-            == [.saveImage, .saveImageAs, .revertToSaved])
+        #expect(file.items.compactMap(\.action).filter { [.saveImage, .saveImageAs, .saveFrameAs, .revertToSaved].contains($0) }
+            == [.saveImage, .saveImageAs, .saveFrameAs, .revertToSaved])
+        #expect(try item("Save Frame As…").keyEquivalent.isEmpty)
     }
 
     /// The editing shortcuts, as key presses, reach the right commands.
@@ -182,7 +186,7 @@ import MinivuCore
         let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
         let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
-                           "Save", "Save As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
+                           "Save", "Save As…", "Save Frame As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
                            "Reveal in Finder", "Share…", "Move to Trash", "-", "Page Setup…", "Print…"])
         let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
         let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)

@@ -67,6 +67,9 @@ enum MainMenu {
         // selection with Save As. Revert has no shortcut, as in every Mac app.
         menu.add("Save", .saveImage, "s")
         menu.add("Save As…", .saveImageAs, "s", [.command, .shift])
+        // The frame of a video on screen, as a picture (G18). Without a
+        // shortcut, like Copy Frame: both are occasional commands.
+        menu.add("Save Frame As…", .saveFrameAs)
         menu.add("Revert to Saved", .revertToSaved)
         menu.addItem(.separator())
         // F2 as in Windows Explorer and FastStone: Return opens the viewer
@@ -101,6 +104,9 @@ enum MainMenu {
         // The viewer's picture with its background cut away; nothing else
         // implements it, so it stays disabled in the browser.
         menu.add("Copy Subject", .copySubject)
+        // A video's frame on screen; ⌘C stays off for a video, whose still
+        // is not the video (G18).
+        menu.add("Copy Frame", .copyFrame)
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)

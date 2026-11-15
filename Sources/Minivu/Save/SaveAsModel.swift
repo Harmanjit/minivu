@@ -124,17 +124,49 @@ nonisolated enum SizeEstimator {
     @ObservationIgnored private var runningEncode: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
 
-    init(entry: FolderEntry, document: EditDocument?, store: SaveOptionsStore = SaveOptionsStore()) {
+    /// The name the panel starts with; its extension follows the format.
+    let suggestedName: String
+
+    convenience init(entry: FolderEntry, document: EditDocument?, store: SaveOptionsStore = SaveOptionsStore()) {
+        self.init(entry: entry, source: SaveImageSource(entry: entry, document: document),
+                  suggestedName: entry.url.lastPathComponent, store: store)
+    }
+
+    /// Save Frame As (G18): the frame of the video `entry` at `seconds`,
+    /// named after the video and the time ("clip frame 0.12").
+    convenience init(videoFrameOf entry: FolderEntry, seconds: Double, store: SaveOptionsStore = SaveOptionsStore()) {
+        self.init(entry: entry, source: SaveImageSource(videoFrame: entry.url, seconds: seconds),
+                  suggestedName: Self.frameName(of: entry.url, seconds: seconds), store: store)
+    }
+
+    init(entry: FolderEntry, source: SaveImageSource, suggestedName: String, store: SaveOptionsStore) {
         self.entry = entry
         self.store = store
-        source = SaveImageSource(entry: entry, document: document)
+        self.source = source
+        self.suggestedName = suggestedName
         options = store.options(for: store.initialFormat(for: entry.url))
+        if case .videoFrame = source.origin {
+            // A frame is 8-bit SDR with no alpha, whatever the video is.
+            sourceInfoArrived(hasAlpha: false, bitDepth: 8)
+            return
+        }
         let url = entry.url
         Task { [weak self] in
             let info = await BlockingWork.run(qos: .utility) { ImageDecoder.info(for: url) }
             self?.sourceInfoArrived(hasAlpha: info?.hasAlpha ?? false, bitDepth: info?.bitDepth ?? 8)
         }
     }
+
+    /// "clip frame 0.12" for the frame 12 s into clip.mov: the time as a
+    /// player shows it, with dots for the colons a file name can't hold.
+    nonisolated static func frameName(of url: URL, seconds: Double) -> String {
+        let time = VideoFrames.durationText(seconds).replacingOccurrences(of: ":", with: ".")
+        return "\(url.deletingPathExtension().lastPathComponent) frame \(time)"
+    }
+
+    /// Whether the saved file can carry the original's metadata: not for a
+    /// video's frame (`SaveImageSource.metadataSource`).
+    var carriesMetadata: Bool { source.metadataSource != nil }
 
     /// Bits per channel of the source, once its header has been read.
     @ObservationIgnored private(set) var sourceBitDepth = 8
@@ -272,7 +304,7 @@ nonisolated enum SizeEstimator {
         if let running = runningEncode { await running.value }
         guard generation == self.generation, !Task.isCancelled else { return }
 
-        let url = entry.url
+        let url = source.metadataSource
         // A full encode blocks for up to seconds: on GCD (BlockingWork).
         let exact = Task {
             await BlockingWork.run { try? SizeEstimator.exactBytes(image, options: options, metadataSource: url) }

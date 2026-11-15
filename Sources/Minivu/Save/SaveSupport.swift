@@ -205,6 +205,9 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
         /// A file and the page of it on screen (a multi-page TIFF's third
         /// page converts the third page).
         case original(URL, page: Int)
+        /// The frame of a video at a time in seconds, at the video's own
+        /// size (Save Frame As, G18).
+        case videoFrame(URL, seconds: Double)
     }
 
     let origin: Origin
@@ -223,10 +226,26 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
         }
     }
 
+    /// A video's frame at `seconds`, for Save Frame As.
+    init(videoFrame url: URL, seconds: Double) {
+        origin = .videoFrame(url, seconds: seconds)
+    }
+
     func key(for options: ExportOptions) -> SaveRenderKey {
         switch origin {
         case .edit: .forEdit(options)
-        case .original: .decodedOriginal
+        case .original, .videoFrame: .decodedOriginal
+        }
+    }
+
+    /// The file whose metadata a save carries over: none for a video's
+    /// frame, whose movie metadata ImageIO can't read or write into a
+    /// picture.
+    var metadataSource: URL? {
+        switch origin {
+        case .edit(let snapshot): snapshot.url
+        case .original(let url, _): url
+        case .videoFrame: nil
         }
     }
 
@@ -266,6 +285,12 @@ nonisolated struct SaveRenderKey: Hashable, Sendable {
             return try await BlockingWork.run {
                 try ImageDecoder.decode(url, maxPixelSize: nil, page: page, allowHDR: false, byteLimit: limit).image
             }
+        case .videoFrame(let url, let seconds):
+            // Decoding blocks on AVFoundation: on GCD (BlockingWork).
+            guard let image = await BlockingWork.run({ VideoFrames.still(of: url, at: seconds) }) else {
+                throw DecodeError.unreadable(url)
+            }
+            return image
         case .edit(let snapshot):
             let space = await BlockingWork.run {
                 SavePolicy.namedColorSpace(key.profile) ?? SavePolicy.renderColorSpace(

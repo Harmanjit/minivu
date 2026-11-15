@@ -248,6 +248,15 @@ public enum VideoFrames {
                      toleranceBefore: time / 2, toleranceAfter: 1)
     }
 
+    /// The frame shown at `seconds`, at the video's own size, oriented and
+    /// SDR: what Copy Frame and Save Frame As hand over (G18). A player
+    /// paused at the very end reports a time just past the last frame,
+    /// which has no exact frame; the last one before it is taken then.
+    public static func still(of url: URL, at seconds: Double) -> CGImage? {
+        frame(of: url, at: seconds, maxPixelSize: nil, allowHDR: false)
+            ?? frame(of: url, at: seconds, maxPixelSize: nil, allowHDR: false, toleranceBefore: 1)
+    }
+
     /// One frame at most `maxPixelSize` on its long edge (nil: full size),
     /// oriented. With `allowHDR` an HDR video's frame keeps its highlights
     /// (`matchSource`); otherwise AVFoundation tone maps it to SDR. The

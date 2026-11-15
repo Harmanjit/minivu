@@ -35,6 +35,10 @@ import AppKit
     @objc optional func togglePlayback(_ sender: Any?)
     /// Viewer: sound off or on for the video shown (G18).
     @objc optional func toggleMute(_ sender: Any?)
+    /// Viewer: the frame of the video on screen, at the video's own size, to
+    /// the clipboard, or saved as a picture through Save As (G18).
+    @objc optional func copyFrame(_ sender: Any?)
+    @objc optional func saveFrameAs(_ sender: Any?)
     @objc optional func goToEnclosingFolder(_ sender: Any?)
     @objc optional func goBack(_ sender: Any?)
     @objc optional func goForward(_ sender: Any?)
@@ -191,6 +195,8 @@ extension Selector {
     static let previousPage = #selector(MinivuActions.previousPage(_:))
     static let togglePlayback = #selector(MinivuActions.togglePlayback(_:))
     static let toggleMute = #selector(MinivuActions.toggleMute(_:))
+    static let copyFrame = #selector(MinivuActions.copyFrame(_:))
+    static let saveFrameAs = #selector(MinivuActions.saveFrameAs(_:))
     static let goToEnclosingFolder = #selector(MinivuActions.goToEnclosingFolder(_:))
     static let goBack = #selector(MinivuActions.goBack(_:))
     static let goForward = #selector(MinivuActions.goForward(_:))
