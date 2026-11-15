@@ -196,6 +196,18 @@ Nothing in DESIGN.md, docs/wiki or the help pages was edited.
 - **Save (⌘S, in place) keeps all metadata including location**, the
   documented promise: `SavePolicy.inPlaceOptions` turns it off whatever
   Save As remembered.
+- **Writing over the original counts as in place, so location is kept
+  there too**, whatever the toggle says (the toggle's help tag says so):
+  - Save As onto the original itself (its own name, or another letter
+    case of it, Replace confirmed in the save panel):
+    `SavePresenter.write` turns Remove location off for that write when
+    the destination is the source file (`sameFile`/`sameItem`). The
+    remembered option is not changed.
+  - Batch Convert replacing a source with its own conversion (beside the
+    originals, names and format kept, existing files Replace, so the
+    action is `.replace(original: true)`):
+    `BatchConvertSettings.settings(for:)` turns it off for that output
+    only; the batch's other, new files still leave location out.
 - It removes the GPS dictionary, every `exif:GPS…` XMP tag (whatever is
   present, not a fixed list), and the IPTC place names (City,
   Sub-location, Province/State, Country code and name, IPTC Extension
@@ -210,6 +222,12 @@ Nothing in DESIGN.md, docs/wiki or the help pages was edited.
   GPS directory from `exif:GPS…` XMP tags even when the GPS dictionary is
   gone. One shared list (`LocationMetadata`) serves Save As, Batch Convert
   and Edit Metadata, so they can't disagree about what a location is.
+- Why the original keeps its location: the task asks for the default on
+  for Save As "to a new file" and for Batch Convert, and for in-place Save
+  to keep all metadata. Overwriting the source is the in-place case
+  whichever command does it; stripping it there would silently and
+  permanently lose GPS and place names from the user's only copy, which a
+  batch resize "in place" made easy before this fix.
 - Save As writes a new file from scratch, so none of the stale-bytes
   problems of rewriting (PNG, TIFF above) apply; the tests search the bytes
   of the result for the removed city anyway.
@@ -227,7 +245,8 @@ Nothing in DESIGN.md, docs/wiki or the help pages was edited.
   main checkout only; it isn't in this worktree).
 - DESIGN.md 4.7 "Saving" (the Save As accessory list) and 4.8 Batch
   Convert ("Metadata is kept or stripped by `ImageEncoder`"): add Remove
-  location, default on, and that in-place Save keeps location.
+  location, default on, and that in-place Save keeps location, as do Save
+  As onto the original and a Batch Convert output replacing its source.
 - Wiki Security-and-Privacy.md line ~34: replace "There is no separate
   switch for location…" with the new option and its default. Wiki
   Editing.md Save As options table (line ~142): add the row. Wiki Tools.md
@@ -256,7 +275,13 @@ Nothing in DESIGN.md, docs/wiki or the help pages was edited.
 - MinivuRenderTests/BatchConvertEngineTests: Batch Convert with Remove
   location on and off, format-only and resized paths.
 - MinivuTests/SaveTests: in-place Save turns Remove location off; partial
-  stored options load with it on.
+  stored options load with it on; Save As onto the original (same name and
+  another letter case) keeps its location while a copy leaves it out
+  (`saveAsOverTheOriginalKeepsItsLocation`).
+- MinivuTests/BatchConvertWindowTests:
+  `originalsReplacedByTheirConversionKeepTheirLocation` (a source replaced
+  by its conversion keeps its location, a new file in the same batch
+  doesn't).
 - MinivuTests/MetadataEditorTests: the sheet model (mixed fields, clearing,
   keywords for several files, date shift and set, location); the batch
   with mixed values, a sidecar and a skipped PDF; Cancel leaves whole
@@ -332,7 +357,10 @@ MainMenuTests.noShortcutIsUsedTwice covers it.
 - The viewer and compare window don't draw the label; the browser does.
   The browser's dots refresh when it becomes key again.
 - A file in a folder minivu may not write extended attributes to beeps
-  and is logged; nothing else is said.
+  and is logged; nothing else is said. So does a file whose existing tags
+  can't be read (the attribute isn't a list of names, or changed while it
+  was read): `FinderTags.entries(of:)` throws and the label is refused
+  rather than written alone over tags minivu couldn't see.
 
 ## G2: Ratings and the tag in files
 
@@ -378,11 +406,23 @@ show it.
 - `MarksFileWriter` (Sources/Minivu/Save/MarksFileWriter.swift) is the
   `CatalogMirror` the catalog was designed with (`CatalogFileMirror`,
   installed with `Catalog.shared.fileMarksReader` in `AppServices.start`).
-  Each committed change reaches it on the main queue in order; it keeps,
-  per file, the catalog's latest marks and the last label chosen.
+  Each committed change reaches it on the main queue in order, naming the
+  mark it set (`Catalog.MarkField`: rating or tagged); it keeps, per file,
+  the last value of each mark changed and the last label chosen.
+- **Only the marks changed in minivu are written.** Pressing T writes the
+  tag and leaves the file's `xmp:Rating` alone; pressing 3 writes the
+  rating and leaves its pick. Otherwise a catalog row with a rating from
+  months ago would overwrite, on the next T, a rating set in Lightroom
+  since (the row's other mark may be stale relative to the file). This is
+  what "never rewrites a file just because they differ" below relies on.
 - **Coalesced:** written once changes to the file have been quiet for
   0.8 s. 1-2-3-4-5 quickly is one write with five stars; T T writes
-  nothing new. Quitting hands pending changes to the queue first
+  nothing new.
+- **Off the main thread everywhere:** the browser, viewer and compare
+  window all write ratings and tags on `BrowserModel.catalogWrites`,
+  because a change to a file without a row reads that file's own marks
+  first (adoption, below). The compare window decides a tag toggle on that
+  queue too, so a quick T T tags and untags. Quitting hands pending changes to the queue first
   (`applicationShouldTerminate`), and quitting waits for the queue.
 - **Through FileWriteQueue** (`enqueue(touching:)`, metadata only, naming
   the image and its sidecar), off the main thread (`BlockingWork`), one
@@ -455,11 +495,11 @@ with a row isn't even read).
   changes and its thumbnail is made again, as with any metadata write.
 - To take a file's newer rating over a catalog row, rate it again in
   minivu: there is no "prefer the file" command.
-- Unsaved viewer edits of a file whose rating is written meanwhile: a
-  later Save writes the pixels with the metadata the edit session loaded,
-  so the rating written into the file is lost from it (the catalog keeps
-  it). Edit Metadata asks about unsaved edits first; a rating key press
-  doesn't.
+- (Not a limit, checked: a rating or keywords written into a file that
+  has unsaved viewer edits survive a later Save. Save reads the metadata
+  from the file on disk as it writes, and the marks write is minivu's own
+  (`OwnWrites`), so Save doesn't take it for another application's
+  change. Pinned by `SaveWriteTests.saveKeepsMetadataWrittenWhileEditing`.)
 - A pending change for a file moved or renamed within the 0.8 s quiet
   period is skipped (the catalog moves the marks; the file just isn't
   written).
@@ -472,7 +512,9 @@ with a row isn't even read).
 ### Documentation to change
 
 - DESIGN.md 4.6 "Catalog": marks can be mirrored into files
-  (`CatalogMirror` now implemented), the conflict policy, adoption and
+  (`CatalogMirror` now implemented; its callback now names the mark that
+  changed, `didChange: MarkField`, and mirrors copy out only that mark),
+  the conflict policy, adoption and
   kept empty rows, schema version 2 (`overrides_file`), and reading of
   file marks (`FileMarksCache`), lazy. Replace "nothing writes them into
   files".
@@ -506,9 +548,10 @@ with a row isn't even read).
   once until the file or sidecar changes; adoption and kept empty rows,
   copies included; a version-1 catalog migrated; Finder colour tags set,
   replaced and removed keeping other tags, localised names, no empty
-  attribute left.
+  attribute left; unreadable tags refused, not overwritten.
 - MinivuTests/MarksFileTests: nothing written with the setting off (and
   it defaults off); 1-2-3-4-5 and T T written once with the last value;
+  only the mark that changed is written (a Lightroom rating survives T);
   writes wait behind earlier writes in FileWriteQueue; raws get a sidecar
   and are never modified; a file that already says it is left alone, a
   missing file skipped, a failure reported once; labels reach
@@ -516,10 +559,18 @@ with a row isn't even read).
   reads no file while listing, never reads a file with a row (the catalog
   wins), and reads the whole folder for rating sort and filters; clearing
   a file's rating in minivu sticks; label logic, the menu's titles,
-  shortcuts and VoiceOver descriptions; the browser and viewer Label
-  commands with checkmarks.
-- MinivuTests/KeywordEditingTests: comma splitting; the viewer's and the
-  browser's quick keyword edits written without a sheet; no editor for a
-  PDF or folder; sections and fields from one read.
+  shortcuts and VoiceOver descriptions. The browser and viewer Label
+  commands with checkmarks are in `AppWindowTests.LabelWindowTests` (in
+  the same file).
+- MinivuTests/KeywordEditingTests: comma splitting; no editor for a PDF or
+  folder; sections and fields from one read.
+  `AppWindowTests.KeywordWindowTests` (same file): the viewer's and the
+  browser's quick keyword edits written without a sheet.
+- Every test here that opens a browser or viewer window is nested in
+  `AppWindowTests`, the serialized parent of all window suites (one
+  viewer, one `ImageLoader` prefetch set); outside it they ran alongside
+  other window suites and closed their viewer.
+- MinivuTests/CompareWindowTests: ratings and tags now land on the
+  catalog's queue; a quick T T tags and untags.
 - MinivuTests/MainMenuTests: the Image menu's order with Label (and the
   existing duplicate-shortcut check).

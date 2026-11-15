@@ -690,6 +690,27 @@ import MinivuRender
                                              renderer: .shared)
         #expect(JPEGComment.read(from: url) == "note")
     }
+
+    /// A rating or keywords written into the file while it has unsaved
+    /// edits (a rating key with "Write ratings into files" on, the info
+    /// panel's keywords) are minivu's own write, and survive the Save: its
+    /// metadata is read from the file on disk as it is written.
+    @Test func saveKeepsMetadataWrittenWhileEditing() async throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 64, height: 48)
+        let document = EditDocument(entry: try #require(FolderEntry(url: url)))
+        try await EditRenderer.shared.prepare(document)
+        defer { EditRenderer.shared.release(document) }
+        document.apply(.flip(horizontal: true))
+        try await Task.sleep(for: .milliseconds(20))
+        try MetadataWriter.apply(MetadataEdit(addedKeywords: ["night"], rating: 4, tagged: true), to: url)
+        #expect(document.snapshot().fileIsUnchangedSinceEditing())
+        let options = SavePolicy.inPlaceOptions(remembered: .defaults(for: .jpeg), sourceBitDepth: 8)
+        try await SavePresenter.writeInPlace(document.snapshot(), colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             options: options, to: url, renderer: .shared)
+        #expect(MarksXMP.readMarks(from: url) == Catalog.Marks(rating: 4, isTagged: true))
+        #expect(MetadataFields.read(from: url).keywords == ["night"])
+    }
 }
 
 extension AppWindowTests {
