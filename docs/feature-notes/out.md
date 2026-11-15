@@ -118,7 +118,21 @@ it should.
 - **Off the main thread**: planning (headers, caption metadata) and music
   resolution through `BlockingWork`; frames and sound each fed by
   `requestMediaDataWhenReady` on their own serial queue, side by side so
-  the writer can interleave them.
+  the writer can interleave them. Planning checks Cancel before each
+  header it reads, so Cancel works at once even on a folder of thousands
+  of pictures (the progress sheet stays at 0% while it plans).
+- **No wait for ever**: each pump also runs a `SlideshowVideoWatchdog`, a
+  250 ms timer on its own queue that ends the track if Cancel was pressed
+  or the writer has failed. Without it, a writer failing (full disk,
+  encoder error) while one track is held back could leave AVFoundation
+  never calling that track's block again, with Cancel doing nothing. A
+  failed writer is never asked to finish; its error is reported.
+- **Internal storage only** (DESIGN.md 1): the save panel greys out folders
+  on other volumes (`InternalVolumesOnly`, now also used as a save panel
+  delegate), and the export checks `VolumePolicy` on the destination's
+  folder again before reading or writing anything, failing with
+  `ExternalVolumeError` ("“X” isn’t on this Mac’s internal storage…"). This
+  is stricter than Save As and Contact Sheet, which don't check yet.
 - **Cancel leaves no file**: the video is written into a scratch folder on
   the destination's volume (`ContactSheetExport.scratchFolder`, the
   system's item-replacement folder, which the sandbox allows beside a file
@@ -133,7 +147,8 @@ it should.
   A key frame every two seconds. H.264 uses High profile, auto level.
 - **Seams for tests**: `SlideshowVideoExport.chooseDestination` (the save
   panel), the writer's `decode` and `isCancelled`, the export's music
-  resolve/release, trash and `didWrite`.
+  resolve/release, trash, `didWrite` and `isAllowedVolume`, the planner's
+  `isCancelled`.
 - **Sandbox and privacy**: no entitlement added. AVFoundation writes a
   local file and reads local songs the user chose; no network.
 - `SlideshowAudioPlayer` is no longer the only file importing
@@ -155,6 +170,10 @@ it should.
   differ from one export to the next (and from the live show's).
 - An export can't be paused; quitting during one abandons it (the scratch
   folder is in the system's temporary space).
+- The dialog's "12 pictures · 1:05" counts every picture given; pictures
+  whose header turns out unreadable are left out when the export plans, so
+  the video can be shorter than the summary said. Reading every header
+  just to open the dialog would cost more than it is worth.
 
 ### Where the docs should change
 
@@ -182,6 +201,10 @@ it should.
   separately.
 - **Wiki Security-and-Privacy.md** / help Privacy.md: exporting writes only
   the chosen file; music is read through the bookmarks already kept.
+- **DESIGN.md 1 / 4.2 (volume policy)**: list Export Slideshow Video and
+  Create Web Gallery among the places `VolumePolicy` is enforced (panel
+  delegate plus a check before writing), next to Batch Convert. Save As and
+  Contact Sheet still don't check; a later pass could give them the same.
 
 ## G21: HTML web gallery
 
@@ -199,7 +222,8 @@ it should.
   - *Pictures*: Thumbnails (CSS px, 64–512, default 200; written at twice
     that for Retina screens), Large pictures (long side in px, 320–8192,
     default 1600; smaller pictures keep their size), Include the original
-    files (off).
+    files (off). With originals on, the section's footer says what happens
+    to their metadata (see Privacy below).
   - *Layout*: Columns (stepper; 0 shows "Fit the window", a responsive grid,
     the default; 1–12 fixed, falling to two on screens under 640 px), Theme
     (Light, Dark, Automatic: follows the viewer's appearance; default
@@ -219,8 +243,10 @@ it should.
     defaults, numbers are clamped into range).
 - **Create…** closes the dialog and opens an open panel (folders only, New
   Folder allowed, prompt "Create Gallery") for the folder the gallery goes
-  in, starting in the browser's folder. Cancel returns to the dialog with
-  its choices. The gallery is a new folder in it named after the title
+  in, starting in the browser's folder; folders on external drives, memory
+  cards and network shares are greyed out (internal storage only, checked
+  again before writing: "“X” isn’t on this Mac’s internal storage…").
+  Cancel returns to the dialog with its choices. The gallery is a new folder in it named after the title
   ("Trip"), or "Trip 2" if that name is taken; nothing is ever replaced.
 - **Progress**: the contact sheet's progress sheet, "Picture 3 of 24", then
   "Writing the pages", with Cancel (Esc); shown after 0.3 s. Cancel leaves
@@ -300,7 +326,23 @@ Trip/
   leaves either no gallery or a complete one; the scratch folder is always
   removed.
 - **Privacy**: Remove location is on by default; thumbnails never carry
-  metadata. No entitlement was added: the open panel grants the folder,
+  metadata. **Originals** are copied byte for byte except their location:
+  unless the large pictures keep it (Keep metadata on *and* Remove location
+  off, `WebGallerySettings.originalsKeepLocation`), each copy that has a
+  location is rewritten in place by wave 1's lossless `MetadataWriter`
+  (`MetadataEdit(removeLocation: true)`: GPS, its XMP mirror and the IPTC
+  place names; no pixel re-encoded; other metadata kept) and read back. An
+  original it can't be removed from (a camera raw, which gets only a
+  sidecar; GIF, WebP and other formats the writer doesn't rewrite; a write
+  that didn't take) is left out of originals/, its page has no download
+  link, and an alert after the gallery is made names it ("1 original file
+  was left out of the gallery." with the reason), alongside any pictures
+  left out. Original copies without a location are untouched. Sidecars are
+  never copied.
+- **Internal storage only**: the open panel has the `InternalVolumesOnly`
+  delegate, and the export checks `VolumePolicy` on the chosen folder
+  before writing anything (`ExternalVolumeError`), as Batch Convert does
+  for its output folder. No entitlement was added: the open panel grants the folder,
   and the sources are already readable. No network code.
 
 ### Design decisions and why
@@ -321,7 +363,7 @@ Trip/
   and CSS; pure and tested in milliseconds), `Sources/Minivu/Tools/WebGallery/`
   (`WebGalleryExport`, `WebGallerySheet` with model, view and controller,
   `BrowserWebGallery`). Seams for tests: `WebGalleryExport.chooseFolder`,
-  the converter, `readFields`, `formatDate`.
+  the converter, `readFields`, `formatDate`, `isAllowedVolume`.
 
 ### Limits
 
@@ -352,7 +394,9 @@ Trip/
   section with the dialog's choices, the folder it makes, opening it from
   disk, Cancel, and what each format plays in.
 - **Wiki Security-and-Privacy.md** / help Privacy.md: galleries contain no
-  external links or scripts; location removed by default; thumbnails carry
-  no metadata.
+  external links or scripts; location removed by default, from the large
+  pictures and from included originals (an original whose location can't
+  be removed, such as a camera raw, is left out); thumbnails carry no
+  metadata; galleries are written to internal storage only.
 - **Wiki Keyboard-Shortcuts.md** / the keyboard-shortcuts page: nothing (no
   shortcut), unless it lists every Tools item.
