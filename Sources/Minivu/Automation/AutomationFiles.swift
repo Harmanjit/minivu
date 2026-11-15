@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import MinivuCore
 import UniformTypeIdentifiers
 
 /// The files a shortcut passed to one of minivu's intents, made readable for
@@ -12,14 +13,39 @@ import UniformTypeIdentifiers
 /// Resize can still read it, from a copy in a folder of minivu's own that
 /// `finish()` removes, but a rename or a rating is about the file itself
 /// and refuses it.
+///
+/// Internal storage only, as everywhere else in minivu (DESIGN.md 1): a
+/// file on an external drive, a memory card or a network share is refused
+/// before anything reads it, and the whole action with it, so a Quick
+/// Action on photos still on a card neither converts them nor files their
+/// ratings in the catalog.
 @MainActor final class AutomationInput {
     let urls: [URL]
     private var accessed: [URL]
     private let copies: URL?
 
+    private init(urls: [URL], accessed: [URL], copies: URL?) {
+        self.urls = urls
+        self.accessed = accessed
+        self.copies = copies
+    }
+
+    /// Takes the shortcut's files, off the main thread: a file that comes as
+    /// data is read whole and written out, and the volume checks ask the
+    /// file system, neither of which may stall a viewer that is open.
+    ///
     /// - Parameter originalsOnly: the intent changes or marks the files
     ///   themselves, so each must be a file on disk.
-    init(_ files: [IntentFile], originalsOnly: Bool) throws {
+    static func make(_ files: [IntentFile], originalsOnly: Bool) async throws -> AutomationInput {
+        let root = Automation.outputRoot
+        let taken = try await BlockingWork.run { try take(files, originalsOnly: originalsOnly, outputRoot: root) }
+        return AutomationInput(urls: taken.urls, accessed: taken.accessed, copies: taken.copies)
+    }
+
+    /// Starts access to each file on disk and checks its volume, or copies
+    /// a file that came as data; on any refusal undoes all of it.
+    nonisolated private static func take(_ files: [IntentFile], originalsOnly: Bool,
+                                         outputRoot: URL) throws -> (urls: [URL], accessed: [URL], copies: URL?) {
         var urls: [URL] = []
         var accessed: [URL] = []
         var copies: URL?
@@ -27,13 +53,18 @@ import UniformTypeIdentifiers
             for file in files {
                 if let url = file.fileURL {
                     if url.startAccessingSecurityScopedResource() { accessed.append(url) }
+                    // Checked with access started: the sandbox may hide even
+                    // a file's volume until then.
+                    guard VolumePolicy.isAllowed(url) else {
+                        throw Automation.Failure.notOnInternalStorage(url.lastPathComponent)
+                    }
                     urls.append(url)
                     continue
                 }
                 guard !originalsOnly else { throw Automation.Failure.notAFileOnDisk(file.filename) }
-                let folder = try copies ?? Automation.makeRunFolder()
+                let folder = try copies ?? Automation.makeRunFolder(in: outputRoot)
                 copies = folder
-                urls.append(try Self.copy(file, into: folder))
+                urls.append(try copy(file, into: folder))
             }
         } catch {
             for url in accessed { url.stopAccessingSecurityScopedResource() }
@@ -41,14 +72,12 @@ import UniformTypeIdentifiers
             throw error
         }
         guard !urls.isEmpty else { throw Automation.Failure.noImages }
-        self.urls = urls
-        self.accessed = accessed
-        self.copies = copies
+        return (urls, accessed, copies)
     }
 
     /// Writes a file that came as data under its own name (numbered when two
     /// share one), so the converted file is named after it too.
-    private static func copy(_ file: IntentFile, into folder: URL) throws -> URL {
+    nonisolated private static func copy(_ file: IntentFile, into folder: URL) throws -> URL {
         let given = (file.filename as NSString).lastPathComponent
         var name = given.isEmpty || given.hasPrefix(".") ? "Image" : given
         if (name as NSString).pathExtension.isEmpty, let ext = file.type?.preferredFilenameExtension {

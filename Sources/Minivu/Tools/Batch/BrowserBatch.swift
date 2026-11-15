@@ -67,16 +67,40 @@ enum BatchReplaceChoice {
     }
 
     /// A rename asked for by a shortcut (`Automation.rename`), which has no
-    /// browser window: it waits for writes queued for either name and is
-    /// counted while it runs, exactly as a window's batch is, so neither a
-    /// save nor quitting can cut across it.
+    /// browser window: it waits its turn behind every other rename
+    /// (`queueRename`), waits for writes queued for either name, and is
+    /// counted while it runs, exactly as a window's batch is, so neither
+    /// another rename, a save nor quitting can cut across it.
     static func renameWithoutWindow(_ requests: [BatchRenamer.Request], catalog: Catalog) async -> BatchRenamer.Outcome {
         renamesRunning += 1
         defer { renamesRunning -= 1 }
-        await FileWriteQueue.shared.waitForWrites(to: requests.flatMap {
-            [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
-        })
-        return await BlockingWork.run { BatchRenamer.perform(requests, catalog: catalog) }
+        return await queueRename {
+            await FileWriteQueue.shared.waitForWrites(to: requests.flatMap {
+                [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
+            })
+            return await BlockingWork.run { BatchRenamer.perform(requests, catalog: catalog) }
+        }
+    }
+
+    /// The last rename in the queue every batch rename joins, whichever
+    /// window or shortcut asked for it.
+    private static var lastRename: Task<Void, Never>?
+
+    /// Runs `rename` once every rename queued before it has finished. Two
+    /// renames never move files at once: each was planned against the
+    /// folder as it was, and the swap step (a file stepped aside under a
+    /// hidden name) must not meet another renamer half way. A window's own
+    /// batches already run one after another; this also puts them in line
+    /// with other windows' and with shortcuts'. Renames take milliseconds a
+    /// file, so the wait is short.
+    static func queueRename<T: Sendable>(_ rename: @escaping @MainActor () async -> T) async -> T {
+        let previous = lastRename
+        let task = Task { () -> T in
+            await previous?.value
+            return await rename()
+        }
+        lastRename = Task { _ = await task.value }
+        return await task.value
     }
 
     /// Everything as the app starts, for tests to put back what they
@@ -92,6 +116,7 @@ enum BatchReplaceChoice {
         work = [:]
         sheetsUp = [:]
         renamesRunning = 0
+        lastRename = nil
     }
 
     fileprivate static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
@@ -192,11 +217,16 @@ extension BrowserWindowController {
             // undo renaming the other way round, and a write queued for a
             // name the batch is about to create, which would make its
             // exclusive rename fail.
-            await FileWriteQueue.shared.waitForWrites(to: requests.flatMap {
-                [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
-            })
-            let outcome = await BlockingWork.run {
-                BatchRenamer.perform(requests, restoring: restoring, catalog: catalog)
+            //
+            // In line behind every other rename, a shortcut's or another
+            // window's (`queueRename`).
+            let outcome = await BatchTools.queueRename {
+                await FileWriteQueue.shared.waitForWrites(to: requests.flatMap {
+                    [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
+                })
+                return await BlockingWork.run {
+                    BatchRenamer.perform(requests, restoring: restoring, catalog: catalog)
+                }
             }
             BatchTools.renamesRunning -= 1
             BatchTools.end(id)

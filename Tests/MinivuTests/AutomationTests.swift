@@ -156,11 +156,11 @@ extension AppWindowTests {
 
         /// Runs a day old are cleared when the next run starts; newer ones stay.
         @Test func oldRunFoldersAreRemoved() throws {
-            let old = try Automation.makeRunFolder()
-            let recent = try Automation.makeRunFolder()
+            let old = try Automation.makeRunFolder(in: Automation.outputRoot)
+            let recent = try Automation.makeRunFolder(in: Automation.outputRoot)
             try FileManager.default.setAttributes([.creationDate: Date(timeIntervalSinceNow: -2 * Automation.outputLifetime)],
                                                   ofItemAtPath: old.path)
-            let new = try Automation.makeRunFolder()
+            let new = try Automation.makeRunFolder(in: Automation.outputRoot)
             #expect(!FileManager.default.fileExists(atPath: old.path))
             #expect(FileManager.default.fileExists(atPath: recent.path) && FileManager.default.fileExists(atPath: new.path))
         }
@@ -198,6 +198,46 @@ extension AppWindowTests {
             #expect(try FileManager.default.contentsOfDirectory(atPath: t.url.path).sorted() == ["a.jpg", "b.jpg"])
         }
 
+        /// A folder minivu may not change, among others it may: nothing is
+        /// renamed anywhere, rather than half the set. (Read-only by its
+        /// permissions here; in the sandboxed app, a folder minivu was only
+        /// handed single files in answers the same.)
+        @Test func aFolderMinivuMayNotChangeRenamesNothing() async throws {
+            let t = try ScratchFolder()
+            let open = try t.folder("open"), closed = try t.folder("closed")
+            let a = open.appendingPathComponent("a.jpg"), b = closed.appendingPathComponent("b.jpg")
+            try FileManager.default.moveItem(at: try t.jpeg("a.jpg", width: 10, height: 10), to: a)
+            try FileManager.default.moveItem(at: try t.jpeg("b.jpg", width: 10, height: 10), to: b)
+            try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: closed.path)
+            defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: closed.path) }
+
+            await #expect(throws: Automation.Failure.foldersNotWritable([closed.standardizedFileURL.path])) {
+                try await Automation.rename([a, b], pattern: RenamePattern(text: "trip-{#}"))
+            }
+            #expect(try FileManager.default.contentsOfDirectory(atPath: open.path) == ["a.jpg"])
+            #expect(try FileManager.default.contentsOfDirectory(atPath: closed.path) == ["b.jpg"])
+            #expect(Automation.unwritableFolders([a, a, b, b]) == [closed.standardizedFileURL])
+        }
+
+        /// A shortcut's rename waits for a rename already under way (a
+        /// window's, or another shortcut's), so two never move files at once.
+        @Test func aShortcutsRenameWaitsItsTurn() async throws {
+            @MainActor final class Gate {
+                var waiting: CheckedContinuation<Void, Never>?
+            }
+            let t = try ScratchFolder()
+            let a = try t.jpeg("a.jpg", width: 10, height: 10)
+            let gate = Gate()
+            let first = Task { await BatchTools.queueRename { await withCheckedContinuation { gate.waiting = $0 } } }
+            await TestTiming.waitUntil { gate.waiting != nil }
+            let rename = Task { try await Automation.rename([a], pattern: RenamePattern(text: "late")) }
+            try await Task.sleep(for: .milliseconds(200))
+            #expect(FileManager.default.fileExists(atPath: a.path), "not renamed while another rename runs")
+            gate.waiting?.resume()
+            await first.value
+            #expect(try await rename.value.map(\.lastPathComponent) == ["late.jpg"])
+        }
+
         // MARK: - Rating
 
         @Test func setRatingWritesTheCatalogBeforeReturning() async throws {
@@ -219,26 +259,56 @@ extension AppWindowTests {
             let jpeg = try Data(contentsOf: try t.jpeg("x.jpg", width: 10, height: 10))
             let file = IntentFile(data: jpeg, filename: "From Mail.jpg", type: .jpeg)
 
-            let input = try AutomationInput([file, file], originalsOnly: false)
+            let input = try await AutomationInput.make([file, file], originalsOnly: false)
             #expect(input.urls.map(\.lastPathComponent) == ["From Mail.jpg", "From Mail 2.jpg"])
             #expect(try Data(contentsOf: input.urls[0]) == jpeg)
             input.finish()
             #expect(!FileManager.default.fileExists(atPath: input.urls[0].deletingLastPathComponent().path))
 
-            #expect(throws: Automation.Failure.notAFileOnDisk("From Mail.jpg")) {
-                try AutomationInput([file], originalsOnly: true)
+            await #expect(throws: Automation.Failure.notAFileOnDisk("From Mail.jpg")) {
+                try await AutomationInput.make([file], originalsOnly: true)
             }
-            #expect(throws: Automation.Failure.noImages) { try AutomationInput([], originalsOnly: false) }
+            await #expect(throws: Automation.Failure.noImages) { try await AutomationInput.make([], originalsOnly: false) }
         }
 
         /// Files from Finder are used where they are, not copied.
-        @Test func filesOnDiskAreUsedWhereTheyAre() throws {
+        @Test func filesOnDiskAreUsedWhereTheyAre() async throws {
             let t = try ScratchFolder()
             let url = try t.jpeg("x.jpg", width: 10, height: 10)
-            let input = try AutomationInput([IntentFile(fileURL: url)], originalsOnly: true)
+            let input = try await AutomationInput.make([IntentFile(fileURL: url)], originalsOnly: true)
             #expect(input.urls == [url])
             input.finish()
             #expect(FileManager.default.fileExists(atPath: url.path))
+        }
+
+        /// Internal storage only: a file `VolumePolicy` refuses fails the
+        /// whole action before anything reads or rates it. A path with no
+        /// volume to ask about stands in for a memory card here; the policy
+        /// refuses what it can't place.
+        @Test func filesNotOnInternalStorageAreRefused() async throws {
+            let t = try ScratchFolder()
+            let good = try t.jpeg("good.jpg", width: 10, height: 10)
+            let elsewhere = URL(fileURLWithPath: "/Volumes/minivu-no-such-card-\(UUID().uuidString)/DCIM/IMG_0001.JPG")
+            #expect(!VolumePolicy.isAllowed(elsewhere))
+            await #expect(throws: Automation.Failure.notOnInternalStorage("IMG_0001.JPG")) {
+                try await AutomationInput.make([IntentFile(fileURL: good), IntentFile(fileURL: elsewhere)],
+                                               originalsOnly: false)
+            }
+
+            let rating = SetRatingIntent()
+            rating.images = [IntentFile(fileURL: good), IntentFile(fileURL: elsewhere)]
+            rating.rating = 4
+            await #expect(throws: Automation.Failure.notOnInternalStorage("IMG_0001.JPG")) { try await rating.perform() }
+            #expect(catalog.marks(for: good) == .none, "nothing rated, the good file included")
+
+            let convert = ConvertImagesIntent()
+            convert.images = [IntentFile(fileURL: elsewhere)]
+            convert.format = .png
+            convert.quality = 90
+            convert.longSide = nil
+            convert.removeLocation = true
+            await #expect(throws: Automation.Failure.notOnInternalStorage("IMG_0001.JPG")) { try await convert.perform() }
+            #expect(runFolders().isEmpty)
         }
 
         // MARK: - The intents, as Shortcuts runs them

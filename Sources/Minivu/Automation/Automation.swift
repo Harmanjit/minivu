@@ -18,19 +18,30 @@ import MinivuRender
 /// has to change the folder it works in, so it works only where minivu may
 /// write already: the Pictures folder and the folders in its sidebar.
 ///
+/// **Internal storage only.** Every file on disk is checked with
+/// `VolumePolicy` as it arrives (`AutomationInput`), as a folder opened in
+/// the browser is: a file on an external drive, a memory card or a network
+/// share fails the whole action before anything reads it.
+///
 /// **Nothing leaves the Mac.** The shortcut runs minivu's code in minivu's
 /// own sandboxed process, which has no network entitlement. Whatever the
 /// shortcut does with the files next is Shortcuts' business, not minivu's.
 @MainActor enum Automation {
-    enum Failure: LocalizedError, Equatable {
+    nonisolated enum Failure: LocalizedError, Equatable {
         /// A file came as data only (from another app, not from a disk), and
         /// the request is about the file itself: a rename or a rating.
         case notAFileOnDisk(String)
+        /// A file is on a volume `VolumePolicy` refuses: an external drive,
+        /// a memory card, a network share. Nothing was done.
+        case notOnInternalStorage(String)
         case unknownTokens([String])
         /// The rename plan found problems (two files getting one name, a name
         /// held by another file); nothing was renamed.
         case renameProblems([String])
-        /// Some renames failed; the rest were done.
+        /// Folders minivu may not change (named here); nothing was renamed.
+        case foldersNotWritable([String])
+        /// Some renames failed as they ran (a file changed or went away after
+        /// the checks); the rest were done.
         case renameFailed([String])
         /// Some conversions failed; the files that converted are not handed on.
         case conversionFailed(String)
@@ -41,14 +52,20 @@ import MinivuRender
             case .notAFileOnDisk(let name):
                 "“\(name)” isn’t a file in a folder on this Mac, so minivu can’t rename or rate it. "
                     + "Pass files from Finder instead."
+            case .notOnInternalStorage(let name):
+                "“\(name)” isn’t on this Mac’s internal storage, so minivu did nothing. minivu only works with "
+                    + "files on this Mac’s internal storage. Copy the photos from the external drive, memory card "
+                    + "or network share to a folder on this Mac first."
             case .unknownTokens(let tokens):
                 "The pattern has \(tokens.count == 1 ? "a token" : "tokens") minivu doesn’t know: "
                     + tokens.joined(separator: ", ") + ". Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}."
             case .renameProblems(let lines):
                 "Nothing was renamed:\n" + Self.list(lines)
+            case .foldersNotWritable(let folders):
+                "Nothing was renamed. minivu can rename files only in folders it may change: Pictures and the "
+                    + "folders in its sidebar (File > Add Folder to Sidebar…). It may not change:\n" + Self.list(folders)
             case .renameFailed(let lines):
-                "Some files couldn’t be renamed. minivu can rename files only in folders it may change: Pictures "
-                    + "and the folders in its sidebar (File > Add Folder to Sidebar…).\n" + Self.list(lines)
+                "Some files couldn’t be renamed; the others were.\n" + Self.list(lines)
             case .conversionFailed(let detail):
                 detail
             case .noImages:
@@ -75,7 +92,7 @@ import MinivuRender
     static var catalog: Catalog = .shared
 
     /// How old a run folder may get before the next run removes it.
-    static let outputLifetime: TimeInterval = 24 * 3600
+    nonisolated static let outputLifetime: TimeInterval = 24 * 3600
 
     /// Everything as the app starts, for tests.
     static func reset() {
@@ -128,7 +145,8 @@ import MinivuRender
     /// (two at a time, one camera RAW at a time, as Batch Convert does).
     private static func convert(_ work: [(source: URL, settings: BatchConvertSettings)]) async throws -> [URL] {
         guard !work.isEmpty else { throw Failure.noImages }
-        let folder = try makeRunFolder()
+        let root = outputRoot
+        let folder = try await BlockingWork.run { try makeRunFolder(in: root) }
         var groups: [(settings: BatchConvertSettings, indices: [Int])] = []
         for (index, item) in work.enumerated() {
             var settings = item.settings
@@ -173,18 +191,19 @@ import MinivuRender
         return results.compactMap { $0 }
     }
 
-    /// A new, empty folder for one run, after clearing out runs old enough
-    /// that no shortcut can still want them.
-    static func makeRunFolder(now: Date = Date()) throws -> URL {
+    /// A new, empty folder for one run in `root` (`outputRoot`), after
+    /// clearing out runs old enough that no shortcut can still want them.
+    /// Blocking: off the main thread.
+    nonisolated static func makeRunFolder(in root: URL, now: Date = Date()) throws -> URL {
         let fileManager = FileManager.default
-        try fileManager.createDirectory(at: outputRoot, withIntermediateDirectories: true)
-        let runs = (try? fileManager.contentsOfDirectory(at: outputRoot, includingPropertiesForKeys: [.creationDateKey])) ?? []
+        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+        let runs = (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: [.creationDateKey])) ?? []
         for run in runs {
             guard let created = try? run.resourceValues(forKeys: [.creationDateKey]).creationDate,
                   now.timeIntervalSince(created) > outputLifetime else { continue }
             try? fileManager.removeItem(at: run)
         }
-        let folder = outputRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let folder = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: false)
         return folder
     }
@@ -193,8 +212,15 @@ import MinivuRender
 
     /// Renames `sources` in place with Batch Rename's pattern (tokens, then
     /// the counter from `counterStart`), checked first as the sheet checks
-    /// it: unknown tokens or any problem and nothing is renamed. Returns the
+    /// it: unknown tokens or any problem and nothing is renamed. Then every
+    /// folder a file is renamed in must be one minivu may change, or nothing
+    /// is renamed: a shortcut passing photos from Pictures and the Desktop
+    /// would otherwise rename the first and fail on the second, leaving a
+    /// half-renamed set with gaps in its counter and no undo. Returns the
     /// files under their new names, in order. Ratings follow in the catalog.
+    ///
+    /// What is left to fail as the files move is a file that changes or goes
+    /// away after these checks, which `renameFailed` names.
     static func rename(_ sources: [URL], pattern: RenamePattern) async throws -> [URL] {
         guard !sources.isEmpty else { throw Failure.noImages }
         let plan = await BlockingWork.run {
@@ -207,6 +233,8 @@ import MinivuRender
         guard problems.isEmpty else { throw Failure.renameProblems(problems) }
         let requests = plan.changes.map { BatchRenamer.Request(url: $0.source, newName: $0.newName) }
         guard !requests.isEmpty else { return sources }
+        let closed = await BlockingWork.run { unwritableFolders(requests.map(\.url)) }
+        guard closed.isEmpty else { throw Failure.foldersNotWritable(closed.map(\.path)) }
 
         let outcome = await BatchTools.renameWithoutWindow(requests, catalog: catalog)
         for step in outcome.renamed {
@@ -219,6 +247,21 @@ import MinivuRender
         // One step per request, from its original name to its final one.
         let renamed = Dictionary(outcome.renamed.map { ($0.from.standardizedFileURL.path, $0.to) }) { first, _ in first }
         return sources.map { renamed[$0.standardizedFileURL.path] ?? $0 }
+    }
+
+    /// The folders of `files` that minivu may not change, each once, in the
+    /// order first met. Asked of the file system with access(2), which the
+    /// sandbox answers too: the Pictures folder and the sidebar's folders
+    /// (whose bookmarks are open for the session) are writable, a folder
+    /// minivu was only given single files in is not. Blocking.
+    nonisolated static func unwritableFolders(_ files: [URL]) -> [URL] {
+        var seen = Set<String>(), closed: [URL] = []
+        for file in files {
+            let folder = file.deletingLastPathComponent().standardizedFileURL
+            guard seen.insert(folder.path).inserted else { continue }
+            if !FileManager.default.isWritableFile(atPath: folder.path) { closed.append(folder) }
+        }
+        return closed
     }
 
     // MARK: - Rating

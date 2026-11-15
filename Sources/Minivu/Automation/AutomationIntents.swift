@@ -99,7 +99,7 @@ struct ConvertImagesIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
         let settings = Automation.convertSettings(format: format.exportFormat, quality: quality, longSide: longSide,
                                                   removeLocation: removeLocation)
-        let input = try await AutomationInput(images, originalsOnly: false)
+        let input = try await AutomationInput.make(images, originalsOnly: false)
         let converted = try await input.use { try await Automation.convert($0, settings: settings) }
         return .result(value: await AutomationInput.output(converted))
     }
@@ -139,7 +139,7 @@ struct ResizeImagesIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
         let resize = Self.resize(mode: mode, size: size, enlarges: enlarges)
-        let input = try await AutomationInput(images, originalsOnly: false)
+        let input = try await AutomationInput.make(images, originalsOnly: false)
         let resized = try await input.use { try await Automation.resize($0, resize: resize, removeLocation: removeLocation) }
         return .result(value: await AutomationInput.output(resized))
     }
@@ -174,7 +174,7 @@ struct RenameImagesIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
         let pattern = RenamePattern(text: pattern, counterStart: counterStart)
-        let input = try await AutomationInput(images, originalsOnly: true)
+        let input = try await AutomationInput.make(images, originalsOnly: true)
         let renamed = try await input.use { try await Automation.rename($0, pattern: pattern) }
         return .result(value: await AutomationInput.files(renamed))
     }
@@ -199,7 +199,7 @@ struct SetRatingIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
         let rating = min(max(rating, 0), 5)
-        let input = try await AutomationInput(images, originalsOnly: true)
+        let input = try await AutomationInput.make(images, originalsOnly: true)
         let rated = await input.use { urls in
             await Automation.setRating(rating, for: urls)
             return urls
@@ -231,7 +231,7 @@ struct OpenInMinivuIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        let input = try await AutomationInput(items, originalsOnly: true)
+        let input = try await AutomationInput.make(items, originalsOnly: true)
         await input.use(keepingAccess: true) { await Automation.open($0) }
         return .result()
     }
