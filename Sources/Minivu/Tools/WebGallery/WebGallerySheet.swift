@@ -37,6 +37,17 @@ import MinivuCore
         return "\(pictures) · \(pages) · up to \(settings.largeSize) px"
     }
 
+    /// What happens to the originals' metadata, under the Pictures section
+    /// while they are included: they keep everything except, unless the
+    /// large pictures keep it too, where each photo was taken.
+    var originalsNote: String? {
+        guard settings.includesOriginals else { return nil }
+        if settings.originalsKeepLocation {
+            return "The original files keep all their metadata, including where each photo was taken."
+        }
+        return "Where each photo was taken is removed from the original files too; they keep their other metadata. An original it can’t be removed from, such as a camera raw file, is left out."
+    }
+
     /// What the chosen format plays in, under the File section.
     var formatNote: String {
         switch settings.format {
@@ -63,7 +74,7 @@ struct WebGalleryView: View {
                     Text("The gallery is a folder with index.html, a page for each picture and a style sheet. It needs nothing from the internet, and opens from disk in any browser.")
                         .paragraphFooter()
                 }
-                Section("Pictures") {
+                Section {
                     LabeledContent("Thumbnails") {
                         pixelField("Thumbnail size", $model.settings.thumbnailSize)
                     }
@@ -71,6 +82,12 @@ struct WebGalleryView: View {
                         pixelField("Large picture size", $model.settings.largeSize)
                     }
                     Toggle("Include the original files", isOn: $model.settings.includesOriginals)
+                } header: {
+                    Text("Pictures")
+                } footer: {
+                    if let note = model.originalsNote {
+                        Text(note).paragraphFooter()
+                    }
                 }
                 Section("Layout") {
                     LabeledContent("Columns") {
@@ -241,7 +258,9 @@ final class WebGalleryController {
                     cancel: progress.cancel, progress: { done, total in progress.update(done: done, of: total) })
                 self.outcome = outcome
                 progress.finish()
-                if !outcome.skipped.isEmpty, let window { Self.reportSkipped(outcome.skipped, on: window) }
+                if !outcome.skipped.isEmpty || !outcome.withheldOriginals.isEmpty, let window {
+                    Self.reportSkipped(outcome.skipped, withheld: outcome.withheldOriginals, on: window)
+                }
             } catch is CancellationError {
                 progress.finish()
             } catch {
@@ -252,17 +271,36 @@ final class WebGalleryController {
         }
     }
 
-    /// The pictures left out of a gallery that was made, up to eight named.
-    nonisolated static func skippedMessage(_ skipped: [WebGalleryExport.Skipped]) -> (title: String, detail: String) {
-        let title = skipped.count == 1 ? "1 picture was left out of the gallery."
+    /// The pictures left out of a gallery that was made, and the original
+    /// files left out because their location couldn't be removed, up to
+    /// eight of each named.
+    nonisolated static func skippedMessage(_ skipped: [WebGalleryExport.Skipped],
+                                           withheld: [String] = []) -> (title: String, detail: String) {
+        func named(_ lines: [String]) -> [String] {
+            lines.count > 8 ? Array(lines.prefix(8)) + ["…and \((lines.count - 8).formatted()) more."] : lines
+        }
+        let title: String
+        var lines: [String] = []
+        if !skipped.isEmpty {
+            title = skipped.count == 1 ? "1 picture was left out of the gallery."
                                        : "\(skipped.count.formatted()) pictures were left out of the gallery."
-        var lines = skipped.prefix(8).map { "\($0.name): \($0.reason)" }
-        if skipped.count > 8 { lines.append("…and \((skipped.count - 8).formatted()) more.") }
+            lines = named(skipped.map { "\($0.name): \($0.reason)" })
+            if !withheld.isEmpty { lines.append("") }
+        } else {
+            title = withheld.count == 1 ? "1 original file was left out of the gallery."
+                                        : "\(withheld.count.formatted()) original files were left out of the gallery."
+        }
+        if !withheld.isEmpty {
+            lines.append(withheld.count == 1
+                ? "Where this photo was taken couldn’t be removed from its original file, so only its large picture is in the gallery:"
+                : "Where these photos were taken couldn’t be removed from their original files, so only their large pictures are in the gallery:")
+            lines += named(withheld)
+        }
         return (title, lines.joined(separator: "\n"))
     }
 
-    private static func reportSkipped(_ skipped: [WebGalleryExport.Skipped], on window: NSWindow) {
-        let message = skippedMessage(skipped)
+    private static func reportSkipped(_ skipped: [WebGalleryExport.Skipped], withheld: [String], on window: NSWindow) {
+        let message = skippedMessage(skipped, withheld: withheld)
         let alert = NSAlert()
         alert.messageText = message.title
         alert.informativeText = message.detail

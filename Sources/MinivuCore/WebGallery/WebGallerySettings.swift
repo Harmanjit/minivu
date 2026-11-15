@@ -176,6 +176,14 @@ public struct WebGallerySettings: Codable, Hashable, Sendable {
         showsTitle || showsDate || sort == .dateTaken
     }
 
+    /// Whether the original files copied into the gallery may keep where
+    /// each photo was taken: only when the large pictures keep it too, so
+    /// including the originals never shares a location the dialog said it
+    /// would leave out.
+    public var originalsKeepLocation: Bool {
+        keepsMetadata && !removesLocation
+    }
+
     /// The thumbnails' long side in pixels, as written.
     public var thumbnailPixels: Int { thumbnailSize * 2 }
 

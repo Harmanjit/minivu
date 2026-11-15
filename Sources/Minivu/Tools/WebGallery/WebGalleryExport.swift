@@ -40,6 +40,17 @@ final class WebGallerySettingsStore {
 /// resize, the same encoder and metadata rules as Save As, always SDR and
 /// sRGB. A picture that can't be made is left out and named afterwards;
 /// the gallery is made of the rest.
+///
+/// Original files, when included, are copied as they are, except where
+/// each photo was taken: unless the large pictures keep their location, it
+/// is removed from each copy with the lossless metadata writer (no pixel
+/// re-encoded), and an original it can't be removed from (a camera raw,
+/// which minivu never modifies, or a format it can't rewrite) is left out
+/// of originals/ and named afterwards, so the gallery never shares a
+/// location the dialog said it would leave out.
+///
+/// The chosen folder must be on the Mac's internal storage (`VolumePolicy`,
+/// DESIGN.md 1), as Batch Convert's output folder must.
 enum WebGalleryExport {
     /// A picture left out, and why.
     struct Skipped: Equatable, Sendable {
@@ -52,14 +63,20 @@ enum WebGalleryExport {
         var folder: URL
         var items: [WebGalleryItem]
         var skipped: [Skipped]
+        /// Pictures whose original file was left out of originals/, its
+        /// location not removable; their large pictures are in the gallery.
+        var withheldOriginals: [String] = []
     }
 
     /// Makes a gallery of `images` called `title` in a new folder inside
     /// `parent`, and returns it. `progress` gets (steps done, steps) on the
     /// main actor: one step a picture, and one for the pages. Throws
-    /// `CancellationError` if `cancel` is set before the gallery is placed.
+    /// `CancellationError` if `cancel` is set before the gallery is placed,
+    /// and `ExternalVolumeError` for a folder `isAllowedVolume` refuses,
+    /// before anything is written.
     static func export(images: [FolderEntry], title: String, settings: WebGallerySettings, into parent: URL,
                        cancel: CancellationFlag, converter: BatchConverter = BatchConvertJob.makeConverter(),
+                       isAllowedVolume: @escaping @Sendable (URL) -> Bool = VolumePolicy.isAllowed,
                        readFields: @escaping @Sendable (URL) -> MetadataFields = { MetadataFields.read(from: $0) },
                        formatDate: @escaping @Sendable (WebGalleryPlanner.Source) -> String
                            = { WebGalleryPlanner.dateText(for: $0) },
@@ -67,6 +84,7 @@ enum WebGalleryExport {
         let settings = settings.validated
         let accessing = parent.startAccessingSecurityScopedResource()
         defer { if accessing { parent.stopAccessingSecurityScopedResource() } }
+        guard await BlockingWork.run({ isAllowedVolume(parent) }) else { throw ExternalVolumeError(folder: parent) }
 
         // Headers only, never pixels, and only when a caption or the order
         // needs them.
@@ -94,6 +112,7 @@ enum WebGalleryExport {
         progress(0, steps)
         var items: [WebGalleryItem] = []
         var skipped: [Skipped] = []
+        var withheld: [String] = []
         var firstError: Error?
         for (index, item) in planned.enumerated() {
             guard !cancel.isCancelled else { throw CancellationError() }
@@ -104,6 +123,7 @@ enum WebGalleryExport {
                     try await writePictures(for: item, settings: settings, converter: converter, into: gallery)
                 }
                 items.append(made)
+                if item.originalName != nil, made.originalName == nil { withheld.append(item.fileName) }
             } catch {
                 firstError = firstError ?? error
                 skipped.append(Skipped(name: item.fileName, reason: SaveAlert.message(for: error)))
@@ -124,7 +144,7 @@ enum WebGalleryExport {
             try await BlockingWork.run { try place(gallery, in: parent, as: name) }
         }
         let placed = try await job.value.value
-        return Outcome(folder: placed, items: items, skipped: skipped)
+        return Outcome(folder: placed, items: items, skipped: skipped, withheldOriginals: withheld)
     }
 
     /// The gallery folder's name: the title made safe, "Web Gallery" when
@@ -144,7 +164,8 @@ enum WebGalleryExport {
     }
 
     /// Writes one picture's large picture and thumbnail (and copies its
-    /// original), returning the item with the pictures' sizes.
+    /// original), returning the item with the pictures' sizes, and without
+    /// its original's name when that was left out (`copyOriginal`).
     nonisolated static func writePictures(for item: WebGalleryItem, settings: WebGallerySettings,
                                           converter: BatchConverter, into gallery: URL) async throws -> WebGalleryItem {
         var convert = BatchConvertSettings(options: settings.exportOptions)
@@ -159,18 +180,41 @@ enum WebGalleryExport {
             .appendingPathComponent(item.stem + "." + ext), options: .withoutOverwriting)
         try thumbnailData.write(to: gallery.appendingPathComponent(WebGalleryHTML.thumbnailsFolder)
             .appendingPathComponent(item.stem + "." + ext), options: .withoutOverwriting)
-        if let original = item.originalName {
-            try FileManager.default.copyItem(at: item.source, to: gallery
-                .appendingPathComponent(WebGalleryHTML.originalsFolder).appendingPathComponent(original))
-        }
 
         var made = item
+        if let original = item.originalName {
+            let copy = gallery.appendingPathComponent(WebGalleryHTML.originalsFolder).appendingPathComponent(original)
+            if try !copyOriginal(item.source, to: copy, keepingLocation: settings.originalsKeepLocation) {
+                made.originalName = nil
+            }
+        }
         made.largeWidth = large.width
         made.largeHeight = large.height
         // The thumbnail is drawn at half its pixels, for Retina screens.
         made.thumbnailWidth = max(1, (thumbnail.width + 1) / 2)
         made.thumbnailHeight = max(1, (thumbnail.height + 1) / 2)
         return made
+    }
+
+    /// Copies `source` to `copy`, then, unless `keepingLocation`, removes
+    /// where the photo was taken from the copy in place, without
+    /// re-encoding. False, with nothing left at `copy`, when a location is
+    /// there and can't be removed: a camera raw (the writer would only add
+    /// a sidecar, leaving the raw's own GPS), a format the writer can't
+    /// rewrite, or a write that failed or didn't take.
+    nonisolated static func copyOriginal(_ source: URL, to copy: URL, keepingLocation: Bool) throws -> Bool {
+        try FileManager.default.copyItem(at: source, to: copy)
+        guard !keepingLocation, MetadataFields.read(from: copy, includingSidecar: false).hasLocation else { return true }
+        var sidecar: URL?
+        if MetadataWriter.method(for: copy) == .inPlace {
+            // A raw named as a JPEG gets a sidecar, not a change in the file.
+            let outcome = try? MetadataWriter.apply(MetadataEdit(removeLocation: true), to: copy)
+            if outcome?.usedSidecar == true { sidecar = outcome?.written }
+            if sidecar == nil, !MetadataFields.read(from: copy, includingSidecar: false).hasLocation { return true }
+        }
+        try? FileManager.default.removeItem(at: copy)
+        if let sidecar { try? FileManager.default.removeItem(at: sidecar) }
+        return false
     }
 
     nonisolated static func encode(_ image: CGImage, format: WebGalleryFormat, options: ExportOptions,
@@ -254,7 +298,11 @@ enum WebGalleryExport {
         panel.prompt = "Create Gallery"
         panel.message = "Choose where to put the folder “\(folderName(for: title))”."
         if let startFolder { panel.directoryURL = startFolder }
+        // The panel holds its delegate weakly; the completion keeps it.
+        let delegate = InternalVolumesOnly()
+        panel.delegate = delegate
         panel.beginSheetModal(for: window) { response in
+            withExtendedLifetime(delegate) {}
             completion(response == .OK ? panel.url : nil)
         }
     }

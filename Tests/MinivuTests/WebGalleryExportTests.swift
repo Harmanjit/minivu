@@ -233,6 +233,89 @@ import MinivuRender
         #expect(try FileManager.default.contentsOfDirectory(atPath: scratch.url.path).count == entries.count + 1)
     }
 
+    /// The originals keep where each photo was taken only when the large
+    /// pictures do; otherwise it is removed from the copies, losslessly.
+    @Test func originalsLoseTheirLocationWithTheLargePictures() async throws {
+        let scratch = try ScratchFolder()
+        let url = try scratch.jpeg("bridge.jpg", width: 640, height: 480, properties: ScratchFolder.location)
+        let entry = try #require(FolderEntry(url: url))
+        var settings = Self.smallSettings
+        settings.includesOriginals = true
+        let output = try scratch.folder("Out")
+        // Remove location on, as by default.
+        let outcome = try await Self.export([entry], title: "Shared", settings: settings, into: output)
+        let copy = outcome.folder.appendingPathComponent("originals/bridge.jpg")
+        #expect(ScratchFolder.location(of: copy).latitude == nil && ScratchFolder.location(of: copy).city == nil)
+        #expect(try Self.pixelSize(copy) == (640, 480))
+        #expect(outcome.items.first?.originalName == "bridge.jpg" && outcome.withheldOriginals.isEmpty)
+        // The source keeps its own.
+        #expect(ScratchFolder.location(of: url).latitude == 51.5)
+
+        // Metadata off: the large pictures carry no location, nor do the originals.
+        settings.keepsMetadata = false
+        let bare = try await Self.export([entry], title: "Bare", settings: settings, into: output)
+        #expect(ScratchFolder.location(of: bare.folder.appendingPathComponent("originals/bridge.jpg")).latitude == nil)
+
+        // Location kept in the large pictures: the originals are copied as they are.
+        settings.keepsMetadata = true
+        settings.removesLocation = false
+        let kept = try await Self.export([entry], title: "Kept", settings: settings, into: output)
+        #expect(try Data(contentsOf: kept.folder.appendingPathComponent("originals/bridge.jpg")) == Data(contentsOf: url))
+    }
+
+    /// An original whose location can't be removed in the file (a camera
+    /// raw gets only a sidecar) is left out, leaving nothing behind, and
+    /// named afterwards.
+    @Test func anOriginalWhoseLocationCantBeRemovedIsLeftOut() throws {
+        let scratch = try ScratchFolder()
+        let raw = try scratch.jpeg("IMG_1.dng", width: 64, height: 48, properties: ScratchFolder.location)
+        let output = try scratch.folder("Out")
+        let copy = output.appendingPathComponent("IMG_1.dng")
+        #expect(try !WebGalleryExport.copyOriginal(raw, to: copy, keepingLocation: false))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
+        #expect(try WebGalleryExport.copyOriginal(raw, to: copy, keepingLocation: true))
+        #expect(try Data(contentsOf: copy) == Data(contentsOf: raw))
+
+        let message = WebGalleryController.skippedMessage([], withheld: ["IMG_1.dng"])
+        #expect(message.title == "1 original file was left out of the gallery.")
+        #expect(message.detail.hasSuffix(":\nIMG_1.dng"))
+        let both = WebGalleryController.skippedMessage([WebGalleryExport.Skipped(name: "x.jpg", reason: "Broken.")],
+                                                       withheld: ["a.dng", "b.dng"])
+        #expect(both.title == "1 picture was left out of the gallery.")
+        #expect(both.detail.hasPrefix("x.jpg: Broken.\n\nWhere these photos were taken"))
+        #expect(both.detail.hasSuffix("\na.dng\nb.dng"))
+    }
+
+    /// The dialog says what happens to the originals' metadata.
+    @Test func dialogExplainsTheOriginalsMetadata() throws {
+        let defaults = ScratchDefaults("minivu-web-gallery-tests")
+        defer { defaults.remove() }
+        let model = WebGalleryModel(images: [], title: "Trip", store: WebGallerySettingsStore(defaults: defaults.defaults))
+        model.settings.includesOriginals = false
+        #expect(model.originalsNote == nil)
+        model.settings.includesOriginals = true
+        #expect(model.originalsNote?.hasPrefix("Where each photo was taken is removed from the original files") == true)
+        model.settings.removesLocation = false
+        #expect(model.originalsNote?.contains("including where each photo was taken") == true)
+        model.settings.keepsMetadata = false
+        #expect(model.originalsNote?.hasPrefix("Where each photo was taken is removed") == true)
+    }
+
+    /// Internal storage only (DESIGN.md 1), as Batch Convert's output folder.
+    @Test func refusesAFolderOffTheInternalStorage() async throws {
+        let scratch = try ScratchFolder()
+        let entries = try Self.pictures(["a.png"], in: scratch.url)
+        let output = try scratch.folder("Out")
+        await #expect(throws: ExternalVolumeError(folder: output)) {
+            _ = try await WebGalleryExport.export(images: entries, title: "Trip", settings: Self.smallSettings,
+                                                  into: output, cancel: CancellationFlag(), converter: Self.converter(),
+                                                  isAllowedVolume: { _ in false })
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: output.path).isEmpty)
+        #expect(SaveAlert.message(for: ExternalVolumeError(folder: output))
+                == "“Out” isn’t on this Mac’s internal storage. minivu only writes to folders on this Mac’s internal storage.")
+    }
+
     @Test(arguments: [WebGalleryFormat.heic, .avif])
     func writesTheChosenFormat(_ format: WebGalleryFormat) async throws {
         try #require(format.isAvailable)
