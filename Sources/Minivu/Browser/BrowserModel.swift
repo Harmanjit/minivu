@@ -713,11 +713,23 @@ nonisolated struct FolderSnapshot: Sendable {
 
     /// Tags them all, unless every one is tagged already: then untags them
     /// (Finder's rule for a mixed selection and a checkbox).
+    ///
+    /// Decided on the catalog's queue, after any write still queued, as the
+    /// compare window does: the marks on screen may not show a change made
+    /// a moment ago yet, so a quick T T would tag twice.
     func toggleTag(for urls: [URL]) {
         guard !urls.isEmpty else { return }
-        let tag = !urls.allSatisfy { marks(for: $0).isTagged }
-        let catalog = self.catalog
-        Self.catalogWrites.async { catalog.setTagged(tag, for: urls) }
+        let catalog = self.catalog, cache = self.fileMarksCache
+        Self.catalogWrites.async {
+            let rows = catalog.marks(for: urls)
+            let allTagged = urls.allSatisfy { url in
+                // What the grid shows: the row's marks, else the file's own
+                // once read.
+                let shown = rows[url] ?? ((cache?.cachedMarks(for: url) ?? nil) ?? nil)
+                return shown?.isTagged == true
+            }
+            catalog.setTagged(!allTagged, for: urls)
+        }
     }
 
     /// Custom Order: moves images to just before `target` (the end for nil)
