@@ -325,6 +325,7 @@ public final class Catalog: @unchecked Sendable {
         // readers shouldn't wait on the file system.
         let fromFiles = marksFromFiles(urls, keys: keys, clearing: value == 0)
         let identities = value == 0 && fromFiles.isEmpty ? [] : Self.identities(of: keys)
+        let committed: Bool
         do {
             try db.transaction {
                 for (i, key) in keys.enumerated() {
@@ -355,10 +356,15 @@ public final class Catalog: @unchecked Sendable {
                     }
                 }
             }
+            committed = true
         } catch {
             log.error("Writing marks failed: \(String(describing: error), privacy: .public)")
+            committed = false
         }
-        if let mirror { mirror.catalog(self, didChange: field, marks: marks(for: urls), of: urls) }
+        // Only a change that was made is mirrored: after a failed one the
+        // rows still hold their old marks, which would overwrite a value
+        // another application has put in the file since.
+        if committed, let mirror { mirror.catalog(self, didChange: field, marks: marks(for: urls), of: urls) }
         post(urls)
     }
 
