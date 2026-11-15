@@ -51,6 +51,8 @@ public enum RawRenderer {
     /// doesn't support the camera, so callers can fall back to ImageIO.
     public static func render(url: URL, maxPixelSize: Int?, hdr: Bool, headroom: Float,
                               gpu: GPU = .shared) throws -> ImageTexture {
+        let rendering = Perf.begin("raw.render")
+        defer { rendering.end() }
         guard let filter = CIRAWFilter(imageURL: url) else { throw DecodeError.noImage(url) }
         let native = filter.nativeSize
         let orientedSize = filter.orientation.swapsAxes

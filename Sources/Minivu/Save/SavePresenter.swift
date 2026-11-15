@@ -120,6 +120,8 @@ enum SavePresenter {
         Task { [weak window] in
             // Reading the header is disk work: never on the main thread.
             let (info, sourceSpace, hasGainMap, unchanged) = await BlockingWork.run {
+                let preflight = Perf.begin("save.preflight")
+                defer { preflight.end() }
                 let info = ImageDecoder.info(for: url)
                 return (info, SavePolicy.sourceColorSpace(of: url), info?.isHDR == true && SavePolicy.hasGainMap(url),
                         edited.fileIsUnchangedSinceEditing())
@@ -201,7 +203,9 @@ enum SavePresenter {
                sameFile(url, metadataSource) || sameItem(url, metadataSource) {
                 options.removeLocation = false
             }
-            try ImageEncoder.write(image, to: url, options: options, metadataSource: metadataSource)
+            try Perf.measure("save.encode") {
+                try ImageEncoder.write(image, to: url, options: options, metadataSource: metadataSource)
+            }
         }
     }
 
@@ -228,7 +232,9 @@ enum SavePresenter {
            let hdr = try await renderer.renderHDRForExport(snapshot) {
             try await BlockingWork.run {
                 try checkUnchanged()
-                try ImageEncoder.write(hdr, to: url, options: options, metadataSource: url, gainMap: true)
+                try Perf.measure("save.encode") {
+                    try ImageEncoder.write(hdr, to: url, options: options, metadataSource: url, gainMap: true)
+                }
             }
             return
         }
@@ -237,7 +243,7 @@ enum SavePresenter {
         // Encoding and the file write block: on GCD (BlockingWork).
         try await BlockingWork.run {
             try checkUnchanged()
-            try ImageEncoder.write(image, to: url, options: options, metadataSource: url)
+            try Perf.measure("save.encode") { try ImageEncoder.write(image, to: url, options: options, metadataSource: url) }
         }
     }
 

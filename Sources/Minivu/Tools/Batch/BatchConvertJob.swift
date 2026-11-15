@@ -145,6 +145,8 @@ import MinivuRender
             }
 
             progress.currentName = output.source.lastPathComponent
+            let file = Perf.begin("batch.file")
+            defer { file.end() }
             let isRaw = ImageFormats.kind(of: output.source) == .raw
             if isRaw {
                 await rawSlot.acquire()
@@ -186,6 +188,8 @@ import MinivuRender
             let folder = destination.deletingLastPathComponent()
             let write = writes.enqueue(replacing: [destination]) {
                 try await BlockingWork.run {
+                    let committing = Perf.begin("batch.commit")
+                    defer { committing.end() }
                     let isTaken = { (name: String) in taken.contains(Self.pathKey(folder.appendingPathComponent(name))) }
                     switch encoded {
                     case .data(let data):

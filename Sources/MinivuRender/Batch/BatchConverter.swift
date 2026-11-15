@@ -110,12 +110,16 @@ public struct BatchConverter: Sendable {
 
     func encodedData(for url: URL, page: Int, settings: BatchConvertSettings,
                      sequence: PageSequence? = nil) async throws -> Data {
-        let job = try prepare(url, page: page, settings: settings, keepingHDR: settings.keepsHDR, sequence: sequence)
-        if job.keepsHDR, let hdr = try await renderer.renderHDRForExport(job.snapshot(settings: displaySettings)) {
-            return try ImageEncoder.encode(hdr, options: settings.options, metadataSource: url, gainMap: true)
+        let job = try Perf.measure("batch.prepare") {
+            try prepare(url, page: page, settings: settings, keepingHDR: settings.keepsHDR, sequence: sequence)
         }
-        let image = try await sdrImage(job, settings: settings)
-        return try ImageEncoder.encode(image, options: settings.options, metadataSource: url)
+        if job.keepsHDR, let hdr = try await renderer.renderHDRForExport(job.snapshot(settings: displaySettings)) {
+            return try Perf.measure("batch.encode") {
+                try ImageEncoder.encode(hdr, options: settings.options, metadataSource: url, gainMap: true)
+            }
+        }
+        let image = try await Perf.measure("batch.render") { try await sdrImage(job, settings: settings) }
+        return try Perf.measure("batch.encode") { try ImageEncoder.encode(image, options: settings.options, metadataSource: url) }
     }
 
     /// Every page of `url`, converted, into one multi-page file at a hidden

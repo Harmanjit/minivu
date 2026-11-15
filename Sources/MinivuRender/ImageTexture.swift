@@ -48,6 +48,8 @@ public enum TextureUploader {
     /// Uploads `decoded`. Runs on the calling thread and waits for the GPU,
     /// so call it from a background task.
     public static func upload(_ decoded: DecodedImage, gpu: GPU = .shared) throws -> ImageTexture {
+        let uploading = Perf.begin("upload")
+        defer { uploading.end() }
         let image = decoded.image
         let oriented = decoded.orientation.swapsAxes
             ? CGSize(width: image.height, height: image.width)
@@ -113,7 +115,8 @@ public enum TextureUploader {
         context.saveGState()
         context.translateBy(x: 0, y: drawSize.height)
         context.scaleBy(x: 1, y: -1)
-        context.draw(image, in: CGRect(origin: .zero, size: drawSize))
+        // The colour conversion, on the CPU; a lazily decoded image decodes here.
+        Perf.measure("upload.draw") { context.draw(image, in: CGRect(origin: .zero, size: drawSize)) }
         context.restoreGState()
 
         let linearDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format, width: width,
@@ -137,8 +140,10 @@ public enum TextureUploader {
                   destinationLevel: 0, sliceCount: 1, levelCount: 1)
         blit.generateMipmaps(for: texture)
         blit.endEncoding()
-        commands.commit()
-        commands.waitUntilCompleted()
+        Perf.measure("upload.gpu") {
+            commands.commit()
+            commands.waitUntilCompleted()
+        }
         if let error = commands.error { throw error }
 
         return ImageTexture(texture: texture, imageSize: decoded.imageSize,

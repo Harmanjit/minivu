@@ -572,9 +572,11 @@ nonisolated struct FolderSnapshot: Sendable {
         let fileMarksCache = self.fileMarksCache
         let needsFinderTags = marksFilter.finderTag != nil || metadataFilter.colorLabel != nil
         work = Task { [weak self] in
+            let open = Perf.begin("folder.open")
+            defer { open.end() }
             let (result, parentIsReadable) = await BlockingWork.run(qos: .userInitiated) {
                 let result = Result { () throws -> Listing in
-                    let contents = try Self.list(folder, hidden, with: lister)
+                    let contents = try Perf.measure("folder.list") { try Self.list(folder, hidden, with: lister) }
                     DebugMarks.seedIfRequested(folder: folder, names: Set(contents.images.map(\.name)), catalog: catalog)
                     // Files moved or renamed in Finder get their marks back
                     // (matched by file identifier) before the marks are read.
@@ -583,11 +585,15 @@ nonisolated struct FolderSnapshot: Sendable {
                     // grid sorted by rating arrives in its order. Files
                     // without a row show the marks they carry, as far as the
                     // cache knows them (a stat each, no reads).
-                    let rows = Self.marksByKey(contents.images, in: catalog)
-                    let own = fileMarksCache.map { Self.cachedFileMarks(contents.images, without: rows, in: $0) }
+                    let rows = Perf.measure("folder.marks") { Self.marksByKey(contents.images, in: catalog) }
+                    let own = Perf.measure("folder.fileMarks") {
+                        fileMarksCache.map { Self.cachedFileMarks(contents.images, without: rows, in: $0) }
+                    }
                     let marks = Self.shownMarks(rows: rows, files: own?.marks ?? [:])
                     let custom = order.key == .custom ? catalog.customOrder(in: folder) : []
-                    let snapshot = FolderSnapshot(contents: contents, order: order, marks: marks, customOrder: custom)
+                    let snapshot = Perf.measure("folder.sort") {
+                        FolderSnapshot(contents: contents, order: order, marks: marks, customOrder: custom)
+                    }
                     // A Finder tag filter hides every image until the tags
                     // are known, and the selection the listing was asked to
                     // make would be consumed against that empty grid and
@@ -649,6 +655,8 @@ nonisolated struct FolderSnapshot: Sendable {
         // A list has no folder; its snapshot's stands for "nowhere".
         let base = root ?? URL(fileURLWithPath: "/", isDirectory: true)
         work = Task { [weak self] in
+            let open = Perf.begin("flat.open")
+            defer { open.end() }
             let (result, parentIsReadable) = await BlockingWork.run(qos: .userInitiated) {
                 let result = Result { () throws -> Listing in
                     var found: [FolderEntry] = []
@@ -657,8 +665,10 @@ nonisolated struct FolderSnapshot: Sendable {
                         found += images
                         guard ContinuousClock.now - lastShown > Self.partialInterval, !cancel.isCancelled else { return }
                         lastShown = .now
-                        let partial = FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
-                                                     order: order, keysByPath: true)
+                        let partial = Perf.measure("flat.partialSort") {
+                            FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
+                                           order: order, keysByPath: true)
+                        }
                         DispatchQueue.main.async {
                             MainActor.assumeIsolated { self?.showPartial(partial, generation: generation) }
                         }
@@ -673,11 +683,15 @@ nonisolated struct FolderSnapshot: Sendable {
                         found = walk.images
                         truncated = walk.isTruncated
                     }
-                    let rows = Self.marksByKey(found, in: catalog, byPath: true)
-                    let own = fileMarksCache.map { Self.cachedFileMarks(found, without: rows, in: $0, byPath: true) }
+                    let rows = Perf.measure("folder.marks") { Self.marksByKey(found, in: catalog, byPath: true) }
+                    let own = Perf.measure("folder.fileMarks") {
+                        fileMarksCache.map { Self.cachedFileMarks(found, without: rows, in: $0, byPath: true) }
+                    }
                     let marks = Self.shownMarks(rows: rows, files: own?.marks ?? [:])
-                    let snapshot = FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
-                                                  order: order, marks: marks, keysByPath: true)
+                    let snapshot = Perf.measure("folder.sort") {
+                        FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
+                                       order: order, marks: marks, keysByPath: true)
+                    }
                     let tags = needsFinderTags ? Self.finderTagsByKey(snapshot.entries, byPath: true) : nil
                     return Listing(snapshot: snapshot, changed: Self.changedFiles(old: previous, new: snapshot.entries),
                                    marks: marks, catalogRows: rows, fileMarks: own?.marks ?? [:],
@@ -702,6 +716,8 @@ nonisolated struct FolderSnapshot: Sendable {
     /// the files, in order, with what was already known.
     private func showPartial(_ partial: FolderSnapshot, generation: Int) {
         guard generation == self.generation, isListing else { return }
+        let shown = Perf.begin("flat.showPartial")
+        defer { shown.end() }
         snapshot = partial
         state = .loaded
         applyFilter()
@@ -730,6 +746,8 @@ nonisolated struct FolderSnapshot: Sendable {
         let generation = self.generation, order = sortOrder, marks = self.marks, catalog = self.catalog
         work = Task { [weak self] in
             let sorted = await BlockingWork.run {
+                let resort = Perf.begin("folder.resort")
+                defer { resort.end() }
                 let custom = order.key == .custom && !snapshot.keysByPath ? catalog.customOrder(in: snapshot.folder) : []
                 return snapshot.resorted(by: order, marks: marks, customOrder: custom)
             }
@@ -787,6 +805,8 @@ nonisolated struct FolderSnapshot: Sendable {
 
     private func finish(_ result: Result<Listing, Error>, generation: Int) {
         guard generation == self.generation else { return }
+        let finishing = Perf.begin("folder.finish")
+        defer { finishing.end() }
         isListing = false
         switch result {
         case .success(let listing):
@@ -839,6 +859,10 @@ nonisolated struct FolderSnapshot: Sendable {
         }
         #endif
         onChange?([.entries, .selection, .state, .history, .marks])
+        if !Self.hasListedFirstFolder, state == .loaded {
+            Self.hasListedFirstFolder = true
+            Perf.milestone("launch.firstFolderListed")
+        }
         if !catalogChangesDuringListing.isEmpty {
             let urls = catalogChangesDuringListing
             catalogChangesDuringListing = []
@@ -851,6 +875,9 @@ nonisolated struct FolderSnapshot: Sendable {
     #if DEBUG
     private static var debugSelectionDone = false
     #endif
+
+    /// The launch milestone is marked once, for the first folder shown.
+    private static var hasListedFirstFolder = false
 
     // MARK: - Marks
 
@@ -1032,6 +1059,8 @@ nonisolated struct FolderSnapshot: Sendable {
     /// folder's files are read again (one small read), then only what they
     /// affect is redone: the cells, the filter, or the order.
     func catalogChanged(_ urls: [URL]) {
+        let changing = Perf.begin("browser.catalogChanged")
+        defer { changing.end() }
         if isListing { catalogChangesDuringListing += urls }
         guard let snapshot, state == .loaded else { return }
         var files: [URL] = []
@@ -1154,6 +1183,8 @@ nonisolated struct FolderSnapshot: Sendable {
                 // Header reads block: on GCD (BlockingWork), with a flag in
                 // place of task cancellation.
                 let read = await BlockingWork.run(qos: .utility) { () -> [String: Catalog.Marks?]? in
+                    let chunkRead = Perf.begin("folder.fileMarksChunk")
+                    defer { chunkRead.end() }
                     var read: [String: Catalog.Marks?] = [:]
                     for url in chunk {
                         if cancel.isCancelled { return nil }
@@ -1203,6 +1234,8 @@ nonisolated struct FolderSnapshot: Sendable {
             for start in stride(from: 0, to: wanted.count, by: Self.filterMetadataChunk) {
                 let chunk = Array(wanted[start..<min(start + Self.filterMetadataChunk, wanted.count)])
                 let read = await BlockingWork.run(qos: .utility) { () -> [String: FilterMetadata]? in
+                    let chunkRead = Perf.begin("folder.metadataChunk")
+                    defer { chunkRead.end() }
                     let found = catalog.loadFilterMetadata(for: chunk, isCancelled: { cancel.isCancelled })
                     guard !cancel.isCancelled else { return nil }
                     var byKey: [String: FilterMetadata] = [:]
@@ -1258,6 +1291,8 @@ nonisolated struct FolderSnapshot: Sendable {
 
     /// Rebuilds the visible entries and drops selected items the filter hides.
     private func applyFilter() {
+        let filtering = Perf.begin("folder.applyFilter")
+        defer { filtering.end() }
         guard let snapshot else {
             entries = []
             visibleKeys = []

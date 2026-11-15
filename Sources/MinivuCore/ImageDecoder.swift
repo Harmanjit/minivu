@@ -387,6 +387,8 @@ public enum ImageDecoder {
     ///   asks for more than a texture holds.
     public static func decode(_ url: URL, maxPixelSize: Int? = nil, fitting: CGSize? = nil, page: Int = 0,
                               allowHDR: Bool = true, byteLimit: Int? = nil) throws -> DecodedImage {
+        let decoding = Perf.begin("decode")
+        defer { decoding.end() }
         guard let kind = ImageFormats.kind(of: url) else { throw DecodeError.noImage(url) }
         switch kind {
         case .pdf:
@@ -421,7 +423,8 @@ public enum ImageDecoder {
             // icon, a HEIC collection's chosen picture); later pages of a
             // multi-page TIFF by index, each with its own size.
             let index = kind == .raw || page <= 0 || count <= 1 ? primaryIndex(source) : min(page, count - 1)
-            guard let info = info(source: source, kind: kind, index: index) else { throw DecodeError.noImage(url) }
+            guard let info = Perf.measure("decode.info", { info(source: source, kind: kind, index: index) })
+            else { throw DecodeError.noImage(url) }
             let longest = Int(saturating: max(info.pixelSize.width, info.pixelSize.height))
             let wanted = wantedLongEdge(imageSize: info.pixelSize, maxPixelSize: maxPixelSize, fitting: fitting)
             let wantsFull = wanted == nil || wanted! >= longest
@@ -451,7 +454,9 @@ public enum ImageDecoder {
             } else {
                 options[kCGImageSourceCreateThumbnailFromImageAlways] = true
             }
-            guard let image = CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary) else {
+            guard let image = Perf.measure("decode.pixels", {
+                CGImageSourceCreateThumbnailAtIndex(source, index, options as CFDictionary)
+            }) else {
                 // ImageIO never says why it gave up. One failure can be
                 // named: a file whose header claims more pixels than the
                 // browser will even thumbnail, asked for whole, is too large
@@ -489,6 +494,8 @@ public enum ImageDecoder {
     /// a real RAW render is needed.
     public static func decodeRawPreview(_ url: URL, maxPixelSize: Int? = nil,
                                         fitting: CGSize? = nil) throws -> DecodedImage? {
+        let decoding = Perf.begin("decode.rawPreview")
+        defer { decoding.end() }
         guard let source = makeSource(url) else { throw DecodeError.unreadable(url) }
         guard var info = info(source: source, kind: .raw) else { throw DecodeError.noImage(url) }
         let longest = Int(saturating: max(info.pixelSize.width, info.pixelSize.height))
@@ -610,7 +617,8 @@ public enum ImageDecoder {
     // MARK: - Helpers
 
     static func makeSource(_ url: URL) -> CGImageSource? {
-        CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
+        Perf.count("file.open")
+        return CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary)
     }
 
     /// The index to show for multi-image containers (HEIC collections, ICO
@@ -633,6 +641,8 @@ public enum ImageDecoder {
     }
 
     static func hasHDRContent(source: CGImageSource, props: [CFString: Any]) -> Bool {
+        let checking = Perf.begin("decode.hdrCheck")
+        defer { checking.end() }
         // Gain map (Apple, ISO 21496-1 or Ultra HDR) present?
         let index = primaryIndex(source)
         for type in [kCGImageAuxiliaryDataTypeISOGainMap, kCGImageAuxiliaryDataTypeHDRGainMap] {

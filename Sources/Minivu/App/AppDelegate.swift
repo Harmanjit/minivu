@@ -55,12 +55,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             MainActor.assumeIsolated { ThemeColors.apply(ThemeColors.current) }
         }
 
+        Perf.milestone("launch.didFinishLaunching")
         warmUpGPU()
+        // Opened here, one after the other, rather than on first use, so
+        // each is a launch phase of its own (docs/feature-notes/perf.md).
+        Perf.measure("launch.catalogOpen") { _ = Catalog.shared }
+        Perf.milestone("launch.catalogOpen")
+        Perf.measure("launch.thumbnailStoreOpen") { _ = AppServices.thumbnailStore }
+        Perf.milestone("launch.thumbnailStoreOpen")
         AppServices.start()
 
         // Resolving the bookmarks restores access to the sidebar folders,
         // which the last folder may be inside.
-        _ = BookmarkStore.shared
+        Perf.measure("launch.bookmarks") { _ = BookmarkStore.shared }
+        Perf.milestone("launch.bookmarks")
 
         let browser = BrowserWindowController()
         self.browser = browser
@@ -69,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // Shown first so a refusal can appear as a sheet on it. If nothing
         // requested could be opened, the browser still needs a folder.
         browser.showWindow(nil)
+        Perf.milestone("launch.browserWindowShown")
         NSApp.activate()
         if requested.isEmpty || !open(requested) {
             browser.open(folder: Self.startFolder())
@@ -90,10 +99,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // where it can't hold up a cooperative thread a listing needs.
         Task { await BlockingWork.run {
             let start = ContinuousClock.now
+            let warmUp = Perf.begin("launch.gpuWarmUp")
             _ = GPU.shared
             // The canvas pipeline too, which the first viewer or preview
             // would otherwise build on the main thread (GPU caches it).
             _ = try? CanvasRenderer()
+            warmUp.end()
+            Perf.milestone("launch.gpuReady")
             let elapsed = ContinuousClock.now - start
             log.info("Metal ready in \(elapsed, privacy: .public)")
             if ProcessInfo.processInfo.environment["MINIVU_TRACE"] != nil {

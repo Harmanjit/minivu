@@ -123,6 +123,7 @@ nonisolated final class PixelSizeCache: @unchecked Sendable {
     /// Oriented width and height from the file's properties, without
     /// decoding. PDF and SVG have no pixel size of their own, so none.
     static func readPixelSize(of url: URL) -> CGSize? {
+        Perf.count("file.open")
         guard let kind = ImageFormats.kind(of: url), kind == .raster || kind == .raw,
               let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0,

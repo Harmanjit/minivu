@@ -527,6 +527,10 @@ public struct DisplaySettings: Sendable, Equatable {
     /// conversion and a GPU copy) can be skipped.
     nonisolated private static func decodeAndUpload(url: URL, target: CGSize?, page: Int, settings: DisplaySettings,
                                                     stage: Job.Stage, stop: StopFlag) throws -> ImageTexture {
+        // A screen-sized load (a flip or a prefetch) and a full-resolution
+        // one (zoom to 100%) are told apart in a trace.
+        let loading = Perf.begin(target == nil ? "loader.fullResolution" : "loader.screen")
+        defer { loading.end() }
         func checkStop() throws {
             if stop.isSet { throw CancellationError() }
         }

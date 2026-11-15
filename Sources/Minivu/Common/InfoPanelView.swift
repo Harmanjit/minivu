@@ -73,7 +73,7 @@ struct InfoPanelView: View {
         .task(id: Subject(url: url, modified: modified, revision: MetadataRevisions.shared.revision(of: url))) {
             guard let url else { sections = []; keywords = nil; return }
             let read = await BlockingWork.run {
-                MetadataReader.sectionsAndFields(for: url)
+                Perf.measure("info.read") { MetadataReader.sectionsAndFields(for: url) }
             }
             guard !Task.isCancelled else { return }
             sections = read.sections

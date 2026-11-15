@@ -226,15 +226,17 @@ extension BrowserWindowController {
                     [$0.url, $0.url.deletingLastPathComponent().appendingPathComponent($0.newName)]
                 })
                 return await BlockingWork.run {
-                    BatchRenamer.perform(requests, restoring: restoring, catalog: catalog)
+                    Perf.measure("rename.perform") { BatchRenamer.perform(requests, restoring: restoring, catalog: catalog) }
                 }
             }
             BatchTools.renamesRunning -= 1
             BatchTools.end(id)
             record.requests = outcome.inverse
-            for step in outcome.renamed {
-                BrowserModel.invalidateCaches(step.from)
-                BrowserModel.invalidateCaches(step.to)
+            Perf.measure("rename.invalidate") {
+                for step in outcome.renamed {
+                    BrowserModel.invalidateCaches(step.from)
+                    BrowserModel.invalidateCaches(step.to)
+                }
             }
             done(!outcome.renamed.isEmpty)
             // Only the folder shown is listed again: an undo can run after

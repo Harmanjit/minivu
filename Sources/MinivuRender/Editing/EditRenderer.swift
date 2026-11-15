@@ -243,14 +243,20 @@ final class EditStage: @unchecked Sendable {
             // 100 ms or more: on GCD, not the cooperative pool (BlockingWork).
             let (source, proxy, signature, filter) = try await BlockingWork.run {
                 () throws -> (EditSource, EditProxy?, FileSignature?, RawDevelopFilter?) in
+                let preparing = Perf.begin("edit.prepare")
+                defer { preparing.end() }
                 // Read before decoding, so a change racing the decode is caught.
                 let signature = FileSignature.read(url)
                 if let expected, signature != expected { throw EditRenderError.sourceChanged(url) }
                 let filter = develop == nil ? rawFilter : rawFilter ?? RawDevelopFilter(url: url)
-                let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu,
-                                                 develop: develop, rawFilter: filter)
+                let source = try Perf.measure("edit.prepare.load") {
+                    try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu,
+                                        develop: develop, rawFilter: filter)
+                }
                 let scale = Self.proxyScale(sourceSize: source.size, sourceScale: source.scale, longEdge: edge)
-                let proxy = try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
+                let proxy = try Perf.measure("edit.prepare.proxy") {
+                    try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
+                }
                 return (source, proxy, signature, filter)
             }
             guard let document, document.preparationToken == token else { return }
@@ -341,6 +347,8 @@ final class EditStage: @unchecked Sendable {
     nonisolated public func renderHDRForExport(_ snapshot: EditDocument.Snapshot) async throws -> CGImage? {
         let gpu = self.gpu, context = self.context, limit = exportDecodeLimit
         return try await BlockingWork.run(qos: Task.currentPriority >= .userInitiated ? .userInitiated : .utility) {
+            let exporting = Perf.begin("edit.exportHDR")
+            defer { exporting.end() }
             var settings = snapshot.settings
             settings.showHDR = true
             let source = try Self.exportSource(snapshot, settings: settings, requireHDR: true, gpu: gpu,
@@ -383,7 +391,11 @@ final class EditStage: @unchecked Sendable {
     nonisolated private static func exportImage(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
                                                 bitsPerComponent: Int, context: CIContext, gpu: GPU,
                                                 decodeLimit: Int) throws -> CGImage {
-        let source = try exportSource(snapshot, settings: snapshot.settings, gpu: gpu, decodeLimit: decodeLimit)
+        let exporting = Perf.begin("edit.export")
+        defer { exporting.end() }
+        let source = try Perf.measure("edit.export.source") {
+            try exportSource(snapshot, settings: snapshot.settings, gpu: gpu, decodeLimit: decodeLimit)
+        }
         var image = EditGraph.image(source: workingImage(source: source, proxy: nil, scale: 1),
                                     sourceSize: source.size, operations: snapshot.operations, scale: 1)
         if source.isHDR && !CGColorSpaceUsesITUR_2100TF(colorSpace) {
@@ -395,8 +407,9 @@ final class EditStage: @unchecked Sendable {
         let format: CIFormat = bitsPerComponent == 16 ? .RGBA16 : .RGBA8
         // Core Image renders in tiles as needed, so an upscaled result larger
         // than a texture still exports.
-        guard let cgImage = context.createCGImage(image, from: image.extent, format: format, colorSpace: colorSpace,
-                                                  deferred: false) else {
+        guard let cgImage = Perf.measure("edit.export.render", {
+            context.createCGImage(image, from: image.extent, format: format, colorSpace: colorSpace, deferred: false)
+        }) else {
             throw EditRenderError.renderFailed
         }
         return cgImage
@@ -483,6 +496,8 @@ final class EditStage: @unchecked Sendable {
         let renderSource = source
         // `renderTexture` waits for the GPU: on GCD, not the cooperative pool.
         let result = await BlockingWork.run(qos: full ? .utility : .userInitiated) { () -> RunResult? in
+            let rendering = Perf.begin(full ? "edit.render.full" : "edit.render.preview")
+            defer { rendering.end() }
             do {
                 var filter = rawFilter
                 var plan = plan
@@ -510,8 +525,10 @@ final class EditStage: @unchecked Sendable {
                             filter = RawDevelopFilter(url: url)
                         }
                         guard let filter else { throw DecodeError.noImage(url) }
-                        let developed = try Self.renderDeveloped(filter, develop: develop, fullSize: renderSource.size,
-                                                                 scale: scale, settings: settings, gpu: gpu)
+                        let developed = try Perf.measure("edit.render.rawDevelop") {
+                            try Self.renderDeveloped(filter, develop: develop, fullSize: renderSource.size,
+                                                     scale: scale, settings: settings, gpu: gpu)
+                        }
                         workingProxy = EditProxy(texture: developed.texture, image: developed.image, scale: scale,
                                                  develop: develop, isHDR: settings.rendersHDRRaw,
                                                  contentHeadroom: developed.headroom)
@@ -543,7 +560,9 @@ final class EditStage: @unchecked Sendable {
                                                 scale: plan.scale)
                     }
                 }
-                let texture = try Self.renderTexture(image, context: context, gpu: gpu)
+                let texture = try Perf.measure("edit.render.texture") {
+                    try Self.renderTexture(image, context: context, gpu: gpu)
+                }
                 let output = ImageTexture(texture: texture, imageSize: outputSize,
                                           isFullResolution: plan.scale >= plan.maximumScale,
                                           isHDR: isHDR, contentHeadroom: headroom)

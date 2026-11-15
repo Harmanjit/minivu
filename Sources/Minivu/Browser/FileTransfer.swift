@@ -72,7 +72,7 @@ final class FileTransfer {
         // under another spelling of its path (a symbolic link, other case),
         // a folder going into itself, a clash that holds the file itself.
         let preflight = await BlockingWork.run {
-            TransferChecks.preflight(request.files, into: destination)
+            Perf.measure("transfer.preflight") { TransferChecks.preflight(request.files, into: destination) }
         }
         let files = preflight.files
         let clashing = preflight.clashing
@@ -131,9 +131,13 @@ final class FileTransfer {
         defer { active.removeAll { $0 === progress } }
         let (result, trashed) = await BlockingWork.run {
             () -> (FileOperations.Result, [FileOperations.Transfer]) in
+            let transferring = Perf.begin("transfer.items")
+            defer { transferring.end() }
             var merged = FileOperations.Result()
             var trashed: [FileOperations.Transfer] = []
             for item in items {
+                let itemInterval = Perf.begin("transfer.item")
+                defer { itemInterval.end() }
                 if progress.isCancelled {
                     merged.wasCancelled = true
                     break

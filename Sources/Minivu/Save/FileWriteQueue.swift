@@ -57,7 +57,11 @@ import MinivuCore
         let written = Set(keys + others.map(Self.key))
         let previous = tail
         let job = Task { () async -> Result<Value, Error> in
+            let queued = Perf.begin("write.queued")
             await previous?.value
+            queued.end()
+            let running = Perf.begin("write.job")
+            defer { running.end() }
             do { return .success(try await work()) } catch { return .failure(error) }
         }
         pendingCount += 1
@@ -90,9 +94,9 @@ import MinivuCore
     /// Trash is left out of its collection, and of its count, at once.
     func trash(_ urls: [URL]) async throws -> [URL: URL] {
         await waitForWrites(to: urls)
-        let moved = try await putInTrash(urls)
+        let moved = try await Perf.measure("trash.move") { try await putInTrash(urls) }
         let catalog = self.catalog, moves = moved.map { (from: $0.key, to: $0.value) }
-        await Task.detached(priority: .userInitiated) { catalog.filesMoved(moves) }.value
+        await Task.detached(priority: .userInitiated) { Perf.measure("trash.catalog") { catalog.filesMoved(moves) } }.value
         return moved
     }
 
