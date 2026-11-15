@@ -424,6 +424,61 @@ import UniformTypeIdentifiers
         }
     }
 
+    /// At the sliders' far ends the bitmap stays the stamp's size, never
+    /// the stamp plus the gap between tiles, and a stamp wider than the
+    /// photo is shrunk to fit rather than dropped. A 6000 x 4000 photo at
+    /// full resolution, measured without rendering.
+    @Test func watermarkBitmapNeverOutgrowsThePhoto() throws {
+        let photo = CGSize(width: 6000, height: 4000)
+        var tiled = Self.textWatermark
+        tiled.text = "© 2026"
+        tiled.size = 1
+        tiled.tiled = true
+        tiled.spacing = 5
+        let tiles = try #require(WatermarkGraph.Layout(tiled, imageSize: photo, scale: 1))
+        #expect(tiles.stamp.width <= 6000 && tiles.stamp.height <= 4000, "\(tiles.stamp.width) x \(tiles.stamp.height)")
+        #expect(tiles.gap > 0)
+        let bitmap = try #require(tiles.stamp.draw(opacity: 1))
+        #expect(Double(bitmap.width) == tiles.stamp.width && Double(bitmap.height) == tiles.stamp.height)
+
+        var long = Self.textWatermark
+        long.text = "© minivu 2026, every photograph in this folder, all rights reserved"
+        long.size = 1
+        let line = try #require(WatermarkGraph.Layout(long, imageSize: photo, scale: 1))
+        // Inside the margins (0.03 of 4000 = 120 px), give or take rounding up.
+        #expect(line.stamp.width <= 6000 - 240 + 1, "\(line.stamp.width)")
+        #expect(line.x >= 119 && line.stamp.height > 0)
+        #expect(try #require(line.stamp.draw(opacity: 1)).width == Int(line.stamp.width))
+    }
+
+    /// The same far ends rendered: the saved file and a quarter-size preview
+    /// show the watermark in the same place.
+    @Test(arguments: [true, false])
+    func watermarkAtItsLimitsLooksTheSameInPreviewAndFullResolution(tiled: Bool) {
+        var mark = Self.textWatermark
+        mark.color = .black
+        mark.opacity = 1
+        mark.size = 1
+        mark.position = .center
+        if tiled {
+            mark.tiled = true
+            mark.spacing = 5
+        } else {
+            mark.text = "© minivu 2026, every photograph in this folder, all rights reserved"
+        }
+        let full = render([.watermark(mark)], source: F.flat(0.5, width: 800, height: 400))
+        let proxy = render([.watermark(mark)], source: F.flat(0.5, width: 200, height: 100), scale: 0.25,
+                           fullSize: CGSize(width: 800, height: 400))
+        let fullBox = changedBox(full, from: 0.5), proxyBox = changedBox(proxy, from: 0.5)
+        #expect(!fullBox.isNull && !proxyBox.isNull, "the watermark is drawn at both sizes")
+        for (a, b) in [(fullBox.minX / 4, proxyBox.minX), (fullBox.maxX / 4, proxyBox.maxX),
+                       (fullBox.minY / 4, proxyBox.minY), (fullBox.maxY / 4, proxyBox.maxY)] {
+            #expect(abs(a - b) <= 2, "full \(fullBox) proxy \(proxyBox)")
+        }
+        // Inside the margins: the long text is shrunk to the photo's width.
+        #expect(fullBox.minX >= 11 && fullBox.maxX <= 800 - 11, "\(fullBox)")
+    }
+
     @Test func imageWatermarkReadsItsFileThroughTheBookmark() throws {
         let context = CGContext(data: nil, width: 100, height: 50, bitsPerComponent: 8, bytesPerRow: 0,
                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,

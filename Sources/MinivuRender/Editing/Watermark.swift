@@ -115,37 +115,77 @@ public struct Watermark: Codable, Hashable, Sendable {
 /// translucent stamp they are only scaled. Every size and position is a
 /// fraction of the working image's short side, rounded to whole working
 /// pixels, so the proxy and the saved file show the same watermark in the
-/// same place. Tiles are one bitmap with the gap included, repeated by
-/// `CIAffineTile`, so a tiled 50 MP photo costs one small bitmap too.
+/// same place. The bitmap holds the stamp alone, never the gap between
+/// tiles: tiling pads it with transparent Core Image pixels to the cell
+/// (stamp plus gap) and repeats that with `CIAffineTile`, so the widest
+/// spacing costs no more memory than the narrowest, and a tiled 50 MP photo
+/// costs one stamp-sized bitmap.
+///
+/// A stamp larger than the photo (a long text at a large size) is shrunk to
+/// fit inside the margins rather than dropped, by the same fraction at
+/// every scale, so the saved file keeps the watermark the preview shows,
+/// and the bitmap is never larger than the photo.
 enum WatermarkGraph {
     static let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
 
     static func apply(_ watermark: Watermark, to image: CIImage, scale: Double) -> CIImage {
         guard !watermark.isIdentity else { return image }
         let extent = image.extent
-        let width = Double(extent.width), height = Double(extent.height)
-        let short = min(width, height)
-        guard short >= 1 else { return image }
-        let size = EffectsMath.clamp(watermark.size, Watermark.sizeRange) * short
-        let opacity = EffectsMath.clamp(watermark.opacity, 0...1)
-        let margin = (EffectsMath.clamp(watermark.margin, Watermark.marginRange) * short).rounded()
-        let gap = watermark.tiled ? (EffectsMath.clamp(watermark.spacing, Watermark.spacingRange) * size).rounded() : 0
-
-        guard let stamp = Stamp(watermark, size: size, scale: scale) else { return image }
-        let cell = CGSize(width: stamp.width + gap, height: stamp.height + gap)
-        guard let bitmap = stamp.draw(in: cell, opacity: opacity) else { return image }
-
-        // The stamp's top-left corner in working pixels, top-left origin: at
-        // the anchor inside the margins.
-        let x = (margin + (width - 2 * margin - stamp.width) * watermark.position.x).rounded()
-        let top = (margin + (height - 2 * margin - stamp.height) * watermark.position.y).rounded()
-        // Core Image's y points up: the cell's bottom edge.
-        let placement = CGAffineTransform(translationX: x, y: height - top - cell.height)
-        var layer = CIImage(cgImage: bitmap).transformed(by: placement)
+        guard let layout = Layout(watermark, imageSize: extent.size, scale: scale),
+              let bitmap = layout.stamp.draw(opacity: EffectsMath.clamp(watermark.opacity, 0...1))
+        else { return image }
+        let height = Double(extent.height)
+        let stamp = layout.stamp
+        // Core Image's y points up: the stamp's bottom edge.
+        let bottom = height - layout.top - stamp.height
+        var layer = CIImage(cgImage: bitmap).transformed(by: CGAffineTransform(translationX: layout.x, y: bottom))
         if watermark.tiled {
-            layer = layer.applyingFilter("CIAffineTile", parameters: [kCIInputTransformKey: CGAffineTransform.identity])
+            // The cell: the stamp at its top left, the gap to its right and
+            // below it transparent.
+            let cell = CGRect(x: layout.x, y: bottom - layout.gap, width: stamp.width + layout.gap,
+                              height: stamp.height + layout.gap)
+            layer = layer.composited(over: CIImage(color: .clear).cropped(to: cell))
+                .applyingFilter("CIAffineTile", parameters: [kCIInputTransformKey: CGAffineTransform.identity])
         }
         return layer.composited(over: image).cropped(to: extent)
+    }
+
+    /// Where the stamp goes on a working image, and how big it is.
+    struct Layout {
+        let stamp: Stamp
+        /// The stamp's top-left corner in working pixels, top-left origin.
+        let x: Double
+        let top: Double
+        /// The gap between tiles, 0 without tiling.
+        let gap: Double
+
+        init?(_ watermark: Watermark, imageSize: CGSize, scale: Double) {
+            let width = Double(imageSize.width), height = Double(imageSize.height)
+            let short = min(width, height)
+            guard short >= 1 else { return nil }
+            var size = EffectsMath.clamp(watermark.size, Watermark.sizeRange) * short
+            let margin = (EffectsMath.clamp(watermark.margin, Watermark.marginRange) * short).rounded()
+            guard var stamp = Stamp(watermark, size: size, scale: scale) else { return nil }
+            // Too big for the photo: shrunk to fit inside the margins. The
+            // fit is a fraction of the stamp's own size, so the proxy and
+            // the saved file shrink theirs alike. Text isn't exactly
+            // proportional to its size (fonts track small sizes wider), so
+            // it is measured again, a few times at most.
+            let room = (width: max(1, width - 2 * margin), height: max(1, height - 2 * margin))
+            for _ in 0..<4 {
+                let fit = min(room.width / stamp.width, room.height / stamp.height)
+                guard fit < 1 else { break }
+                size *= fit
+                guard let smaller = Stamp(watermark, size: size, scale: scale) else { return nil }
+                stamp = smaller
+            }
+            self.stamp = stamp
+            gap = watermark.tiled
+                ? (EffectsMath.clamp(watermark.spacing, Watermark.spacingRange) * size).rounded() : 0
+            // At the anchor inside the margins.
+            x = (margin + (width - 2 * margin - stamp.width) * watermark.position.x).rounded()
+            top = (margin + (height - 2 * margin - stamp.height) * watermark.position.y).rounded()
+        }
     }
 
     /// The text or picture, measured at its working size.
@@ -193,27 +233,29 @@ enum WatermarkGraph {
                 width = max(1, (size * aspect).rounded())
                 height = max(1, size.rounded())
             }
-            guard width >= 1, height >= 1, width <= 32768, height <= 32768 else { return nil }
+            // Measured only: the size can be over any bitmap's limit here,
+            // before `Layout` fits it to the photo.
+            guard width >= 1, height >= 1, width.isFinite, height.isFinite else { return nil }
         }
 
-        /// The stamp drawn at the top left of a transparent `cell`.
-        func draw(in cell: CGSize, opacity: Double) -> CGImage? {
-            let w = Int(cell.width), h = Int(cell.height)
+        /// The stamp drawn into a bitmap of its own size.
+        func draw(opacity: Double) -> CGImage? {
+            guard width <= 32768, height <= 32768 else { return nil }
+            let w = Int(width), h = Int(height)
             guard w > 0, h > 0, let context = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8,
                                                         bytesPerRow: 0, space: WatermarkGraph.sRGB,
                                                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
             else { return nil }
             context.setAlpha(CGFloat(opacity))
             context.interpolationQuality = .high
-            // The context's y points up; the stamp sits at the cell's top.
-            let bottom = CGFloat(h) - CGFloat(height)
+            // The context's y points up.
             switch content {
             case .text(let line, let ascent):
                 context.setShouldAntialias(true)
-                context.textPosition = CGPoint(x: 0, y: bottom + CGFloat(height) - ascent)
+                context.textPosition = CGPoint(x: 0, y: CGFloat(height) - ascent)
                 CTLineDraw(line, context)
             case .image(let picture):
-                context.draw(picture, in: CGRect(x: 0, y: bottom, width: CGFloat(width), height: CGFloat(height)))
+                context.draw(picture, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
             }
             return context.makeImage()
         }
