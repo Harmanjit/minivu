@@ -117,6 +117,7 @@ enum BatchReplaceChoice {
         sheetsUp = [:]
         renamesRunning = 0
         lastRename = nil
+        MultiPageTools.reset()
     }
 
     static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
