@@ -79,10 +79,10 @@ import MinivuCore
         #expect(adjust.items.compactMap(\.action) == [.adjustRaw, .adjustLighting, .adjustColors, .adjustCurves,
                                                       .adjustLevels,
                                                       .autoEnhance, .sharpenImage, .blurImage, .reduceNoise])
-        // Copy Subject follows Copy, with no key of its own.
+        // Copy Subject follows Copy and Copy Text, with no key of its own.
         let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
         let copy = try #require(edit.items.firstIndex { $0.action == #selector(NSText.copy(_:)) })
-        #expect(edit.items[copy + 1].action == .copySubject && edit.items[copy + 1].keyEquivalent.isEmpty)
+        #expect(edit.items[copy + 2].action == .copySubject && edit.items[copy + 2].keyEquivalent.isEmpty)
         let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
         #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative, .addDropShadow,
                                                        .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,

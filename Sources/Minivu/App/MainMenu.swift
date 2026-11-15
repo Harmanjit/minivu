@@ -95,12 +95,12 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Cut", #selector(NSText.cut(_:)), "x")
         menu.add("Copy", #selector(NSText.copy(_:)), "c")
-        // The viewer's picture with its background cut away; nothing else
-        // implements it, so it stays disabled in the browser.
-        menu.add("Copy Subject", .copySubject)
         // ⇧⌘C: free everywhere in minivu (no Colors panel), and beside Copy.
         // The viewer's key table ignores anything with Command.
         menu.add("Copy Text", .copyText, "c", [.command, .shift])
+        // The viewer's picture with its background cut away; nothing else
+        // implements it, so it stays disabled in the browser.
+        menu.add("Copy Subject", .copySubject)
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)
