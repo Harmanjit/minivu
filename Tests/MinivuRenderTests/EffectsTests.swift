@@ -294,6 +294,26 @@ import Metal
         }
     }
 
+    /// The relief of HDR highlights: a square at 3.0 on ground at 1.5, both
+    /// brighter than white. The flat middle keeps its brightness, the edge
+    /// facing away from the light is shaded, and the picture's own edge,
+    /// repeated outward by the kernel, stays flat. On macOS 27 a repeated
+    /// edge read by a sampling kernel came back clipped to 1, which lost
+    /// both the highlight and the slope between the two.
+    @Test func bumpMapKeepsAndShadesHDRHighlights() throws {
+        let square = F.image(width: 64, height: 64) { x, y in
+            (16..<48).contains(x) && (16..<48).contains(y) ? SIMD4(3, 3, 3, 1) : SIMD4(1.5, 1.5, 1.5, 1)
+        }
+        let texture = Fixtures.readable(try EditRenderer.renderTexture(square, context: F.context, gpu: GPU.shared))
+        let source = CIImage(mtlTexture: texture, options: [.colorSpace: F.space])!
+        for image in [square, source] {
+            let p = render([.bumpMap(BumpMap())], source: image)
+            #expect(nearly(p[32, 32].x, 3, 0.02), "middle \(p[32, 32].x)")
+            #expect(p[47, 32].x < 2.7, "shaded edge \(p[47, 32].x)")
+            #expect(nearly(p[1, 1].x, 1.5, 0.02) && nearly(p[62, 62].x, 1.5, 0.02), "corners \(p[1, 1].x), \(p[62, 62].x)")
+        }
+    }
+
     /// Kernels first used on two threads at once stay themselves (see
     /// `EffectsKernels.kernel`): a bump map rendered beside oil paintings,
     /// whose structure tensor once stood in for the bump map's heights.

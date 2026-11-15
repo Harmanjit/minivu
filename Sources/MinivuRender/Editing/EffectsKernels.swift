@@ -140,13 +140,16 @@ enum EffectsKernels {
         """,
         "effectsBumpMap": """
         // light: unit vector (y up); params: step in working pixels, step in
-        // full-resolution pixels, gain, blend.
+        // full-resolution pixels, gain, blend; bounds: the image's minX minY
+        // maxX maxY, to which the height samples are held, which repeats its
+        // edge outward.
         [[stitchable]] float4 effectsBumpMap(coreimage::sampler src, coreimage::sampler height, float3 light,
-                                             float4 params, coreimage::destination dest) {
+                                             float4 params, float4 bounds, coreimage::destination dest) {
             float2 p = dest.coord();
             float4 s = src.sample(src.transform(p));
             float d = params.x;
-            #define H(dx, dy) height.sample(height.transform(p + float2(dx, dy) * d)).r
+            float2 lo = bounds.xy + 0.5, hi = max(bounds.zw - 0.5, lo);
+            #define H(dx, dy) height.sample(height.transform(clamp(p + float2(dx, dy) * d, lo, hi))).r
             float tl = H(-1.0, 1.0), t = H(0.0, 1.0), tr = H(1.0, 1.0);
             float l = H(-1.0, 0.0), r = H(1.0, 0.0);
             float bl = H(-1.0, -1.0), b = H(0.0, -1.0), br = H(1.0, -1.0);
@@ -421,13 +424,21 @@ enum EffectsKernels {
         let extent = image.extent
         let step = EffectsMath.clamp(bump.step, BumpMap.stepRange)
         let workingStep = step * scale
-        let clampedImage = image.clampedToExtent()
-        var height = heightKernel.apply(extent: .infinite, arguments: [clampedImage]) ?? clampedImage
+        // Neither the photo nor the height field reaches the kernel with its
+        // edges repeated by `clampedToExtent`: on macOS 27 a sampling kernel
+        // reads such an image clipped to 1, which cost an HDR photo its
+        // highlights (see "Core Image on macOS 27" in DESIGN.md). The photo is
+        // read only at the pixel written, and the kernel holds its height
+        // samples to the image's bounds itself.
+        guard var height = heightKernel.apply(extent: extent, arguments: [image]) else { return image }
         // Half a step of blur: the full-resolution height field loses the
-        // detail a proxy never had, so both light the same shapes.
+        // detail a proxy never had, so both light the same shapes. A blur
+        // reads a repeated edge without clipping it.
         let sigma = 0.5 * workingStep
         if sigma > 0.3 {
-            height = height.applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: sigma])
+            height = height.clampedToExtent()
+                .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: sigma])
+                .cropped(to: extent)
         }
         let azimuth = bump.angle.isFinite ? bump.angle * .pi / 180 : 0.75 * .pi
         let elevation = EffectsMath.clamp(bump.elevation, BumpMap.elevationRange) * .pi / 180
@@ -438,7 +449,7 @@ enum EffectsKernels {
                               w: EffectsMath.clamp(bump.blend, 0...1))
         return kernel.apply(extent: .infinite, roiCallback: { index, rect in
             index == 0 ? rect : rect.insetBy(dx: -reach - 3 * sigma, dy: -reach - 3 * sigma)
-        }, arguments: [clampedImage, height, light, params])?.cropped(to: extent) ?? image
+        }, arguments: [image, height, light, params, CIVector(cgRect: extent)])?.cropped(to: extent) ?? image
     }
 
     // MARK: - Sketch
