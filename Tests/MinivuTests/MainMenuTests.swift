@@ -168,7 +168,7 @@ import MinivuCore
             .adjustRaw, .removeBackground, .copySubject,
             .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
             .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
-            .copyText, .shareFiles, #selector(AppDelegate.toggleLiveText(_:)),
+            .copyText, .shareFiles, #selector(AppDelegate.toggleLiveText(_:)), .saveEditsAsPreset,
             #selector(NSApplication.runPageLayout(_:)),
         ]
         for selector in expected {
@@ -182,7 +182,8 @@ import MinivuCore
         let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
         let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
-                           "Save", "Save As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
+                           "Save", "Save As…", "Revert to Saved", "Save Edits as Preset…", "-", "Rename", "Copy To",
+                           "Move To", "-",
                            "Reveal in Finder", "Share…", "Move to Trash", "-", "Page Setup…", "Print…"])
         let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
         let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)

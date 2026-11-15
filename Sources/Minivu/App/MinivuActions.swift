@@ -57,6 +57,8 @@ import AppKit
     @objc optional func saveImage(_ sender: Any?)
     @objc optional func saveImageAs(_ sender: Any?)
     @objc optional func revertToSaved(_ sender: Any?)
+    /// The viewer's edits as a Batch Convert preset (G6); only the viewer.
+    @objc optional func saveEditsAsPreset(_ sender: Any?)
     @objc optional func rotateLeft(_ sender: Any?)
     @objc optional func rotateRight(_ sender: Any?)
     @objc optional func flipHorizontal(_ sender: Any?)
@@ -199,6 +201,7 @@ extension Selector {
     static let saveImage = #selector(MinivuActions.saveImage(_:))
     static let saveImageAs = #selector(MinivuActions.saveImageAs(_:))
     static let revertToSaved = #selector(MinivuActions.revertToSaved(_:))
+    static let saveEditsAsPreset = #selector(MinivuActions.saveEditsAsPreset(_:))
     static let rotateLeft = #selector(MinivuActions.rotateLeft(_:))
     static let rotateRight = #selector(MinivuActions.rotateRight(_:))
     static let flipHorizontal = #selector(MinivuActions.flipHorizontal(_:))

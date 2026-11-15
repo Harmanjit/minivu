@@ -68,6 +68,9 @@ enum MainMenu {
         menu.add("Save", .saveImage, "s")
         menu.add("Save As…", .saveImageAs, "s", [.command, .shift])
         menu.add("Revert to Saved", .revertToSaved)
+        // The viewer's edits as a Batch Convert preset. No shortcut, like
+        // the editing tools: it is an occasional command.
+        menu.add("Save Edits as Preset…", .saveEditsAsPreset)
         menu.addItem(.separator())
         // F2 as in Windows Explorer and FastStone: Return opens the viewer
         // here (Finder's Return-to-rename is taken) and ⌘R rotates. A plain
