@@ -147,6 +147,8 @@ import AppKit
     /// `NSApplication.runPageLayout(_:)`.
     @objc optional func printImages(_ sender: Any?)
     @objc optional func makeContactSheet(_ sender: Any?)
+    /// A folder of web pages of the pictures, for any browser (G21).
+    @objc optional func createWebGallery(_ sender: Any?)
     @objc optional func makeMontage(_ sender: Any?)
     @objc optional func setAsDesktopPicture(_ sender: Any?)
     /// Screen captures, handled by the app delegate: the capture is saved to
@@ -258,6 +260,7 @@ extension Selector {
     static let batchRename = #selector(MinivuActions.batchRename(_:))
     static let printImages = #selector(MinivuActions.printImages(_:))
     static let makeContactSheet = #selector(MinivuActions.makeContactSheet(_:))
+    static let createWebGallery = #selector(MinivuActions.createWebGallery(_:))
     static let makeMontage = #selector(MinivuActions.makeMontage(_:))
     static let setAsDesktopPicture = #selector(MinivuActions.setAsDesktopPicture(_:))
     static let captureScreen = #selector(MinivuActions.captureScreen(_:))

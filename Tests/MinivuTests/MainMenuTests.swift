@@ -167,7 +167,7 @@ import MinivuCore
             .autoEnhance, .reduceNoise, .addVignette, .correctPerspective, .changeCanvasSize, .addWatermark,
             .adjustRaw, .removeBackground, .copySubject,
             .startSlideshow, .exportSlideshowVideo, .batchConvert, .batchRename, .printImages, .makeContactSheet,
-            .makeMontage, .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
+            .createWebGallery, .makeMontage, .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
             .copyText, .shareFiles, #selector(AppDelegate.toggleLiveText(_:)),
             #selector(NSApplication.runPageLayout(_:)),
         ]
@@ -232,11 +232,12 @@ import MinivuCore
         let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
         let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Start Slideshow", "Export Slideshow Video…", "-", "Batch Convert…", "Batch Rename…", "-", "Contact Sheet…",
-                           "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
+                           "Create Web Gallery…", "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
                            "Open in External Editor"])
         let slideshow = try item("Start Slideshow")
         #expect(slideshow.keyEquivalent == "f" && slideshow.keyEquivalentModifierMask == [.command, .shift])
         #expect(try item("Export Slideshow Video…").keyEquivalent.isEmpty)
+        #expect(try item("Create Web Gallery…").keyEquivalent.isEmpty)
         let rename = try item("Batch Rename…")
         #expect(rename.keyEquivalent == MainMenu.Key.f2 && rename.keyEquivalentModifierMask == [.shift])
         let capture = try #require(tools.items.first { $0.title == "Capture" }?.submenu)
