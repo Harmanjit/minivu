@@ -52,6 +52,11 @@ public final class Catalog: @unchecked Sendable {
         public static let none = Marks()
     }
 
+    /// One of the two marks: what a change set.
+    public enum MarkField: Sendable, Equatable {
+        case rating, tagged
+    }
+
     /// Where a catalog's marks are being kept, and whether that is what the
     /// user asked for. Everything the interface shows carries on working
     /// when it is not the user's own file, so the app reads this once at
@@ -301,19 +306,20 @@ public final class Catalog: @unchecked Sendable {
     /// Clamped to 0...5.
     public func setRating(_ rating: Int, for urls: [URL]) {
         let r = min(max(rating, 0), 5)
-        write(urls, column: "rating", value: r)
+        write(urls, field: .rating, value: r)
     }
 
     public func setTagged(_ tagged: Bool, for urls: [URL]) {
-        write(urls, column: "tagged", value: tagged ? 1 : 0)
+        write(urls, field: .tagged, value: tagged ? 1 : 0)
     }
 
     /// Sets one mark column for `urls` in one transaction. A non-zero value
     /// inserts the row (recording the file's identity for healing) or
     /// updates it; zero deletes rows left with no marks at all, unless they
     /// stand over marks the file carries.
-    private func write(_ urls: [URL], column: String, value: Int) {
+    private func write(_ urls: [URL], field: MarkField, value: Int) {
         guard !urls.isEmpty else { return }
+        let column = field == .rating ? "rating" : "tagged"
         let keys = Self.keys(for: urls)
         // Read the files and stat them before taking the database lock:
         // readers shouldn't wait on the file system.
@@ -352,7 +358,7 @@ public final class Catalog: @unchecked Sendable {
         } catch {
             log.error("Writing marks failed: \(String(describing: error), privacy: .public)")
         }
-        if let mirror { mirror.catalog(self, didChangeMarks: marks(for: urls), of: urls) }
+        if let mirror { mirror.catalog(self, didChange: field, marks: marks(for: urls), of: urls) }
         post(urls)
     }
 
@@ -915,9 +921,12 @@ public final class Catalog: @unchecked Sendable {
 /// for Lightroom, Bridge and digiKam, while the user has that on (G2).
 public protocol CatalogMirror: AnyObject, Sendable {
     /// Called after a rating or tag change is committed, on the thread that
-    /// made it, with the new marks of the files in `urls` (files left with
-    /// none are absent from `marks`, or present as `.none`).
-    func catalog(_ catalog: Catalog, didChangeMarks marks: [URL: Catalog.Marks], of urls: [URL])
+    /// made it, with the mark the change set (`field`) and the new marks of
+    /// the files in `urls` (files left with none are absent from `marks`, or
+    /// present as `.none`). A mirror should copy out only `field`: the
+    /// other mark in `marks` may be a stale one that the file has since
+    /// replaced in another application.
+    func catalog(_ catalog: Catalog, didChange field: Catalog.MarkField, marks: [URL: Catalog.Marks], of urls: [URL])
 }
 
 /// Finder tags (the coloured labels) on files, read and written through the

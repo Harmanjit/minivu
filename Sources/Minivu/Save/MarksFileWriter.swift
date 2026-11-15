@@ -10,8 +10,11 @@ nonisolated private let marksLog = Logger(subsystem: "com.minivu.app", category:
 ///
 /// **Coalesced.** Changes are collected per file and written once they
 /// have been quiet for `delay`: pressing 1 2 3 4 5 quickly writes the file
-/// once, with five stars, and T T writes nothing new. Each file gets what
-/// the catalog says when the write is made, plus the last label chosen.
+/// once, with five stars, and T T writes nothing new. Each file gets the
+/// last value of each mark that was changed in minivu, and nothing else:
+/// pressing T writes the tag and leaves the file's rating alone, so a
+/// rating set in Lightroom since minivu last rated the file is not
+/// overwritten by the catalog's older one.
 ///
 /// **How.** Through the write queue (metadata only, `touching:`, so moving
 /// the file waits for it and a save under way isn't superseded), off the
@@ -30,10 +33,11 @@ nonisolated private let marksLog = Logger(subsystem: "com.minivu.app", category:
     /// What a file should say: nil leaves that part as the file has it.
     nonisolated struct Change: Equatable, Sendable {
         var url: URL
-        var marks: Catalog.Marks?
+        var rating: Int?
+        var tagged: Bool?
         var label: ColorLabel?
 
-        var edit: MetadataEdit { MetadataEdit(rating: marks?.rating, tagged: marks?.isTagged, colorLabel: label) }
+        var edit: MetadataEdit { MetadataEdit(rating: rating, tagged: tagged, colorLabel: label) }
     }
 
     /// Whether the setting is on, asked as each change arrives.
@@ -55,10 +59,19 @@ nonisolated private let marksLog = Logger(subsystem: "com.minivu.app", category:
     /// Changes not yet handed to the write queue.
     var pendingCount: Int { pending.count }
 
-    /// The catalog committed new marks (`CatalogFileMirror`).
-    func marksChanged(_ marks: [URL: Catalog.Marks], of urls: [URL]) {
+    /// The catalog committed a new rating or tag (`field`) for these files
+    /// (`CatalogFileMirror`). Only that mark is written.
+    func marksChanged(_ field: Catalog.MarkField, _ marks: [URL: Catalog.Marks], of urls: [URL]) {
         guard isEnabled(), !urls.isEmpty else { return }
-        for url in urls { note(url) { $0.marks = marks[url] ?? .none } }
+        for url in urls {
+            let new = marks[url] ?? .none
+            note(url) { change in
+                switch field {
+                case .rating: change.rating = new.rating
+                case .tagged: change.tagged = new.isTagged
+                }
+            }
+        }
         schedule()
     }
 
@@ -176,10 +189,10 @@ nonisolated final class CatalogFileMirror: CatalogMirror {
         self.writer = writer
     }
 
-    func catalog(_ catalog: Catalog, didChangeMarks marks: [URL: Catalog.Marks], of urls: [URL]) {
+    func catalog(_ catalog: Catalog, didChange field: Catalog.MarkField, marks: [URL: Catalog.Marks], of urls: [URL]) {
         let writer = self.writer
         // In order (a main-queue block, not a Task), so 1 then 5 can't land
         // as 5 then 1.
-        DispatchQueue.main.async { MainActor.assumeIsolated { writer.marksChanged(marks, of: urls) } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { writer.marksChanged(field, marks, of: urls) } }
     }
 }

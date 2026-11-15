@@ -100,6 +100,32 @@ import MinivuCore
         #expect(MetadataRevisions.shared.revision(of: url) > 0)
     }
 
+    /// Only the mark changed in minivu is written: tagging a file whose
+    /// catalog row has an old rating leaves the rating another application
+    /// put in the file since, and rating it leaves the file's tag.
+    @Test func onlyTheMarkThatChangedIsWritten() async throws {
+        let t = try ScratchFolder()
+        let url = try Self.image("a.jpg", in: t)
+        let harness = Harness()
+        harness.enabled = false
+        harness.catalog.setRating(2, for: [url])   // months ago, setting off
+        await harness.settle()
+        try MetadataWriter.apply(MetadataEdit(rating: 5), to: url)   // since then, in Lightroom
+        harness.enabled = true
+
+        harness.catalog.setTagged(true, for: [url])
+        await harness.settle()
+        await harness.writer.flushAndWait()
+        #expect(harness.calls.edits.map(\.rating) == [nil] && harness.calls.edits.map(\.tagged) == [true])
+        #expect(MarksXMP.readMarks(from: url) == Catalog.Marks(rating: 5, isTagged: true), "Lightroom's five stars stay")
+
+        harness.catalog.setRating(3, for: [url])
+        await harness.settle()
+        await harness.writer.flushAndWait()
+        #expect(harness.calls.edits.last?.rating == 3 && harness.calls.edits.last?.tagged == nil)
+        #expect(MarksXMP.readMarks(from: url) == Catalog.Marks(rating: 3, isTagged: true))
+    }
+
     @Test func writesGoThroughTheWriteQueue() async throws {
         let t = try ScratchFolder()
         let url = try Self.image("a.jpg", in: t)
@@ -141,9 +167,9 @@ import MinivuCore
         let gone = t.url.appendingPathComponent("gone.jpg")
         let pdf = try t.file("doc.png")
         let harness = Harness()
-        harness.writer.marksChanged([same: Catalog.Marks(rating: 3)], of: [same])
-        harness.writer.marksChanged([gone: Catalog.Marks(rating: 2)], of: [gone])
-        harness.writer.marksChanged([pdf: Catalog.Marks(rating: 1)], of: [pdf])
+        harness.writer.marksChanged(.rating, [same: Catalog.Marks(rating: 3)], of: [same])
+        harness.writer.marksChanged(.rating, [gone: Catalog.Marks(rating: 2)], of: [gone])
+        harness.writer.marksChanged(.rating, [pdf: Catalog.Marks(rating: 1)], of: [pdf])
         await harness.writer.flushAndWait()
         #expect(try Data(contentsOf: same) == bytes)
         #expect(harness.calls.urls.map(\.lastPathComponent) == ["doc.png"], "only the file that needed it was tried")
