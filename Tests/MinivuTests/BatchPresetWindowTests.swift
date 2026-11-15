@@ -79,6 +79,22 @@ extension AppWindowTests {
             defaults.set(Data("[\(future),\(goodJSON)]".utf8), forKey: "batchConvertPresets")
             #expect(store.convertPresets.map(\.name) == ["Grey"])
             #expect(store.convertPresets.first?.value.edits == [.grayscale] && store.convertPresets.first?.value.output == nil)
+
+            // Saving, renaming and deleting keep the unreadable one as it was
+            // stored, so a later minivu still finds it.
+            func stored() throws -> [[String: Any]] {
+                let data = try #require(defaults.data(forKey: "batchConvertPresets"))
+                return try #require(try JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+            }
+            let list = PresetList.convert(store)
+            let web = try #require(list.save(BatchConvertPreset(edits: [.negative]), as: "Web"))
+            #expect(list.presets.map(\.name) == ["Grey", "Web"])
+            #expect(try stored().compactMap { $0["name"] as? String } == ["Grey", "Web", "Future"])
+            #expect(list.rename(web.id, to: "Blog"))
+            list.delete(try #require(list.named("Grey")).id)
+            #expect(try stored().compactMap { $0["name"] as? String } == ["Blog", "Future"])
+            let keptEdits = (try stored().last?["value"] as? [String: Any])?["edits"] as? [[String: Any]]
+            #expect(keptEdits?.first?["teleport"] != nil, "the later minivu's step, unchanged")
         }
 
         // MARK: - Batch Convert
@@ -133,6 +149,51 @@ extension AppWindowTests {
             #expect(!again.renameSelectedPreset(to: "negative"), "taken")
             again.deleteSelectedPreset()
             #expect(PresetList.convert(store).presets.map(\.name) == ["Negative"] && again.selectedPresetID == nil)
+        }
+
+        /// The remembered settings bring back the preset their edits came
+        /// from, so the popup never shows None beside a preset's edits; a
+        /// preset deleted since shows None.
+        @Test func theRememberedPresetComesBackWithItsEdits() throws {
+            let t = try ScratchFolder()
+            let entry = try #require(FolderEntry(url: try t.jpeg("IMG_1.jpg", width: 20, height: 20)))
+            let grey = try #require(PresetList.convert(store).save(BatchConvertPreset(edits: [.grayscale]), as: "Grey"))
+            let model = BatchConvertModel(entries: [entry], store: store)
+            model.choosePreset(grey.id)
+            _ = model.commit()
+            let reopened = BatchConvertModel(entries: [entry], store: store)
+            #expect(reopened.selectedPresetID == grey.id && reopened.settings.edits == [.grayscale])
+
+            PresetList.convert(store).delete(grey.id)
+            #expect(BatchConvertModel(entries: [entry], store: store).selectedPresetID == nil)
+            reopened.choosePreset(nil)
+            _ = reopened.commit()
+            #expect(store.convertPresetID == nil)
+        }
+
+        /// Keep HDR says when the chosen colour profile or bit depth makes
+        /// HDR photos come out SDR after all.
+        @Test func keepHDRSaysWhenTheOptionsWriteSDR() throws {
+            let t = try ScratchFolder()
+            let entry = try #require(FolderEntry(url: try t.jpeg("IMG_1.jpg", width: 20, height: 20)))
+            let model = BatchConvertModel(entries: [entry], store: store)
+            model.format = .heic
+            model.settings.keepsHDR = true
+            model.settings.options.colorProfile = .original
+            #expect(model.hdrNote == nil)
+            model.settings.options.colorProfile = .sRGB
+            #expect(model.hdrNote?.contains("sRGB") == true)
+            model.settings.keepsHDR = false
+            #expect(model.hdrNote == nil, "nothing to say with Keep HDR off")
+            if ExportFormat.avif.isWritable {
+                model.format = .avif
+                model.settings.keepsHDR = true
+                model.settings.options.colorProfile = .displayP3
+                model.settings.options.sixteenBit = true
+                #expect(model.hdrNote?.contains("10 bits") == true)
+            }
+            model.format = .png
+            #expect(model.hdrNote == nil, "PNG holds no gain map: Keep HDR isn't shown")
         }
 
         /// The watermark is added in the batch sheet with the viewer's

@@ -39,6 +39,18 @@ public enum ImageEncoder {
         format == .jpeg || format == .heic || format == .avif
     }
 
+    /// Whether an HDR original may be written with a gain map under these
+    /// options. A gain map's base is ImageIO's 8-bit Display P3 rendition,
+    /// so an explicit sRGB or Adobe RGB profile, or the deeper bit depth,
+    /// can't be honoured with one: those options write SDR as asked, rather
+    /// than a gain map that quietly ignores them. "Keep original" (an HDR
+    /// photo's own space is Display P3 or wider) and Display P3 keep HDR.
+    public static func canWriteGainMap(_ options: ExportOptions) -> Bool {
+        guard canWriteGainMap(options.format) else { return false }
+        if options.format.supports16Bit && options.sixteenBit { return false }
+        return options.colorProfile == .original || options.colorProfile == .displayP3
+    }
+
     /// Encodes to memory (also used for size estimation, the quality preview
     /// and Batch Convert). With `gainMap`, as for `write`.
     public static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?,

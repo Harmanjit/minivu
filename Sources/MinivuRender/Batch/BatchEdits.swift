@@ -47,11 +47,22 @@ public enum BatchEdits {
     /// balance suggested for one photo suit no other. Steps that change
     /// nothing are dropped without a word, as the document never records
     /// them either.
+    ///
+    /// A crop or perspective is a fraction of the picture as it is at that
+    /// point in the list. After a Canvas Size that stays behind, that picture
+    /// is no longer the one the fractions were measured on (a crop back to
+    /// the photo inside a border would cut into the bare photo), so such a
+    /// step stays behind too, with the reason. A resize left out doesn't
+    /// matter: scaling each side keeps every fraction where it was.
     public static func portable(_ operations: [EditOperation]) -> Portable {
         var result = Portable(operations: [], leftOut: [])
+        var frameLeftOut = false
         for operation in operations where !operation.isIdentity || isAutoEnhance(operation) {
             if let reason = reasonLeftOut(operation) {
                 result.leftOut.append(LeftOut(title: operation.title, reason: reason))
+                if case .canvasSize = operation { frameLeftOut = true }
+            } else if frameLeftOut && isPlacedOnTheFrame(operation) {
+                result.leftOut.append(LeftOut(title: operation.title, reason: Self.afterCanvasSize))
             } else if isAutoEnhance(operation) {
                 result.operations.append(.autoEnhance(AutoEnhance()))
             } else {
@@ -90,6 +101,17 @@ public enum BatchEdits {
         case .perspective: "The same corners on each photo, as fractions of its size."
         case .rawDevelop: "RAW files only; other photos ignore it."
         default: nil
+        }
+    }
+
+    /// Why a crop or perspective after a Canvas Size left out stays behind.
+    public static let afterCanvasSize = "It was placed on the canvas Canvas Size made, which stays behind, so on another photo it would land elsewhere."
+
+    /// Steps measured as fractions of the picture they are given.
+    static func isPlacedOnTheFrame(_ operation: EditOperation) -> Bool {
+        switch operation {
+        case .crop, .perspective: true
+        default: false
         }
     }
 

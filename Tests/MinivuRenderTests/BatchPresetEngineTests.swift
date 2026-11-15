@@ -83,6 +83,23 @@ import UniformTypeIdentifiers
         #expect(BatchEdits.portable([.resize(width: 10, height: 10, filter: .box)]).isEmpty)
     }
 
+    /// A crop or perspective measured on the canvas a left-out Canvas Size
+    /// made would land elsewhere on a bare photo, so it stays behind too;
+    /// one after a left-out resize (each side scaled) still travels.
+    @Test func framedStepsAfterALeftOutCanvasSizeStayBehind() {
+        let crop = EditOperation.crop(CGRect(x: 0.1, y: 0.1, width: 0.8, height: 0.8))
+        let quad = EditOperation.perspective(PerspectiveQuad(topLeft: CGPoint(x: 0.05, y: 0), topRight: CGPoint(x: 0.95, y: 0),
+                                                             bottomRight: CGPoint(x: 1, y: 1), bottomLeft: CGPoint(x: 0, y: 1)))
+        let portable = BatchEdits.portable([
+            .resize(width: 800, height: 300, filter: .lanczos3), crop,
+            .canvasSize(CanvasSize(width: 1000, height: 1000, anchor: .center, fill: .white)),
+            .grayscale, crop, quad,
+        ])
+        #expect(portable.operations == [crop, .grayscale])
+        #expect(portable.leftOut.map(\.title) == ["Resize", "Canvas Size", "Crop", "Perspective"])
+        #expect(portable.leftOut.suffix(2).allSatisfy { $0.reason == BatchEdits.afterCanvasSize })
+    }
+
     // MARK: - Settings
 
     /// Settings remembered before presets existed load unchanged, with no
@@ -274,6 +291,34 @@ import UniformTypeIdentifiers
         settings.keepsHDR = false
         let sdr = try await converter.encodedData(for: url, settings: settings)
         #expect(try !gainMap(sdr) && brightest(sdr) <= 1.01, "\(format): HDR off")
+    }
+
+    /// A gain map's base is always Display P3 at 8 bits, so an explicit
+    /// sRGB or Adobe RGB profile, or the deeper bit depth, writes the HDR
+    /// original SDR as chosen instead of a gain map that ignores the choice;
+    /// Display P3 and Keep original keep HDR.
+    @Test(arguments: gainMapFormats)
+    func anExplicitProfileOrDepthWritesSDRAsChosen(_ format: ExportFormat) async throws {
+        let url = try Fixtures.gainMapHEIC(width: 256, height: 64)
+        let converter = await converter()
+        var settings = BatchConvertSettings(options: .defaults(for: format))
+        settings.options.colorProfile = .sRGB
+        let srgb = try await converter.encodedData(for: url, settings: settings)
+        #expect(try !gainMap(srgb), "\(format): sRGB asked for")
+        #expect(try decode(srgb).image.colorSpace?.name == CGColorSpace.sRGB, "\(format): tagged sRGB, as chosen")
+
+        settings.options.colorProfile = .displayP3
+        #expect(try gainMap(try await converter.encodedData(for: url, settings: settings)), "\(format): Display P3 keeps HDR")
+        settings.options.colorProfile = .original
+        #expect(try gainMap(try await converter.encodedData(for: url, settings: settings)), "\(format): Keep original keeps HDR")
+
+        if format.supports16Bit {
+            settings.options.sixteenBit = true
+            let deep = try await converter.encodedData(for: url, settings: settings)
+            #expect(try !gainMap(deep), "\(format): the deeper depth asked for")
+            let properties = CGImageSourceCopyPropertiesAtIndex(try decode(deep).source, 0, nil) as? [CFString: Any]
+            #expect((properties?[kCGImagePropertyDepth] as? Int ?? 8) > 8, "\(format): written at the depth chosen")
+        }
     }
 
     @Test func pngAndPQOriginals() async throws {

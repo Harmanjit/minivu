@@ -305,6 +305,11 @@ struct BatchConvertView: View {
                 Toggle("Keep HDR", isOn: $model.settings.keepsHDR)
                     .help("HDR photos keep their highlights, written with a gain map. Off, they are tone mapped to SDR.")
                     .accessibilityHint("HDR photos keep their highlights, written with a gain map")
+                if let note = model.hdrNote {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             if format.supports16Bit {
                 Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.settings.options.sixteenBit)

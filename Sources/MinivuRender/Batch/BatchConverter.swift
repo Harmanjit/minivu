@@ -185,7 +185,7 @@ public struct BatchConverter: Sendable {
             info = sequence.info(ofPage: page)
         }
         let operations = settings.operations(sourceSize: info.pixelSize)
-        let hdr = keepingHDR && info.isHDR && kind == .raster && ImageEncoder.canWriteGainMap(settings.options.format)
+        let hdr = keepingHDR && info.isHDR && kind == .raster && ImageEncoder.canWriteGainMap(settings.options)
         let bits = settings.options.format.supports16Bit && settings.options.sixteenBit ? 16 : 8
         try Self.checkBudget(url, info: info, operations: operations, bytesPerPixel: hdr || bits == 16 ? 8 : 4,
                              limit: renderer.exportDecodeLimit)

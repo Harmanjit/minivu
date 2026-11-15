@@ -114,6 +114,9 @@ import MinivuRender
         self.settings = settings
         chosenFolder = folder
         chosenBookmark = folderBookmark
+        // The popup shows the preset the remembered edits came from, while
+        // it is still there; otherwise None beside edits would read as none.
+        if mode == .convert, let id = store.convertPresetID, presets.preset(id) != nil { selectedPresetID = id }
         schedulePreview()
     }
 
@@ -250,6 +253,20 @@ import MinivuRender
         }
     }
 
+    /// Under Keep HDR, why HDR photos will be written SDR after all: the
+    /// chosen colour profile or bit depth can't go with a gain map
+    /// (`ImageEncoder.canWriteGainMap(_:)`). Nil when Keep HDR applies or
+    /// is off.
+    var hdrNote: String? {
+        let options = settings.options
+        guard settings.keepsHDR, ImageEncoder.canWriteGainMap(options.format),
+              !ImageEncoder.canWriteGainMap(options) else { return nil }
+        if options.format.supports16Bit && options.sixteenBit {
+            return "HDR photos are written SDR at \(options.format.deepBitDepth ?? 16) bits: a gain map holds 8."
+        }
+        return "HDR photos are written SDR in \(options.colorProfile.title): a gain map needs Display P3."
+    }
+
     /// A preset's output options, as the sheet's own: the chosen folder
     /// resolved again (or beside the originals when it has gone), the
     /// names' pattern shown, and a format this Mac can't write replaced.
@@ -372,6 +389,7 @@ import MinivuRender
         case .convert:
             store.convertSettings = settings
             store.convertPattern = pattern
+            store.convertPresetID = selectedPresetID
         case .extractPages:
             store.extractSettings = settings
             store.extractPattern = pattern

@@ -12,6 +12,9 @@ import MinivuRender
 /// their own beside those, so the remembered settings are stored exactly as
 /// before; a preset that can't be read (written by a later minivu with an
 /// edit step this one doesn't know) is skipped, and the others still load.
+/// Writing the list back keeps such a preset's JSON as it was, after the
+/// ones this minivu wrote, so saving here never deletes what a later
+/// minivu saved.
 struct BatchStore {
     let defaults: UserDefaults
 
@@ -27,6 +30,9 @@ struct BatchStore {
         /// the web are different habits.
         static let convertPattern = "batchConvertPattern"
         static let convertPresets = "batchConvertPresets"
+        /// The preset the Batch Convert sheet showed when it last ran, so the
+        /// popup comes back with the edits it brought.
+        static let convertPresetID = "batchConvertPresetID"
         static let renamePresets = "batchRenamePresets"
         /// Extract Pages remembers its own settings and names: pages taken
         /// out of a PDF and photos converted for the web are different jobs.
@@ -44,6 +50,14 @@ struct BatchStore {
     var convertSettings: BatchConvertSettings? {
         get { decode(BatchConvertSettings.self, Keys.convertSettings) }
         nonmutating set { encode(newValue, Keys.convertSettings) }
+    }
+
+    var convertPresetID: UUID? {
+        get { defaults.string(forKey: Keys.convertPresetID).flatMap(UUID.init(uuidString:)) }
+        nonmutating set {
+            if let newValue { defaults.set(newValue.uuidString, forKey: Keys.convertPresetID) }
+            else { defaults.removeObject(forKey: Keys.convertPresetID) }
+        }
     }
 
     var convertPattern: RenamePattern {
@@ -73,17 +87,41 @@ struct BatchStore {
 
     var convertPresets: [NamedPreset<BatchConvertPreset>] {
         get { decodeEach(NamedPreset<BatchConvertPreset>.self, Keys.convertPresets) }
-        nonmutating set { encode(newValue, Keys.convertPresets) }
+        nonmutating set { encodeEach(newValue, Keys.convertPresets) }
     }
 
     var renamePresets: [NamedPreset<RenamePattern>] {
         get { decodeEach(NamedPreset<RenamePattern>.self, Keys.renamePresets) }
-        nonmutating set { encode(newValue, Keys.renamePresets) }
+        nonmutating set { encodeEach(newValue, Keys.renamePresets) }
     }
 
     /// A list decoded one element at a time, leaving out those that fail.
     private func decodeEach<T: Decodable>(_ type: T.Type, _ key: String) -> [T] {
         decode([Lenient<T>].self, key)?.compactMap(\.value) ?? []
+    }
+
+    /// Writes `values` as the list under `key`, followed by the elements
+    /// stored there now that can't be decoded as `T`, unchanged.
+    private func encodeEach<T: Codable>(_ values: [T], _ key: String) {
+        guard let data = try? JSONEncoder().encode(values) else { return }
+        let kept = unreadableElements(T.self, key)
+        guard !kept.isEmpty,
+              let written = (try? JSONSerialization.jsonObject(with: data)) as? [Any],
+              let merged = try? JSONSerialization.data(withJSONObject: written + kept)
+        else { return defaults.set(data, forKey: key) }
+        defaults.set(merged, forKey: key)
+    }
+
+    /// The elements of the list stored under `key` that don't decode as `T`,
+    /// as parsed JSON.
+    private func unreadableElements<T: Decodable>(_ type: T.Type, _ key: String) -> [Any] {
+        guard let data = defaults.data(forKey: key),
+              let elements = (try? JSONSerialization.jsonObject(with: data)) as? [Any]
+        else { return [] }
+        return elements.filter { element in
+            guard let one = try? JSONSerialization.data(withJSONObject: element, options: .fragmentsAllowed) else { return false }
+            return (try? JSONDecoder().decode(T.self, from: one)) == nil
+        }
     }
 
     private func decode<T: Decodable>(_ type: T.Type, _ key: String) -> T? {
