@@ -233,8 +233,14 @@ then headers only for files still in the running.
   `NSWorkspace.recycle` returns (Replace's `FileTransfer.trash` already
   did). The member is left out of the list and of the sidebar's count at
   once, but kept, as its marks are kept with it in the Trash, so moving it
-  back with minivu (undo of a Replace) brings it back, and Finder's Put
-  Back is healed by identity. **Trashed in Finder** (or by a Move to Trash
+  back with minivu (undo of a Replace) brings it back. Once the file has
+  left the Trash, opening the collection looks for it by identity
+  (`fsgetpath`, with the same Trash and readability checks), so Finder's
+  Put Back brings it back and counts it again without its folder being
+  listed first. **Trash emptied:** the row is stamped missing, either when
+  the collection is opened or by the first folder heal of a launch (which
+  checks members left in a Trash folder, as `heal` does for marks), so it
+  is dropped after a year like any other missing member. **Trashed in Finder** (or by a Move to Trash
   that failed part way, so nothing was recorded): when the collection is
   opened its identity is found in the Trash, which counts as not found; it
   is stamped missing and keeps its path, so Put Back brings it back,
@@ -297,10 +303,11 @@ folder"). Nothing new animates.
 - MinivuCoreTests/CatalogLibraryTests: v2 and v1 upgrades, reopening, the
   metadata cache (freshness, read once, cancellation, moves and removals),
   collections (order, rename and move by minivu, folder moves, removal,
-  a recorded move to the Trash, an identity found in the Trash or where it
-  can't be read left out, Finder moves by identity and by healing, missing
-  members), smart
-  folders (persistence across launches, tolerant decoding).
+  a recorded move to the Trash, Put Back in Finder after one, an emptied
+  Trash stamping members missing, an identity found in the Trash or where
+  it can't be read left out, Finder moves by identity and by healing,
+  missing members), smart folders (persistence across launches, tolerant
+  decoding).
 - MinivuCoreTests/SearchTests: header reading, every condition, unknown
   metadata, ranges, type groups, JSON, the walk (order, depth, image and
   folder limits, cancellation, unreadable root, symlink loops), Find (name,
@@ -383,9 +390,13 @@ folder"). Nothing new animates.
   doing ("Comparing files of the same size… 120 of 400", "Analysing
   images… 50 of 300", "Comparing images with each other…") and **Stop**
   (Esc), which shows the groups among what was compared so far, with a note
-  saying it stopped early. Stop also skips reading the grouped images'
-  headers, so those partial results show without pixel dimensions (and the
-  Highest Resolution rule falls back to the next criterion).
+  saying it stopped early. Stop also skips reading every grouped image's
+  header, so the partial results show at once; the window then reads the
+  dimensions of the files shown (and of any a looser threshold later
+  shows), a header read each, off the main thread. Until a group's are
+  read, under Highest Resolution it has no Keep badge and Mark Suggested
+  is disabled ("Waiting for the images' dimensions"), so the suggestion is
+  never a silent guess by file size.
 - **Results:** groups, each headed "3 identical files, 4.2 MB each" or
   "4 similar images", listing per file a checkbox, its thumbnail, name,
   folder (full path on hover), pixel dimensions, size and date modified.
@@ -397,7 +408,8 @@ folder"). Nothing new animates.
   (earliest of created and modified). Ties go to the next criterion, then
   path order. Remembered.
 - **Mark Suggested** ticks every file except each group's suggested keeper
-  (it never ticks a whole group); **Clear Marks** unticks all; the
+  (it never ticks a whole group, and leaves a group with no suggestion
+  yet unticked); **Clear Marks** unticks all; the
   checkboxes tick and untick single files. Nothing is ever ticked unless
   the user does one of these. The footer says "3 marked, 12.4 MB".
 - **Move to Trash…** asks first: "Move 3 files to the Trash? You can put
@@ -528,7 +540,9 @@ nothing to change.
   the selection, the threshold regrouping without running again, keep
   rules and Mark Suggested, Stop, closing mid-run, the real similar search
   and the memory cap's note; the folder scope saying nothing of its
-  subfolders; Stop skipping the header reads.
+  subfolders; Stop skipping the header reads; after Stop, the shown
+  files' dimensions read so Highest Resolution keeps the bigger picture
+  rather than the bigger file.
 - MinivuTests/DuplicatesWindowTests: the browser's menu item and source,
   one window retargeted, Move to Trash only after confirming (into a test
   folder) with the whole-group warning, Show in Browser and Back, Compare;
