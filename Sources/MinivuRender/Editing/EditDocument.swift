@@ -175,6 +175,19 @@ import MinivuCore
     /// `EditRenderer.subjectMask(for:operations:)`).
     var subjectMaskCache: (operations: [EditOperation], mask: SubjectMask?)?
     var preparation: Task<Void, Error>?
+    /// The original being made again with other RAW settings, which both
+    /// lanes wait for rather than decode the file twice (see
+    /// `EditRenderer.remadeSource`).
+    var sourceRemake: SourceRemake?
+    /// How many times the original has been made again; for tests.
+    var sourceRemakes = 0
+
+    struct SourceRemake {
+        let id: UUID
+        let develop: RawDevelop?
+        let task: Task<EditSource?, Never>
+    }
+
     /// Changes when the renderer releases the document, so a preparation
     /// that finishes afterwards doesn't bring the original back.
     var preparationToken = 0

@@ -12,7 +12,7 @@ import Metal
 @MainActor @Suite(.serialized) struct RawDevelopTests {
     typealias F = EditFixtures
     let renderer = EditRenderer.shared
-    static let nef = RawRendererTests.folder.appendingPathComponent("nikon_d750_sample.nef")
+    nonisolated static let nef = RawRendererTests.folder.appendingPathComponent("nikon_d750_sample.nef")
 
     func document(_ url: URL) -> EditDocument {
         EditDocument(entry: FolderEntry(url: url)!)
@@ -32,7 +32,7 @@ import Metal
 
     /// The mean of the middle half of a texture's green channel, which a
     /// change of exposure moves and a change of size doesn't.
-    func middleMean(_ texture: MTLTexture) -> Float {
+    nonisolated func middleMean(_ texture: MTLTexture) -> Float {
         let p = F.pixels(texture)
         var sum: Float = 0, count = 0
         for y in stride(from: p.height / 4, to: 3 * p.height / 4, by: max(1, p.height / 64)) {
@@ -86,6 +86,44 @@ import Metal
     @Test func oneRawRenderAtATimeOnSmallMacs() {
         #expect(RawRenderer.concurrentEditRenders(physicalMemory: 8 << 30) == 1)
         #expect(RawRenderer.concurrentEditRenders(physicalMemory: 16 << 30) == 2)
+        #expect(RawRenderer.viewerSharesEditSlot(physicalMemory: 8 << 30))
+        #expect(!RawRenderer.viewerSharesEditSlot(physicalMemory: 16 << 30))
+    }
+
+    /// On an 8 GB Mac the viewer's RAW render waits while the editor renders
+    /// one, so the app never runs two at once; on a larger Mac it doesn't.
+    @Test nonisolated func theViewerWaitsForTheEditorsRawRenderOnSmallMacs() {
+        final class Log: @unchecked Sendable {
+            private let lock = NSLock()
+            private var items: [String] = []
+            func add(_ item: String) { lock.withLock { items.append(item) } }
+            var all: [String] { lock.withLock { items } }
+        }
+        for (memory, shares) in [(UInt64(8) << 30, true), (UInt64(16) << 30, false)] {
+            let slots = RawRenderer.RenderSlots(physicalMemory: memory)
+            let log = Log()
+            let editing = DispatchSemaphore(value: 0), finishEdit = DispatchSemaphore(value: 0)
+            let viewerDone = DispatchSemaphore(value: 0), editDone = DispatchSemaphore(value: 0)
+            DispatchQueue.global().async {
+                slots.withEditRender {
+                    editing.signal()
+                    finishEdit.wait()
+                    log.add("editor")
+                }
+                editDone.signal()
+            }
+            editing.wait()
+            DispatchQueue.global().async {
+                slots.withViewerRender { log.add("viewer") }
+                viewerDone.signal()
+            }
+            let waited = viewerDone.wait(timeout: .now() + 0.3) == .timedOut
+            #expect(waited == shares, "\(memory >> 30) GB")
+            finishEdit.signal()
+            editDone.wait()
+            if waited { viewerDone.wait() }
+            #expect(log.all == (shares ? ["editor", "viewer"] : ["viewer", "editor"]), "\(memory >> 30) GB")
+        }
     }
 
     /// The graph leaves the picture alone: the step acts where the original
@@ -185,6 +223,75 @@ import Metal
         #expect(redoneMean < plainMean * 0.75)
         #expect(doc.source?.develop == RawDevelop(exposure: -1))
         renderer.release(doc)
+    }
+
+    /// After the last RAW step is undone both lanes need the plain original:
+    /// they share one decode, and neither keeps a stage or proxy made from
+    /// the developed original it replaced.
+    @Test(.enabled(if: RawRendererTests.hasAssets))
+    func bothLanesShareOneDecodeOfThePlainOriginal() async throws {
+        let doc = document(Self.nef)
+        try await renderer.prepare(doc, proxyPixelSize: 1000)
+        // A resize to fewer pixels with an operation after it, so renders
+        // keep stages.
+        doc.apply(.rawDevelop(RawDevelop(exposure: -1)))
+        doc.apply(.resize(width: 1200, height: 800, filter: .lanczos3))
+        doc.apply(.vignette(amount: 0.5, radius: 0.8, feather: 0.5))
+        _ = await fullResolution(doc)
+        let developed = try #require(doc.source)
+        #expect(developed.develop == RawDevelop(exposure: -1))
+
+        let before = doc.sourceRemakes
+        doc.undo()
+        doc.undo()
+        doc.undo()
+        #expect(RawDevelop.inEffect(doc.operations) == nil)
+        renderer.renderPreview(doc, pixelSize: 1000) { _ in }
+        renderer.renderFullResolution(doc) { _ in }
+        let end = Date().addingTimeInterval(30 * TestTiming.slack)
+        while Date() < end, doc.source?.develop != nil || doc.previewLane.isRunning || doc.fullLane.isRunning
+            || doc.previewLane.pending != nil || doc.fullLane.pending != nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(doc.source?.develop == nil)
+        #expect(doc.sourceRemakes == before + 1, "\(doc.sourceRemakes - before) decodes")
+        for lane in [doc.previewLane, doc.fullLane] {
+            #expect(lane.stage == nil || lane.stage?.source === doc.source)
+        }
+        #expect(doc.proxy == nil || doc.proxy?.develop == nil)
+        renderer.release(doc)
+    }
+
+    /// One engine filter, two settings rendered at once from two threads:
+    /// each comes out as it does alone (the editor's two RAW slots on
+    /// larger Macs let a preview and a full render overlap).
+    @Test(.enabled(if: RawRendererTests.hasAssets))
+    nonisolated func oneFilterRendersTwoSettingsAtOnceWithoutMixingThem() throws {
+        let filter = try #require(RawDevelopFilter(url: Self.nef))
+        let settings = DisplaySettings()
+        let developments = [RawDevelop(exposure: -1.5), RawDevelop(exposure: 1.5)]
+        func mean(_ develop: RawDevelop) -> Float? {
+            guard let rendered = try? EditRenderer.renderDeveloped(filter, develop: develop,
+                                                                   fullSize: filter.orientedSize, scale: 0.2,
+                                                                   settings: settings, gpu: .shared) else { return nil }
+            return middleMean(rendered.texture)
+        }
+        let alone = try developments.map { try #require(mean($0)) }
+        #expect(alone[1] > alone[0] * 2)
+        final class Results: @unchecked Sendable {
+            let lock = NSLock()
+            var values: [Int: Float] = [:]
+        }
+        let results = Results()
+        DispatchQueue.concurrentPerform(iterations: 8) { index in
+            let value = mean(developments[index % 2])
+            results.lock.withLock { results.values[index] = value }
+        }
+        for index in 0..<8 {
+            let expected = alone[index % 2]
+            let value = try #require(results.values[index])
+            #expect(abs(value - expected) < expected * 0.02, "render \(index): \(value), alone \(expected)")
+        }
     }
 
     /// A save renders with the committed settings, even from a document

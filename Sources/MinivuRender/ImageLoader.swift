@@ -575,9 +575,14 @@ public struct DisplaySettings: Sendable, Equatable {
     nonisolated private static func renderRaw(url: URL, target: CGSize?, settings: DisplaySettings,
                                               checkStop: () throws -> Void) throws -> ImageTexture? {
         do {
-            return try RawRenderer.render(url: url, maxPixelSize: rawRenderEdge(url: url, target: target),
-                                          hdr: rawPlan(settings: settings) == .render(hdr: true),
-                                          headroom: settings.rawHeadroom)
+            // On a Mac with 8 GB or less this waits while the editor renders
+            // a RAW: the app renders one at a time there.
+            return try RawRenderer.withViewerRenderSlot {
+                try checkStop()
+                return try RawRenderer.render(url: url, maxPixelSize: rawRenderEdge(url: url, target: target),
+                                              hdr: rawPlan(settings: settings) == .render(hdr: true),
+                                              headroom: settings.rawHeadroom)
+            }
         } catch DecodeError.noImage {
             // Core Image's RAW engine doesn't know this camera, and ImageIO
             // renders RAW files with the same engine: the embedded preview is
@@ -588,6 +593,8 @@ public struct DisplaySettings: Sendable, Equatable {
             // the canvas asking again and again.
             if !previewCovers(preview, target: target) { preview.isFullResolution = true }
             return try TextureUploader.upload(preview)
+        } catch let stopped as CancellationError {
+            throw stopped   // stopped while waiting for the editor's render
         } catch {
             return nil   // a GPU failure: ImageIO's decode may still manage
         }

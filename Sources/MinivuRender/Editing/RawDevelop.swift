@@ -135,8 +135,12 @@ public struct RawDefaults: Hashable, Sendable {
 /// 110 ms; the same filter given new settings rendered again at half size
 /// in 65-78 ms. Draft mode measured no faster at those sizes, so it stays
 /// off. The filter is not safe to change from two threads, so settings and
-/// output are taken under a lock; the `CIImage` it returns is immutable and
-/// renders outside it.
+/// output are taken under a lock; the `CIImage` it returns keeps the
+/// settings it was made with and renders outside it, so a preview needn't
+/// wait behind a full-resolution render of the same file.
+/// `oneFilterRendersTwoSettingsAtOnceWithoutMixingThem` pins that: eight
+/// renders of two settings at once from one filter each match a render
+/// alone.
 final class RawDevelopFilter: @unchecked Sendable {
     let url: URL
     let defaults: RawDefaults
