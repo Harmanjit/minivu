@@ -35,6 +35,22 @@ extension BrowserWindowController {
         return SlideshowSequence.withoutVideos(all, start: start)
     }
 
+    /// Whether `toolStills` would hold anything, from the counts and the
+    /// selection rather than a walk of the folder: menus and the toolbar
+    /// validate on every event, and a folder can hold 20,000 files.
+    var toolsHaveStills: Bool {
+        let selected = model.selectedEntries.filter { !$0.isDirectory }
+        return selected.isEmpty ? model.imageCount > model.videoCount : selected.contains { $0.kind != .video }
+    }
+
+    /// Whether `slideshowImages` would hold anything, as cheaply: two
+    /// selected pictures play on their own, otherwise the folder's pictures
+    /// do, wherever the show starts.
+    var slideshowHasStills: Bool {
+        let selectedStills = model.selectedEntries.lazy.filter { !$0.isDirectory && $0.kind != .video }
+        return selectedStills.prefix(2).count >= 2 || model.imageCount > model.videoCount
+    }
+
     /// The one image a single-image command (Set as Desktop Picture) works
     /// on: the lead of the selection, unless it is a folder. Videos count
     /// (they can be shared or opened in an editor); Set as Desktop Picture
@@ -62,9 +78,9 @@ extension BrowserWindowController {
         // Tools of pictures: a selection of videos only leaves nothing for
         // them, as does a folder of nothing but videos (G18).
         case .startSlideshow:
-            !slideshowImages.images.isEmpty
+            slideshowHasStills
         case .batchConvert, .printImages, .makeContactSheet, .makeMontage:
-            model.imageCount > model.videoCount && !toolStills.isEmpty
+            toolsHaveStills
         case .setAsDesktopPicture:
             toolLeadImage.map { $0.kind != .video } ?? false
         case .openInExternalEditor:

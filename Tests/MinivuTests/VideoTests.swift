@@ -205,6 +205,44 @@ extension AppWindowTests {
             }
         }
 
+        /// The picture tools validate from counts and the selection, never a
+        /// walk of the folder; the quick answers agree with the lists the
+        /// tools would actually use, in every case.
+        @Test func quickToolValidationAgreesWithTheLists() async throws {
+            let t = try ScratchFolder()
+            try t.folder("Sub")
+            let photo = try t.jpeg("a.jpg", width: 64, height: 48)
+            let second = try t.jpeg("b.jpg", width: 64, height: 48)
+            let video = try t.file("c.mov")
+            let onlyVideos = try ScratchFolder()
+            try onlyVideos.file("d.mov"); try onlyVideos.file("e.mp4")
+            let controller = BrowserWindowController(catalog: catalog)
+            defer { controller.window?.close() }
+            _ = controller.grid.view
+
+            func check(_ label: String) {
+                #expect(controller.toolsHaveStills == !controller.toolStills.isEmpty, "\(label)")
+                #expect(controller.slideshowHasStills == !controller.slideshowImages.images.isEmpty, "\(label)")
+            }
+            controller.open(folder: t.url)
+            await controller.model.work?.value
+            let model = controller.model
+            check("nothing selected")
+            model.select(video); check("the video")
+            model.select(photo); check("a photo")
+            model.setSelection([video, photo, second], lead: video); check("photos and the video")
+            model.selectAll(); check("everything, the folder too")
+            #expect(controller.toolsHaveStills && controller.slideshowHasStills)
+
+            controller.open(folder: onlyVideos.url)
+            await controller.model.work?.value
+            check("only videos")
+            #expect(!controller.toolsHaveStills && !controller.slideshowHasStills)
+            model.selectAll(); check("only videos, all selected")
+            #expect(!controller.validateMenuItem(item(.startSlideshow)))
+            #expect(!controller.validateMenuItem(item(.batchConvert)))
+        }
+
         @Test func filterItemsTickTheTypeInForce() async throws {
             let t = try ScratchFolder()
             try t.file("a.jpg"); try t.file("b.mov")
