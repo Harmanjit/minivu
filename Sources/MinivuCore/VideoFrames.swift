@@ -288,6 +288,7 @@ public enum VideoFrames {
         generator.requestedTimeToleranceAfter = CMTime(seconds: max(toleranceAfter, 0), preferredTimescale: 600)
         generator.dynamicRangePolicy = allowHDR ? .matchSource : .forceSDR
 
+        BlockingWork.expectOffCooperativePool("VideoFrames (AVFoundation wait)")
         frameSlots.wait()
         decoding.enter()
         defer {
@@ -332,6 +333,7 @@ public enum VideoFrames {
     /// Runs AVFoundation's asynchronous loading and waits for it on this
     /// (GCD) thread. Nil on failure or after `timeout`.
     static func wait<T: Sendable>(_ work: @escaping @Sendable () async throws -> T) -> T? {
+        BlockingWork.expectOffCooperativePool("VideoFrames (AVFoundation wait)")
         let result = ResultBox<T>()
         let done = DispatchSemaphore(value: 0)
         let task = Task.detached(priority: .userInitiated) {

@@ -46,6 +46,7 @@ public struct FeaturePrint: Sendable, Equatable {
 
     /// The print of `image`, nil when Vision can't make one.
     public static func make(from image: CGImage) -> FeaturePrint? {
+        BlockingWork.expectOffCooperativePool("FeaturePrint.make(from:)")
         let request = VNGenerateImageFeaturePrintRequest()
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         do {
