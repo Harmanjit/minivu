@@ -203,7 +203,8 @@ extension AppWindowTests {
                     try await Bench.measure("files", "\(isMove ? "move" : "copy")\(count)", runs: Bench.runs(5), extra: {
                         let recording = Perf.stopRecording()
                         let runs = Double(Bench.runs(5) + 1)
-                        return String(format: "item_ms=%.3f catalog_ms_each=%.3f transactions_per_file=%.2f notifications_per_file=%.2f catalogChanged_main_ms=%.2f %@",
+                        return String(format: "item_ms=%.3f catalog_ms_each=%.3f transactions_per_file=%.2f "
+                                          + "notifications_per_file=%.2f catalogChanged_main_ms=%.2f %@",
                                       recording.total("transfer.item") / (runs * Double(count)),
                                       recording.total("transfer.catalog") / (runs * Double(count)),
                                       Double(recording.counts["sqlite.transaction"] ?? 0) / (runs * Double(count)),
