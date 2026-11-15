@@ -8,7 +8,8 @@ import MinivuRender
 nonisolated enum SavePolicy {
     /// The format Save (⌘S) writes over the original in, or nil when it must
     /// fall back to Save As: formats minivu can't write (camera RAW, WebP,
-    /// AVIF, JPEG XL, PDF, SVG, PSD), animations, and files with more than
+    /// JPEG XL, PDF, SVG, PSD, and AVIF where ImageIO has no AVIF encoder),
+    /// animations, and files with more than
     /// one image (a multi-page TIFF, an icon with several sizes, a HEIC
     /// collection), which writing one picture back would silently shrink.
     /// JPEGs are the exception to that last rule: their second "image" is an

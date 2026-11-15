@@ -139,7 +139,7 @@ struct BatchConvertView: View {
         let format = model.settings.options.format
         Section("Format") {
             Picker("Format", selection: $model.format) {
-                ForEach(ExportFormat.allCases, id: \.self) { Text($0.title).tag($0) }
+                ForEach(ExportFormat.writableCases, id: \.self) { Text($0.title).tag($0) }
             }
             if format.supportsQuality {
                 LabeledContent("Quality") {
@@ -170,7 +170,7 @@ struct BatchConvertView: View {
                 Toggle("Progressive", isOn: $model.settings.options.progressive)
             }
             if format.supports16Bit {
-                Toggle("16 bits per channel", isOn: $model.settings.options.sixteenBit)
+                Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.settings.options.sixteenBit)
             }
             if format.supportsMetadata {
                 Toggle("Keep metadata (EXIF, GPS, IPTC, XMP)", isOn: $model.settings.options.keepMetadata)

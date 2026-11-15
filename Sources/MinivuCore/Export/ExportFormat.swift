@@ -1,11 +1,15 @@
 import Foundation
 import CoreGraphics
+import ImageIO
 import UniformTypeIdentifiers
 
 /// The file formats Save As and batch convert can write. Every one is an
 /// ImageIO destination type, so encoding needs no code of our own.
+///
+/// AVIF is written only where ImageIO says it can be (`isWritable`): menus
+/// offer `writableCases`, not `allCases`.
 public enum ExportFormat: String, Codable, CaseIterable, Sendable {
-    case jpeg, png, heic, tiff, bmp, gif, tga, jpeg2000, ico
+    case jpeg, png, heic, avif, tiff, bmp, gif, tga, jpeg2000, ico
 
     /// The name shown in format menus.
     public var title: String {
@@ -13,6 +17,7 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
         case .jpeg: "JPEG"
         case .png: "PNG"
         case .heic: "HEIC"
+        case .avif: "AVIF"
         case .tiff: "TIFF"
         case .bmp: "BMP"
         case .gif: "GIF"
@@ -30,6 +35,7 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
         case .jpeg: "jpg"
         case .png: "png"
         case .heic: "heic"
+        case .avif: "avif"
         case .tiff: "tif"
         case .bmp: "bmp"
         case .gif: "gif"
@@ -45,6 +51,8 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
         case .jpeg: .jpeg
         case .png: .png
         case .heic: .heic
+        // Declared by the system on macOS 13 and later; the SDK has no constant.
+        case .avif: UTType(importedAs: "public.avif")
         case .tiff: .tiff
         case .bmp: .bmp
         case .gif: .gif
@@ -55,10 +63,30 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
         }
     }
 
+    /// Whether ImageIO on this Mac can write the format. Every format but
+    /// AVIF has been writable since long before macOS 15; AVIF's encoder
+    /// arrived later and may be missing, so this asks ImageIO at run time
+    /// (`CGImageDestinationCopyTypeIdentifiers`) rather than trusting the OS
+    /// version.
+    public var isWritable: Bool { Self.isWritable(self, among: Self.writableTypeIdentifiers) }
+
+    /// The formats a menu offers: every one ImageIO can write here, in
+    /// `allCases` order.
+    public static var writableCases: [ExportFormat] { allCases.filter(\.isWritable) }
+
+    /// The destination types ImageIO reports, read once a launch.
+    static let writableTypeIdentifiers: Set<String> =
+        Set(CGImageDestinationCopyTypeIdentifiers() as? [String] ?? [])
+
+    /// `isWritable` against a given list of types, for tests.
+    static func isWritable(_ format: ExportFormat, among identifiers: Set<String>) -> Bool {
+        identifiers.contains(format.utType.identifier)
+    }
+
     /// Lossy formats, where `ExportOptions.quality` trades size for fidelity.
     public var supportsQuality: Bool {
         switch self {
-        case .jpeg, .heic, .jpeg2000: true
+        case .jpeg, .heic, .avif, .jpeg2000: true
         default: false
         }
     }
@@ -76,20 +104,32 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
     }
 
     /// Formats ImageIO writes EXIF, GPS, IPTC and XMP into. Measured: JPEG
-    /// 2000, GIF, BMP, TGA and ICO files come back with none of it.
+    /// 2000, GIF, BMP, TGA and ICO files come back with none of it. AVIF
+    /// keeps EXIF, GPS and XMP (IPTC only through its XMP mirror), as HEIC
+    /// does.
     public var supportsMetadata: Bool {
         switch self {
-        case .jpeg, .png, .heic, .tiff: true
+        case .jpeg, .png, .heic, .avif, .tiff: true
         default: false
         }
     }
 
-    /// Formats with 16 bits per channel. (HEIC is written with 8: ImageIO
-    /// could store 10 from a 16-bit image, but not 16, so it isn't offered.)
-    public var supports16Bit: Bool {
+    /// Formats with more than 8 bits per channel, where the "16 bits"
+    /// option (`ExportOptions.sixteenBit`) means something. AVIF is in:
+    /// given a 16-bit image ImageIO writes 10 bits a channel (measured), so
+    /// gradients and tone edits keep their smoothness. (HEIC is written with
+    /// 8: ImageIO could store 10 there too, but it isn't offered, to keep
+    /// Save's existing HEIC files as they were.)
+    public var supports16Bit: Bool { deepBitDepth != nil }
+
+    /// The bits per channel a file gets with the "16 bits" option on: 16 for
+    /// PNG and TIFF, 10 for AVIF (the most it holds); nil for formats with 8
+    /// only. The option's title names this number.
+    public var deepBitDepth: Int? {
         switch self {
-        case .png, .tiff: true
-        default: false
+        case .png, .tiff: 16
+        case .avif: 10
+        default: nil
         }
     }
 
@@ -99,17 +139,19 @@ public enum ExportFormat: String, Codable, CaseIterable, Sendable {
     /// reader assumes for an untagged file.
     public var supportsColorProfile: Bool {
         switch self {
-        case .jpeg, .png, .heic, .tiff, .jpeg2000: true
+        case .jpeg, .png, .heic, .avif, .tiff, .jpeg2000: true
         default: false
         }
     }
 
-    /// The format a file name asks for, by extension, or nil if we can't write it.
+    /// The format a file name asks for, by extension, or nil if we can't
+    /// write it (on this Mac: AVIF only where ImageIO can).
     public static func format(for url: URL) -> ExportFormat? {
         switch url.pathExtension.lowercased() {
         case "jpg", "jpeg", "jpe", "jfif": .jpeg
         case "png": .png
         case "heic", "heif", "hif": .heic
+        case "avif": ExportFormat.avif.isWritable ? .avif : nil
         case "tif", "tiff": .tiff
         case "bmp", "dib": .bmp
         case "gif": .gif
@@ -266,12 +308,12 @@ public struct ExportOptions: Codable, Hashable, Sendable {
     }
 
     /// Sensible starting values. JPEG at 0.9 is where artefacts stop being
-    /// visible on photos; HEIC's encoder is more efficient, so 0.8 looks
-    /// the same at about half the size.
+    /// visible on photos; HEIC's and AVIF's encoders are more efficient, so
+    /// 0.8 looks the same at about half the size.
     public static func defaults(for format: ExportFormat) -> ExportOptions {
         var options = ExportOptions(format: format)
         switch format {
-        case .heic: options.quality = 0.8
+        case .heic, .avif: options.quality = 0.8
         default: break
         }
         options.keepMetadata = format.supportsMetadata

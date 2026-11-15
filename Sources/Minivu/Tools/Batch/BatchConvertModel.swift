@@ -55,6 +55,9 @@ import MinivuRender
         let saveOptions = saveOptions ?? SaveOptionsStore(defaults: store.defaults)
         var settings = store.convertSettings
             ?? BatchConvertSettings(options: saveOptions.options(for: saveOptions.lastFormat ?? .jpeg))
+        // A format this Mac can no longer write (AVIF without its encoder)
+        // starts again from JPEG rather than fail every file.
+        if !settings.options.format.isWritable { settings.options = saveOptions.options(for: .jpeg) }
         var folder: URL?
         var folderBookmark: Data?
         if case .chosenFolder(let bookmark) = settings.destination {

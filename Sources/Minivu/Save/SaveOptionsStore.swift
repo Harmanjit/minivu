@@ -50,8 +50,10 @@ struct SaveOptionsStore {
         defaults.set(options.format.rawValue, forKey: Keys.lastFormat)
     }
 
+    /// The format last used, if this Mac can still write it (an AVIF
+    /// remembered on a Mac whose ImageIO later lacks the encoder is not).
     var lastFormat: ExportFormat? {
-        defaults.string(forKey: Keys.lastFormat).flatMap(ExportFormat.init(rawValue:))
+        defaults.string(forKey: Keys.lastFormat).flatMap(ExportFormat.init(rawValue:)).flatMap { $0.isWritable ? $0 : nil }
     }
 
     /// The folder Save As last wrote into. A path, not a bookmark: the save

@@ -30,17 +30,22 @@ public enum ExportError: Error, Equatable, LocalizedError {
 public enum ImageEncoder {
     /// Formats ImageIO (macOS 15) writes an ISO 21496-1 gain map into: an
     /// SDR base image any reader shows, and a gain map that lifts it back to
-    /// HDR where the display can. Measured: JPEG and HEIC write one and
-    /// decode back to HDR; PNG refuses, and the "ISO HDR" request for PNG
-    /// and HEIC tone maps an extended-range image to SDR instead.
+    /// HDR where the display can. Measured: JPEG, HEIC and AVIF write one
+    /// and decode back to HDR (AVIF on macOS 27: an 8-bit base and the map,
+    /// read back with the content headroom it was written with); PNG
+    /// refuses, and the "ISO HDR" request for PNG, HEIC and AVIF tone maps an
+    /// extended-range image to SDR instead.
     public static func canWriteGainMap(_ format: ExportFormat) -> Bool {
-        format == .jpeg || format == .heic
+        format == .jpeg || format == .heic || format == .avif
     }
 
-    /// Encodes to memory (also used for size estimation and the quality preview).
-    public static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?) throws -> Data {
-        try encode(image, options: options, metadataSource: metadataSource,
-                   comments: carriedComments(options: options, metadataSource: metadataSource))
+    /// Encodes to memory (also used for size estimation, the quality preview
+    /// and Batch Convert). With `gainMap`, as for `write`.
+    public static func encode(_ image: CGImage, options: ExportOptions, metadataSource: URL?,
+                              gainMap: Bool = false) throws -> Data {
+        if gainMap, !canWriteGainMap(options.format) { throw ExportError.cannotCreateDestination(options.format) }
+        return try encode(image, options: options, metadataSource: metadataSource,
+                          comments: carriedComments(options: options, metadataSource: metadataSource), gainMap: gainMap)
     }
 
     /// Encodes and writes atomically (temp file in the same folder, then
@@ -109,7 +114,7 @@ public enum ImageEncoder {
             kCGImageDestinationEmbedThumbnail: false,
         ]
         if format.supportsQuality {
-            properties[kCGImageDestinationLossyCompressionQuality] = min(max(options.quality, 0), 1)
+            properties[kCGImageDestinationLossyCompressionQuality] = min(max(options.quality, 0), maximumQuality(format))
         }
         if gainMap {
             properties[kCGImageDestinationEncodeRequest] = kCGImageDestinationEncodeToISOGainmap
@@ -140,6 +145,14 @@ public enum ImageEncoder {
             CGImageDestinationAddImage(destination, pixels, properties as CFDictionary)
         }
         guard CGImageDestinationFinalize(destination) else { throw ExportError.encodingFailed(format) }
+    }
+
+    /// The highest quality ImageIO accepts for `format`. Measured on macOS
+    /// 27: AVIF at exactly 1 asks for a lossless encode, which ImageIO's AVIF
+    /// encoder refuses (the finalize fails), while 0.99 writes the best
+    /// lossy file; so the slider's 100 means 0.99 there.
+    static func maximumQuality(_ format: ExportFormat) -> Double {
+        format == .avif ? 0.99 : 1
     }
 
     /// The source's JPEG comment segments, when both ends are JPEG and
