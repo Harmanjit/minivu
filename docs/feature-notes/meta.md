@@ -421,9 +421,22 @@ show it.
 - **Off the main thread everywhere:** the browser, viewer and compare
   window all write ratings and tags on `BrowserModel.catalogWrites`,
   because a change to a file without a row reads that file's own marks
-  first (adoption, below). The compare window decides a tag toggle on that
-  queue too, so a quick T T tags and untags. Quitting hands pending changes to the queue first
-  (`applicationShouldTerminate`), and quitting waits for the queue.
+  first (adoption, below). The browser and the compare window decide a
+  tag toggle on that queue too, after any write still queued, so a quick
+  T T tags and untags in both (the viewer shows what the keys set at once
+  and toggles from that).
+- **Quitting** (`applicationShouldTerminate`), with the setting on, always
+  waits: `MarksFileWriter.flush(after: BrowserModel.catalogWrites)` waits
+  for the catalog's queue to drain, then for the main-queue blocks that
+  bring its changes to the writer, then hands everything pending to the
+  write queue, and quitting waits for that queue. A rating pressed just
+  before ⌘Q, still on the catalog's queue while it reads a few hundred
+  sidecars, is therefore written. With the setting off quitting is
+  immediate as before.
+- **Only committed changes are mirrored.** If the catalog's transaction
+  fails (read-only or damaged catalog, full disk) the mirror isn't called:
+  the rows still hold their old marks, which would otherwise overwrite a
+  value another application has put in the file since.
 - **Through FileWriteQueue** (`enqueue(touching:)`, metadata only, naming
   the image and its sidecar), off the main thread (`BlockingWork`), one
   file at a time, by the stage-1 `MetadataWriter`: embedded in JPEG, HEIC,
@@ -571,6 +584,11 @@ with a row isn't even read).
   viewer, one `ImageLoader` prefetch set); outside it they ran alongside
   other window suites and closed their viewer.
 - MinivuTests/CompareWindowTests: ratings and tags now land on the
-  catalog's queue; a quick T T tags and untags.
+  catalog's queue; a quick T T tags and untags. ManageModelTests
+  (`ratingChangesReachOnlyTheirCells`): the same in the browser.
+- MarksFileTests `flushingBeforeQuittingWaitsForTheCatalogsQueue`: a
+  rating still on the catalog's queue when quitting is written.
+- MinivuCoreTests/CatalogTests `aFailedChangeIsNotMirrored`: a change
+  whose transaction fails never reaches the mirror.
 - MinivuTests/MainMenuTests: the Image menu's order with Label (and the
   existing duplicate-shortcut check).
