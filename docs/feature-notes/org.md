@@ -215,14 +215,30 @@ then headers only for files still in the running.
   carries marks, including everything inside a moved folder.
 - **Moved or renamed in Finder:** when the collection is opened, a member
   not at its path is looked for by its identifier on its volume
-  (`fsgetpath`), which finds it anywhere on the same volume that the
-  sandbox lets minivu see, and its row takes the new path. Healing a folder
-  (any listing) also reattaches members moved into it, as marks are.
+  (`fsgetpath`), which finds it anywhere on the same volume, and its row
+  takes the new path. A hit is taken only where minivu can read the file
+  (`access(R_OK)`, which the sandbox answers as it would an open: outside
+  the granted folders it fails) and outside a Trash folder (`/.Trash/`,
+  `/.Trashes/`); otherwise the member counts as not found and its row keeps
+  its old path, so a later grant, Put Back in Finder or healing brings it
+  back. Healing a folder (any listing) also reattaches members moved into
+  it, as marks are. Whether `fsgetpath` itself is allowed under the App
+  Sandbox in the packaged app is unverified (tests run unsandboxed); if it
+  is refused, the lookup simply finds nothing and healing is the fallback.
 - **Saved over** (a save writes a new file under the same name): still the
   member, the path wins, as for marks.
-- **Moved to the Trash by minivu:** left out of the list but kept, as its
-  marks are kept, so moving it back with minivu (undo of a Replace) brings
-  it back. **Removed by minivu** (an undone copy, the compare window's
+- **Moved to the Trash by minivu:** every Move to Trash (browser, viewer,
+  compare window, Find Duplicates, Replace) records the move in the
+  catalog: `FileWriteQueue.trash` calls `Catalog.filesMoved` with the map
+  `NSWorkspace.recycle` returns (Replace's `FileTransfer.trash` already
+  did). The member is left out of the list and of the sidebar's count at
+  once, but kept, as its marks are kept with it in the Trash, so moving it
+  back with minivu (undo of a Replace) brings it back, and Finder's Put
+  Back is healed by identity. **Trashed in Finder** (or by a Move to Trash
+  that failed part way, so nothing was recorded): when the collection is
+  opened its identity is found in the Trash, which counts as not found; it
+  is stamped missing and keeps its path, so Put Back brings it back,
+  counted again. **Removed by minivu** (an undone copy, the compare window's
   delete): it leaves its collections.
 - **Gone** (deleted in Finder, moved to another volume, or somewhere
   outside the granted folders): left out and stamped missing; it comes back
@@ -270,7 +286,8 @@ folder"). Nothing new animates.
 - Spotlight is not used, so a search of a huge tree with metadata
   conditions reads every header once (about 11 ms a file cold).
 - A collection member moved in Finder to a folder the sandbox can't see
-  stays missing until that folder is granted and listed.
+  stays missing until that folder is granted and listed; one trashed in
+  Finder stays out until it is put back.
 - The metadata cache is per path and file date; a file whose date is kept
   while its metadata changes (rare, `touch -r`) shows the old values until
   it changes again.
@@ -280,7 +297,9 @@ folder"). Nothing new animates.
 - MinivuCoreTests/CatalogLibraryTests: v2 and v1 upgrades, reopening, the
   metadata cache (freshness, read once, cancellation, moves and removals),
   collections (order, rename and move by minivu, folder moves, removal,
-  Trash, Finder moves by identity and by healing, missing members), smart
+  a recorded move to the Trash, an identity found in the Trash or where it
+  can't be read left out, Finder moves by identity and by healing, missing
+  members), smart
   folders (persistence across launches, tolerant decoding).
 - MinivuCoreTests/SearchTests: header reading, every condition, unknown
   metadata, ranges, type groups, JSON, the walk (order, depth, image and
@@ -288,7 +307,10 @@ folder"). Nothing new animates.
   rating, metadata, subfolders, labels and file marks asked only when
   needed, cancellation).
 - MinivuTests/BrowserOrganiseTests: flat view, namesakes, cancellation on
-  navigating away, truncation, partial results, lists in the history,
+  navigating away, truncation, partial results (held open until the test
+  has looked, with `TestTiming` waits, so a loaded Mac can't race it),
+  `removeEntries` leaving a subfolder namesake's shown file, lists in the
+  history,
   collections following a rename, deleted smart folders, the metadata
   filter (type at once, camera and shape after reads, cached), the label
   filter.
@@ -307,7 +329,11 @@ folder"). Nothing new animates.
   (size and date) and pruning; collection membership by identity and every
   case above (minivu moves, Finder moves via `fsgetpath` and healing,
   Trash, removal, missing for a year); healing now also reattaches
-  collection members.
+  collection members. Also that every Move to Trash now records its move
+  (`FileWriteQueue.trash` → `Catalog.filesMoved`), so marks travel into
+  the Trash with the file, as Replace's already did, and Finder's Put Back
+  is healed by identity; and that `fsgetpath` hits in a Trash folder or
+  where minivu can't read are ignored.
 - **DESIGN.md 4 (Architecture):** MinivuCore/Search (`TreeEnumerator`,
   `ImageSearch`, `SearchCriteria`); BrowserModel's lists and keys by path
   (`FolderSnapshot.keysByPath`, `VirtualList`); partial results every
@@ -348,7 +374,8 @@ folder"). Nothing new animates.
 - **Look in:** *Selected Images (N)* (the default when images are
   selected), *“Folder”* (the folder shown, without its subfolders; for a
   list the browser shows instead of a folder, such as search results or a
-  collection, this is *Images Shown*), or *“Folder” and Subfolders* (the
+  collection, this is *Images Shown*; listed directly, up to 20,000
+  images, and its subfolders are never counted as a limit reached), or *“Folder” and Subfolders* (the
   tree, through the same walk and limits as the flat view and Find).
 - **Find:** *Identical Files* (same bytes) or *Similar Images* (pictures
   that look alike: resized or re-encoded copies, edits, bursts). Return
@@ -356,7 +383,9 @@ folder"). Nothing new animates.
   doing ("Comparing files of the same size… 120 of 400", "Analysing
   images… 50 of 300", "Comparing images with each other…") and **Stop**
   (Esc), which shows the groups among what was compared so far, with a note
-  saying it stopped early.
+  saying it stopped early. Stop also skips reading the grouped images'
+  headers, so those partial results show without pixel dimensions (and the
+  Highest Resolution rule falls back to the next criterion).
 - **Results:** groups, each headed "3 identical files, 4.2 MB each" or
   "4 similar images", listing per file a checkbox, its thumbnail, name,
   folder (full path on hover), pixel dimensions, size and date modified.
@@ -377,7 +406,10 @@ folder"). Nothing new animates.
   left here."). Confirmed, the files go through `FileWriteQueue.trash`
   (queued saves land first; the viewer asks about unsaved edits of any of
   them first, as the browser's Move to Trash does). Trashed files leave
-  the groups; a group left with one file leaves the list.
+  the groups; a group left with one file leaves the list. The browser
+  drops only the entries at the trashed paths: a folder's entries are
+  matched by name, so `BrowserModel.removeEntries` checks the full path,
+  and trashing Sub/IMG_1.jpg never hides the shown folder's own IMG_1.jpg.
 - **Show in Browser** shows the selected rows, or every file found when
   none is selected, as a list in the browser titled "Duplicates" or
   "Similar Images" (a place in Back/Forward, like search results; every
@@ -495,10 +527,15 @@ nothing to change.
 - MinivuTests/DuplicatesModelTests: scopes, exact runs per scope and for
   the selection, the threshold regrouping without running again, keep
   rules and Mark Suggested, Stop, closing mid-run, the real similar search
-  and the memory cap's note.
+  and the memory cap's note; the folder scope saying nothing of its
+  subfolders; Stop skipping the header reads.
 - MinivuTests/DuplicatesWindowTests: the browser's menu item and source,
   one window retargeted, Move to Trash only after confirming (into a test
-  folder) with the whole-group warning, Show in Browser and Back, Compare.
+  folder) with the whole-group warning, Show in Browser and Back, Compare;
+  trashing a copy in a subfolder keeping the shown folder's namesake in the
+  browser and taking the copy out of its collection and count at once
+  (through `FileWriteQueue.trash`, with `FileWriteQueue.catalog` pointed
+  at the test's catalog and the test Trash named `.Trash`).
 - MainMenuTests: Tools menu order and the item's action.
 - DuplicateBenchmark (opt-in, `MINIVU_BENCH_DIR`): the figures above.
 
