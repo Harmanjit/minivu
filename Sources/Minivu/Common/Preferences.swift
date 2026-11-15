@@ -125,6 +125,9 @@ final class Preferences: ObservableObject {
     @Published var writeMarksToFiles: Bool {
         didSet { defaults.set(writeMarksToFiles, forKey: Keys.writeMarksToFiles) }
     }
+    /// Text in the viewer's picture can be selected and copied (View > Live
+    /// Text). Off, nothing is analysed at all.
+    @Published var liveText: Bool { didSet { defaults.set(liveText, forKey: Keys.liveText) } }
 
     /// The decoding settings the image loader follows.
     var displaySettings: DisplaySettings {
@@ -153,6 +156,7 @@ final class Preferences: ObservableObject {
         rawDecoding = RawDecoding(rawValue: d.string(forKey: Keys.rawDecoding) ?? "") ?? .embeddedPreview
         confirmOverwriteOnSave = d.object(forKey: Keys.confirmOverwriteOnSave) as? Bool ?? true
         writeMarksToFiles = d.bool(forKey: Keys.writeMarksToFiles)
+        liveText = d.object(forKey: Keys.liveText) as? Bool ?? true
         // Before anything loads: the app delegate reads the theme at launch,
         // well ahead of the first image.
         ImageLoader.shared.settings = displaySettings
@@ -187,5 +191,6 @@ final class Preferences: ObservableObject {
         static let rawDecoding = "rawDecoding"
         static let confirmOverwriteOnSave = "confirmOverwriteOnSave"
         static let writeMarksToFiles = "writeMarksToFiles"
+        static let liveText = "liveText"
     }
 }

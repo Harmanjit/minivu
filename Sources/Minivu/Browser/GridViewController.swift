@@ -231,7 +231,8 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
         collectionView.scrollToVisible(frame.insetBy(dx: 0, dy: -flowLayout.minimumLineSpacing))
     }
 
-    private func leadFrame() -> CGRect? {
+    /// The lead cell's frame in the collection view, once laid out.
+    func leadFrame() -> CGRect? {
         guard let lead = model.lead, let index = model.index(of: lead) else { return nil }
         return collectionView.layoutAttributesForItem(at: IndexPath(item: index, section: 0))?.frame
     }
@@ -585,6 +586,7 @@ final class GridCollectionView: NSCollectionView {
         menu.addItem(withTitle: "Edit Metadata…", action: .editMetadata, keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Reveal in Finder", action: .revealInFinder, keyEquivalent: "")
+        menu.addItem(withTitle: "Share…", action: .shareFiles, keyEquivalent: "")
         menu.addItem(withTitle: "Move to Trash", action: .moveToTrash, keyEquivalent: "")
         return menu
     }

@@ -16,7 +16,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
     private let sidebar = SidebarViewController()
     let grid: GridViewController
     let preview = PreviewPaneController()
-    private let toolbarController = BrowserToolbar()
+    let toolbarController = BrowserToolbar()
     private let sidebarItem: NSSplitViewItem
     private let gridItem: NSSplitViewItem
     let previewItem: NSSplitViewItem
@@ -132,6 +132,7 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         toolbarController.onSearch = { [weak self] text in self?.model.filter = text }
         toolbarController.onFinderTagFilter = { [weak self] name in self?.filterByFinderTag(name) }
+        toolbarController.shareItems = { [weak self] in self?.shareURLs ?? [] }
 
         // The model follows the preferences, whichever window or menu set them.
         // (`@Published` passes the new value before it is stored.)

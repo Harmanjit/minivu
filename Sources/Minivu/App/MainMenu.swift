@@ -77,6 +77,8 @@ enum MainMenu {
         menu.add("Move To", nil).submenu = RecentDestinationsMenu.make(title: "Move To", action: .moveToFolder)
         menu.addItem(.separator())
         menu.add("Reveal in Finder", .revealInFinder, "r", [.command, .option])
+        // Finder's place for it, and like Finder's without a shortcut.
+        menu.add("Share…", .shareFiles)
         menu.add("Move to Trash", .moveToTrash, Key.backspace)
         menu.addItem(.separator())
         menu.add("Page Setup…", #selector(NSApplication.runPageLayout(_:)), "p", [.command, .shift])
@@ -96,6 +98,9 @@ enum MainMenu {
         // The viewer's picture with its background cut away; nothing else
         // implements it, so it stays disabled in the browser.
         menu.add("Copy Subject", .copySubject)
+        // ⇧⌘C: free everywhere in minivu (no Colors panel), and beside Copy.
+        // The viewer's key table ignores anything with Command.
+        menu.add("Copy Text", .copyText, "c", [.command, .shift])
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)
@@ -124,6 +129,9 @@ enum MainMenu {
             theme.add(value.title, #selector(AppDelegate.selectTheme(_:))).tag = index
         }
         menu.add("Theme", nil).submenu = theme
+        // Selectable text in the viewer's picture; a checkmark, since it is a
+        // setting that outlasts the viewer.
+        menu.add("Live Text", #selector(AppDelegate.toggleLiveText(_:)))
         menu.addItem(.separator())
 
         // NSSplitViewController and NSWindow retitle these to "Hide Sidebar"

@@ -168,6 +168,7 @@ import MinivuCore
             .adjustRaw, .removeBackground, .copySubject,
             .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
             .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
+            .copyText, .shareFiles, #selector(AppDelegate.toggleLiveText(_:)),
             #selector(NSApplication.runPageLayout(_:)),
         ]
         for selector in expected {
@@ -182,7 +183,7 @@ import MinivuCore
         let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
                            "Save", "Save As…", "Revert to Saved", "-", "Rename", "Copy To", "Move To", "-",
-                           "Reveal in Finder", "Move to Trash", "-", "Page Setup…", "Print…"])
+                           "Reveal in Finder", "Share…", "Move to Trash", "-", "Page Setup…", "Print…"])
         let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
         let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)
         #expect(copyTo.items.last?.title == "Choose Folder…" && copyTo.items.last?.action == .copyToFolder)
@@ -277,6 +278,26 @@ import MinivuCore
             let inBar = allItems.filter { $0.action == item.action && $0.tag == item.tag }.map(\.title)
             #expect(inBar.contains(item.title), "\(item.title) is \(inBar) in the menu bar")
         }
+    }
+
+    /// Live Text and Share (G7, G15): Copy Text beside Copy on ⇧⌘C, the
+    /// Live Text setting in View, Share… beside Reveal in Finder with no
+    /// shortcut, as in Finder.
+    @Test func liveTextAndShareItems() throws {
+        let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
+        let titles = edit.items.map { $0.isSeparatorItem ? "-" : $0.title }
+        #expect(titles.firstIndex(of: "Copy Text") == titles.firstIndex(of: "Copy").map { $0 + 1 })
+        let copyText = try item("Copy Text")
+        #expect(copyText.action == .copyText && copyText.keyEquivalent == "c"
+            && copyText.keyEquivalentModifierMask == [.command, .shift])
+
+        let liveText = try item("Live Text")
+        #expect(liveText.action == #selector(AppDelegate.toggleLiveText(_:)) && liveText.keyEquivalent.isEmpty)
+        #expect(liveText.menu?.title == "View")
+
+        let share = try item("Share…")
+        #expect(share.action == .shareFiles && share.keyEquivalent.isEmpty && share.menu?.title == "File")
+        #expect(GridCollectionView.itemMenu().items.contains { $0.action == .shareFiles })
     }
 
     @Test func menuItemsHaveNoTarget() {

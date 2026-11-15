@@ -183,8 +183,9 @@ final class FlyoutController: NSResponder {
     /// `FlyoutGeometry.edge`). Full screen only.
     private(set) var reach: CGRect?
 
-    /// Every pointer movement over the container, for hiding the cursor.
-    var onPointerMoved: (() -> Void)?
+    /// Every pointer movement over the container, in window coordinates,
+    /// for hiding the cursor and for Live Text.
+    var onPointerMoved: ((CGPoint) -> Void)?
     /// Reduce Motion: panels appear and go with a fade where they stand
     /// instead of sliding. Read at each change; tests replace it.
     var reducesMotion: () -> Bool = { Motion.isReduced }
@@ -353,7 +354,7 @@ final class FlyoutController: NSResponder {
     // MARK: - Pointer
 
     override func mouseMoved(with event: NSEvent) {
-        onPointerMoved?()
+        onPointerMoved?(event.locationInWindow)
         guard let container else { return }
         pointerMoved(to: container.convert(event.locationInWindow, from: nil))
     }

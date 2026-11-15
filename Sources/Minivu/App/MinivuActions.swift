@@ -77,6 +77,9 @@ import AppKit
     /// Title, caption, keywords, creator, copyright, date taken and location
     /// of the browser's selection or the viewer's image (G1).
     @objc optional func editMetadata(_ sender: Any?)
+    /// Edit > Copy Text: all the text Live Text recognises in the viewer's
+    /// picture.
+    @objc optional func copyText(_ sender: Any?)
 
     // MARK: Management (Phase 5)
     /// Toggles the "tagged" flag (FastStone's culling mark) on the selection
@@ -153,6 +156,9 @@ import AppKit
     @objc optional func openInExternalEditor(_ sender: Any?)
     /// Settings > Editors, from the Open in External Editor submenu.
     @objc optional func manageExternalEditors(_ sender: Any?)
+    /// File > Share…: the system's share sheet (AirDrop, Messages, Mail…)
+    /// for the browser's selected images or the viewer's image.
+    @objc optional func shareFiles(_ sender: Any?)
 }
 
 /// Tags on the View > Sort By direction items. Zero is left out on purpose:
@@ -211,6 +217,7 @@ extension Selector {
     static let applyNegative = #selector(MinivuActions.applyNegative(_:))
     static let editComment = #selector(MinivuActions.editComment(_:))
     static let editMetadata = #selector(MinivuActions.editMetadata(_:))
+    static let copyText = #selector(MinivuActions.copyText(_:))
     static let toggleTag = #selector(MinivuActions.toggleTag(_:))
     static let setColorLabel = #selector(MinivuActions.setColorLabel(_:))
     static let selectTagged = #selector(MinivuActions.selectTagged(_:))
@@ -255,4 +262,5 @@ extension Selector {
     static let captureSelection = #selector(MinivuActions.captureSelection(_:))
     static let openInExternalEditor = #selector(MinivuActions.openInExternalEditor(_:))
     static let manageExternalEditors = #selector(MinivuActions.manageExternalEditors(_:))
+    static let shareFiles = #selector(MinivuActions.shareFiles(_:))
 }

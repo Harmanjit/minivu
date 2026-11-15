@@ -10,6 +10,7 @@
 #   build/minivu.app/Contents/Resources/minivu_MinivuRender.bundle   (shaders)
 #   build/minivu.app/Contents/Resources/minivu_Minivu.bundle         (help pages)
 #   build/minivu.app/Contents/Resources/AppIcon.icns                 (from Assets, made by make_icon.swift)
+#   build/minivu.app/Contents/Resources/Metadata.appintents          (Shortcuts actions)
 #
 # Usage: scripts/make_app.sh [version] [--dev]
 #   --dev  skip the sandbox (lets `open build/minivu.app --args <path>` reach
@@ -32,7 +33,10 @@ echo "Building release…"
 # away and left one line of whatever came last, which for a compiler crash
 # is the bottom of a stack trace and tells nobody anything.
 build_log=$(mktemp -t minivu-release-build)
-if swift build -c release --product minivu >"$build_log" 2>&1; then
+# Swift Build (SwiftPM's default engine since Swift 6.2) is named rather than
+# assumed: it is the engine that records the App Intents types for
+# Metadata.appintents below.
+if swift build -c release --product minivu --build-system swiftbuild >"$build_log" 2>&1; then
     tail -1 "$build_log"
     rm -f "$build_log"
 else
@@ -53,6 +57,69 @@ strip -x "$APP/Contents/MacOS/minivu"
 cp -R .build/release/minivu_MinivuRender.bundle "$APP/Contents/Resources/"
 cp -R .build/release/minivu_Minivu.bundle "$APP/Contents/Resources/"
 cp Assets/AppIcon.icns "$APP/Contents/Resources/"
+
+# Shortcuts actions (App Intents). Shortcuts learns what an app offers from
+# Contents/Resources/Metadata.appintents, without launching it. Xcode makes
+# that folder with appintentsmetadataprocessor from the ".swiftconstvalues"
+# files the compiler writes about App Intents types; Swift Build asks the
+# compiler for those files in a SwiftPM build too, so all that is missing
+# is running the processor, which is part of the Xcode toolchain. Without
+# the folder minivu still runs, but Shortcuts shows none of its actions, so
+# a failure here stops the build rather than ship that quietly.
+# The architecture is the binary's own and the deployment target is
+# Package.swift's, so neither drifts from what was built.
+ARCH=$(lipo -archs .build/release/minivu | awk '{print $1}')
+DEPLOYMENT=$(sed -n 's/.*\.macOS(\.v\([0-9][0-9]*\)).*/\1.0/p' Package.swift | head -1)
+if [ -z "$ARCH" ] || [ -z "$DEPLOYMENT" ]; then
+  echo "Can't tell the binary's architecture or Package.swift's macOS version" >&2
+  exit 1
+fi
+OBJECTS=.build/out/Intermediates.noindex/minivu.build/Release/minivu-p.build/Objects-normal/$ARCH
+if [ ! -f "$OBJECTS/minivu.SwiftFileList" ] || ! ls "$OBJECTS"/*.swiftconstvalues >/dev/null 2>&1; then
+  echo "No App Intents records from the compiler (.swiftconstvalues) in .build/out: is SwiftPM still using Swift Build?" >&2
+  exit 1
+fi
+INTENTS_TMP=$(mktemp -d)
+# Only this build's records: a release build compiles the whole module and
+# writes one (minivu-primary); a build file by file writes one a source
+# file. The folder can still hold records from the other kind of build, or
+# from a source file since deleted or renamed, which would bring back
+# actions minivu no longer has. So: the whole module's record when nothing
+# newer lies beside it, otherwise one record for each file the compiler was
+# given this time (minivu.SwiftFileList).
+PRIMARY="$OBJECTS/minivu-primary.swiftconstvalues"
+if [ -f "$PRIMARY" ] && [ -z "$(find "$OBJECTS" -name '*.swiftconstvalues' -newer "$PRIMARY")" ]; then
+  echo "$PRIMARY" > "$INTENTS_TMP/constvalues.list"
+else
+  : > "$INTENTS_TMP/constvalues.list"
+  while IFS= read -r source; do
+    record="$OBJECTS/$(basename "$source" .swift).swiftconstvalues"
+    if [ -f "$record" ]; then echo "$record" >> "$INTENTS_TMP/constvalues.list"; fi
+  done < "$OBJECTS/minivu.SwiftFileList"
+fi
+if [ ! -s "$INTENTS_TMP/constvalues.list" ]; then
+  echo "No App Intents records for this build's source files" >&2
+  exit 1
+fi
+TOOLCHAIN="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
+XCODE_BUILD=$(/usr/libexec/PlistBuddy -c "Print :ProductBuildVersion" "$(xcode-select -p)/../version.plist")
+if ! xcrun appintentsmetadataprocessor --output "$APP/Contents/Resources" --toolchain-dir "$TOOLCHAIN" \
+    --module-name Minivu --sdk-root "$(xcrun --sdk macosx --show-sdk-path)" --xcode-version "$XCODE_BUILD" \
+    --platform-family macOS --deployment-target "$DEPLOYMENT" --target-triple "$ARCH-apple-macos$DEPLOYMENT" \
+    --source-file-list "$OBJECTS/minivu.SwiftFileList" --swift-const-vals-list "$INTENTS_TMP/constvalues.list" \
+    --no-app-shortcuts-localization >"$INTENTS_TMP/log" 2>&1; then
+  cat "$INTENTS_TMP/log" >&2
+  exit 1
+fi
+rm -rf "$INTENTS_TMP"
+# `raw` prints a dictionary's keys, one action identifier a line.
+ACTIONS=$(plutil -extract actions raw -o - "$APP/Contents/Resources/Metadata.appintents/extract.actionsdata" \
+  2>/dev/null | tr '\n' ' ' || true)
+if [ -z "${ACTIONS// /}" ]; then
+  echo "Metadata.appintents lists no actions" >&2
+  exit 1
+fi
+echo "Shortcuts actions: $ACTIONS"
 
 # Precompile shaders when the Metal toolchain is installed; otherwise the
 # app compiles the bundled sources at launch (a fraction of a second).
