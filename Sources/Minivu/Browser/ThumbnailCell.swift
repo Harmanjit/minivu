@@ -299,13 +299,20 @@ final class ThumbnailCellView: NSView {
     var hasImage: Bool { imageLayer.contents != nil }
 
     /// Shows or hides the video badge, with the length once it is known.
+    /// The badge's frame is set in `layout()` from its intrinsic width, so a
+    /// length arriving after the badge is shown (the thumbnail often comes
+    /// from the disk cache before the length is read) lays the cell out
+    /// again, or the capsule would stay narrow with no room for the text.
     func setVideo(_ isVideo: Bool, duration: Double?) {
-        videoBadge.duration = isVideo ? duration : nil
-        if videoBadge.isHidden == isVideo {
-            videoBadge.isHidden = !isVideo
-            needsLayout = true
-        }
+        let newDuration = isVideo ? duration : nil
+        let changed = videoBadge.isHidden == isVideo || videoBadge.duration != newDuration
+        videoBadge.duration = newDuration
+        videoBadge.isHidden = !isVideo
+        if changed { needsLayout = true }
     }
+
+    /// The badge's frame, for tests.
+    var videoBadgeFrame: CGRect? { videoBadge.isHidden ? nil : videoBadge.frame }
 
     override func layout() {
         super.layout()

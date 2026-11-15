@@ -97,6 +97,39 @@ import MinivuRender
         #expect(narrow.width == 20 - 2 * ThumbnailLayout.badgeInset)
     }
 
+    /// The length usually arrives after the thumbnail (the thumbnail cache
+    /// survives relaunch, the length is read again): the badge still widens
+    /// to show it, and narrows again when the cell is reused for a photo.
+    @Test func badgeWidensWhenTheLengthArrivesLate() throws {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 240), styleMask: [.titled],
+                              backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let cell = ThumbnailCellView(frame: NSRect(x: 0, y: 0, width: 150, height: 200))
+        window.contentView?.addSubview(cell)
+        let context = try #require(CGContext(data: nil, width: 160, height: 90, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        cell.setImage(try #require(context.makeImage()), isIcon: false)
+        cell.setVideo(true, duration: nil)
+        cell.layoutSubtreeIfNeeded()
+        let narrow = try #require(cell.videoBadgeFrame)
+
+        cell.setVideo(true, duration: 12)
+        cell.layoutSubtreeIfNeeded()
+        let wide = try #require(cell.videoBadgeFrame)
+        #expect(wide.width > narrow.width + 10)
+        #expect(wide.maxX == narrow.maxX)
+
+        cell.setVideo(true, duration: 3_725)
+        cell.layoutSubtreeIfNeeded()
+        #expect(try #require(cell.videoBadgeFrame).width > wide.width)
+
+        cell.setVideo(false, duration: nil)
+        cell.layoutSubtreeIfNeeded()
+        #expect(cell.videoBadgeFrame == nil)
+    }
+
     /// On a video Space plays and pauses and M mutes; the arrows and
     /// Delete still move between items. On a photo nothing changes.
     @Test func videoKeys() {
