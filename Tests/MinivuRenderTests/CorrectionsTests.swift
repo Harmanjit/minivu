@@ -479,6 +479,55 @@ import UniformTypeIdentifiers
         #expect(fullBox.minX >= 11 && fullBox.maxX <= 800 - 11, "\(fullBox)")
     }
 
+    /// With a gap narrower than the photo the tiles repeat, and the second
+    /// and later ones start at the same places, scaled, in the preview and
+    /// the saved file: `CIAffineTile`'s cells line up at both sizes.
+    @Test func tiledWatermarkRepeatsAtTheSamePlacesInPreviewAndFullResolution() throws {
+        let context = CGContext(data: nil, width: 64, height: 32, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        context.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 64, height: 32))
+        let url = Fixtures.write(context.makeImage()!, name: "watermark-tile-\(UUID()).png", type: .png)
+        defer { try? FileManager.default.removeItem(at: url) }
+        var mark = Watermark()
+        mark.kind = .image
+        mark.imageBookmark = try #require(Watermark.bookmark(for: url))
+        mark.position = .topLeft
+        mark.size = 0.1        // 40 x 80 px at full size, 10 x 20 in the preview
+        mark.margin = 0.03     // the first tile 12 px in, 3 in the preview
+        mark.opacity = 1
+        mark.tiled = true
+        mark.spacing = 0.5     // a 20 px gap, 5 in the preview
+        let full = render([.watermark(mark)], source: F.flat(0.5, width: 800, height: 400))
+        let proxy = render([.watermark(mark)], source: F.flat(0.5, width: 200, height: 100), scale: 0.25,
+                           fullSize: CGSize(width: 800, height: 400))
+        /// Where tiles start along a row or a column: dark after grey.
+        func starts(_ p: F.Pixels, count: Int, at: (Int) -> SIMD4<Float>) -> [Int] {
+            var result: [Int] = []
+            var inside = false
+            for i in 0..<count {
+                let dark = at(i).x < 0.25
+                if dark && !inside { result.append(i) }
+                inside = dark
+            }
+            return result
+        }
+        // A row and a column through the first tile (the image's y points
+        // down here, as the stamp's top does).
+        let fullAcross = starts(full, count: full.width) { full[$0, 30] }
+        let proxyAcross = starts(proxy, count: proxy.width) { proxy[$0, 7] }
+        let fullDown = starts(full, count: full.height) { full[30, $0] }
+        let proxyDown = starts(proxy, count: proxy.height) { proxy[7, $0] }
+        #expect(fullAcross.count >= 7 && fullDown.count >= 3, "across \(fullAcross), down \(fullDown)")
+        #expect(fullAcross.prefix(3) == [12, 112, 212], "\(fullAcross)")
+        #expect(fullAcross.count == proxyAcross.count && fullDown.count == proxyDown.count,
+                "full \(fullAcross) \(fullDown), proxy \(proxyAcross) \(proxyDown)")
+        for (a, b) in zip(fullAcross + fullDown, proxyAcross + proxyDown) {
+            #expect(abs(Double(a) / 4 - Double(b)) <= 1, "full \(a) proxy \(b)")
+        }
+    }
+
     @Test func imageWatermarkReadsItsFileThroughTheBookmark() throws {
         let context = CGContext(data: nil, width: 100, height: 50, bitsPerComponent: 8, bytesPerRow: 0,
                                 space: CGColorSpace(name: CGColorSpace.sRGB)!,
