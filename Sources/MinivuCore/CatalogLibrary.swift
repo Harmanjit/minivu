@@ -245,7 +245,10 @@ extension Catalog {
     /// brings the member back. A member minivu moved to the Trash (every
     /// Move to Trash records the move) is left out but stays a member, as
     /// its marks stay with it: minivu's moves out of the Trash (undoing a
-    /// Replace) bring it back. Stats every member: call off the main thread.
+    /// Replace) bring it back, and once it has left the Trash it is looked
+    /// for by identity, so Finder's Put Back brings it back too (an emptied
+    /// Trash stamps it missing). Stats every member: call off the main
+    /// thread.
     public func collectionMembers(_ id: Int64) -> [URL] {
         guard let rows = try? db.query("""
             SELECT rowid AS id, path, volume, file_id, missing_since FROM collection_items
@@ -257,7 +260,11 @@ extension Catalog {
         var volumes: [dev_t: String] = [:]
         for row in rows {
             guard let rowID = row.int("id"), let path = row.string("path") else { continue }
-            if Self.isInTrash(path) { continue }
+            // Moved to the Trash by minivu and still there: left out, still a
+            // member. Gone from the Trash, it was put back in Finder (found
+            // by identity below) or the Trash was emptied (stamped missing
+            // below, then pruned with the rest).
+            if Self.isInTrash(path), !Self.isGone(path) { continue }
             let fileID = row.int("file_id"), volume = row.string("volume")
             let here = Self.identity(ofPath: path, volumes: &volumes)
             // The recorded path still holds a file: the same one, or one saved
@@ -304,6 +311,12 @@ extension Catalog {
     /// (/.Trashes/501). Members there are left out of their collections.
     static func isInTrash(_ path: String) -> Bool {
         path.contains("/.Trash/") || path.contains("/.Trashes/")
+    }
+
+    /// Whether nothing is at `path` any more (not merely unreadable).
+    static func isGone(_ path: String) -> Bool {
+        var st = stat()
+        return lstat(path, &st) != 0 && errno == ENOENT
     }
 
     /// Whether minivu may read the file at `path`. `fsgetpath` names a file
@@ -381,6 +394,19 @@ extension Catalog {
                 }
             }
             let prunes = claimFirstMemberPrune()
+            // Members minivu moved to the Trash are left out of their
+            // collections, so opening one never stamps them; stamp those
+            // that have left it (emptied, or put back, where opening the
+            // collection still finds them by identity) so the prune below
+            // drops them after the year, as `heal` does for marks.
+            if prunes {
+                for row in try db.query("""
+                    SELECT rowid AS id, path FROM collection_items
+                    WHERE (instr(path, '/.Trash/') > 0 OR instr(path, '/.Trashes/') > 0) AND missing_since IS NULL
+                    """) {
+                    if let id = row.int("id"), let path = row.string("path"), Self.isGone(path) { missing.append(id) }
+                }
+            }
             guard prunes || !refresh.isEmpty || !missing.isEmpty || !moves.isEmpty else { return false }
             let now = Date().timeIntervalSince1970
             try db.transaction {

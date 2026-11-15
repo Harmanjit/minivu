@@ -242,6 +242,63 @@ import Foundation
         #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["a.jpg"])
     }
 
+    /// Moved to the Trash by minivu, then put back in Finder, which minivu
+    /// isn't told about: opening the collection finds it by identity
+    /// without its folder being listed first, and counts it again.
+    @Test func aMemberMinivuTrashedAndPutBackInFinderComesBack() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let trash = try t.folder(".Trash")
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let trashed = trash.appendingPathComponent("a.jpg")
+        try FileManager.default.moveItem(at: a, to: trashed)
+        catalog.fileMoved(from: a, to: trashed)
+        #expect(catalog.collectionMembers(id).isEmpty)
+
+        try FileManager.default.moveItem(at: trashed, to: a)
+        #expect(catalog.collectionMembers(id).map { $0.resolvingSymlinksInPath().path }
+                == [a.resolvingSymlinksInPath().path])
+        #expect(catalog.collections().first?.count == 1)
+        let stored = try catalog.db.query("SELECT path, missing_since FROM collection_items").first
+        #expect(stored?.string("path") == Catalog.key(a))
+        #expect(stored?["missing_since"] == .null)
+    }
+
+    /// Moved to the Trash by minivu, then the Trash was emptied: the row is
+    /// stamped missing (when the collection is opened, or by the first heal
+    /// of a launch even if it never is), so the yearly prune drops it.
+    @Test func aMemberLeftInAnEmptiedTrashIsStampedMissing() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+        let trash = try t.folder(".Trash")
+        let catalog = Catalog.inMemory()
+        let opened = try #require(catalog.createCollection(named: "Opened"))
+        let unopened = try #require(catalog.createCollection(named: "Unopened"))
+        catalog.addToCollection(opened, urls: [a])
+        catalog.addToCollection(unopened, urls: [b])
+        for file in [a, b] {
+            let trashed = trash.appendingPathComponent(file.lastPathComponent)
+            try FileManager.default.moveItem(at: file, to: trashed)
+            catalog.fileMoved(from: file, to: trashed)
+        }
+        // Still in the Trash: left out but not stamped.
+        #expect(catalog.collectionMembers(opened).isEmpty)
+        #expect(try catalog.db.query("SELECT 1 AS x FROM collection_items WHERE missing_since IS NOT NULL").isEmpty)
+
+        try FileManager.default.removeItem(at: trash)
+        #expect(catalog.collectionMembers(opened).isEmpty)
+        func stamped(_ id: Int64) throws -> Bool {
+            try catalog.db.query("SELECT missing_since FROM collection_items WHERE collection = ?1",
+                                 [.integer(id)]).first?["missing_since"] != .null
+        }
+        #expect(try stamped(opened))
+        #expect(try !stamped(unopened))
+        catalog.heal(folder: t.url)
+        #expect(try stamped(unopened))
+    }
+
     /// Trashed where the catalog wasn't told (in Finder, or a Move to Trash
     /// that failed part way): its identity is found in the Trash, which
     /// counts as not found. The row keeps its path, so Put Back brings the
