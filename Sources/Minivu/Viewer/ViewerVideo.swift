@@ -155,6 +155,12 @@ final class VideoPlayback {
     /// runs, as in QuickTime. Tests set it so nothing can sound.
     static var mutedByUser = false
 
+    /// Players made and not yet stopped. Never more than one: the viewer is
+    /// the only place one is made, minivu shows one viewer at a time, and it
+    /// stops its player before showing another item (the tests hold it to
+    /// that).
+    private(set) static var liveCount = 0
+
     let player: AVPlayer
     let view = VideoPlayerView()
     /// Playing, paused, muted or finished: the HUD, menu and control bar
@@ -162,8 +168,10 @@ final class VideoPlayback {
     var onStateChange: (() -> Void)?
     private var observations: [NSKeyValueObservation] = []
     private var endObserver: NSObjectProtocol?
+    private var isStopped = false
 
     init(url: URL, showsHDR: Bool) {
+        Self.liveCount += 1
         let item = AVPlayerItem(asset: AVURLAsset(url: url))
         player = AVPlayer(playerItem: item)
         player.isMuted = Self.mutedByUser
@@ -239,6 +247,9 @@ final class VideoPlayback {
     /// Stops and lets everything go. The view leaves its superview, the
     /// player its item.
     func stop() {
+        guard !isStopped else { return }
+        isStopped = true
+        Self.liveCount -= 1
         onStateChange = nil
         observations.forEach { $0.invalidate() }
         observations = []

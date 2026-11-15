@@ -90,7 +90,12 @@ public enum VideoFrames {
     /// megabytes in the decoder while it is made, and the thumbnail service
     /// runs a worker per core; photos don't need the cap, which is why it is
     /// here rather than there.
-    static let frameSlots = DispatchSemaphore(value: 3)
+    static let frameSlotCount = 3
+    static let frameSlots = DispatchSemaphore(value: frameSlotCount)
+
+    /// Frames being decoded now, and the most there have been at once since
+    /// `resetPeak`: what the tests check a folder of videos against.
+    static let decoding = Gauge()
 
     static func asset(_ url: URL) -> AVURLAsset {
         // The container's own duration is enough for a badge; precise timing
@@ -239,12 +244,16 @@ public enum VideoFrames {
 
     /// A thumbnail at most `maxPixelSize` on its long edge, oriented, SDR,
     /// from `posterTime`. Nil when the file has no frame to give.
+    ///
+    /// The length is read from the same asset the frame is taken from, so a
+    /// folder of videos opens each file's header once per thumbnail.
     public static func thumbnail(for url: URL, maxPixelSize: Int) -> CGImage? {
-        guard let info = info(for: url) else { return nil }
-        let time = posterTime(duration: info.duration)
+        let asset = asset(url)
+        guard let duration = wait({ try await asset.load(.duration).seconds }) else { return nil }
+        let time = posterTime(duration: duration)
         // Near enough: a keyframe close by decodes far faster than the exact
         // frame, and nobody can tell which frame a thumbnail came from.
-        return frame(of: url, at: time, maxPixelSize: maxPixelSize, allowHDR: false,
+        return frame(of: asset, at: time, maxPixelSize: maxPixelSize, allowHDR: false,
                      toleranceBefore: time / 2, toleranceAfter: 1)
     }
 
@@ -263,7 +272,13 @@ public enum VideoFrames {
     /// tolerances are in seconds; zero for both gives exactly that frame.
     public static func frame(of url: URL, at seconds: Double, maxPixelSize: Int?, allowHDR: Bool,
                              toleranceBefore: Double = 0, toleranceAfter: Double = 0) -> CGImage? {
-        let generator = AVAssetImageGenerator(asset: asset(url))
+        frame(of: asset(url), at: seconds, maxPixelSize: maxPixelSize, allowHDR: allowHDR,
+              toleranceBefore: toleranceBefore, toleranceAfter: toleranceAfter)
+    }
+
+    static func frame(of asset: AVURLAsset, at seconds: Double, maxPixelSize: Int?, allowHDR: Bool,
+                      toleranceBefore: Double, toleranceAfter: Double) -> CGImage? {
+        let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         if let maxPixelSize, maxPixelSize > 0 {
             // Fits the frame inside the square, keeping its shape.
@@ -274,7 +289,11 @@ public enum VideoFrames {
         generator.dynamicRangePolicy = allowHDR ? .matchSource : .forceSDR
 
         frameSlots.wait()
-        defer { frameSlots.signal() }
+        decoding.enter()
+        defer {
+            decoding.leave()
+            frameSlots.signal()
+        }
         let result = ResultBox<CGImage>()
         let done = DispatchSemaphore(value: 0)
         generator.generateCGImageAsynchronously(for: CMTime(seconds: max(seconds, 0), preferredTimescale: 600)) {
@@ -324,6 +343,26 @@ public enum VideoFrames {
             return nil
         }
         return result.value
+    }
+
+    /// A count of work in progress and its high-water mark.
+    final class Gauge: @unchecked Sendable {
+        private let lock = NSLock()
+        private var current = 0
+        private var highest = 0
+
+        func enter() {
+            lock.withLock {
+                current += 1
+                highest = max(highest, current)
+            }
+        }
+
+        func leave() { lock.withLock { current -= 1 } }
+
+        var peak: Int { lock.withLock { highest } }
+
+        func resetPeak() { lock.withLock { highest = current } }
     }
 
     /// One value handed from a completion handler to the waiting thread.

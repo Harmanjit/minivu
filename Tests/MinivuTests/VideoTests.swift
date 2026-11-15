@@ -387,6 +387,34 @@ extension AppWindowTests {
             #expect(viewer.copyVideoFrame(to: board) == nil)
         }
 
+        /// One player at a time, and none while nothing is asked to play:
+        /// flipping from one playing video to the next lets the first go
+        /// before the second is made, and closing lets the last go.
+        @Test func onePlayerAtATime() async throws {
+            let t = try ScratchFolder()
+            let first = try await TestVideos.make(at: t.url.appendingPathComponent("a.mov"))
+            let second = try await TestVideos.make(at: t.url.appendingPathComponent("b.mov"), color: (20, 200, 40))
+            defer { closeViewer() }
+            #expect(VideoPlayback.liveCount == 0)
+            let viewer = try await open([first, second], at: 0)
+            #expect(VideoPlayback.liveCount == 0, "showing a video makes no player")
+
+            viewer.togglePlayback(nil)
+            #expect(VideoPlayback.liveCount == 1)
+            viewer.nextImage(nil)
+            #expect(VideoPlayback.liveCount == 0)
+            await TestTiming.waitUntil { viewer.displayed == viewer.current && viewer.canvasTexture != nil }
+            viewer.togglePlayback(nil)
+            #expect(VideoPlayback.liveCount == 1)
+            // Pausing and playing again keeps the one player.
+            let playback = viewer.videoPlayback
+            viewer.togglePlayback(nil)
+            viewer.togglePlayback(nil)
+            #expect(viewer.videoPlayback === playback && VideoPlayback.liveCount == 1)
+            closeViewer()
+            #expect(VideoPlayback.liveCount == 0)
+        }
+
         @Test func muteFollowsTheUserAcrossVideos() async throws {
             let t = try ScratchFolder()
             let video = try await TestVideos.make(at: t.url.appendingPathComponent("a.mov"))

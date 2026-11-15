@@ -123,6 +123,42 @@ import CoreGraphics
         #expect(store.image(for: url, modified: entry.modified, fileSize: entry.fileSize, tier: 256) != nil)
     }
 
+    /// A folder of videos opening asks for every thumbnail at once; the
+    /// thumbnail service runs a worker per core, but no more than three
+    /// frames ever decode together (a 4K HEVC frame holds tens of MB in
+    /// the decoder), and every thumbnail still arrives. Thumbnails scrolled
+    /// past before their turn are never decoded.
+    @MainActor @Test func aFolderOfVideosDecodesAFewFramesAtATime() async throws {
+        var entries: [FolderEntry] = []
+        for index in 0..<10 {
+            let url = try await TestVideos.make(at: folder.url.appendingPathComponent("clip\(index).mov"), seconds: 1)
+            entries.append(try #require(FolderEntry(url: url)))
+        }
+        let service = ThumbnailService(store: nil, memoryCacheBytes: 50_000_000, workerLimit: 10)
+        // Every request queued before any work starts, as when a folder
+        // opens and the grid asks for a screenful.
+        service.setSuspended(true)
+        VideoFrames.decoding.resetPeak()
+        var skippedDelivered = false
+        let skipped = entries.prefix(2).map { service.request($0, pixelSize: 128) { _ in skippedDelivered = true } }
+        skipped.forEach { $0.cancel() }
+        var images: [Int: CGImage?] = [:]
+        for (index, entry) in entries.enumerated().dropFirst(2) {
+            service.request(entry, pixelSize: 128) { images[index] = $0 }
+        }
+        service.setSuspended(false)
+        // Main-actor state, so waited for here rather than in `TestTiming`.
+        let end = Date() + 20
+        while images.count < 8, Date() < end { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(images.count == 8 && images.values.allSatisfy { $0 != nil })
+        #expect(!skippedDelivered, "a cancelled thumbnail is never delivered")
+        #expect((1...VideoFrames.frameSlotCount).contains(VideoFrames.decoding.peak),
+                "\(VideoFrames.decoding.peak) frames decoded at once")
+        // The two cancelled ones were never decoded.
+        #expect(service.cachedImage(for: entries[0], pixelSize: 128) == nil)
+        #expect(service.cachedImage(for: entries[1], pixelSize: 128) == nil)
+    }
+
     /// The info panel's sections: a Video section of size, length, frame
     /// rate, codec and data rate in place of the Image section.
     @Test func infoPanelDescribesTheVideo() async throws {
