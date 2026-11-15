@@ -1,5 +1,7 @@
 import Foundation
 import Darwin
+import MinivuCore
+import AppKit
 
 /// What the benchmark suites share (docs/feature-notes/perf.md). The same
 /// helper is in MinivuRenderTests and MinivuTests (a test target can't share
@@ -68,13 +70,28 @@ enum Bench {
         Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15
     }
 
+    /// The median of `samples`: the middle one, or the mean of the two
+    /// middle ones; 0 when there are none (a recording another suite
+    /// emptied, a phase that never ran), rather than a crash.
+    static func median(_ samples: [Double]) -> Double {
+        let sorted = samples.sorted()
+        guard !sorted.isEmpty else { return 0 }
+        let middle = sorted.count / 2
+        return sorted.count % 2 == 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+    }
+
     /// Prints the metric's line: the median and 90th percentile of `samples`.
+    /// No samples is a line of its own saying so, so a metric never goes
+    /// missing without a trace.
     static func report(_ suite: String, _ metric: String, _ samples: [Double], _ extra: String = "") {
         let sorted = samples.sorted()
-        guard !sorted.isEmpty else { return }
-        let median = sorted[sorted.count / 2]
+        guard !sorted.isEmpty else {
+            print("BENCH-EMPTY \(suite).\(metric) no samples")
+            return
+        }
         let p90 = sorted[min(sorted.count - 1, Int((Double(sorted.count) * 0.9).rounded(.up)) - 1)]
-        var line = String(format: "BENCH %@.%@ median_ms=%.2f p90_ms=%.2f runs=%d", suite, metric, median, p90, sorted.count)
+        var line = String(format: "BENCH %@.%@ median_ms=%.2f p90_ms=%.2f runs=%d", suite, metric, median(sorted), p90,
+                          sorted.count)
         if !extra.isEmpty { line += " " + extra }
         print(line)
     }
@@ -120,13 +137,64 @@ enum Bench {
         return samples
     }
 
-    /// Polls `condition` every millisecond until it holds or `seconds` pass.
+    /// Polls `condition` every millisecond until it holds or `seconds` pass,
+    /// and says whether it held. Callers `#expect` it: a condition that
+    /// never comes true is a failure, not a slow sample.
     static func waitUntil(seconds: Double = 60, isolation: isolated (any Actor)? = #isolation,
-                          _ condition: () -> Bool) async {
+                          _ condition: () -> Bool) async -> Bool {
         let end = ContinuousClock.now + .seconds(seconds)
-        while !condition(), ContinuousClock.now < end {
+        while !condition() {
+            guard ContinuousClock.now < end else { return false }
             try? await Task.sleep(for: .milliseconds(1))
         }
+        return true
+    }
+
+    // MARK: - Windows
+
+    /// One turn of the main queue: whatever was queued before it has run.
+    static func mainQueueTurn() async {
+        await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
+    }
+
+    /// Lays out and draws `window` now, as the next display cycle would, so
+    /// the work a change leaves for the screen falls inside the timed run.
+    @MainActor static func display(_ window: NSWindow?) {
+        window?.layoutIfNeeded()
+        window?.displayIfNeeded()
+    }
+
+    // MARK: - Phases
+
+    /// The signposts' recording (`Perf`) over the timed runs only, not the
+    /// warm-ups or the setup between them: pass `timing` as a
+    /// measurement's `timing` (with a `MainThreadMonitor`'s, if any) and
+    /// read `recording` in its `extra`; totals are then over exactly the
+    /// timed runs. An interval still running when a run ends is lost, and
+    /// one begun in the setup counts if it ends inside a run.
+    final class Phases: @unchecked Sendable {
+        private(set) var recording = Perf.Recording()
+
+        func timing(_ on: Bool) {
+            if on {
+                Perf.startRecording()
+            } else {
+                let run = Perf.stopRecording()
+                for (name, durations) in run.durations { recording.durations[name, default: []] += durations }
+                for (name, count) in run.counts { recording.counts[name, default: 0] += count }
+            }
+        }
+
+        /// Milliseconds in intervals named `name`, per run of `runs`.
+        func perRun(_ name: String, _ runs: Int) -> Double { recording.total(name) / Double(max(runs, 1)) }
+
+        /// How many intervals named `name` (or events, for a count) per run.
+        func countPerRun(_ name: String, _ runs: Int) -> Double {
+            Double(recording.durations[name]?.count ?? recording.counts[name] ?? 0) / Double(max(runs, 1))
+        }
+
+        /// The median interval named `name`.
+        func median(_ name: String) -> Double { Bench.median(recording.durations[name] ?? []) }
     }
 
     // MARK: - Memory
@@ -181,34 +249,61 @@ enum Bench {
     /// sleeps a millisecond, over and over. A block that waited `L` ms means
     /// the main thread was busy for about that long, so the waits of 2 ms
     /// or more are added up. Resolution about a millisecond; a busy spell
-    /// shorter than 2 ms is not counted. Counts only while `counting` is
-    /// on: pass `counting` as a measurement's `timing`, so the setup between
-    /// runs is left out.
+    /// shorter than 2 ms is not counted.
+    ///
+    /// Counts only the timed runs: pass `counting` as a measurement's
+    /// `timing`. Each wait is clipped to the timed windows by when the
+    /// block was sent and when it ran, so a busy spell that began in the
+    /// setup counts only from the run's start, and one still going when the
+    /// run ended counts up to its end. The busy time can never exceed the
+    /// wall time of the runs.
     final class MainThreadMonitor: @unchecked Sendable {
         private let lock = NSLock()
-        private var running = true, isCounting = false
+        private var running = true
+        /// The timed windows so far; the last one's end is nil while a run
+        /// is being timed.
+        private var windows: [(start: ContinuousClock.Instant, end: ContinuousClock.Instant?)] = []
         private var blocked = 0.0, longest = 0.0, stalls = 0
 
-        func counting(_ on: Bool) { lock.withLock { isCounting = on } }
+        func counting(_ on: Bool) {
+            let now = ContinuousClock.now
+            lock.withLock {
+                if on {
+                    windows.append((now, nil))
+                } else if let last = windows.indices.last, windows[last].end == nil {
+                    windows[last].end = now
+                }
+            }
+        }
 
         init() {
             Thread.detachNewThread { [self] in
                 let answered = DispatchSemaphore(value: 0)
                 while lock.withLock({ running }) {
-                    let start = ContinuousClock.now
+                    let sent = ContinuousClock.now
                     DispatchQueue.main.async { answered.signal() }
                     answered.wait()
-                    let waited = Bench.milliseconds(ContinuousClock.now - start)
-                    if waited >= 2 {
-                        lock.withLock {
-                            guard isCounting else { return }
-                            blocked += waited
-                            longest = max(longest, waited)
-                            stalls += 1
-                        }
-                    }
+                    let ran = ContinuousClock.now
+                    if Bench.milliseconds(ran - sent) >= 2 { add(sent: sent, ran: ran) }
                     usleep(1000)
                 }
+            }
+        }
+
+        /// Adds the part of one busy spell inside the timed windows.
+        private func add(sent: ContinuousClock.Instant, ran: ContinuousClock.Instant) {
+            lock.withLock {
+                var inside = 0.0
+                for window in windows.reversed() {
+                    let end = min(window.end ?? ran, ran)
+                    if end <= sent { break }
+                    let start = max(window.start, sent)
+                    if end > start { inside += Bench.milliseconds(end - start) }
+                }
+                guard inside > 0 else { return }
+                blocked += inside
+                longest = max(longest, inside)
+                stalls += 1
             }
         }
 

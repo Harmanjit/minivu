@@ -11,64 +11,70 @@ import MinivuRender
 extension AppWindowTests {
     /// Save in place and Save As, as the viewer's commands run them.
     @MainActor @Suite(.serialized) struct SaveBenchmark {
-        /// Save (⌘S) of an edited photo: the header reads Save starts with,
-        /// then the write through the write queue (render at full
-        /// resolution, encode, fsync and rename). A fresh clone and document
-        /// each run, prepared beforehand as the viewer's would be.
-        func saveInPlace(_ label: String, _ source: URL, scratch: ScratchFolder) async throws {
-            var url = source, doc: EditDocument?
+        /// Save (⌘S) of an edited photo through the viewer's own path
+        /// (`SavePresenter.save`): the header reads it starts with, then the
+        /// write through the write queue (render at full resolution, encode,
+        /// fsync and rename), to its completion. "Replace the original?" is
+        /// off, as after "Don't ask again". A fresh clone and document each
+        /// run, prepared beforehand as the viewer's would be.
+        func saveInPlace(_ label: String, _ source: URL, scratch: ScratchFolder, window: NSWindow,
+                         store: SaveOptionsStore) async throws {
+            var entry: FolderEntry?, doc: EditDocument?
             var round = 0
-            Perf.startRecording()
-            try await Bench.measure("save", "inPlace_\(label)", runs: Bench.runs(5), extra: {
-                let recording = Perf.stopRecording()
-                let runs = Double(Bench.runs(5) + 1)
-                return String(format: "render_ms=%.1f encode_prepare_ms=%.1f encode_ms=%.1f fsync_ms=%.1f opens=%.1f",
-                              recording.total("edit.export.render") / runs, recording.total("encode.prepare") / runs,
-                              recording.total("encode.finalize") / runs, recording.total("write.fsync") / runs,
-                              Double(recording.counts["file.open"] ?? 0) / runs)
-            }(), setup: {
+            let phases = Bench.Phases()
+            let runs = Bench.runs(5)
+            try await Bench.measure("save", "inPlace_\(label)", runs: runs, extra: String(
+                format: "preflight_ms=%.1f render_ms=%.1f encode_prepare_ms=%.1f encode_ms=%.1f fsync_ms=%.1f opens=%.1f",
+                phases.perRun("save.preflight", runs), phases.perRun("edit.export.render", runs),
+                phases.perRun("encode.prepare", runs), phases.perRun("encode.finalize", runs),
+                phases.perRun("write.fsync", runs), phases.countPerRun("file.open", runs)), setup: {
                 if let doc { EditRenderer.shared.release(doc) }
                 round += 1
-                url = scratch.url.appendingPathComponent("save-\(label)-\(round).\(source.pathExtension)")
+                let url = scratch.url.appendingPathComponent("save-\(label)-\(round).\(source.pathExtension)")
                 try FileManager.default.copyItem(at: source, to: url)
-                let document = EditDocument(entry: try #require(FolderEntry(url: url)))
+                let opened = try #require(FolderEntry(url: url))
+                let document = EditDocument(entry: opened)
                 document.apply(.lighting(brightness: 0.1, contrast: 0.1, gamma: 1, shadows: 0.2, highlights: -0.1))
                 try await EditRenderer.shared.prepare(document)
+                entry = opened
                 doc = document
-            }) {
-                let target = url
-                let snapshot = try #require(doc).snapshot()
-                let (info, sourceSpace) = await BlockingWork.run {
-                    (ImageDecoder.info(for: target), SavePolicy.sourceColorSpace(of: target))
+            }, timing: phases.timing) {
+                let (entry, document) = (try #require(entry), try #require(doc))
+                let saved = await withCheckedContinuation { done in
+                    SavePresenter.save(entry: entry, document: document, on: window, store: store,
+                                       preferences: .shared) { done.resume(returning: $0) }
                 }
-                let format = try #require(SavePolicy.inPlaceFormat(for: target, info: info))
-                let options = SavePolicy.inPlaceOptions(remembered: .defaults(for: format), sourceBitDepth: info?.bitDepth ?? 8)
-                let space = SavePolicy.renderColorSpace(source: sourceSpace, isHDR: info?.isHDR ?? false, preferWideGamut: false)
-                _ = try await FileWriteQueue.shared.enqueue(replacing: [target]) {
-                    try await SavePresenter.writeInPlace(snapshot, colorSpace: space, options: options, to: target,
-                                                         renderer: .shared)
-                }.value
+                #expect(saved)
             }
             if let doc { EditRenderer.shared.release(doc) }
         }
 
         @Test(.enabled(if: Bench.jpeg != nil)) func saveInPlaceAndSaveAs() async throws {
+            _ = NSApplication.shared
             let scratch = try ScratchFolder()
             let jpeg = try #require(Bench.jpeg)
-            try await saveInPlace("jpeg", jpeg, scratch: scratch)
-            if let heic = Bench.heic { try await saveInPlace("heic", heic, scratch: scratch) }
+            let scratchDefaults = ScratchDefaults("minivu-bench")
+            defer { scratchDefaults.remove() }
+            let store = SaveOptionsStore(defaults: scratchDefaults.defaults)
+            let confirms = Preferences.shared.confirmOverwriteOnSave
+            defer { Preferences.shared.confirmOverwriteOnSave = confirms }
+            Preferences.shared.confirmOverwriteOnSave = false
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled],
+                                  backing: .buffered, defer: true)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            try await saveInPlace("jpeg", jpeg, scratch: scratch, window: window, store: store)
+            if let heic = Bench.heic { try await saveInPlace("heic", heic, scratch: scratch, window: window, store: store) }
 
             // Save As AVIF of the unedited photo: its decode at full size and
             // the encode, as the Save As panel's Save button runs them.
             guard ExportFormat.avif.isWritable else { return }
             let entry = try #require(FolderEntry(url: jpeg))
             var round = 0
-            Perf.startRecording()
-            try await Bench.measure("save", "saveAsAVIF", runs: Bench.runs(5), extra: {
-                let recording = Perf.stopRecording()
-                let runs = Double(Bench.runs(5) + 1)
-                return String(format: "encode_ms=%.1f", recording.total("save.encode") / runs)
-            }()) {
+            let phases = Bench.Phases()
+            try await Bench.measure("save", "saveAsAVIF", runs: Bench.runs(5),
+                                    extra: String(format: "encode_ms=%.1f", phases.perRun("save.encode", Bench.runs(5))),
+                                    timing: phases.timing) {
                 round += 1
                 let out = scratch.url.appendingPathComponent("saved-\(round).avif")
                 try await SavePresenter.write(SaveImageSource(entry: entry, document: nil), options: .defaults(for: .avif),
@@ -120,6 +126,58 @@ extension AppWindowTests {
             if ExportFormat.avif.isWritable {
                 try await convert("avifFull", sources, scratch: scratch) { $0.options = .defaults(for: .avif) }
             }
+        }
+
+        /// Batch Convert with Replace: 24 MP photos (named .jpeg) to JPEGs of
+        /// 2048 px beside them, where a rated .jpg of each name is already:
+        /// each of those goes to a folder standing in for the Trash, its
+        /// marks moved with it in the catalog (`catalog.fileMoved` per file).
+        /// (Replacing the originals themselves, same name and type, keeps
+        /// their marks where they are and moves none.) Fresh clones every run.
+        @Test(.enabled(if: Bench.jpeg != nil)) func batchConvertReplacing() async throws {
+            let scratch = try ScratchFolder()
+            let source = try #require(Bench.jpeg)
+            let bin = try scratch.folder("Bin")
+            var settings = BatchConvertSettings(options: .defaults(for: .jpeg), destination: .besideOriginals,
+                                                naming: .keep, existingFiles: .replace)
+            settings.resize = BatchResize(mode: .longSide, pixels: 2048)
+            var round = 0
+            var job: BatchConvertJob?
+            var outcome: BatchConvertJob.Outcome?
+            Perf.startRecording()
+            try await Bench.measure("batch", "replaceExistingJpeg2048_\(Self.count)", warmups: 0, runs: Bench.runs(5), extra: {
+                let recording = Perf.stopRecording()
+                let files = Double(Bench.runs(5) * Self.count)
+                return String(format: "written=%d trashed=%d trash_ms=%.2f catalogMoved_ms=%.2f commit_ms=%.1f",
+                              outcome?.written.count ?? 0, outcome?.trashed.count ?? 0,
+                              recording.total("batch.trash") / files, recording.total("batch.catalogMoved") / files,
+                              recording.total("batch.commit") / files)
+            }(), setup: {
+                round += 1
+                let folder = try scratch.folder("Replace \(round)")
+                let sources = try (0..<Self.count).map { i in
+                    let url = folder.appendingPathComponent(String(format: "photo-%04d.jpeg", i))
+                    try FileManager.default.copyItem(at: source, to: url)
+                    return url
+                }
+                let existing = try sources.map { url in
+                    let jpg = url.deletingPathExtension().appendingPathExtension("jpg")
+                    try FileManager.default.copyItem(at: source, to: jpg)
+                    return jpg
+                }
+                let catalog = Catalog.inMemory()
+                catalog.setRating(3, for: existing)
+                let outputs = BatchOutputPlanner.plan(sources.map { RenameSource(url: $0) }, settings: settings, folder: folder)
+                job = BatchConvertJob(outputs: outputs, settings: settings, converter: BatchConvertJob.makeConverter(),
+                                      trash: { url in
+                                          let place = bin.appendingPathComponent(UUID().uuidString + "-" + url.lastPathComponent)
+                                          try FileManager.default.moveItem(at: url, to: place)
+                                          return place
+                                      }, catalog: catalog)
+            }) {
+                outcome = await job?.run()
+            }
+            #expect(outcome?.trashed.count == Self.count)
         }
 
         @Test(.enabled(if: Bench.jpeg != nil)) func webGallery() async throws {

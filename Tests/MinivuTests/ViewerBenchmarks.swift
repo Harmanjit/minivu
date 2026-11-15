@@ -12,21 +12,34 @@ import MinivuCore
 extension AppWindowTests {
     /// The viewer: opening it, moving between photos, zooming to 100%.
     @MainActor @Suite(.serialized) struct ViewerBenchmark {
-        init() { _ = NSApplication.shared }
+        init() {
+            _ = NSApplication.shared
+            ImageCanvasView.tracksPresentedFrames = true
+        }
 
         func close() {
             ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in }
         }
 
-        /// The photo `entry` is on the canvas.
+        /// The photo `entry` is on the canvas and drawn: its own texture,
+        /// not a stand-in, in a frame the GPU has finished.
         func shows(_ entry: FolderEntry) -> Bool {
-            guard let viewer = ViewerWindowController.current else { return false }
-            return viewer.displayed?.entry == entry && viewer.canvasTexture != nil
+            guard let viewer = ViewerWindowController.current, viewer.displayed?.entry == entry, !viewer.isLoadingPage,
+                  viewer.canvasTexture != nil else { return false }
+            return Self.drawn(viewer.canvasView)
+        }
+
+        /// The canvas's image is in a finished frame. A window on no screen
+        /// has no display link, so this draws as its refresh would; on a
+        /// screen the link has usually drawn already.
+        static func drawn(_ canvas: ImageCanvasView) -> Bool {
+            if !canvas.hasPresentedImage { canvas.displayRefreshed() }
+            return canvas.hasPresentedImage
         }
 
         func settle() async {
             await AppServices.images.waitUntilIdle()
-            await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
+            await Bench.mainQueueTurn()
         }
 
         /// An HDR JPEG with a gain map, made from the 24 MP photo: the photo
@@ -42,8 +55,8 @@ extension AppWindowTests {
         }
 
         /// Opening the viewer on a photo it has never decoded: from the
-        /// call to the texture on the canvas, and how long the main thread
-        /// was busy meanwhile. A clone of the photo each run, so no texture
+        /// call to the photo drawn on the canvas, and how long the main
+        /// thread was busy meanwhile. A clone of the photo each run, so no texture
         /// is cached.
         func open(_ label: String, _ source: URL, scratch: ScratchFolder) async throws {
             let photos = try Bench.clones(of: source, count: Bench.runs(5) + 1, in: scratch.url, prefix: label)
@@ -56,7 +69,7 @@ extension AppWindowTests {
                 let recording = Perf.stopRecording()
                 let shown = ViewerWindowController.current?.canvasTexture
                 return String(format: "show_call_ms=%.1f opens=%.1f %@ texture=%dx%d hdr=%@",
-                              showCall.sorted()[showCall.count / 2],
+                              Bench.median(showCall),
                               Double(recording.counts["file.open"] ?? 0) / Double(entries.count),
                               monitor.stopText(runs: Bench.runs(5)), shown?.texture.width ?? 0, shown?.texture.height ?? 0,
                               (shown?.isHDR ?? false) ? "yes" : "no")
@@ -68,7 +81,7 @@ extension AppWindowTests {
                 let start = ContinuousClock.now
                 ViewerWindowController.show(images: [entries[index]], index: 0, fullScreen: false) { _ in }
                 showCall.append(Bench.milliseconds(ContinuousClock.now - start))
-                await Bench.waitUntil { shows(entries[index]) }
+                #expect(await Bench.waitUntil { shows(entries[index]) })
             }
             close()
         }
@@ -102,7 +115,7 @@ extension AppWindowTests {
                 .compactMap(FolderEntry.init(url:))
             ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
             let viewer = try #require(ViewerWindowController.current)
-            await Bench.waitUntil { shows(entries[0]) }
+            #expect(await Bench.waitUntil { shows(entries[0]) })
             var position = 0
 
             for (label, isWarm) in [("next_warm", true), ("next_cold", false)] {
@@ -112,10 +125,11 @@ extension AppWindowTests {
                     let recording = Perf.stopRecording()
                     let flips = recording.durations["viewer.flip"] ?? []
                     let runs = Double(Bench.runs(7) + 1)
-                    return String(format: "flip_signpost_ms=%.1f opens_per_flip=%.1f decode_ms=%.1f upload_ms=%.1f %@",
-                                  flips.sorted()[flips.count / 2], Double(recording.counts["file.open"] ?? 0) / runs,
+                    return String(format: "flip_signpost_ms=%.1f opens_per_flip=%.1f decode_ms=%.1f upload_ms=%.1f "
+                                      + "escalation_wait_ms=%.1f %@",
+                                  Bench.median(flips), Double(recording.counts["file.open"] ?? 0) / runs,
                                   recording.total("decode") / runs, recording.total("upload") / runs,
-                                  monitor.stopText(runs: Bench.runs(7)))
+                                  recording.total("loader.escalationWait") / runs, monitor.stopText(runs: Bench.runs(7)))
                 }(), setup: {
                     await settle()
                     // The side reads of the photo shown land before the move.
@@ -124,18 +138,18 @@ extension AppWindowTests {
                 }, timing: monitor.counting) {
                     position += 1
                     viewer.nextImage(nil)
-                    await Bench.waitUntil { shows(entries[position]) }
+                    #expect(await Bench.waitUntil { shows(entries[position]) })
                 }
             }
             try await Bench.measure("viewer", "previous", runs: Bench.runs(7), setup: { await settle() }) {
                 position -= 1
                 viewer.previousImage(nil)
-                await Bench.waitUntil { shows(entries[position]) }
+                #expect(await Bench.waitUntil { shows(entries[position]) })
             }
         }
 
         /// Zoom to 100% (⌘0's neighbour, Actual Size): from the command to the
-        /// full-resolution texture on the canvas.
+        /// full-resolution texture drawn on the canvas.
         @Test(.enabled(if: Bench.jpeg != nil)) func zoomToActualSize() async throws {
             let scratch = try ScratchFolder()
             defer { close() }
@@ -151,17 +165,19 @@ extension AppWindowTests {
                     let recording = Perf.stopRecording()
                     let full = recording.durations["loader.fullResolution"] ?? []
                     let texture = ViewerWindowController.current?.canvasTexture
-                    return String(format: "loader_ms=%.1f texture=%dx%d", full.isEmpty ? 0 : full.sorted()[full.count / 2],
+                    return String(format: "loader_ms=%.1f texture=%dx%d", Bench.median(full),
                                   texture?.texture.width ?? 0, texture?.texture.height ?? 0)
                 }(), setup: {
                     index += 1
                     ViewerWindowController.show(images: [entries[index]], index: 0, fullScreen: false) { _ in }
-                    await Bench.waitUntil { shows(entries[index]) }
+                    #expect(await Bench.waitUntil { shows(entries[index]) })
                     await settle()
                 }) {
                     let viewer = try #require(ViewerWindowController.current)
                     viewer.actualSize(nil)
-                    await Bench.waitUntil { viewer.canvasTexture?.isFullResolution == true }
+                    #expect(await Bench.waitUntil {
+                        viewer.canvasTexture?.isFullResolution == true && Self.drawn(viewer.canvasView)
+                    })
                 }
             }
         }
@@ -187,11 +203,11 @@ extension AppWindowTests {
             ViewerWindowController.show(images: entries, index: 0, fullScreen: false) { _ in }
             let viewer = try #require(ViewerWindowController.current)
             var flips: [Double] = []
-            await Bench.waitUntil { shows(entries[0]) }
+            #expect(await Bench.waitUntil { shows(entries[0]) })
             for i in 1..<count {
                 let flip = ContinuousClock.now
                 viewer.nextImage(nil)
-                await Bench.waitUntil { shows(entries[i]) }
+                #expect(await Bench.waitUntil { shows(entries[i]) })
                 flips.append(Bench.milliseconds(ContinuousClock.now - flip))
             }
             let total = Bench.milliseconds(ContinuousClock.now - start)
@@ -205,7 +221,8 @@ extension AppWindowTests {
     }
 
     /// The browser's grid scrolled through thousands of thumbnails, a screen
-    /// at a time, each waiting for its thumbnails: footprint and time.
+    /// at a time, each waiting for its thumbnails: footprint, time, and the
+    /// main thread's busy spells (where scrolling stutters).
     @MainActor @Suite(.serialized) struct GridScrollBenchmark {
         @Test(.enabled(if: Bench.enabled)) func scrollThroughFiveThousand() async throws {
             _ = NSApplication.shared
@@ -225,33 +242,92 @@ extension AppWindowTests {
             let peak = Bench.FootprintPeak()
             controller.open(folder: folder)
             await controller.model.work?.value
-            grid.collectionView.layoutSubtreeIfNeeded()
+            Bench.display(controller.window)
             func settled() -> Bool {
                 let visible = grid.collectionView.visibleItems()
                 return !visible.isEmpty && visible.allSatisfy { ($0 as? ThumbnailCell)?.isThumbnailSettled ?? true }
             }
             let clip = grid.scrollView.contentView
             var screens: [Double] = []
-            await Bench.waitUntil { settled() }
+            #expect(await Bench.waitUntil { settled() })
             let step = max(clip.bounds.height, 100)
             var y = clip.bounds.origin.y
+            let monitor = Bench.MainThreadMonitor()
             let start = ContinuousClock.now
             while y + clip.bounds.height < grid.collectionView.frame.height {
                 y += step
+                monitor.counting(true)
                 let screen = ContinuousClock.now
                 clip.scroll(to: NSPoint(x: 0, y: y))
                 grid.scrollView.reflectScrolledClipView(clip)
                 // The cells for the new rows exist once the grid has laid out.
                 grid.collectionView.layoutSubtreeIfNeeded()
-                await withCheckedContinuation { done in DispatchQueue.main.async { done.resume() } }
-                await Bench.waitUntil(seconds: 10) { settled() }
+                await Bench.mainQueueTurn()
+                #expect(await Bench.waitUntil(seconds: 10) { settled() })
+                Bench.display(controller.window)
                 screens.append(Bench.milliseconds(ContinuousClock.now - screen))
+                monitor.counting(false)
             }
             let total = Bench.milliseconds(ContinuousClock.now - start)
             let memory = peak.stop()
             Bench.report("memory", "gridScroll\(count)", screens,
-                         String(format: "screens=%d total_ms=%.0f start_mb=%.0f peak_mb=%.0f end_mb=%.0f", screens.count,
-                                total, memory.start, memory.peak, memory.end))
+                         String(format: "screens=%d total_ms=%.0f start_mb=%.0f peak_mb=%.0f end_mb=%.0f %@", screens.count,
+                                total, memory.start, memory.peak, memory.end, monitor.stopText(runs: screens.count)))
+        }
+    }
+
+    /// Compare (two or four photos side by side): from the command to every
+    /// pane's photo drawn, photos never decoded before (fresh clones each
+    /// run), and the main thread's busy time meanwhile.
+    @MainActor @Suite(.serialized) struct CompareBenchmark {
+        init() {
+            _ = NSApplication.shared
+            ImageCanvasView.tracksPresentedFrames = true
+        }
+
+        func close() { CompareWindowController.current?.window?.close() }
+
+        /// Every pane shows its entry, drawn.
+        func shown(_ entries: [FolderEntry]) -> Bool {
+            guard let controller = CompareWindowController.current, controller.paneViews.count == entries.count
+            else { return false }
+            return zip(controller.paneViews, entries).allSatisfy { pane, entry in
+                pane.entry == entry && pane.hasLoadedImage && pane.canvas.image != nil
+                    && ViewerBenchmark.drawn(pane.canvas)
+            }
+        }
+
+        @Test(.enabled(if: Bench.jpeg != nil)) func openTwoAndFour() async throws {
+            let saved = CompareWindowController.catalog
+            CompareWindowController.catalog = .inMemory()
+            defer { CompareWindowController.catalog = saved }
+            let scratch = try ScratchFolder()
+            defer { close() }
+            for panes in [2, 4] {
+                let runs = Bench.runs(5)
+                let entries = try Bench.clones(of: try #require(Bench.jpeg), count: panes * (runs + 1), in: scratch.url,
+                                               prefix: "compare\(panes)").compactMap(FolderEntry.init(url:))
+                var round = -1
+                var opens: [Double] = [], loads: [Double] = []
+                let monitor = Bench.MainThreadMonitor()
+                try await Bench.measure("compare", "open\(panes)", runs: runs, extra: {
+                    String(format: "open_signpost_ms=%.1f pane_load_ms=%.1f %@", Bench.median(opens), Bench.median(loads),
+                           monitor.stopText(runs: runs))
+                }(), setup: {
+                    close()
+                    await AppServices.images.waitUntilIdle()
+                    await Bench.mainQueueTurn()
+                    round += 1
+                    Perf.startRecording()
+                }, timing: monitor.counting) {
+                    let chosen = Array(entries[round * panes..<(round + 1) * panes])
+                    CompareWindowController.show(entries: chosen, allImages: entries)
+                    #expect(await Bench.waitUntil { shown(chosen) })
+                    let recording = Perf.stopRecording()
+                    opens += recording.durations["compare.open"] ?? []
+                    loads += recording.durations["compare.paneLoad"] ?? []
+                }
+            }
         }
     }
 }
