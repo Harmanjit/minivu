@@ -40,6 +40,13 @@ public enum TreeEnumerator {
         /// A limit stopped the walk: there may be more images than these.
         public var isTruncated: Bool
         public var isCancelled: Bool
+
+        public init(images: [FolderEntry], foldersListed: Int, isTruncated: Bool, isCancelled: Bool) {
+            self.images = images
+            self.foldersListed = foldersListed
+            self.isTruncated = isTruncated
+            self.isCancelled = isCancelled
+        }
     }
 
     /// Every image under `root`, within `limits`.

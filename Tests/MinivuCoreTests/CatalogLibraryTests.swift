@@ -222,6 +222,24 @@ import Foundation
         #expect(catalog.collections().first?.count == 0)
     }
 
+    /// The browser's Move to Trash reports a move into the Trash, so the
+    /// member leaves the list but stays a member until it is put back.
+    @Test func aMemberMinivuMovesToTheTrashIsLeftOutUntilPutBack() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let trash = try t.folder(".Trash")
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let trashed = trash.appendingPathComponent("a.jpg")
+        try FileManager.default.moveItem(at: a, to: trashed)
+        catalog.fileMoved(from: a, to: trashed)
+        #expect(catalog.collectionMembers(id).isEmpty && catalog.collections().first?.count == 0)
+        try FileManager.default.moveItem(at: trashed, to: a)
+        catalog.fileMoved(from: trashed, to: a)
+        #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["a.jpg"])
+    }
+
     /// Moved in Finder, not by minivu: found by its identity when the
     /// collection is opened, and its row takes the new path.
     @Test func aFileMovedOutsideMinivuIsFoundByIdentity() throws {

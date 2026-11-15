@@ -130,7 +130,7 @@ extension Catalog {
     public struct Collection: Sendable, Equatable, Identifiable {
         public var id: Int64
         public var name: String
-        /// Members whose file is where the catalog last saw it.
+        /// Members whose file is where the catalog last saw it, outside the Trash.
         public var count: Int
     }
 
@@ -138,7 +138,8 @@ extension Catalog {
     public func collections() -> [Collection] {
         let rows = (try? db.query("""
             SELECT c.id AS id, c.name AS name,
-                (SELECT COUNT(*) FROM collection_items AS i WHERE i.collection = c.id AND i.missing_since IS NULL) AS n
+                (SELECT COUNT(*) FROM collection_items AS i
+                 WHERE i.collection = c.id AND i.missing_since IS NULL AND instr(i.path, '/.Trash/') = 0) AS n
             FROM collections AS c
             """)) ?? []
         return rows.compactMap { row in
@@ -237,7 +238,10 @@ extension Catalog {
     /// that can't be found (deleted, moved to another volume, or somewhere
     /// the sandbox can't see) is stamped missing and left out, and comes
     /// back if healing finds it later; after a year missing it is dropped,
-    /// as marks are. Stats every member: call off the main thread.
+    /// as marks are. A member minivu moved to the Trash is left out but
+    /// stays a member, as its marks stay with it: minivu's moves out of the
+    /// Trash (undoing a Replace) bring it back. Stats every member: call off
+    /// the main thread.
     public func collectionMembers(_ id: Int64) -> [URL] {
         guard let rows = try? db.query("""
             SELECT rowid AS id, path, volume, file_id, missing_since FROM collection_items
@@ -249,6 +253,7 @@ extension Catalog {
         var volumes: [dev_t: String] = [:]
         for row in rows {
             guard let rowID = row.int("id"), let path = row.string("path") else { continue }
+            if path.contains("/.Trash/") { continue }
             let fileID = row.int("file_id"), volume = row.string("volume")
             let here = Self.identity(ofPath: path, volumes: &volumes)
             // The recorded path still holds a file: the same one, or one saved
