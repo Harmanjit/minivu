@@ -108,9 +108,16 @@ extension AppWindowTests {
             #expect(controller.model.panes[1].name == "b.jpg")
 
             try press("4", in: controller)
+            BrowserModel.catalogWrites.sync {}   // written off the main thread
             #expect(catalog.marks(for: all[1].url).rating == 4)
             #expect(catalog.marks(for: all[0].url).rating == 0)
+            // Each toggle is decided after the one before has landed.
             try press("t", in: controller)
+            try press("t", in: controller)
+            BrowserModel.catalogWrites.sync {}
+            #expect(!catalog.marks(for: all[1].url).isTagged, "a quick T T tags and untags")
+            try press("t", in: controller)
+            BrowserModel.catalogWrites.sync {}
             #expect(catalog.marks(for: all[1].url).isTagged)
             let item = NSMenuItem(title: "", action: .toggleTag, keyEquivalent: "")
             #expect(controller.validateMenuItem(item))
@@ -119,6 +126,7 @@ extension AppWindowTests {
             let rate = NSMenuItem(title: "", action: .setRating, keyEquivalent: "")
             rate.tag = 2
             controller.setRating(rate)
+            BrowserModel.catalogWrites.sync {}
             #expect(catalog.marks(for: all[1].url).rating == 2)
 
             // Asking again retargets the same window.

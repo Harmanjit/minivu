@@ -255,17 +255,25 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         syncPanes()
     }
 
+    /// Ratings and tags are written on the catalog's queue, as the browser
+    /// and viewer write them: a file without a row has its own marks read
+    /// from disk first (G2), which mustn't hold up the window. The panes
+    /// show the change when the catalog reports it.
     private func rate(_ pane: CompareImagePane, _ rating: Int) {
         guard let entry = pane.entry else { return }
-        Self.catalog.setRating(rating, for: [entry.url])
-        pane.refreshMarks()
+        let catalog = Self.catalog, url = entry.url
+        BrowserModel.catalogWrites.async { catalog.setRating(rating, for: [url]) }
     }
 
+    /// Decided on the catalog's queue, after any write still queued, so a
+    /// quick T T tags and untags rather than tagging twice.
     private func toggleTag(of pane: CompareImagePane) {
         guard let entry = pane.entry else { return }
-        let marks = FileMarksCache.shared.shownMarks(for: entry.url, in: Self.catalog)
-        Self.catalog.setTagged(!marks.isTagged, for: [entry.url])
-        pane.refreshMarks()
+        let catalog = Self.catalog, url = entry.url
+        BrowserModel.catalogWrites.async {
+            let marks = FileMarksCache.shared.shownMarks(for: url, in: catalog)
+            catalog.setTagged(!marks.isTagged, for: [url])
+        }
     }
 
     /// Moves a pane's file to the Trash (the Finder does the move, off the
