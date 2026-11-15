@@ -34,6 +34,9 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     var onRate: ((CompareImagePane, Int) -> Void)?
     var onToggleTag: ((CompareImagePane) -> Void)?
     var onTrash: ((CompareImagePane) -> Void)?
+    /// The image asked for is on the canvas, or has failed (the window's
+    /// `compare.open` interval ends when every pane has said so).
+    var onLoaded: ((CompareImagePane) -> Void)?
 
     var isFocused = false {
         didSet { if isFocused != oldValue { updateBorder() } }
@@ -58,6 +61,8 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     private let trashButton = NSButton()
 
     private var loadHandle: LoadHandle?
+    /// From asking the loader for the image to its texture or failure.
+    private var loading: Perf.Interval?
     private var sharpenHandle: LoadHandle?
     private var summaryTask: Task<Void, Never>?
     /// The entry whose texture is on the canvas (it lags `entry` while loading).
@@ -269,6 +274,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         let cache = AppServices.images.cache
         if let hit = cache.bestTexture(url: entry.url, modified: entry.modified, page: 0, fitting: fitSize) {
             display(hit, of: entry)
+            onLoaded?(self)
             return
         }
         if displayedEntry != entry {
@@ -281,14 +287,22 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
                 updateZoom()
             }
         }
+        loading?.end()
+        loading = Perf.begin("compare.paneLoad")
         loadHandle = AppServices.images.load(entry, fitting: fitSize) { [weak self] result in
             self?.loadFinished(result, entry: entry)
         }
     }
 
+    /// The image asked for is on the canvas, or failed to load.
+    var hasLoadedImage: Bool { entry != nil && displayedEntry == entry && loadHandle == nil }
+
     private func loadFinished(_ result: Result<ImageTexture, Error>, entry: FolderEntry) {
         guard entry == self.entry else { return }
         loadHandle = nil
+        loading?.end()
+        loading = nil
+        defer { onLoaded?(self) }
         switch result {
         case .success(let texture):
             display(texture, of: entry)
@@ -318,6 +332,8 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     func cancelLoads() {
         loadHandle?.cancel()
         loadHandle = nil
+        loading?.end()
+        loading = nil
         sharpenHandle?.cancel()
         sharpenHandle = nil
     }

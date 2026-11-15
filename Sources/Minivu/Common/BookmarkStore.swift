@@ -15,16 +15,27 @@ final class BookmarkStore {
 
     private init() {
         let datas = UserDefaults.standard.array(forKey: key) as? [Data] ?? []
-        var refreshed: [Data] = []
+        let resolved = Self.resolve(datas)
+        folders = resolved.folders
+        UserDefaults.standard.set(resolved.refreshed, forKey: key)
+    }
+
+    /// Resolves saved bookmarks and starts access to each folder: the
+    /// folders that still resolve, and the bookmarks to save in place of
+    /// `datas` (stale ones made again). A launch phase of its own
+    /// (`launch.bookmarks`), so its own function for the benchmark.
+    static func resolve(_ datas: [Data], options: URL.BookmarkResolutionOptions = .withSecurityScope)
+        -> (folders: [URL], refreshed: [Data]) {
+        var folders: [URL] = [], refreshed: [Data] = []
         for data in datas {
             var stale = false
-            guard let url = try? URL(resolvingBookmarkData: data, options: .withSecurityScope, relativeTo: nil,
+            guard let url = try? URL(resolvingBookmarkData: data, options: options, relativeTo: nil,
                                      bookmarkDataIsStale: &stale) else { continue }
             _ = url.startAccessingSecurityScopedResource()
             folders.append(url)
             refreshed.append(stale ? (Self.bookmark(for: url) ?? data) : data)
         }
-        UserDefaults.standard.set(refreshed, forKey: key)
+        return (folders, refreshed)
     }
 
     /// Adds a folder the user just picked. Refuses external volumes.

@@ -1424,6 +1424,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var canvasTexture: ImageTexture? { canvas.image }
     /// The canvas itself, so tests can press on it.
     var canvasView: ImageCanvasView { canvas }
+    /// A move to another image or page is still waiting for its texture
+    /// (a placeholder may be standing in), for the benchmarks.
+    var isLoadingPage: Bool { flipInterval != nil }
 
     /// Esc, ⌘W, the close button or a double-click: stop all work, put the
     /// menu bar back, and tell the browser which image to select.

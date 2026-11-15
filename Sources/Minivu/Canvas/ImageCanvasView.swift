@@ -444,9 +444,29 @@ final class ImageCanvasView: NSView, SnapshotProviding {
         let headroom = displayHeadroom
         if headroom != lastFrameHeadroom { log.debug("Canvas frame for headroom \(headroom, privacy: .public)") }
         lastFrameHeadroom = headroom
+        var completed: (@Sendable () -> Void)?
+        if Self.tracksPresentedFrames {
+            let drawn = image.map(ObjectIdentifier.init)
+            completed = { [weak self] in
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.presentedImage = drawn } }
+            }
+        }
         renderer.draw(currentFrame(headroom: headroom), to: drawable,
-                      presentsWithTransaction: layer.presentsWithTransaction)
+                      presentsWithTransaction: layer.presentsWithTransaction, completed: completed)
     }
+
+    /// Whether canvases note which image the GPU last finished drawing
+    /// (`presentedImage`). Off in the app; the benchmarks turn it on to end
+    /// a flip when its frame is drawn, not when its texture is set
+    /// (docs/feature-notes/perf.md).
+    nonisolated(unsafe) static var tracksPresentedFrames = false
+
+    /// The image in the last frame the GPU finished, as an identity, while
+    /// `tracksPresentedFrames` is on. Compare with `image`.
+    private(set) var presentedImage: ObjectIdentifier?
+
+    /// The image set is the one in the last finished frame.
+    var hasPresentedImage: Bool { image.map(ObjectIdentifier.init) == presentedImage && image != nil }
 
     private func currentFrame(headroom: Float) -> CanvasFrame {
         var frame = CanvasFrame(image: image, transform: transform, background: background,
