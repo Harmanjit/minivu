@@ -289,7 +289,12 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Batch Convert…", .batchConvert, "b", [.command, .option])
         menu.add("Batch Rename…", .batchRename, Key.f2, [.shift])
+        // The multi-page tools (G17) have no shortcuts, like Contact Sheet:
+        // occasional commands, each opening a sheet.
+        menu.add("Extract Pages…", .extractPages)
         menu.addItem(.separator())
+        menu.add("Create Multi-Page File…", .createMultiPageFile)
+        menu.add("Image Strip…", .makeImageStrip)
         menu.add("Contact Sheet…", .makeContactSheet)
         menu.add("Montage Wallpaper…", .makeMontage)
         menu.add("Set as Desktop Picture", .setAsDesktopPicture)

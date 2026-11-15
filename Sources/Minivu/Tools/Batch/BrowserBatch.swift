@@ -119,15 +119,15 @@ enum BatchReplaceChoice {
         lastRename = nil
     }
 
-    fileprivate static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
+    static func started(_ id: ObjectIdentifier, _ task: Task<Void, Never>) {
         work[id] = task
     }
 
-    fileprivate static func begin(_ id: ObjectIdentifier) {
+    static func begin(_ id: ObjectIdentifier) {
         running[id, default: 0] += 1
     }
 
-    fileprivate static func end(_ id: ObjectIdentifier) {
+    static func end(_ id: ObjectIdentifier) {
         let count = (running[id] ?? 1) - 1
         running[id] = count > 0 ? count : nil
         if count <= 0 { work[id] = nil }
@@ -143,7 +143,7 @@ extension BrowserWindowController {
     /// The batch under way in this window, for tests.
     var batchWork: Task<Void, Never>? { BatchTools.work[ObjectIdentifier(self)] }
 
-    private func canStartBatch() -> NSWindow? {
+    func canStartBatch() -> NSWindow? {
         guard let window, !BatchTools.hasSheet(on: window), !isRunningBatch, !isTransferring, !toolImages.isEmpty else {
             return nil
         }
@@ -276,6 +276,20 @@ extension BrowserWindowController {
         }
     }
 
+    // MARK: - Extract Pages
+
+    /// The Batch Convert sheet in its Extract Pages mode: each page of the
+    /// images' multi-page files, or a range, as separate files.
+    @objc func extractPages(_ sender: Any?) {
+        guard let window = canStartBatch() else { return NSSound.beep() }
+        let entries = toolImages
+        let model = BatchConvertModel(entries: entries, mode: .extractPages, store: BatchTools.store)
+        let sheet = BatchConvertSheet(model: model)
+        sheet.begin(on: window) { [weak self] settings in
+            self?.runBatchConvert(entries, settings: settings)
+        }
+    }
+
     /// Plans the outputs, confirms replacing originals if any would be,
     /// then converts with a progress sheet and reports what didn't work.
     func runBatchConvert(_ entries: [FolderEntry], settings: BatchConvertSettings) {
@@ -340,8 +354,15 @@ extension BrowserWindowController {
                                   trash: BatchTools.trash, catalog: model.catalog,
                                   concurrency: BatchTools.concurrency ?? BatchConvertJob.defaultConcurrency())
         let format = settings.options.format.title
-        let count = entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images"
-        let sheet = BatchProgressSheet(title: "Converting \(count) to \(format)", progress: job.progress)
+        let title: String
+        if case .separate = settings.pages {
+            let count = entries.count == 1 ? "1 File" : "\(entries.count.formatted()) Files"
+            title = "Extracting Pages from \(count) as \(format)"
+        } else {
+            let count = entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images"
+            title = "Converting \(count) to \(format)"
+        }
+        let sheet = BatchProgressSheet(title: title, progress: job.progress)
         let presented = window.flatMap { BatchTools.hasSheet(on: $0) ? nil : $0 }
         if let presented { BatchTools.beginSheet(sheet.window, on: presented) }
         let outcome = await job.run()

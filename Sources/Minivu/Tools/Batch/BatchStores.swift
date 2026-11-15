@@ -28,6 +28,12 @@ struct BatchStore {
         static let convertPattern = "batchConvertPattern"
         static let convertPresets = "batchConvertPresets"
         static let renamePresets = "batchRenamePresets"
+        /// Extract Pages remembers its own settings and names: pages taken
+        /// out of a PDF and photos converted for the web are different jobs.
+        static let extractSettings = "extractPagesSettings"
+        static let extractPattern = "extractPagesPattern"
+        static let multiPageSettings = "multiPageSettings"
+        static let imageStripSettings = "imageStripSettings"
     }
 
     var renamePattern: RenamePattern {
@@ -43,6 +49,26 @@ struct BatchStore {
     var convertPattern: RenamePattern {
         get { decode(RenamePattern.self, Keys.convertPattern) ?? RenamePattern(text: "{name}") }
         nonmutating set { encode(newValue, Keys.convertPattern) }
+    }
+
+    var extractSettings: BatchConvertSettings? {
+        get { decode(BatchConvertSettings.self, Keys.extractSettings) }
+        nonmutating set { encode(newValue, Keys.extractSettings) }
+    }
+
+    var extractPattern: RenamePattern {
+        get { decode(RenamePattern.self, Keys.extractPattern) ?? RenamePattern(text: "{name}-{page}") }
+        nonmutating set { encode(newValue, Keys.extractPattern) }
+    }
+
+    var multiPageSettings: MultiPageSettings {
+        get { decode(MultiPageSettings.self, Keys.multiPageSettings) ?? MultiPageSettings() }
+        nonmutating set { encode(newValue, Keys.multiPageSettings) }
+    }
+
+    var imageStripSettings: ImageStripSettings {
+        get { decode(ImageStripSettings.self, Keys.imageStripSettings) ?? ImageStripSettings() }
+        nonmutating set { encode(newValue, Keys.imageStripSettings) }
     }
 
     var convertPresets: [NamedPreset<BatchConvertPreset>] {

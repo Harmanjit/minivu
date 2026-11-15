@@ -167,7 +167,7 @@ import MinivuCore
             .autoEnhance, .reduceNoise, .addVignette, .correctPerspective, .changeCanvasSize, .addWatermark,
             .adjustRaw, .removeBackground, .copySubject,
             .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
-            .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
+            .extractPages, .createMultiPageFile, .makeImageStrip, .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
             .copyText, .shareFiles, #selector(AppDelegate.toggleLiveText(_:)), .saveEditsAsPreset,
             #selector(NSApplication.runPageLayout(_:)),
         ]
@@ -232,9 +232,14 @@ import MinivuCore
     @Test func toolsItems() throws {
         let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
         let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
-        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "-", "Contact Sheet…",
+        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "Extract Pages…", "-",
+                           "Create Multi-Page File…", "Image Strip…", "Contact Sheet…",
                            "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
                            "Open in External Editor"])
+        // The multi-page tools have no shortcuts.
+        for title in ["Extract Pages…", "Create Multi-Page File…", "Image Strip…"] {
+            #expect(try item(title).keyEquivalent.isEmpty, "\(title) has no shortcut")
+        }
         let slideshow = try item("Start Slideshow")
         #expect(slideshow.keyEquivalent == "f" && slideshow.keyEquivalentModifierMask == [.command, .shift])
         let rename = try item("Batch Rename…")

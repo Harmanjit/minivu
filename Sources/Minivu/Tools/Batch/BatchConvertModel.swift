@@ -11,8 +11,18 @@ import MinivuRender
 /// them, so switching JPEG → PNG → JPEG doesn't lose a quality setting; a
 /// format not chosen yet in this sheet starts from what Save As last used
 /// for it.
+///
+/// Extract Pages (G17) is the same sheet in another mode: every page of
+/// each file, or a range, written as separate files, with its own
+/// remembered settings and a name pattern that numbers the pages.
 @MainActor @Observable final class BatchConvertModel {
+    enum Mode {
+        case convert
+        case extractPages
+    }
+
     let entries: [FolderEntry]
+    let mode: Mode
     @ObservationIgnored let store: BatchStore
     @ObservationIgnored let saveOptions: SaveOptionsStore
     @ObservationIgnored let probe: BatchFileProbe
@@ -56,11 +66,22 @@ import MinivuRender
     /// For tests: the preview in flight.
     @ObservationIgnored private(set) var previewWork: Task<Void, Never>?
 
-    init(entries: [FolderEntry], store: BatchStore = BatchStore(), saveOptions: SaveOptionsStore? = nil,
-         probe: BatchFileProbe = .system) {
+    init(entries: [FolderEntry], mode: Mode = .convert, store: BatchStore = BatchStore(),
+         saveOptions: SaveOptionsStore? = nil, probe: BatchFileProbe = .system) {
         let saveOptions = saveOptions ?? SaveOptionsStore(defaults: store.defaults)
-        var settings = store.convertSettings
-            ?? BatchConvertSettings(options: saveOptions.options(for: saveOptions.lastFormat ?? .jpeg))
+        var settings: BatchConvertSettings
+        switch mode {
+        case .convert:
+            settings = store.convertSettings
+                ?? BatchConvertSettings(options: saveOptions.options(for: saveOptions.lastFormat ?? .jpeg))
+            // Extract Pages' own choice never reaches Batch Convert's sheet.
+            if case .separate = settings.pages { settings.pages = .first }
+        case .extractPages:
+            // PNG keeps a page's every pixel; the names number the pages.
+            settings = store.extractSettings
+                ?? BatchConvertSettings(options: saveOptions.options(for: .png), naming: .pattern(store.extractPattern))
+            if case .separate = settings.pages {} else { settings.pages = .separate(.all) }
+        }
         // A format this Mac can no longer write (AVIF without its encoder)
         // starts again from JPEG rather than fail every file.
         if !settings.options.format.isWritable { settings.options = saveOptions.options(for: .jpeg) }
@@ -78,6 +99,7 @@ import MinivuRender
             }
         }
         self.entries = entries
+        self.mode = mode
         self.store = store
         self.saveOptions = saveOptions
         self.probe = probe
@@ -86,7 +108,7 @@ import MinivuRender
             pattern = saved
             usesPattern = true
         } else {
-            pattern = store.convertPattern
+            pattern = mode == .convert ? store.convertPattern : store.extractPattern
             usesPattern = false
         }
         self.settings = settings
@@ -261,6 +283,35 @@ import MinivuRender
 
     var canConvert: Bool {
         !entries.isEmpty && unknownTokens.isEmpty && (!usesChosenFolder || chosenFolder != nil) && resizeProblem == nil
+            && pageRangeProblem == nil
+    }
+
+    // MARK: - Pages
+
+    /// Batch Convert's choice for multi-page originals: the first page, or
+    /// every page.
+    var convertsEveryPage: Bool {
+        get { settings.pages == .all }
+        set { settings.pages = newValue ? .all : .first }
+    }
+
+    /// Extract Pages' range; all pages unless a range is chosen.
+    var pageRange: PageRange {
+        get {
+            if case .separate(let range) = settings.pages { return range }
+            return .all
+        }
+        set { settings.pages = .separate(newValue) }
+    }
+
+    /// Extract Pages: whether a range is chosen rather than every page.
+    var usesPageRange: Bool {
+        get { !pageRange.isAll }
+        set { pageRange = newValue ? PageRange(first: max(pageRange.first, 1), last: pageRange.last ?? max(pageRange.first, 1)) : .all }
+    }
+
+    var pageRangeProblem: String? {
+        mode == .extractPages ? pageRange.problem : nil
     }
 
     /// Why the size asked for can't be used, or nil. A 0 px width would
@@ -279,9 +330,14 @@ import MinivuRender
         }
     }
 
-    /// "Convert 12 Images".
+    /// "Convert 12 Images", or "Extract Pages from 3 Files".
     var title: String {
-        "Convert \(entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images")"
+        switch mode {
+        case .convert:
+            "Convert \(entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images")"
+        case .extractPages:
+            "Extract Pages from \(entries.count == 1 ? "1 File" : "\(entries.count.formatted()) Files")"
+        }
     }
 
     /// The first file's output name, worked out as the real run would.
@@ -312,8 +368,14 @@ import MinivuRender
 
     /// The settings to run with, remembered for next time.
     func commit() -> BatchConvertSettings {
-        store.convertSettings = settings
-        store.convertPattern = pattern
+        switch mode {
+        case .convert:
+            store.convertSettings = settings
+            store.convertPattern = pattern
+        case .extractPages:
+            store.extractSettings = settings
+            store.extractPattern = pattern
+        }
         return settings
     }
 }

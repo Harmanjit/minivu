@@ -4,8 +4,10 @@ import MinivuCore
 import MinivuRender
 
 /// Batch Convert as a sheet on the browser window: a preset, format and
-/// options, edits and a watermark, size and orientation, destination and
-/// names, with the first output's name as a preview.
+/// options, what to do with multi-page files, edits and a watermark, size
+/// and orientation, destination and names, with the first output's name as
+/// a preview. Extract Pages is the same sheet without presets and edits,
+/// with a page range instead.
 @MainActor final class BatchConvertSheet {
     let model: BatchConvertModel
     let window: NSWindow
@@ -106,9 +108,10 @@ struct BatchConvertView: View {
                 .padding(.top, 16)
 
             Form {
-                presetSection
+                if model.mode == .convert { presetSection }
                 formatSection
-                editsSection
+                pagesSection
+                if model.mode == .convert { editsSection }
                 sizeSection
                 destinationSection
                 namesSection
@@ -125,7 +128,7 @@ struct BatchConvertView: View {
                         .font(.callout)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    if let problem = model.resizeProblem ?? model.previewProblem
+                    if let problem = model.resizeProblem ?? model.pageRangeProblem ?? model.previewProblem
                         ?? model.unknownTokens.first.map({ "Unknown token \($0)" }) {
                         Text(problem)
                             .font(.callout)
@@ -136,7 +139,7 @@ struct BatchConvertView: View {
                 Spacer(minLength: 12)
                 Button("Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("Convert", action: onConvert)
+                Button(model.mode == .convert ? "Convert" : "Extract", action: onConvert)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.canConvert)
             }
@@ -159,6 +162,60 @@ struct BatchConvertView: View {
                                 onDelete: { model.deleteSelectedPreset() })
         } footer: {
             InspectorFootnote("Save a photo’s edits as a preset in the viewer with File > Save Edits as Preset…, or save this sheet as it is.")
+        }
+    }
+
+    @ViewBuilder private var pagesSection: some View {
+        switch model.mode {
+        case .convert:
+            Section {
+                Picker("Multi-page files", selection: $model.convertsEveryPage) {
+                    Text("First page only").tag(false)
+                    Text("Every page").tag(true)
+                }
+                .accessibilityHint("What happens to PDFs, multi-page TIFFs and animations")
+            } header: {
+                Text("Pages")
+            } footer: {
+                InspectorFootnote(model.convertsEveryPage
+                    ? (BatchConvertSettings.holdsPages(model.format)
+                        ? "PDFs, multi-page TIFFs and animations become one \(model.format.title) file with all their pages."
+                        : "\(model.format.title) holds one picture, so each page of a PDF, multi-page TIFF or animation becomes a file of its own, numbered.")
+                    : "Only the first page of a PDF or multi-page TIFF, and the first frame of an animation, is converted.")
+            }
+        case .extractPages:
+            Section {
+                Picker("Pages", selection: $model.usesPageRange) {
+                    Text("All pages").tag(false)
+                    Text("A range").tag(true)
+                }
+                .pickerStyle(.radioGroup)
+                if model.usesPageRange {
+                    LabeledContent("From") {
+                        HStack(spacing: 6) {
+                            TextField("First page", value: $model.pageRange.first, format: .number.grouping(.never))
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                                .accessibilityLabel("First page")
+                            Text("to").foregroundStyle(.secondary)
+                            TextField("Last page", value: Binding(get: { model.pageRange.last ?? model.pageRange.first },
+                                                                  set: { model.pageRange.last = $0 }),
+                                      format: .number.grouping(.never))
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                                .accessibilityLabel("Last page")
+                        }
+                    }
+                }
+            } header: {
+                Text("Pages")
+            } footer: {
+                InspectorFootnote("Each page of a PDF or multi-page TIFF, or each frame of an animation, is written as a file of its own. Files with one page are skipped.")
+            }
         }
     }
 
@@ -341,7 +398,7 @@ struct BatchConvertView: View {
             }
             .pickerStyle(.radioGroup)
             if model.usesPattern {
-                RenamePatternEditor(pattern: $model.pattern)
+                RenamePatternEditor(pattern: $model.pattern, offersPageNumber: true)
             }
         }
     }

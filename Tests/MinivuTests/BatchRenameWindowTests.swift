@@ -92,7 +92,8 @@ extension AppWindowTests {
             func enabled(_ action: Selector) -> Bool {
                 controller.validateMenuItem(NSMenuItem(title: "", action: action, keyEquivalent: ""))
             }
-            let sheetTools: [Selector] = [.batchRename, .batchConvert, .printImages, .makeContactSheet, .makeMontage]
+            let sheetTools: [Selector] = [.batchRename, .batchConvert, .printImages, .makeContactSheet, .makeMontage,
+                                          .extractPages, .createMultiPageFile, .makeImageStrip]
             #expect(sheetTools.allSatisfy(enabled))
 
             controller.model.setSelection([a], lead: a)
@@ -114,8 +115,10 @@ extension AppWindowTests {
             controller.performBatchRename([BatchRenamer.Request(url: a, newName: "c.jpg"),
                                            BatchRenamer.Request(url: b, newName: "d.jpg")], actionName: "Rename 2 Items")
             #expect(!enabled(.batchRename) && !enabled(.batchConvert), "not while the batch runs")
+            #expect(!enabled(.extractPages) && !enabled(.createMultiPageFile) && !enabled(.makeImageStrip))
             await controller.batchWork?.value
             #expect(enabled(.batchRename) && enabled(.batchConvert))
+            #expect(enabled(.extractPages) && enabled(.createMultiPageFile) && enabled(.makeImageStrip))
         }
 
         /// The sheet renames the selection off the main thread (a swap and a

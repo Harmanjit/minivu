@@ -13,6 +13,10 @@ struct RenamePatternEditor: View {
 
     @Binding var pattern: RenamePattern
     var layout: Layout = .form
+    /// Whether the Insert Token menu offers `{page}`: in Batch Convert and
+    /// Extract Pages, whose outputs can be pages of one file, never in Batch
+    /// Rename, which renames whole files.
+    var offersPageNumber = false
 
     /// The tokens offered by the Insert Token menu, with what each does.
     static let tokens: [(title: String, token: String)] = [
@@ -25,6 +29,11 @@ struct RenamePatternEditor: View {
         ("Width", "{width}"),
         ("Height", "{height}"),
         ("Original Extension", "{ext}"),
+    ]
+
+    /// The page or frame number, for outputs taken from one page of a file.
+    static let pageTokens: [(title: String, token: String)] = [
+        ("Page Number", "{page}"),
     ]
 
     var body: some View {
@@ -71,7 +80,7 @@ struct RenamePatternEditor: View {
                 .multilineTextAlignment(.leading)
                 .frame(minWidth: 220)
             Menu("Insert Token") {
-                ForEach(Self.tokens, id: \.token) { item in
+                ForEach(Self.tokens + (offersPageNumber ? Self.pageTokens : []), id: \.token) { item in
                     Button("\(item.title)  \(item.token)") { pattern.text += item.token }
                 }
             }
