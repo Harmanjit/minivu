@@ -41,4 +41,53 @@ import Foundation
         print(String(format: "metadata: %d files, cold %.0f ms (%.1f ms a file), cached %.1f ms", images.count,
                      ms(cold), ms(cold) / Double(max(images.count, 1)), ms(warm)))
     }
+
+    // MARK: - For the performance study (docs/feature-notes/perf.md)
+
+    /// The walk of 200 folders of 100 empty photos and Find by name over it,
+    /// repeated, as BENCH lines.
+    @Test(.enabled(if: Bench.enabled)) func walkAndFindByName() throws {
+        let t = try TemporaryFolder()
+        let folders = Bench.size(200, quick: 10)
+        for f in 0..<folders {
+            let folder = t.url.appendingPathComponent("Day \(f)", isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            for i in 0..<100 { FileManager.default.createFile(atPath: folder.appendingPathComponent("IMG_\(i).jpg").path, contents: nil) }
+        }
+        try Bench.measure("find", "walk\(folders * 100)", extra: "folders=\(folders)") {
+            _ = try TreeEnumerator.images(under: t.url)
+        }
+        try Bench.measure("find", "byName\(folders * 100)", extra: "folders=\(folders)") {
+            _ = try ImageSearch.run(SearchQuery(scope: t.url, name: "img_99"), catalog: .inMemory())
+        }
+    }
+
+    /// Find across folders with a metadata condition (at least 4000 px
+    /// wide), which reads every header: cold with a new catalog each run,
+    /// then again with the catalog that cached them. The photos are clones
+    /// of the test assets in ten folders, so after the first run the file
+    /// system cache is warm either way: "cold" is the catalog's cache.
+    @Test(.enabled(if: Self.folder != nil)) func findWithMetadataColdAndCached() throws {
+        let sources = try FileManager.default.contentsOfDirectory(at: Bench.folder!, includingPropertiesForKeys: nil)
+            .filter { ImageFormats.kind(of: $0) == .raster || ImageFormats.kind(of: $0) == .raw }
+        let t = try TemporaryFolder()
+        for f in 0..<Bench.size(10, quick: 2) {
+            let folder = try t.folder("Folder \(f)")
+            for source in sources {
+                try FileManager.default.copyItem(at: source, to: folder.appendingPathComponent(source.lastPathComponent))
+            }
+        }
+        var criteria = MetadataCriteria()
+        criteria.minimumWidth = 4000
+        let query = SearchQuery(scope: t.url, criteria: criteria)
+        var outcome: ImageSearch.Outcome?
+        var catalog = Catalog.inMemory()
+        try Bench.measure("find", "metadataCold", setup: { catalog = Catalog.inMemory() }) {
+            outcome = try ImageSearch.run(query, catalog: catalog)
+        }
+        try Bench.measure("find", "metadataCached",
+                      extra: "files=\(outcome?.scanned ?? 0) matches=\(outcome?.matches.count ?? 0)") {
+            outcome = try ImageSearch.run(query, catalog: catalog)
+        }
+    }
 }
