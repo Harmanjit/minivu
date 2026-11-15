@@ -98,11 +98,11 @@ public enum SlideshowVideoWriter {
         }
         writer.startSession(atSourceTime: .zero)
 
-        let video = VideoPump(plan: plan, timeline: timeline, input: videoInput, adaptor: adaptor, frames: frames,
-                              slides: slides, isCancelled: isCancelled, progress: progress)
+        let video = VideoPump(plan: plan, timeline: timeline, writer: writer, input: videoInput, adaptor: adaptor,
+                              frames: frames, slides: slides, isCancelled: isCancelled, progress: progress)
         let audio: AudioPump?
         if let music, let audioInput {
-            audio = try AudioPump(music: music, input: audioInput, isCancelled: isCancelled)
+            audio = try AudioPump(music: music, writer: writer, input: audioInput, isCancelled: isCancelled)
         } else {
             audio = nil
         }
@@ -114,6 +114,9 @@ public enum SlideshowVideoWriter {
 
         if isCancelled() { throw CancellationError() }
         if let error = video.error ?? audio?.error { throw error }
+        // Failed while a track waited (a full disk, an encoder error): the
+        // watchdog ended the pumps, and there is nothing to finish.
+        if writer.status == .failed { throw writer.error ?? Failure.cannotEncode("the writer failed") }
         await writer.finishWriting()
         guard writer.status == .completed else {
             throw writer.error ?? Failure.cannotEncode("the file wasn’t finished")
@@ -149,6 +152,7 @@ public enum SlideshowVideoWriter {
 private final class VideoPump: @unchecked Sendable {
     private let plan: SlideshowVideoPlan
     private let timeline: SlideshowVideoTimeline
+    private let writer: AVAssetWriter
     private let input: AVAssetWriterInput
     private let adaptor: AVAssetWriterInputPixelBufferAdaptor
     private let frames: SlideshowVideoFrames
@@ -159,14 +163,17 @@ private final class VideoPump: @unchecked Sendable {
 
     private var frame = 0
     private var finished = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var watchdog: SlideshowVideoWatchdog?
     private var last: (moment: SlideshowVideoTimeline.Moment, buffer: CVPixelBuffer)?
     private(set) var error: Error?
 
-    init(plan: SlideshowVideoPlan, timeline: SlideshowVideoTimeline, input: AVAssetWriterInput,
+    init(plan: SlideshowVideoPlan, timeline: SlideshowVideoTimeline, writer: AVAssetWriter, input: AVAssetWriterInput,
          adaptor: AVAssetWriterInputPixelBufferAdaptor, frames: SlideshowVideoFrames, slides: SlideshowVideoSlides,
          isCancelled: @escaping @Sendable () -> Bool, progress: @escaping @Sendable (Double) -> Void) {
         self.plan = plan
         self.timeline = timeline
+        self.writer = writer
         self.input = input
         self.adaptor = adaptor
         self.frames = frames
@@ -177,15 +184,33 @@ private final class VideoPump: @unchecked Sendable {
 
     func run() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            input.requestMediaDataWhenReady(on: queue) { [self] in
-                guard !finished, pump() else { return }
-                finished = true
-                input.markAsFinished()
-                last = nil
-                slides.release()
-                continuation.resume()
+            queue.async { [self] in
+                self.continuation = continuation
+                // AVFoundation may stop calling the block below once the
+                // writer fails, and Cancel is only noticed there.
+                watchdog = SlideshowVideoWatchdog(queue: queue,
+                                                  shouldStop: { [self] in isCancelled() || writer.status == .failed },
+                                                  stop: { [self] in finish() })
+                input.requestMediaDataWhenReady(on: queue) { [self] in
+                    guard !finished, pump() else { return }
+                    finish()
+                }
             }
         }
+    }
+
+    /// Ends the track, once, on the queue: every frame written, cancelled,
+    /// failed, or stopped by the watchdog.
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        watchdog?.cancel()
+        watchdog = nil
+        if writer.status == .writing { input.markAsFinished() }
+        last = nil
+        slides.release()
+        continuation?.resume()
+        continuation = nil
     }
 
     /// Appends frames while the writer takes them; true when done (every
@@ -248,16 +273,21 @@ private final class VideoPump: @unchecked Sendable {
 private final class AudioPump: @unchecked Sendable {
     private let reader: AVAssetReader
     private let output: AVAssetReaderAudioMixOutput
+    private let writer: AVAssetWriter
     private let input: AVAssetWriterInput
     private let isCancelled: @Sendable () -> Bool
     private let queue = DispatchQueue(label: "minivu.slideshow-video.audio", qos: .userInitiated)
     private var finished = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var watchdog: SlideshowVideoWatchdog?
     private(set) var error: Error?
 
-    init(music: SlideshowVideoMusic, input: AVAssetWriterInput, isCancelled: @escaping @Sendable () -> Bool) throws {
+    init(music: SlideshowVideoMusic, writer: AVAssetWriter, input: AVAssetWriterInput,
+         isCancelled: @escaping @Sendable () -> Bool) throws {
         let (reader, output) = try music.makeReader()
         self.reader = reader
         self.output = output
+        self.writer = writer
         self.input = input
         self.isCancelled = isCancelled
         guard reader.startReading() else {
@@ -267,14 +297,30 @@ private final class AudioPump: @unchecked Sendable {
 
     func run() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            input.requestMediaDataWhenReady(on: queue) { [self] in
-                guard !finished, pump() else { return }
-                finished = true
-                input.markAsFinished()
-                if reader.status == .reading { reader.cancelReading() }
-                continuation.resume()
+            queue.async { [self] in
+                self.continuation = continuation
+                // As the video's: the writer can hold this track back and
+                // then fail without calling the block again.
+                watchdog = SlideshowVideoWatchdog(queue: queue,
+                                                  shouldStop: { [self] in isCancelled() || writer.status == .failed },
+                                                  stop: { [self] in finish() })
+                input.requestMediaDataWhenReady(on: queue) { [self] in
+                    guard !finished, pump() else { return }
+                    finish()
+                }
             }
         }
+    }
+
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        watchdog?.cancel()
+        watchdog = nil
+        if writer.status == .writing { input.markAsFinished() }
+        if reader.status == .reading { reader.cancelReading() }
+        continuation?.resume()
+        continuation = nil
     }
 
     private func pump() -> Bool {
@@ -290,6 +336,41 @@ private final class AudioPump: @unchecked Sendable {
             }
         }
         return false
+    }
+}
+
+/// Ends a track's pump that AVFoundation has stopped asking for data. A
+/// pump stops only from inside `requestMediaDataWhenReady`'s block, which
+/// is where it notices Cancel too; if the writer fails while that track is
+/// held back (the other running ahead, a full disk, an encoder error),
+/// AVFoundation may never call the block again, and the export would wait
+/// for ever with Cancel doing nothing. Four times a second, on the pump's
+/// own serial queue, this asks `shouldStop` and, once it says so, calls
+/// `stop` and stops asking. Idle costs one timer firing on a background
+/// queue while a video is written, and nothing afterwards.
+final class SlideshowVideoWatchdog: @unchecked Sendable {
+    static let interval = DispatchTimeInterval.milliseconds(250)
+    private let timer: DispatchSourceTimer
+
+    init(queue: DispatchQueue, interval: DispatchTimeInterval = SlideshowVideoWatchdog.interval,
+         shouldStop: @escaping @Sendable () -> Bool, stop: @escaping @Sendable () -> Void) {
+        timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + interval, repeating: interval, leeway: .milliseconds(50))
+        timer.setEventHandler { [weak timer] in
+            guard shouldStop() else { return }
+            timer?.cancel()
+            stop()
+        }
+        timer.resume()
+    }
+
+    /// Stops asking; called when the pump finishes on its own.
+    func cancel() {
+        timer.cancel()
+    }
+
+    deinit {
+        timer.cancel()
     }
 }
 

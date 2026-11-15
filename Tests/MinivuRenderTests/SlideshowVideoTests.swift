@@ -285,6 +285,32 @@ import UniformTypeIdentifiers
         #expect(!FileManager.default.fileExists(atPath: url.path))
     }
 
+    /// The watchdog ends a pump AVFoundation has stopped calling (the
+    /// writer failed while that track waited, or Cancel was pressed): once,
+    /// when asked, and never after it is cancelled.
+    @Test func watchdogStopsAStalledPumpOnce() async throws {
+        let queue = DispatchQueue(label: "minivu.tests.watchdog")
+        let stop = SlideshowVideoFlag(), stops = SlideshowVideoDecodeLog()
+        let watchdog = SlideshowVideoWatchdog(queue: queue, interval: .milliseconds(20),
+                                              shouldStop: { stop.isSet }, stop: { stops.append(.zero) })
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(stops.sizes.isEmpty)
+        stop.set()
+        let deadline = ContinuousClock.now + TestTiming.limit(milliseconds: 1000)
+        while stops.sizes.isEmpty, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(stops.sizes.count == 1)
+        watchdog.cancel()
+
+        // Finished on its own first: the watchdog asks nothing more.
+        let quiet = SlideshowVideoDecodeLog()
+        let finished = SlideshowVideoWatchdog(queue: queue, interval: .milliseconds(20),
+                                              shouldStop: { true }, stop: { quiet.append(.zero) })
+        queue.sync { finished.cancel() }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(quiet.sizes.isEmpty)
+    }
+
     @Test func holdsAtMostThreeSlides() throws {
         let folder = try Self.folder()
         defer { try? FileManager.default.removeItem(at: folder) }
