@@ -82,8 +82,9 @@ extension BrowserWindowController {
             model.selectedEntries.contains(where: LosslessBatch.isApplicable)
         case .editComment:
             singleSelectedImage.map { ExportFormat.format(for: $0.url) == .jpeg } ?? false
+        // A movie is never saved as a picture (G18).
         case .saveImageAs:
-            singleSelectedImage != nil
+            singleSelectedImage.map { $0.kind != .video } ?? false
         case .editMetadata:
             canEditMetadata
         default:

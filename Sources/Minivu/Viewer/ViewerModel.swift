@@ -218,8 +218,10 @@ nonisolated enum ViewerKeyCommand: Equatable {
     case nextPage, previousPage
     /// Page Down/Up: pages first, then images (see `ViewerModel.pageForward`).
     case pageForward, pageBackward
-    /// P: play or pause an animation.
+    /// P: play or pause an animation or a video; Space too on a video.
     case togglePlayback
+    /// M on a video: sound off or on (G18).
+    case toggleMute
     /// Move the image by a tenth of the view per step: x and y are -1, 0 or
     /// +1 in the direction the user wants to look (right arrow: see more of
     /// the right side).
@@ -251,7 +253,12 @@ nonisolated enum ViewerKeyCommand: Equatable {
     ///     (the menu), so those return nil. Option is the viewer's own only
     ///     with the arrows and paging keys, where it means pages.
     ///   - zoomedIn: the image overflows the view, so arrows pan it.
-    static func command(characters: String, modifiers: NSEvent.ModifierFlags, zoomedIn: Bool) -> ViewerKeyCommand? {
+    ///   - isVideo: a video is shown (G18). Space then plays and pauses it,
+    ///     as in every Mac player, rather than moving on, and M mutes it;
+    ///     the arrows, Page keys and Delete still move between items, so
+    ///     one scheme flips through a mixed folder.
+    static func command(characters: String, modifiers: NSEvent.ModifierFlags, zoomedIn: Bool,
+                        isVideo: Bool = false) -> ViewerKeyCommand? {
         let shortcut = modifiers.intersection([.command, .control, .option])
         guard shortcut.isEmpty || shortcut == .option, let scalar = characters.unicodeScalars.first else { return nil }
         if shortcut == .option {
@@ -277,7 +284,8 @@ nonisolated enum ViewerKeyCommand: Equatable {
         default: break
         }
         switch characters.lowercased() {
-        case " ": return .next
+        case " ": return isVideo ? .togglePlayback : .next
+        case "m": return isVideo ? .toggleMute : nil
         case "+", "=": return .zoomIn
         case "-": return .zoomOut
         case "/": return .actualSize

@@ -5,7 +5,7 @@ import AppKit
 extension BrowserWindowController {
     @objc func makeMontage(_ sender: Any?) {
         guard let window, window.attachedSheet == nil else { return }
-        let images = toolImages
+        let images = toolStills
         guard !images.isEmpty else { return }
         let fromSelection = model.selectedEntries.contains { !$0.isDirectory }
         let displays = MontageModel.currentDisplays()

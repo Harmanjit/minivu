@@ -1,4 +1,5 @@
 import Foundation
+import MinivuCore
 
 /// Which slide plays when: the order of a run, where it is, and where it
 /// goes next.
@@ -96,5 +97,18 @@ nonisolated struct SlideshowSequence: Equatable {
             if !failed.contains(order[candidate]) { return candidate }
         }
         return nil
+    }
+}
+
+extension SlideshowSequence {
+    /// `images` without its videos, and where `start` lands among the rest:
+    /// on the same picture, or for a video the next picture after it
+    /// (wrapping to the first). A slideshow shows pictures for an interval;
+    /// playing a clip is the viewer's job (G18).
+    static func withoutVideos(_ images: [FolderEntry], start: Int) -> (images: [FolderEntry], start: Int) {
+        let stills = images.filter { $0.kind != .video }
+        guard !stills.isEmpty, images.indices.contains(start) else { return (stills, 0) }
+        let before = images[..<start].reduce(0) { $0 + ($1.kind == .video ? 0 : 1) }
+        return (stills, before < stills.count ? before : 0)
     }
 }

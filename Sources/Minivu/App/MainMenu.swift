@@ -153,7 +153,12 @@ enum MainMenu {
         addEditingItems(to: menu)
         menu.addItem(.separator())
         // A bare P as a real equivalent would be taken from text fields.
+        // The item reads Play Video / Pause Video while a video is shown,
+        // when Space does the same (G18).
         viewKeys.add(menu.add(MenuStateTitles.playback(isPlaying: false), .togglePlayback), key: "p")
+        // A bare M, free in the viewer's key table (⇧⌘M is Curves, ⌘M
+        // Minimize); display only, as P is.
+        viewKeys.add(menu.add(MenuStateTitles.mute(isMuted: false), .toggleMute), key: "m")
         menu.addItem(.separator())
 
         // The grid and viewer also take bare 0-5 and ` (FastStone's keys).
@@ -190,6 +195,10 @@ enum MainMenu {
         }
         menu.addItem(.separator())
         menu.add("Tagged Only", .toggleTaggedFilter)
+        menu.addItem(.separator())
+        for type in [FileTypeFilter.photos, .videos] {
+            menu.add(type.menuTitle, .filterByFileType).tag = type.rawValue
+        }
         return menu
     }
 

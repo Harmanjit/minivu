@@ -3,10 +3,15 @@ import MinivuCore
 
 /// Tools > Start Slideshow in the viewer: the viewer's whole list, from the
 /// image it shows. When the show ends the viewer shows the last slide.
+/// Videos are left out (G18); from a video the show starts at the next
+/// picture.
 extension ViewerWindowController {
     @objc func startSlideshow(_ sender: Any?) {
-        guard model.count > 0 else { return }
-        SlideshowWindowController.start(images: model.images, startIndex: model.index, from: window) {
+        let (images, start) = SlideshowSequence.withoutVideos(model.images, start: model.index)
+        guard !images.isEmpty else { return }
+        // A video playing here would carry on under the show.
+        pauseVideo()
+        SlideshowWindowController.start(images: images, startIndex: start, from: window) {
             [weak self] entry in self?.slideshowEnded(lastShown: entry)
         }
     }

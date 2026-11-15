@@ -10,6 +10,9 @@ import AppKit
 enum MenuStateTitles {
     static func tag(isTagged: Bool) -> String { isTagged ? "Remove Tag" : "Tag" }
     static func playback(isPlaying: Bool) -> String { isPlaying ? "Pause Animation" : "Play Animation" }
+    /// The same item while the viewer shows a video (G18).
+    static func videoPlayback(isPlaying: Bool) -> String { isPlaying ? "Pause Video" : "Play Video" }
+    static func mute(isMuted: Bool) -> String { isMuted ? "Unmute Video" : "Mute Video" }
 
     /// Clear Rating, then Rate 1 Star to Rate 5 Stars.
     static func rating(_ stars: Int) -> String {
@@ -26,6 +29,7 @@ enum MenuStateTitles {
             switch item.action {
             case .toggleTag: item.showTag(isTagged: false)
             case .togglePlayback: item.showPlayback(isPlaying: false)
+            case .toggleMute: item.title = mute(isMuted: false)
             default: break
             }
         }

@@ -2,7 +2,7 @@ import AppKit
 import MinivuCore
 
 /// Which images the grid shows beyond the name search: FastStone's rating
-/// and tag filters, and one Finder tag.
+/// and tag filters, one Finder tag, and photos or videos only (G18).
 ///
 /// Folders always pass. The filters are about photos, and a filter that
 /// hid folders would strand the user in the folder they are filtering.
@@ -12,15 +12,43 @@ nonisolated struct MarksFilter: Equatable, Sendable {
     var taggedOnly = false
     /// A Finder tag name the image must carry.
     var finderTag: String?
+    /// Photos only, videos only, or both.
+    var fileType = FileTypeFilter.all
 
-    var isActive: Bool { minimumRating > 0 || taggedOnly || finderTag != nil }
+    var isActive: Bool { minimumRating > 0 || taggedOnly || finderTag != nil || fileType != .all }
 
     func passes(_ entry: FolderEntry, marks: Catalog.Marks, finderTags: [FinderTag]) -> Bool {
         guard !entry.isDirectory else { return true }
+        if !fileType.passes(entry) { return false }
         if marks.rating < minimumRating { return false }
         if taggedOnly, !marks.isTagged { return false }
         if let finderTag, !finderTags.contains(where: { $0.name == finderTag }) { return false }
         return true
+    }
+}
+
+/// The browser's file type filter (G18). Its raw values are the menu items'
+/// tags.
+nonisolated enum FileTypeFilter: Int, CaseIterable, Sendable {
+    case all = 0
+    /// Everything that isn't a video: photos, RAW files, PDFs, SVGs.
+    case photos = 1
+    case videos = 2
+
+    var menuTitle: String {
+        switch self {
+        case .all: "All Files"
+        case .photos: "Photos Only"
+        case .videos: "Videos Only"
+        }
+    }
+
+    func passes(_ entry: FolderEntry) -> Bool {
+        switch self {
+        case .all: true
+        case .photos: entry.kind != .video
+        case .videos: entry.kind == .video
+        }
     }
 }
 

@@ -48,6 +48,13 @@ extension BrowserWindowController {
         model.marksFilter.taggedOnly.toggle()
     }
 
+    /// Photos Only and Videos Only (G18); choosing the one in force shows
+    /// both again, as a second click on a checked item would suggest.
+    @objc func filterByFileType(_ sender: Any?) {
+        let type = FileTypeFilter(rawValue: (sender as? NSMenuItem)?.tag ?? 0) ?? .all
+        model.marksFilter.fileType = model.marksFilter.fileType == type ? .all : type
+    }
+
     /// The toolbar's Finder tag items: choosing the active tag turns it off.
     func filterByFinderTag(_ name: String?) {
         model.marksFilter.finderTag = model.marksFilter.finderTag == name ? nil : name
@@ -398,7 +405,7 @@ extension BrowserWindowController {
         switch action {
         case .setRating, .toggleTag, .setColorLabel:
             return model.hasSelectedImages
-        case .filterByRating, .toggleTaggedFilter:
+        case .filterByRating, .toggleTaggedFilter, .filterByFileType:
             return model.folder != nil
         case .renameItem:
             return !sheet && model.selection.count == 1 && grid.renameEditor == nil
@@ -421,6 +428,8 @@ extension BrowserWindowController {
             menuItem.state = (menuItem.tag == 0 ? !filter.isActive : filter.minimumRating == menuItem.tag) ? .on : .off
         case .toggleTaggedFilter:
             menuItem.state = model.marksFilter.taggedOnly ? .on : .off
+        case .filterByFileType:
+            menuItem.state = model.marksFilter.fileType.rawValue == menuItem.tag ? .on : .off
         case .setRating:
             menuItem.state = model.selectedMarks.sharedRating == menuItem.tag ? .on : .off
         case .toggleTag:

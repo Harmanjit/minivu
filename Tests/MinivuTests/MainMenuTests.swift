@@ -73,7 +73,7 @@ import MinivuCore
                            "Resize/Resample…", "Canvas Size…", "Crop…", "Straighten…", "Perspective…", "-",
                            "Adjust", "Effects", "Retouch", "Text and Shapes…", "Watermark…", "Remove Background…", "-",
                            "Edit Comment…", "Edit Metadata…", "-",
-                           "Play Animation", "-", "Rating", "Tag", "Label", "-",
+                           "Play Animation", "Mute Video", "-", "Rating", "Tag", "Label", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
         #expect(adjust.items.compactMap(\.action) == [.adjustRaw, .adjustLighting, .adjustColors, .adjustCurves,
@@ -193,7 +193,8 @@ import MinivuCore
         let view = try #require(bar.items.first { $0.title == "View" }?.submenu)
         let filter = try #require(view.items.first { $0.title == "Filter" }?.submenu)
         #expect(filter.items.map { $0.isSeparatorItem ? "-" : $0.title }
-            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only"])
+            == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only",
+                "-", "Photos Only", "Videos Only"])
         #expect(filter.items.filter { $0.action == .filterByRating }.map(\.tag) == [0, 1, 2, 3, 4, 5])
     }
 

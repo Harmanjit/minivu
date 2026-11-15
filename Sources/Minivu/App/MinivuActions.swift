@@ -33,6 +33,8 @@ import AppKit
     @objc optional func previousPage(_ sender: Any?)
     /// Plays or pauses an animated image in the viewer.
     @objc optional func togglePlayback(_ sender: Any?)
+    /// Viewer: sound off or on for the video shown (G18).
+    @objc optional func toggleMute(_ sender: Any?)
     @objc optional func goToEnclosingFolder(_ sender: Any?)
     @objc optional func goBack(_ sender: Any?)
     @objc optional func goForward(_ sender: Any?)
@@ -95,6 +97,9 @@ import AppKit
     /// Sender tag = minimum rating to show (0 shows everything).
     @objc optional func filterByRating(_ sender: Any?)
     @objc optional func toggleTaggedFilter(_ sender: Any?)
+    /// Sender tag = a `FileTypeFilter` raw value: photos or videos only;
+    /// choosing the one in force shows both again (G18).
+    @objc optional func filterByFileType(_ sender: Any?)
     @objc optional func renameItem(_ sender: Any?)
     @objc optional func newFolder(_ sender: Any?)
     @objc optional func copyToFolder(_ sender: Any?)
@@ -185,6 +190,7 @@ extension Selector {
     static let nextPage = #selector(MinivuActions.nextPage(_:))
     static let previousPage = #selector(MinivuActions.previousPage(_:))
     static let togglePlayback = #selector(MinivuActions.togglePlayback(_:))
+    static let toggleMute = #selector(MinivuActions.toggleMute(_:))
     static let goToEnclosingFolder = #selector(MinivuActions.goToEnclosingFolder(_:))
     static let goBack = #selector(MinivuActions.goBack(_:))
     static let goForward = #selector(MinivuActions.goForward(_:))
@@ -224,6 +230,7 @@ extension Selector {
     static let invertSelection = #selector(MinivuActions.invertSelection(_:))
     static let filterByRating = #selector(MinivuActions.filterByRating(_:))
     static let toggleTaggedFilter = #selector(MinivuActions.toggleTaggedFilter(_:))
+    static let filterByFileType = #selector(MinivuActions.filterByFileType(_:))
     static let renameItem = #selector(MinivuActions.renameItem(_:))
     static let newFolder = #selector(MinivuActions.newFolder(_:))
     static let copyToFolder = #selector(MinivuActions.copyToFolder(_:))

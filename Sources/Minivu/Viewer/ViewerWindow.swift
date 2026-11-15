@@ -174,6 +174,18 @@ final class ViewerContainerView: NSView {
             }
         }
     }
+    /// A video's play button and player (G18), kept on the canvas's frame:
+    /// above the canvas and Live Text, below any tool's overlay, the HUD
+    /// and the panels.
+    var videoStage: NSView? {
+        didSet {
+            if oldValue !== videoStage { oldValue?.removeFromSuperview() }
+            if let videoStage, videoStage.superview !== self {
+                videoStage.frame = canvas.frame
+                addSubview(videoStage, positioned: .above, relativeTo: textOverlay ?? canvas)
+            }
+        }
+    }
     /// The Live Text overlay, kept on the canvas's frame like
     /// `canvasOverlay` but staying for the life of the viewer: just above
     /// the canvas, below any tool's overlay, the HUD and the panels.
@@ -233,7 +245,8 @@ final class ViewerContainerView: NSView {
         let inset = min(canvasLeadingInset, area.width / 2)
         canvasFrame.origin.x += inset
         canvasFrame.size.width -= inset
-        if canvas.frame != canvasFrame || canvasOverlay?.frame != canvasFrame || textOverlay?.frame != canvasFrame {
+        if canvas.frame != canvasFrame || canvasOverlay?.frame != canvasFrame || textOverlay?.frame != canvasFrame
+            || videoStage?.frame != canvasFrame {
             // Never animated, even inside a panel's slide: a Metal layer
             // animating its bounds would stretch the image on screen.
             NSAnimationContext.runAnimationGroup { context in
@@ -242,6 +255,7 @@ final class ViewerContainerView: NSView {
                 canvas.frame = canvasFrame
                 canvasOverlay?.frame = canvasFrame
                 textOverlay?.frame = canvasFrame
+                videoStage?.frame = canvasFrame
             }
         }
         layoutHandler?(area)

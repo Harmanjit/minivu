@@ -135,6 +135,9 @@ nonisolated struct FolderSnapshot: Sendable {
     private(set) var backStack: [Location] = []
     private(set) var forwardStack: [Location] = []
     private(set) var imageCount = 0
+    /// How many of `imageCount` are videos (G18), for the tools that
+    /// leave them out.
+    private(set) var videoCount = 0
     private(set) var folderCount = 0
 
     var sortOrder: FileSortOrder {
@@ -354,6 +357,7 @@ nonisolated struct FolderSnapshot: Sendable {
         visibleKeys = []
         indexByName = [:]
         imageCount = 0
+        videoCount = 0
         folderCount = 0
         selection = []
         lead = nil
@@ -945,6 +949,7 @@ nonisolated struct FolderSnapshot: Sendable {
             visibleKeys = []
             indexByName = [:]
             imageCount = 0
+            videoCount = 0
             folderCount = 0
             pruneSelection()
             return
@@ -972,6 +977,7 @@ nonisolated struct FolderSnapshot: Sendable {
         indexByName = index
         folderCount = entries.prefix { $0.isDirectory }.count
         imageCount = entries.count - folderCount
+        videoCount = entries.reduce(0) { $0 + ($1.kind == .video ? 1 : 0) }
         pruneSelection()
     }
 

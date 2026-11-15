@@ -54,7 +54,8 @@ extension ViewerWindowController {
     /// writes to the person's own clipboard; returns the work for tests.
     @discardableResult
     func copySubject(to pasteboard: NSPasteboard) -> Task<Void, Never>? {
-        guard let shown = displayed, canvas.image != nil, copySubjectTask == nil else { return nil }
+        guard let shown = displayed, canvas.image != nil, copySubjectTask == nil, shown.entry.kind != .video
+        else { return nil }
         let open = editSession?.document
         let edited = open?.entry == shown.entry && open?.page == shown.page ? open : nil
         let document = edited ?? EditDocument(entry: shown.entry, page: shown.page)
