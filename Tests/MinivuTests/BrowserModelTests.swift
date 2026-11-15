@@ -366,6 +366,12 @@ final class FolderCheckLog: @unchecked Sendable {
         #expect(BrowserModel.countText(images: 1234, folders: 1) == "\(1234.formatted()) images, 1 folder")
         #expect(BrowserModel.selectionText(selected: 0, total: 5, bytes: 0, images: 5, folders: 0) == "5 images")
         #expect(BrowserModel.selectionText(selected: 2, total: 5, bytes: 0, images: 3, folders: 2) == "2 of 5 selected")
+        // Videos are named as videos, not counted as images (G18).
+        #expect(BrowserModel.countText(images: 10, videos: 10, folders: 0) == "10 videos")
+        #expect(BrowserModel.countText(images: 5, videos: 1, folders: 2) == "4 images, 1 video, 2 folders")
+        #expect(BrowserModel.countText(images: 2, videos: 2, folders: 1) == "2 videos, 1 folder")
+        #expect(BrowserModel.selectionText(selected: 0, total: 3, bytes: 0, images: 3, videos: 2, folders: 0)
+                == "1 image, 2 videos")
     }
 
     /// Enclosing Folder is decided once per navigation, off the main thread

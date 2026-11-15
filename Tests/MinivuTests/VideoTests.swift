@@ -27,6 +27,7 @@ import MinivuRender
         await model.work?.value
         #expect(model.entries.map(\.name) == ["Sub", "a.jpg", "b.mov", "c.mp4", "d.NEF"])
         #expect(model.imageCount == 4 && model.videoCount == 2)
+        #expect(model.subtitle == "2 images, 2 videos, 1 folder")
 
         model.marksFilter.fileType = .videos
         #expect(model.entries.map(\.name) == ["Sub", "b.mov", "c.mp4"], "folders stay")
