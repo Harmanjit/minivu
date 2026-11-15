@@ -178,7 +178,7 @@ struct SaveAsAccessoryView: View {
                             Toggle("Remove location", isOn: $model.options.removeLocation)
                                 .padding(.leading, 20)
                                 .disabled(!model.options.keepMetadata)
-                                .help("Leave out the GPS position and IPTC place names, keeping the rest")
+                                .help("Leave out the GPS position and IPTC place names, keeping the rest. A file written over its original keeps them.")
                                 .accessibilityHint("Leaves out the GPS position and place names, keeping the rest of the metadata")
                         }
                     }

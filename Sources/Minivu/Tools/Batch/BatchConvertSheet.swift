@@ -176,7 +176,7 @@ struct BatchConvertView: View {
                 Toggle("Keep metadata (EXIF, GPS, IPTC, XMP)", isOn: $model.settings.options.keepMetadata)
                 Toggle("Remove location", isOn: $model.settings.options.removeLocation)
                     .disabled(!model.settings.options.keepMetadata)
-                    .help("Leave out the GPS position and IPTC place names, keeping the rest")
+                    .help("Leave out the GPS position and IPTC place names, keeping the rest. A file written over its original keeps them.")
                     .accessibilityHint("Leaves out the GPS position and place names, keeping the rest of the metadata")
             }
         }

@@ -459,6 +459,29 @@ import MinivuRender
         #expect(type == "public.png")
     }
 
+    /// Remove location (on by default) is for copies: Save As onto the
+    /// original itself, under its own name or another letter case of it,
+    /// keeps the GPS position and place names, as Save does.
+    @Test func saveAsOverTheOriginalKeepsItsLocation() async throws {
+        let t = try ScratchFolder()
+        let url = try t.jpeg("photo.jpg", width: 64, height: 48, properties: ScratchFolder.location)
+        let entry = try #require(FolderEntry(url: url))
+        let options = ExportOptions.defaults(for: .jpeg)
+        #expect(options.removeLocation)
+
+        let copy = t.url.appendingPathComponent("copy.jpg")
+        try await SavePresenter.write(SaveImageSource(entry: entry, document: nil), options: options, to: copy,
+                                      metadataSource: url)
+        #expect(ScratchFolder.location(of: copy) == (nil, nil), "a copy leaves the location out")
+
+        for name in ["photo.jpg", "Photo.JPG"] {
+            let target = t.url.appendingPathComponent(name)
+            try await SavePresenter.write(SaveImageSource(entry: entry, document: nil), options: options, to: target,
+                                          metadataSource: url)
+            #expect(ScratchFolder.location(of: url) == (51.5, "London"), "\(name) is the original: nothing removed")
+        }
+    }
+
     /// Save and Save As of an unedited original keep every pixel, so a
     /// header claiming more than an export may hold is refused before it is
     /// decoded, and the alert names the file. The forged PNG claims 1.2

@@ -154,7 +154,7 @@ import MinivuRender
             }
             let data: Data
             do {
-                let converter = self.converter, settings = self.settings, source = output.source
+                let converter = self.converter, settings = self.settings.settings(for: output), source = output.source
                 data = try await withTaskExecutorPreference(BatchWorkExecutor.shared) {
                     try await converter.encodedData(for: source, settings: settings)
                 }
