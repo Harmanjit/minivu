@@ -107,7 +107,11 @@ public enum MetadataReader {
             if !items.isEmpty { sections.append(MetadataSection(title: title, items: items)) }
         }
         add("File", fileItems(url))
-        add("Image", imageItems(url, p))
+        if ImageFormats.isVideo(url) {
+            add("Video", videoItems(url))
+        } else {
+            add("Image", imageItems(url, p))
+        }
         let writable = MetadataWriter.method(for: url) != .unsupported
         let fields = p != nil || writable ? MetadataFields.read(from: url) : nil
         if let p, let fields {
@@ -157,6 +161,21 @@ public enum MetadataReader {
         items.add("Alpha", info.hasAlpha ? "Yes" : "No")
         if info.pageCount > 1 { items.add(info.isAnimated ? "Frames" : "Pages", "\(info.pageCount)") }
         if info.isHDR { items.add("HDR", "Yes") }
+        return items.list
+    }
+
+    /// A video's size, length, frame rate and codec (G18), from its tracks.
+    static func videoItems(_ url: URL) -> [MetadataItem] {
+        var items = Items()
+        guard let info = VideoFrames.info(for: url) else { return [] }
+        let w = Int(saturating: info.pixelSize.width), h = Int(saturating: info.pixelSize.height)
+        items.add("Dimensions", "\(w) × \(h)")
+        items.add("Duration", VideoFrames.durationText(info.duration))
+        items.add("Frame rate", info.frameRate.map { "\(trimmed(($0 * 100).rounded() / 100)) fps" })
+        items.add("Codec", info.codec)
+        items.add("Audio", info.hasAudio ? "Yes" : "No")
+        if info.isHDR { items.add("HDR", "Yes") }
+        if !info.isPlayable { items.add("Playable", "No") }
         return items.list
     }
 

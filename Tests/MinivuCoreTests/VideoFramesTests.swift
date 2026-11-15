@@ -123,6 +123,22 @@ import CoreGraphics
         #expect(store.image(for: url, modified: entry.modified, fileSize: entry.fileSize, tier: 256) != nil)
     }
 
+    /// The info panel's sections: a Video section of size, length, frame
+    /// rate and codec in place of the Image section.
+    @Test func infoPanelDescribesTheVideo() async throws {
+        let url = try await TestVideos.make(at: folder.url.appendingPathComponent("clip.mov"), seconds: 2)
+        let sections = await BlockingWork.run { MetadataReader.sections(for: url) }
+        #expect(sections.map(\.title) == ["File", "Video"])
+        let video = Dictionary(uniqueKeysWithValues: (sections.last?.items ?? []).map { ($0.label, $0.value) })
+        #expect(video["Dimensions"] == "160 × 96")
+        #expect(video["Duration"] == "0:02")
+        #expect(video["Frame rate"] == "10 fps")
+        #expect(video["Codec"] == "avc1")
+        #expect(video["Audio"] == "No")
+        let summary = await BlockingWork.run { MetadataReader.summary(for: url) }
+        #expect(summary.pixelSize == CGSize(width: 160, height: 96))
+    }
+
     @Test func metadataOfAVideoIsNeitherWrittenNorGivenASidecar() throws {
         let url = try folder.file("clip.mov")
         #expect(MetadataWriter.method(for: url) == .unsupported)
