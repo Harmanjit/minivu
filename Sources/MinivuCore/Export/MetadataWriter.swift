@@ -116,7 +116,9 @@ public enum MetadataWriter {
         switch ImageFormats.kind(of: url) {
         case .raw?: .sidecar
         case .raster?: LosslessTransform.canApply(to: url) ? .inPlace : .sidecar
-        case .pdf?, .svg?, nil: .unsupported
+        // A movie's metadata lives in its own atoms, which nothing here
+        // writes; refused rather than given a sidecar no video app reads.
+        case .pdf?, .svg?, .video?, nil: .unsupported
         }
     }
 
