@@ -11,7 +11,18 @@ enum AppServices {
     /// Largest the on-disk thumbnail cache may grow before old entries go.
     nonisolated static let thumbnailCacheLimit = 1_000_000_000
 
-    nonisolated static let thumbnailStore: ThumbnailStore? = try? ThumbnailStore(url: ThumbnailStore.defaultURL)
+    nonisolated static let thumbnailStore: ThumbnailStore? = try? ThumbnailStore(url: thumbnailStoreURL())
+
+    /// The user's thumbnail cache, except where the catalog is a private one
+    /// (test runs, snapshot runs, MINIVU_CATALOG=memory): those get a cache
+    /// of their own in the temporary folder, so a test or a benchmark that
+    /// thumbnails thousands of files leaves the user's cache alone and
+    /// starts from an empty one every run.
+    nonisolated static func thumbnailStoreURL(process: ProcessInfo = .processInfo) -> URL {
+        guard Catalog.usesPrivateCatalog(process) else { return ThumbnailStore.defaultURL }
+        return FileManager.default.temporaryDirectory
+            .appendingPathComponent("minivu-thumbnails-\(process.processIdentifier).sqlite")
+    }
 
     static let thumbnails = ThumbnailService(store: thumbnailStore)
 

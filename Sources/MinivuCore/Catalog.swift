@@ -106,7 +106,7 @@ public final class Catalog: @unchecked Sendable {
 
     /// XCTest runs in `xctest`, Swift Testing under SwiftPM in
     /// `swiftpm-testing-helper`; Xcode sets XCTestConfigurationFilePath.
-    static func usesPrivateCatalog(_ process: ProcessInfo) -> Bool {
+    public static func usesPrivateCatalog(_ process: ProcessInfo) -> Bool {
         let environment = process.environment
         return environment["MINIVU_CATALOG"] == "memory"
             || environment["MINIVU_SNAPSHOT"] != nil
