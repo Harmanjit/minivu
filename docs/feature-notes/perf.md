@@ -41,10 +41,10 @@ The kit is for whoever measures:
   the thread that ran it; launch milestones and counts are events.
 
 - **Run the benchmarks.** `scripts/bench.sh results.txt` builds release
-  with tests and runs every suite, one at a time, each in a process of its
+  with tests and runs every entry, one at a time, each in a process of its
   own, and writes every `BENCH` line to `results.txt` (the whole test
   output goes to `results.txt.log`). `scripts/bench.sh results.txt
-  ViewerBenchmark` runs one entry only. See "Running" below.
+  CompareBenchmark` runs one entry only. See "Running" below.
 
 ## Signposts
 
@@ -55,17 +55,20 @@ The kit is for whoever measures:
   / `.end()` for an interval; `Perf.count("name")` for an event that is
   also counted; `Perf.milestone("name")` for a launch milestone (event,
   plus the stderr line with `MINIVU_TRACE`).
-- **Cost.** A signposter nobody records costs a flag check per call, so
-  the intervals stay in release builds. On top of that, each call checks
-  one atomic flag (relaxed load) for the in-memory recording below.
-  Intervals are around phases (one per file at most), never per pixel or
-  per row.
+- **Cost.** Each call is an `OSSignposter` begin and end (or an event),
+  which return almost at once while nobody records, so the intervals stay
+  in release builds; on top of that, each call makes one relaxed atomic
+  load for the in-memory recording below. Intervals are around phases
+  (one per file at most), never per pixel or per row. The one exception
+  to "free when unrecorded" is opt-in: `ImageCanvasView.tracksPresentedFrames`
+  (off in the app; the window benchmarks turn it on) adds a GPU completion
+  handler and a main-queue hop per canvas frame.
 - **In-memory recording, for benchmarks.** Between `Perf.startRecording()`
   and `Perf.stopRecording()` every interval's duration and every count is
   kept, by name; the result's `total(name)` adds them up. The app never
-  records. A recording is process-wide: two suites recording at once in one
-  process mix their numbers, which is why the runner gives each suite its
-  own process.
+  records. A recording is process-wide, so every suite that records is
+  nested in a serialized parent suite (see "Serialized suites" below), and
+  the runner still gives each entry its own process for memory figures.
 
 Names are `operation.phase`, one name per phase (never per file):
 
@@ -75,14 +78,19 @@ Names are `operation.phase`, one name per phase (never per file):
 | Catalog | `catalog.open` I, `catalog.marks` I, `catalog.heal` I, `catalog.didChange` C, `sqlite.transaction` C | `marks(for:)` (the folder's one query), `heal(folder:)`, every `didChange` posted, every outermost SQLite transaction (catalog and thumbnail store). |
 | Folder open | `folder.open` I (task start to finish), `folder.list`, `folder.marks`, `folder.fileMarks` (the lstat pass for files without a row), `folder.sort`, `folder.finish` (main thread; includes the grid's `reloadData` through `onChange`), `folder.applyFilter` (main, every call), `folder.resort`, `folder.fileMarksChunk`, `folder.metadataChunk` | `BrowserModel.load` and what follows it. |
 | Flat view | `flat.open`, `flat.partialSort` (background, every 250 ms), `flat.showPartial` (main) | `BrowserModel.loadMany`. |
-| Browser | `browser.catalogChanged` I (main), `grid.fillScreen` I (from a listing's entries arriving to every visible cell settled) | The cell's new `isThumbnailSettled` is true once its thumbnail arrived, failed, or it shows a folder. |
-| Thumbnails | `thumb.produce`, `thumb.storeRead`, `thumb.decode`, `thumb.displayReady` (the redraw into the display's colour space), `thumb.encode`, `thumb.storeWrite` (waiting for the disk lock included) | `ThumbnailService.produce` on the workers. |
+| Browser | `browser.catalogChanged` I (main), `grid.fillScreen` I (from a listing's entries arriving to every visible cell settled), `sidebar.reloadLibrary` I (main: the smart folders' and collections' queries), `organise.collectionsMenu` I (main: the collections query as the Add to Collection menu opens) | The cell's new `isThumbnailSettled` is true once its thumbnail arrived, failed, or it shows a folder. |
+| Thumbnails | `thumb.produce`, `thumb.storeRead`, `thumb.decode`, `thumb.displayReady` (the redraw into the display's colour space), `thumb.encode`, `thumb.diskLockWait` (waiting for the other workers' writes), `thumb.storeWrite` (the INSERT alone, inside the lock), `thumb.prune` (launch: the whole prune), `thumb.pruneTotal` (its `SUM(length(data))` scan of every row) | `ThumbnailService.produce` on the workers; `ThumbnailStore.prune` at launch. |
 | Decode | `decode` (a whole `ImageDecoder.decode`), `decode.info` (header, HDR check included), `decode.hdrCheck` (`hasHDRContent`: gain map look-ups and the lazy image), `decode.pixels`, `decode.rawPreview`, `raw.render`, `file.open` C (every `CGImageSource` made by `ImageDecoder`, `MetadataReader`, `MarksXMP`, `PixelSizeCache`, `SavePolicy`) | `file.open` is what "how many times is the file opened per flip" counts. |
-| Viewer | `loader.screen` / `loader.fullResolution` (an `ImageLoader` job, decode and upload), `upload` (`TextureUploader.upload`), `upload.draw` (the CPU colour conversion; a lazily decoded image decodes here), `upload.gpu` (commit and wait for the blit and mipmaps), `viewer.flip` (main: from `loadCurrentPage` to the texture on the canvas; a flip overtaken by the next ends early), `viewer.structureRead`, `viewer.exposureRead`, `viewer.fileMarksRead`, `info.read` | The side reads are the header reads each flip makes besides the decode. |
-| Edit | `edit.prepare` (`.load`, `.proxy`), `edit.render.preview`, `edit.render.full`, `edit.render.rawDevelop`, `edit.render.texture`, `edit.export` (`.source`, `.render`), `edit.exportHDR` | `EditRenderer`. |
+| Viewer | `loader.screen` / `loader.fullResolution` (an `ImageLoader` job, decode and upload), `loader.escalationWait` (the GCD thread `raisePriority` blocks in `work.item.wait()` to lift a running decode's QoS), `upload` (`TextureUploader.upload`), `upload.draw` (the CPU colour conversion; a lazily decoded image decodes here), `upload.gpu` (commit and wait for the blit and mipmaps), `viewer.flip` (main: from `loadCurrentPage` to the texture on the canvas; a flip overtaken by the next ends early), `viewer.structureRead`, `viewer.exposureRead`, `viewer.fileMarksRead`, `info.read` | The side reads are the header reads each flip makes besides the decode. |
+| Compare | `compare.open` I (main: from Compare's command to every pane's image on its canvas, or failed), `compare.paneLoad` I (one pane's load, asked to delivered) | `CompareWindowController`, `CompareImagePane`. |
+| Edit | `edit.prepare` (`.load`, `.proxy`), `edit.render.preview`, `edit.render.full`, `edit.render.rawDevelop`, `edit.render.proxyRebuild` (a larger proxy made with Lanczos from the full image mid-drag), `edit.render.texture`, `edit.export` (`.source`, `.render`), `edit.exportHDR` | `EditRenderer`. |
 | Save | `save.preflight` (Save's header reads), `save.encode` (`ImageEncoder.write` for Save and Save As), `encode.prepare` (the pixel conversion before encoding), `encode.finalize` (`CGImageDestinationFinalize`), `write.fsync`, `write.queued` (waiting in `FileWriteQueue`), `write.job`, `trash.move`, `trash.catalog` | |
 | Files | `transfer.preflight`, `transfer.items` (the whole loop), `transfer.item` (one item), `transfer.copyFile`, `transfer.moveFile`, `transfer.catalog`, `rename.perform`, `rename.invalidate` (main) | `FileTransfer.run`, `FileOperations.transfer`, Batch Rename. |
-| Batch Convert | `batch.file` (one file, waits included), `batch.prepare`, `batch.render`, `batch.encode`, `batch.commit` | `BatchConvertJob`, `BatchConverter`. |
+| Batch Convert | `batch.file` (one file, waits included), `batch.prepare`, `batch.render`, `batch.encode`, `batch.commit`, `batch.trash` (Replace: the old file to the Trash), `batch.catalogMoved` (Replace: its marks moved in the catalog) | `BatchConvertJob`, `BatchConverter`, `BatchFileWriter`. |
+| Find | `search.filter` (one folder's matches, each batch of the walk, and the browser's filter), `filter.metadataCached` (the catalog's cached headers looked up), `filter.metadataRead` (one file's header read), `filter.metadataStore` (a chunk written to the cache) | `ImageSearch.filter`, `Catalog.loadFilterMetadata`. Find's partial lists in the browser are the flat view's `flat.partialSort` / `flat.showPartial`. |
+| Find Duplicates | `duplicates.cachedLookup` (stored hashes or prints looked up), `duplicates.hash` (one file's SHA-256), `duplicates.print` (one feature print), `duplicates.index` (the similarity index built) | `DuplicateFinder`, `SimilarityIndex`. |
+| Web gallery | `gallery.render` (decode, resize), `gallery.scale` (the thumbnail), `gallery.encode` (both), `gallery.write`, `gallery.pages` | `WebGalleryExport`. |
+| Slideshow video | `video.slideDecode` (a slide decoded ahead), `video.slideWait` (the encoder waiting for a slide: decode-ahead fell behind), `video.frameDraw` (a frame drawn and converted, caption included), `video.caption`, `video.append` (handing a frame to the encoder) | `SlideshowVideoWriter`. |
 
 ## Benchmarks
 
@@ -111,15 +119,41 @@ Each metric is one line on stdout:
 
 Every benchmark warms up once (unless a warm-up would make the next run
 warm when it must be cold; those say `warmups: 0`) and then repeats at
-least five times. The extra keys are per run unless named otherwise:
-counts, sizes, MB, and phase times taken from the signposts recorded
-during the runs (averaged over the warm-up too, so they are a close guide,
-not exact). `main_blocked_ms`, `main_longest_ms` and `main_stalls` come
-from `Bench.MainThreadMonitor` (below).
+least five times. The median of an even number of runs is the mean of
+the middle two. The extra keys are per run unless named otherwise:
+counts, sizes, MB, and phase times taken from the signposts. Where the
+warm-up or the setup between runs would put signposts of their own into
+the recording (a cold first run, a document prepared before each Save),
+`Bench.Phases` records the timed runs only; elsewhere the warm-up is the
+same operation as the runs and is averaged in. A `*_signpost_ms` or
+`*_ms` taken as a median is the median interval. `main_blocked_ms`,
+`main_longest_ms` and `main_stalls` come from `Bench.MainThreadMonitor`
+(below).
+
+A metric that collected no samples prints `BENCH-EMPTY <suite>.<metric>`
+instead of a line with made-up numbers, and the runner notes it. Every
+wait for a condition (a photo drawn, a rename reaching the grid, a screen
+of thumbnails) is `#expect`ed: one that times out fails the test rather
+than becoming a 60-second sample.
 
 The helper `Bench` is in each test target as BenchSupport.swift (a test
 target can't share files); the three copies are alike, MinivuTests' adding
-the main-thread monitor.
+the main-thread monitor and two window helpers (`mainQueueTurn`,
+`display`).
+
+### Serialized suites
+
+Swift Testing runs top-level suites side by side, and all three test
+targets are in one test process. So every suite that records signposts or
+measures time is nested in a serialized parent: `Benchmarks` in
+MinivuCoreTests and MinivuRenderTests (with `PerfTests`), and
+`AppWindowTests` in MinivuTests (with the window suites and
+`PerfWindowSignpostTests`). `.serialized` on a parent holds for every
+suite nested in it, so `swift test --filter 'ViewerBenchmark|FolderOpenBenchmark'`
+runs them one after the other. Two parents of different targets would
+still run side by side, so suite names are unique across targets
+(`StoreLaunchBenchmark`, `GPULaunchBenchmark`, `WindowLaunchBenchmark`)
+and the runner's patterns each name one target's suite or test.
 
 ### Main-thread time and memory
 
@@ -127,7 +161,12 @@ the main-thread monitor.
   own asks the main queue to run an empty block, waits for it, sleeps a
   millisecond, and repeats. A block that waited `L` ms means the main
   thread was busy for about that long; waits of 2 ms or more are added
-  up, during the timed runs only (setup between runs is left out).
+  up. Only the timed runs count: each wait is clipped to the timed
+  windows by when its block was sent and when it ran, so a busy spell
+  that began in the setup counts from the run's start, and one still
+  going at the run's end counts up to it. The busy time therefore never
+  exceeds the runs' wall time (an earlier version counted a wait by when
+  it was answered and could report more busy time than wall time).
   Resolution about a millisecond; a busy spell under 2 ms is not counted.
   It is the right measure of "what did the user feel": it counts AppKit's
   layout and Core Animation commits that no signpost covers. The
@@ -148,16 +187,20 @@ SearchBenchmark and DuplicateBenchmark):
 | Metric | What it measures |
 |---|---|
 | `catalog.marks{5000,20000}` | `Catalog.marks(for:)` of a folder's files, a quarter of them rated, catalog on disk. |
-| `catalog.healFirst{N}`, `catalog.heal{N}` | `heal(folder:)` on a new catalog connection (the first heal of a launch also scans the Trash's rows), then again. |
+| `catalog.healFirst{N}`, `catalog.heal{N}` | `heal(folder:)` on a new connection to a fresh copy of the catalog, then again. The catalog has rows under a scratch folder whose path holds `/.Trash` (one per 20 files, half of the files since deleted), so the first heal's Trash scan lstats each (`trash_rows=`); a copy each run because that heal stamps the gone ones missing, after which a later first heal skips them. `theFirstHealStampsGoneTrashRows` checks it does. |
+| `catalog.sidebarLibrary`, `catalog.collectionsMenu` | The catalog reads the main thread makes: the sidebar's smart folders and collections (`reloadLibrary`, at launch and on every library change) and the collections as Add to Collection opens; 20 collections of 500 members and 10 smart folders. |
+| `launch.catalogOpenNew`, `launch.catalogOpenExisting` | `Catalog(url:)` making a new catalog (schema and migrations), and opening one of 20,000 rated files. |
+| `launch.thumbnailStoreOpenNew`, `launch.thumbnailStoreOpenExisting` | `ThumbnailStore(url:)`: a first run (tables made, `auto_vacuum` and a `VACUUM`), and a store of 5,000 thumbnails opened again. |
+| `launch.thumbnailPruneScan`, `launch.thumbnailPruneTenth` | The launch's `prune(maxBytes:)` under the 1 GB limit, which is the `SUM(length(data))` scan of every row alone (nearly every launch), and over a budget a tenth below the store's size (a fresh copy each run). 5,000 real-sized thumbnails (`mb=`). |
 | `thumbs.{jpeg,png,heic,nef,video}Cold` | A screenful (60 cells) of thumbnails through a real `ThumbnailService` (its default workers, `max(2, cores − 2)`, shown as `workers=`) into an empty store on disk. 60 clones of one photo: the file system cache is warm after the first, so this is the decode, not the disk. |
-| `thumbs.{format}ColdDecodeEach` | Each thumbnail's `thumb.decode` during the last cold run; `write_ms_each` is its store write. |
+| `thumbs.{format}ColdDecodeEach` | Each thumbnail's `thumb.decode` during the last cold run; `write_ms_each` is its store write, `lock_wait_ms_each` its wait for the other workers' writes, `encode_ms_each` the JPEG encode. |
 | `thumbs.{format}Warm` | The same screenful from the filled store (a new service: empty memory cache). |
 | `thumbs.storeWriteEach`, `thumbs.storeReadEach` | One thumbnail row written (autocommit INSERT) and read back, store on disk, a real photo's thumbnail. |
 | `info.sectionsAndFields`, `info.summary`, `info.imageInfo`, `info.imageInfoHEIC` | The info panel's read, the viewer's exposure line, and the header read (HDR check included) that decode, Save and Batch Convert start with. |
 | `colors.decode`, `colors.count` | Count Colors as the histogram panel runs it: header and full SDR decode, then the count (`peak_mb`, `colors`, `pixels`). |
 | `find.walk{N}`, `find.byName{N}` | The tree walk of 200 folders of 100 empty files, and Find by name over it. |
-| `find.metadataCold`, `find.metadataCached` | Find with a metadata condition (at least 4000 px wide) over ten folders of the test photos' clones: a new catalog each run, then the catalog that cached the headers. "Cold" is the catalog's cache; the file system cache is warm. |
-| `duplicates.exactCold`/`Cached`, `similarCold`/`Cached`, `pixelSizes` | Find Duplicates on 200 generated 3000 × 2000 JPEGs (a quarter exact copies, a quarter lightly changed): hashing, then feature prints and the index, from an empty store and from a filled one. |
+| `find.metadataCold`, `find.metadataCached` | Find with a metadata condition (at least 4000 px wide) over ten folders of the test photos' clones: a new catalog each run, then the catalog that cached the headers. "Cold" is the catalog's cache; the file system cache is warm. Phases: `filter_ms` (all folders' filters), `header_read_ms` (median read), `header_reads`, `cache_lookup_ms`, `cache_store_ms`. |
+| `duplicates.exactCold`/`Cached`, `similarCold`/`Cached`, `pixelSizes` | Find Duplicates on 200 generated 3000 × 2000 JPEGs (a quarter exact copies, a quarter lightly changed): hashing, then feature prints and the index, from an empty store and from a filled one. Cold phases: `hash_ms_each`, `hashes_per_run`, `cache_lookup_ms`; `print_ms_each`, `prints_per_run`, `index_ms`. |
 
 MinivuRenderTests (RenderBenchmarks.swift):
 
@@ -166,31 +209,50 @@ MinivuRenderTests (RenderBenchmarks.swift):
 | `edit.prepare_{jpeg,heic,nef}` | `EditRenderer.prepare` with a 3456 px proxy, a new document each run (`load_ms`, `proxy_ms`). |
 | `edit.slider_lighting`, `edit.slider_rawExposure` | A slider frame: a new preview value, from the request to the frame delivered, at 3456 px. The RAW one develops the NEF in the RAW engine every frame. |
 | `edit.fullRender_{lighting,rawExposure}` | The full-resolution render a zoom to 100% asks for while editing. |
-| `slideshowVideo.export10` | Ten 24 MP slides to a 1080p, 30 fps H.264 movie, three seconds each, one-second dissolves, captions on (`peak_mb`). |
+| `edit.cropDragFrame` | A crop dragged from the whole photo to a third of it over 24 preview frames: each frame's time, and the proxy rebuilds among them (`rebuilds_per_drag`, `rebuild_ms`), the Lanczos pass from the full-resolution image that a growing need for pixels triggers every quarter of growth. |
+| `slideshowVideo.export10` | Ten 24 MP slides to a 1080p, 30 fps H.264 movie, three seconds each, one-second dissolves, captions on (`peak_mb`). Phases per export: `decode_ms` (all slides), `slide_wait_ms` (the encoder waiting for decode-ahead), `frame_draw_ms` (median frame) and `frames_drawn` (frames that showed something new; stills are reused), `caption_ms`, `append_ms`. The last run's movie is deleted before the next run, untimed. |
+| `launch.gpuWarmUp` | `AppDelegate.warmUpGPU`'s work: a new `GPU` (device, queue, shader library) and the canvas pipeline. `first_ms` is the process's first, nearest a launch; the runs after it have Metal's shader cache warm. |
 
-MinivuTests (FolderBenchmarks.swift, ViewerBenchmarks.swift,
-OutputBenchmarks.swift); the window suites run with `AppWindowTests`:
+MinivuTests (LaunchBenchmarks.swift, FolderBenchmarks.swift,
+ViewerBenchmarks.swift, OutputBenchmarks.swift), all nested in
+`AppWindowTests`. Every window is shown (`showWindow`), and a timed run
+that changes what a window shows ends with the window laid out and drawn
+(`Bench.display`), so the grid's layout and drawing are inside it. A
+photo counts as on screen when its own texture (not a stand-in) is in a
+frame the GPU has finished drawing: the benchmarks turn on
+`ImageCanvasView.tracksPresentedFrames` and wait for `hasPresentedImage`,
+drawing the canvas themselves (`displayRefreshed`) when the window is on
+no screen and its display link never fires.
 
 | Metric | What it measures |
 |---|---|
-| `folder{1000,10000,20000}.list`, `.heal`, `.marks`, `.fileMarksCold`, `.fileMarksWarm`, `.sort_{name,modified,rating}` | Each step of a folder listing on its own, one-byte files, a quarter rated. `fileMarksCold` is the lstat pass with a `FileMarksCache` that has read nothing (every launch: the cache is memory-only); warm, after every file's marks were read. |
-| `folder{N}.openColdLaunch` | The browser model end to end, as at launch: a new catalog connection (first heal) and an empty file-marks cache. |
+| `launch.bookmarks10` | `BookmarkStore.resolve` (the launch's bookmark step) of ten sidebar folders. Security-scoped bookmarks where the test process may make them (`scoped=yes`), else plain ones resolved the same way. |
+| `launch.browserWindowShown` | A browser window made, shown and drawn with no folder in it; `first_ms` is the process's first (classes, nibs and fonts load then, as at launch). |
+| `folder{1000,10000,20000}.list`, `.healFirst`, `.heal`, `.marks`, `.fileMarksCold`, `.fileMarksWarm`, `.sort_{name,modified,rating}` | Each step of a folder listing on its own, one-byte files, a quarter rated. `healFirst` is a new connection to a fresh copy of the catalog, with Trash rows as for `catalog.healFirst`. `fileMarksCold` is the lstat pass with a `FileMarksCache` that has read nothing (every launch: the cache is memory-only); warm, after every file's marks were read. |
+| `folder{N}.openFreshCatalog` | The browser model end to end with a new connection to a fresh catalog copy (first heal, Trash scan) and an empty file-marks cache, as the first folder after a launch. Not a launch: `launch.*` and `grid.firstScreen*` time the rest. (Was `openColdLaunch`.) |
 | `folder{N}.reload` | Reloading the shown folder through the model; `finish_ms` and `applyFilter_ms` from the signposts, main-thread busy time. |
-| `folder{N}.openInWindow` | Opening the folder in a real browser window, an empty folder in between: `finish_ms_median` is the main thread's `finish` with the grid's reload; the busy time adds the grid's layout and commit. |
+| `folder{N}.openInWindow` | Opening the folder in a shown browser window, an empty folder in between, to the window laid out and drawn: `finish_ms` is the median `folder.finish` of the big folder alone (each run's recording starts after the empty folder is shown); the busy time adds the grid's layout and drawing. |
+| `grid.firstScreenCold`, `grid.firstScreenWarm` | Time to the first full screen of thumbnails: opening a folder of 200 photos (clones of the 24 MP JPEG, or flat 1800 × 1200 JPEGs without the photo folder) in a shown window, to every visible cell's thumbnail settled and drawn. Cold: never-thumbnailed clones each run (decode, encode, store write); warm: the same folder again, from the memory cache. `fill_signpost_ms` is `grid.fillScreen`; `visible`, `decodes_per_run`, main-thread time. |
+| `folder{1000}Photos.metadataFilterOpen` | A folder of 1,000 real photos (the photo folder's JPEG, HEIC and RAW files round robin) opened with a metadata filter (at least 4000 px wide), a new in-memory catalog each run: to the last `folder.metadataChunk` read and applied. `chunks_per_open`, `chunk_ms`, `applyFilter_main_ms` (each chunk filters again on the main thread), `shown`. |
+| `folder{1000}Photos.ratingSortOpen` | The same folder sorted by rating with no catalog rows: every file's own marks read from its header in `folder.fileMarksChunk` chunks, each re-sorting on the main thread. |
 | `flat20000.open` | The flat view of a 20,000-file tree: total, partial lists per open and their main-thread and sort time, and the final `finish`. |
+| `findInBrowser1000.metadataCold`, `.metadataCached` | Find as the browser shows it (`show(list:)`): 20 folders of 50 real photos, a width condition, partial lists sorted and shown every 250 ms. Cold: a new catalog each run; cached: the catalog that read the headers. `filter_ms`, `header_reads_per_run`, `partials_per_run`, `partial_main_ms`, `matches`. |
 | `pixelSizes.read500` | The grid's dimensions line: 500 header reads through a new `PixelSizeCache` (one serial queue). |
 | `files.{copy,move}{100,1000}` | `FileTransfer.run` between two folders (moving within one folder is a no-op in minivu): per item, catalog time per file, transactions and notifications per file, main-thread time. |
-| `files.move1000Shown` | The same into the folder a browser window shows: `browser.catalogChanged` calls and main time. |
-| `files.rename1000` | Batch Rename of 1,000 through the window, to the grid showing the new names (`perform_ms`, `invalidate_main_ms`). |
+| `files.move1000Shown` | The same into the folder a shown browser window shows, to the grid drawn with every file: `browser.catalogChanged` calls and main time. |
+| `files.rename1000` | Batch Rename of 1,000 through the window, to the grid drawn with the new names (`perform_ms`, `invalidate_main_ms`). |
 | `files.trash100Of1000` | Move to Trash of 100 selected out of 1,000 through the window. The write queue's `putInTrash` test seam moves them into a folder in the scratch folder: nothing reaches the user's Trash. |
-| `viewer.open_{jpeg,heic,nefPreview,nefRaw,hdrGainMap}` | Opening the viewer on a photo never decoded (a clone each run), from the call to the texture on the canvas; `show_call_ms` is the synchronous part, `opens` header opens per open, main-thread time, texture size, HDR. `nefRaw` sets the RAW setting to Render RAW data. The HDR JPEG is made from the 24 MP photo with a gain map a stop brighter. |
-| `viewer.next_warm`, `viewer.next_cold`, `viewer.previous` | → with the neighbour prefetched (after the loader went idle), → with it thrown out of the cache just before, and ←. `flip_signpost_ms` is `viewer.flip`; `opens_per_flip` counts header opens per move, the next neighbour's prefetch and the side reads included; `decode_ms`/`upload_ms` are the loader's per move. |
-| `viewer.actualSize_{jpeg,heic,nef}` | Actual Size from fitted: the command to the full-resolution texture on the canvas (`loader_ms`). |
+| `files.writeQueue20` | Twenty 8 MB files replaced at once through `FileWriteQueue` (as a Save, marks written into files and a Batch Convert might queue together): the whole, and each write's wait for its turn (`queued_ms` median, `queued_max_ms`) and its own time (`job_ms`). |
+| `viewer.open_{jpeg,heic,nefPreview,nefRaw,hdrGainMap}` | Opening the viewer on a photo never decoded (a clone each run), from the call to the photo drawn; `show_call_ms` is the synchronous part, `opens` header opens per open, main-thread time, texture size, HDR. `nefRaw` sets the RAW setting to Render RAW data. The HDR JPEG is made from the 24 MP photo with a gain map a stop brighter. |
+| `viewer.next_warm`, `viewer.next_cold`, `viewer.previous` | → with the neighbour prefetched (after the loader went idle), → with it thrown out of the cache just before, and ←, each to the new photo drawn (not a placeholder: the flip must have ended, `isLoadingPage`). `flip_signpost_ms` is `viewer.flip`; `opens_per_flip` counts header opens per move, the next neighbour's prefetch and the side reads included; `decode_ms`/`upload_ms` are the loader's per move; `escalation_wait_ms` the time GCD threads spent blocked lifting a running prefetch's priority. |
+| `viewer.actualSize_{jpeg,heic,nef}` | Actual Size from fitted: the command to the full-resolution texture drawn (`loader_ms`). |
+| `compare.open2`, `compare.open4` | Compare of two and of four 24 MP photos never decoded (fresh clones each run), from `CompareWindowController.show` to every pane's photo drawn: `open_signpost_ms` (`compare.open`), `pane_load_ms` (median `compare.paneLoad`), main-thread time. |
 | `memory.viewerFlip20` | Footprint while moving through 20 photos (JPEG and HEIC) as fast as they arrive; each move's time. |
-| `memory.gridScroll5000` | A browser window scrolled a screen at a time through 5,000 thumbnails (clones of the 24 MP photo, or flat pictures without the photo folder), each screen waiting for its thumbnails: footprint and time per screen. |
-| `save.inPlace_{jpeg,heic}` | Save of an edited photo: Save's header reads, then the write through `FileWriteQueue` (render, pixel conversion, encode, fsync, rename), the document prepared beforehand as the viewer's would be. |
-| `save.saveAsAVIF` | Save As AVIF of the unedited 24 MP photo (decode at full size and encode). Skipped where ImageIO has no AVIF encoder. |
+| `memory.gridScroll5000` | A browser window scrolled a screen at a time through 5,000 thumbnails (clones of the 24 MP photo, or flat pictures without the photo folder), each screen waiting for its thumbnails and drawn: footprint, time per screen, and the main thread's busy time per screen (where scrolling stutters). |
+| `save.inPlace_{jpeg,heic}` | Save of an edited photo through the viewer's own `SavePresenter.save`, to its completion: the header reads (`preflight_ms`), then the write through `FileWriteQueue` (render, pixel conversion, encode, fsync, rename). "Replace the original?" is turned off for the run (as after "Don't ask again") and put back after; the remembered options are a scratch defaults domain's. The document is prepared beforehand, as the viewer's would be. |
+| `save.saveAsAVIF` | Save As AVIF of the unedited 24 MP photo through `SavePresenter.write` (decode at full size and encode). Skipped where ImageIO has no AVIF encoder. |
 | `batch.{jpeg2048,heicFull,avifFull}_20` | Batch Convert of 20 photos with the app's `BatchConvertJob` at its default concurrency (shown), into a new folder each run: per-file phase times and `peak_mb`. |
+| `batch.replaceExistingJpeg2048_20` | Batch Convert with Replace: 20 photos to JPEGs of 2048 px beside them, where a rated `.jpg` of each name already is; each goes to a folder standing in for the Trash and its marks move in the catalog (`trash_ms`, `catalogMoved_ms` per file). Replacing the originals themselves (same name and type) keeps their marks in place and moves none. |
 | `webGallery.export20` | A web gallery of 20 photos at the default sizes. |
 
 ### Running
@@ -204,8 +266,15 @@ OutputBenchmarks.swift); the window suites run with `AppWindowTests`:
   and `MINIVU_CATALOG=memory`. Release tests work: both commands were
   checked on this branch.
 - The results file starts with `#` lines: date, commit, Mac model, chip,
-  memory, macOS, build, photo folder; a suite that failed is marked
-  `# FAILED`.
+  memory, macOS, build, photo folder. Then, among the `BENCH` lines:
+  `# FAILED <entry>` for an entry whose tests failed; `# NO METRICS
+  <entry>` for one of the study's entries that printed no metric (its
+  pattern matched nothing, or every test was skipped for want of photos),
+  which also makes the script exit non-zero; `# SKIPPED <test>` for each
+  skipped test; `# BENCH-EMPTY <metric>` for a metric with no samples.
+- Each entry is a `--filter` pattern naming one target's suite or test
+  (see "Serialized suites"); the big suites are split into one entry per
+  test, so a memory figure is never inflated by an earlier test.
 - After the study's suites it runs the older print-only benchmarks
   (DecodeBenchmark, EditBenchmark and the rest), whose lines go to the
   log only; `MINIVU_BENCH_OLDER=0` leaves them out.
@@ -237,6 +306,20 @@ run, and the screen awake.
 - **Displays.** Viewer textures are sized to the canvas, which depends on
   the screen the window opens on; the texture size is printed with each
   open. Compare runs on the same display arrangement.
+- **Drawn, not just set.** The window benchmarks end when the GPU has
+  finished the frame with the photo (or the grid has been laid out and
+  drawn), not when a texture or model is set. When a window is on a
+  screen the display link usually draws first; when it is on none, the
+  benchmark draws the frame itself, so the vsync wait is not in the
+  number either way. The compositor's own latency to the glass is never
+  in it.
+- **Thumbnail caches between runs.** Each test process gets its own
+  thumbnail store in the temporary folder, removed when the process exits
+  (and, if it crashed, by the next test process), so a full run leaves
+  nothing behind.
+- **Launch.** No benchmark launches the app. `launch.*` times the phases
+  that run in-process; the order and overlap between them, dyld and
+  everything before `main` are the `MINIVU_TRACE` lines.
 - **Main-thread resolution** is about a millisecond (above).
 - **Numbers in quick mode** are meaningless by design.
 
@@ -261,6 +344,20 @@ run, and the screen awake.
 
 ## Product changes in this branch (beyond signposts)
 
+- `ImageCanvasView.tracksPresentedFrames` (static, off) and
+  `presentedImage` / `hasPresentedImage`; `CanvasRenderer.draw(_:to:presentsWithTransaction:completed:)`
+  takes an optional GPU completion handler. Off in the app: no handler is
+  added.
+- `ViewerWindowController.isLoadingPage` (a flip still waiting for its
+  texture), `CompareImagePane.hasLoadedImage` and `onLoaded`, for the
+  benchmarks and the compare signposts.
+- `BookmarkStore.resolve(_:options:)`: the launch's bookmark step as a
+  function of its own (the init calls it; behaviour unchanged).
+- `AppServices`: the private thumbnail store of a test process is removed
+  at exit (`atexit`), and stores of processes no longer running are
+  removed when the next one is made (`removeTemporaryStores`). The user's
+  store is never touched.
+
 - `AppDelegate.applicationDidFinishLaunching` opens the catalog, the
   thumbnail store and the bookmarks in that order explicitly (they were
   opened on first use, in `AppServices.start`); the work is the same.
@@ -277,12 +374,24 @@ run, and the screen awake.
 
 - `PerfTests` (MinivuCoreTests): recording keeps intervals and counts only
   while on; the launch time is since the process started; thumbnail
-  phases and catalog reads are signposted.
+  phases (the disk-lock wait included) and catalog reads are signposted;
+  Find's filter and header reads, Find Duplicates' hashes and prints and
+  the thumbnail prune are signposted.
+- `CatalogBenchmark.theFirstHealStampsGoneTrashRows`: the fixture's Trash
+  rows are scanned by the first heal (half stamped missing).
 - `PerfSignpostTests` (MinivuTests): test runs keep thumbnails in the
-  temporary folder; the grid times filling a screen and the viewer its
-  flips (with file opens counted).
+  temporary folder; caches of ended processes are removed, a running
+  one's kept; bookmarks resolve without a gone folder; the grid times
+  filling a screen and the viewer its flips (with file opens counted);
+  the canvas notes the image the GPU finished drawing only while tracking
+  is on; Compare times its opening once.
+- `MainThreadMonitorTests`: one busy spell across the edges of a timed
+  window counts only the window's part (the old monitor counted all of
+  it); the median of an even count is the mean of the middle two.
 - Every benchmark ran once in a debug build with `MINIVU_BENCH_QUICK=1`
-  and the test photos.
+  and the test photos, including the critic's crashing combination
+  (`ViewerBenchmark/nextAndPrevious` with `FolderOpenBenchmark/folderOpenInTheWindow`
+  in one `swift test`), which now runs one after the other.
 
 ## Where the docs should change
 
