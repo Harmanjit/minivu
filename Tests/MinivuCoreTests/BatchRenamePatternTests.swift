@@ -100,7 +100,7 @@ import UniformTypeIdentifiers
     }
 
     /// The date taken comes from EXIF, and the size as displayed.
-    @Test func readsMetadataFromTheFile() throws {
+    @Test func readsMetadataFromTheFile() async throws {
         let folder = try TemporaryFolder()
         let url = folder.url.appendingPathComponent("exif.jpg")
         try BatchFixtures.writeJPEG(to: url, width: 40, height: 20, orientation: .right,
@@ -110,7 +110,9 @@ import UniformTypeIdentifiers
         #expect(read.modified != nil)
         let local = RenameNamer(pattern: RenamePattern(text: "{date:yyyy-MM-dd HH.mm}"), timeZone: .current)
         #expect(local.name(for: read, index: 0) == "2023-12-24 18.30.jpg")
-        let many = RenameSource.withImageMetadata([RenameSource(url: url), RenameSource(url: url)])
+        // Through BlockingWork, as the app calls it: it waits on every
+        // file's read, which a cooperative thread mustn't.
+        let many = await BlockingWork.run { RenameSource.withImageMetadata([RenameSource(url: url), RenameSource(url: url)]) }
         #expect(many.map(\.pixelWidth) == [20, 20])
     }
 

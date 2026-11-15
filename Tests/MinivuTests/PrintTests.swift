@@ -114,6 +114,27 @@ import MinivuCore
         #expect(range == NSRange(location: 1, length: 1))
     }
 
+    /// A page's decodes fan out with `concurrentPerform`, where the
+    /// cooperative-pool check can't see the caller, so `drawPage` checks
+    /// before it fans out: drawn from a task on the pool, it is reported.
+    @Test func drawingAPageFromTheCooperativePoolIsReported() async {
+        let red = LayoutItem(image: Self.solid(1, 0, 0), name: "Edited.jpg", modified: Date())
+        let job = PrintJob(items: [red], settings: PrintLayoutSettings(), paper: PrintPaper(size: CGSize(width: 200, height: 300)))
+        let log = BlockingWork.CallLog()
+        let onPool = await Task.detached {
+            BlockingWork.$cooperativeCallLog.withValue(log) {
+                guard let context = CGContext(data: nil, width: 200, height: 300, bitsPerComponent: 8, bytesPerRow: 0,
+                                              space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                              bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+                else { return false }
+                job.drawPage(0, in: context)
+                return BlockingWork.isOnCooperativeThread
+            }
+        }.value
+        #expect(onPool)
+        #expect(log.names == ["LayoutRenderer.drawPage"])
+    }
+
     @Test func drawsARenderedImageIntoItsCell() throws {
         let red = LayoutItem(image: Self.solid(1, 0, 0), name: "Edited.jpg", modified: Date())
         let blue = LayoutItem(image: Self.solid(0, 0, 1), name: "Other.jpg", modified: Date())

@@ -252,6 +252,9 @@ public struct RenameSource: Hashable, Sendable {
 
     /// `withImageMetadata` for many files, several at a time.
     public static func withImageMetadata(_ sources: [RenameSource]) -> [RenameSource] {
+        // Reads every file's header and waits for all of them: checked
+        // before the fan-out, where the check can still see the caller.
+        BlockingWork.expectOffCooperativePool("RenameSource.withImageMetadata(_:)")
         var result = sources
         result.withUnsafeMutableBufferPointer { buffer in
             let base = UncheckedBuffer(buffer)

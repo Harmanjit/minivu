@@ -341,6 +341,9 @@ nonisolated enum LayoutRenderer {
                          pixelsPerUnit: Double, maxPixelSize: Int, provider: LayoutImageProvider,
                          cancel: CancellationFlag? = nil, embed: (@Sendable (CGImage) -> CGImage)? = nil,
                          in context: CGContext) {
+        // Decodes (HEIC among them) four at a time and waits for them:
+        // checked before the fan-out, where the check can still see the caller.
+        BlockingWork.expectOffCooperativePool("LayoutRenderer.drawPage")
         let pageCount = layout.pageCount(forImageCount: items.count)
         drawChrome(layout: layout, style: style, page: page, pageCount: pageCount, in: context)
         let cells = layout.cells(onPage: page, imageCount: items.count)

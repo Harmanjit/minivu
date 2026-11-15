@@ -19,6 +19,15 @@ import Foundation
 /// caller's QoS and wait for it; called from enough cooperative threads at
 /// once, that work never starts and nothing returns. Call them only here.
 ///
+/// `run` protects only because its queue's QoS is above the blocked
+/// pool's: the default `.userInitiated` is above the default-QoS pool tests
+/// and background tasks run on. A `qos:` at or below the QoS of the threads
+/// that are blocked protects nothing (`.utility` and `.default` work is
+/// starved by a blocked default-QoS pool, measured), and a blocked
+/// user-initiated pool (main-actor tasks) starves `.userInitiated` work
+/// too. So `run` is not a licence to block the pool elsewhere: the rule
+/// is that no cooperative thread waits on these frameworks at all.
+///
 /// Cancellation of the awaiting task doesn't stop work already running (it
 /// can't interrupt a blocking call); callers check for staleness when the
 /// result arrives, as they would with a detached task.
@@ -43,6 +52,11 @@ public enum BlockingWork {
     /// risks the deadlock above. GCD names the pool's root queues
     /// "com.apple.root.<qos>.cooperative"; any other thread (the main
     /// thread, a GCD queue, a plain `Thread`) answers false.
+    ///
+    /// Blind inside `DispatchQueue.concurrentPerform`: every iteration,
+    /// including the one on the calling cooperative thread, sees the label
+    /// "com.apple.root.<qos>" and answers false. Helpers that fan out that
+    /// way call `expectOffCooperativePool` before they fan out.
     public static var isOnCooperativeThread: Bool {
         guard let label = String(validatingCString: __dispatch_queue_get_label(nil)) else { return false }
         return label.hasPrefix("com.apple.root.") && label.hasSuffix(".cooperative")
