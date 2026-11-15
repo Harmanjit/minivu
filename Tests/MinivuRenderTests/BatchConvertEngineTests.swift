@@ -145,6 +145,16 @@ import UniformTypeIdentifiers
         BatchConverter(renderer: EditRenderer.shared, displaySettings: DisplaySettings()) { [srgb] _, _, _ in srgb }
     }
 
+    /// A movie handed to the converter (a Convert Images shortcut can) is
+    /// that file's failure, never a picture of its first frame (G18). The
+    /// refusal comes before the file is opened, so an empty one will do.
+    @MainActor @Test func refusesAVideo() async throws {
+        let url = try folder().appendingPathComponent("clip.mov")
+        try Data(count: 16).write(to: url)
+        let settings = BatchConvertSettings(options: .defaults(for: .jpeg))
+        await #expect(throws: DecodeError.self) { _ = try await converter().image(for: url, settings: settings) }
+    }
+
     func folder() throws -> URL {
         let url = Fixtures.directory.appendingPathComponent("batch-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

@@ -46,6 +46,9 @@ public struct BatchConverter: Sendable {
     /// The upright, operated-on picture, ready to encode.
     public func image(for url: URL, settings: BatchConvertSettings) async throws -> CGImage {
         let kind = ImageFormats.kind(of: url)
+        // A movie is never turned into a picture (G18): Batch Convert leaves
+        // videos out, and a shortcut handed one gets this file's failure.
+        guard kind != .video else { throw DecodeError.noImage(url) }
         guard let info = loadInfo(url) else { throw DecodeError.unreadable(url) }
         let operations = settings.operations(sourceSize: info.pixelSize)
         if operations.isEmpty && kind != .raw {
