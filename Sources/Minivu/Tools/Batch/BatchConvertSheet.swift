@@ -3,9 +3,11 @@ import SwiftUI
 import MinivuCore
 import MinivuRender
 
-/// Batch Convert as a sheet on the browser window: format and options,
-/// size and orientation, destination and names, with the first output's
-/// name as a preview.
+/// Batch Convert as a sheet on the browser window: a preset, format and
+/// options, what to do with multi-page files, edits and a watermark, size
+/// and orientation, destination and names, with the first output's name as
+/// a preview. Extract Pages is the same sheet without presets and edits,
+/// with a page range instead.
 @MainActor final class BatchConvertSheet {
     let model: BatchConvertModel
     let window: NSWindow
@@ -21,6 +23,7 @@ import MinivuRender
         window.minSize = NSSize(width: 560, height: 480)
         let view = BatchConvertView(model: model,
                                     onChooseFolder: { [weak self] in self?.chooseFolder() },
+                                    onEditWatermark: { [weak self] in self?.editWatermark() },
                                     onCancel: { [weak self] in self?.end() },
                                     onConvert: { [weak self] in self?.convert() })
         window.contentView = NSHostingView(rootView: view)
@@ -65,6 +68,15 @@ import MinivuRender
         }
     }
 
+    /// Adds or changes the watermark in the viewer's inspector, as a sheet
+    /// over this one.
+    func editWatermark() {
+        guard window.attachedSheet == nil else { return NSSound.beep() }
+        BatchWatermarkSheet(watermark: model.settings.watermark).begin(on: window) { [weak self] watermark in
+            self?.model.settings.watermark = watermark
+        }
+    }
+
     private func convert() {
         // A number being typed is committed when its field loses focus.
         window.makeFirstResponder(nil)
@@ -85,6 +97,7 @@ import MinivuRender
 struct BatchConvertView: View {
     @Bindable var model: BatchConvertModel
     var onChooseFolder: () -> Void
+    var onEditWatermark: () -> Void
     var onCancel: () -> Void
     var onConvert: () -> Void
 
@@ -95,7 +108,10 @@ struct BatchConvertView: View {
                 .padding(.top, 16)
 
             Form {
+                if model.mode == .convert { presetSection }
                 formatSection
+                pagesSection
+                if model.mode == .convert { editsSection }
                 sizeSection
                 destinationSection
                 namesSection
@@ -112,7 +128,7 @@ struct BatchConvertView: View {
                         .font(.callout)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    if let problem = model.resizeProblem ?? model.previewProblem
+                    if let problem = model.resizeProblem ?? model.pageRangeProblem ?? model.previewProblem
                         ?? model.unknownTokens.first.map({ "Unknown token \($0)" }) {
                         Text(problem)
                             .font(.callout)
@@ -123,7 +139,7 @@ struct BatchConvertView: View {
                 Spacer(minLength: 12)
                 Button("Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("Convert", action: onConvert)
+                Button(model.mode == .convert ? "Convert" : "Extract", action: onConvert)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.canConvert)
             }
@@ -135,11 +151,127 @@ struct BatchConvertView: View {
 
     // MARK: - Sections
 
+    @ViewBuilder private var presetSection: some View {
+        Section {
+            BatchPresetControls(items: model.presets.presets.map { .init(id: $0.id, name: $0.name) },
+                                selection: model.selectedPresetID,
+                                contents: "the edits and every option below",
+                                onChoose: { model.choosePreset($0) },
+                                onSave: { model.savePreset(named: $0) },
+                                onRename: { model.renameSelectedPreset(to: $0) },
+                                onDelete: { model.deleteSelectedPreset() })
+        } footer: {
+            InspectorFootnote("Save a photo’s edits as a preset in the viewer with File > Save Edits as Preset…, or save this sheet as it is.")
+        }
+    }
+
+    @ViewBuilder private var pagesSection: some View {
+        switch model.mode {
+        case .convert:
+            Section {
+                Picker("Multi-page files", selection: $model.convertsEveryPage) {
+                    Text("First page only").tag(false)
+                    Text("Every page").tag(true)
+                }
+                .accessibilityHint("What happens to PDFs, multi-page TIFFs and animations")
+            } header: {
+                Text("Pages")
+            } footer: {
+                InspectorFootnote(model.convertsEveryPage
+                    ? (BatchConvertSettings.holdsPages(model.format)
+                        ? "PDFs, multi-page TIFFs and animations become one \(model.format.title) file with all their pages."
+                        : "\(model.format.title) holds one picture, so each page of a PDF, multi-page TIFF or animation becomes a file of its own, numbered.")
+                    : "Only the first page of a PDF or multi-page TIFF, and the first frame of an animation, is converted.")
+            }
+        case .extractPages:
+            Section {
+                Picker("Pages", selection: $model.usesPageRange) {
+                    Text("All pages").tag(false)
+                    Text("A range").tag(true)
+                }
+                .pickerStyle(.radioGroup)
+                if model.usesPageRange {
+                    LabeledContent("From") {
+                        HStack(spacing: 6) {
+                            TextField("First page", value: $model.pageRange.first, format: .number.grouping(.never))
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                                .accessibilityLabel("First page")
+                            Text("to").foregroundStyle(.secondary)
+                            TextField("Last page", value: Binding(get: { model.pageRange.last ?? model.pageRange.first },
+                                                                  set: { model.pageRange.last = $0 }),
+                                      format: .number.grouping(.never))
+                                .labelsHidden()
+                                .textFieldStyle(.roundedBorder)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 60)
+                                .accessibilityLabel("Last page")
+                        }
+                    }
+                }
+            } header: {
+                Text("Pages")
+            } footer: {
+                InspectorFootnote("Each page of a PDF or multi-page TIFF, or each frame of an animation, is written as a file of its own. Files with one page are skipped.")
+            }
+        }
+    }
+
+    @ViewBuilder private var editsSection: some View {
+        Section {
+            if model.settings.edits.isEmpty {
+                LabeledContent("Steps") {
+                    Text("None").foregroundStyle(.secondary)
+                }
+            }
+            ForEach(Array(model.settings.edits.enumerated()), id: \.offset) { index, operation in
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(operation.title)
+                        if let note = BatchEdits.note(for: operation) {
+                            Text(note).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        model.removeEdit(at: index)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Leave this step out of the batch")
+                    .accessibilityLabel("Remove \(operation.title)")
+                }
+                .accessibilityElement(children: .combine)
+            }
+            LabeledContent("Watermark") {
+                HStack(spacing: 8) {
+                    Text(model.watermarkSummary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(model.settings.watermark == nil ? .secondary : .primary)
+                    Button(model.settings.watermark == nil ? "Add…" : "Edit…", action: onEditWatermark)
+                        .accessibilityLabel(model.settings.watermark == nil ? "Add Watermark" : "Edit Watermark")
+                    if model.settings.watermark != nil {
+                        Button("Remove") { model.settings.watermark = nil }
+                            .accessibilityLabel("Remove Watermark")
+                    }
+                }
+            }
+        } header: {
+            Text("Edits")
+        } footer: {
+            InspectorFootnote("Edits are applied to every image first, then the size and orientation below. The watermark is stamped last, at the converted size.")
+        }
+    }
+
     @ViewBuilder private var formatSection: some View {
         let format = model.settings.options.format
         Section("Format") {
             Picker("Format", selection: $model.format) {
-                ForEach(ExportFormat.allCases, id: \.self) { Text($0.title).tag($0) }
+                ForEach(ExportFormat.writableCases, id: \.self) { Text($0.title).tag($0) }
             }
             if format.supportsQuality {
                 LabeledContent("Quality") {
@@ -169,8 +301,18 @@ struct BatchConvertView: View {
             if format == .jpeg {
                 Toggle("Progressive", isOn: $model.settings.options.progressive)
             }
+            if ImageEncoder.canWriteGainMap(format) {
+                Toggle("Keep HDR", isOn: $model.settings.keepsHDR)
+                    .help("HDR photos keep their highlights, written with a gain map. Off, they are tone mapped to SDR.")
+                    .accessibilityHint("HDR photos keep their highlights, written with a gain map")
+                if let note = model.hdrNote {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             if format.supports16Bit {
-                Toggle("16 bits per channel", isOn: $model.settings.options.sixteenBit)
+                Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.settings.options.sixteenBit)
             }
             if format.supportsMetadata {
                 Toggle("Keep metadata (EXIF, GPS, IPTC, XMP)", isOn: $model.settings.options.keepMetadata)
@@ -261,7 +403,7 @@ struct BatchConvertView: View {
             }
             .pickerStyle(.radioGroup)
             if model.usesPattern {
-                RenamePatternEditor(pattern: $model.pattern)
+                RenamePatternEditor(pattern: $model.pattern, offersPageNumber: true)
             }
         }
     }

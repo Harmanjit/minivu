@@ -65,10 +65,23 @@ public enum BatchFileWriter {
     public static func commit(_ data: Data, to url: URL, policy: ExistingFilePolicy,
                               catalog: Catalog = .shared, trash: Trasher = systemTrash, original: URL? = nil,
                               isTaken: (String) -> Bool = { _ in false }) throws -> Result {
-        let folder = url.deletingLastPathComponent()
         let temporary = try writeTemporary(data, beside: url)
+        return try commit(fileAt: temporary, to: url, policy: policy, catalog: catalog, trash: trash,
+                          original: original, isTaken: isTaken)
+    }
+
+    /// `commit` for a file already written in full at `temporary`, a hidden
+    /// sibling of `url` (`temporaryURL(beside:)`): a multi-page file made a
+    /// page at a time rather than held as data. It is flushed to disk, then
+    /// renamed into place under the same rules. The temporary file is gone
+    /// afterwards, whatever happens.
+    public static func commit(fileAt temporary: URL, to url: URL, policy: ExistingFilePolicy,
+                              catalog: Catalog = .shared, trash: Trasher = systemTrash, original: URL? = nil,
+                              isTaken: (String) -> Bool = { _ in false }) throws -> Result {
+        let folder = url.deletingLastPathComponent()
         var target = url
         do {
+            try SafeFileWriter.synchronize(temporary)
             while true {
                 do {
                     try FileOperations.moveExclusively(temporary, to: target)
@@ -133,13 +146,18 @@ public enum BatchFileWriter {
         return trashed
     }
 
-    /// The complete file under a hidden name in the destination's folder,
-    /// flushed to disk.
+    /// A hidden name in `url`'s folder for a file being made, which `commit
+    /// (fileAt:)` later renames into place.
+    public static func temporaryURL(beside url: URL) -> URL {
+        SafeFileWriter.temporaryURL(for: url)
+    }
+
+    /// The complete file under a hidden name in the destination's folder
+    /// (`commit(fileAt:)` flushes it to disk).
     static func writeTemporary(_ data: Data, beside url: URL) throws -> URL {
         let temporary = SafeFileWriter.temporaryURL(for: url)
         do {
             try data.write(to: temporary, options: .withoutOverwriting)
-            try SafeFileWriter.synchronize(temporary)
         } catch {
             if FileOperations.itemExists(temporary) { try? FileManager.default.removeItem(at: temporary) }
             throw error

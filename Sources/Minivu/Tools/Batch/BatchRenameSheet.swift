@@ -63,6 +63,20 @@ struct BatchRenameView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
 
+            Form {
+                BatchPresetControls(items: model.presets.presets.map { .init(id: $0.id, name: $0.name) },
+                                    selection: model.selectedPresetID,
+                                    contents: "the pattern, counter and letter case",
+                                    onChoose: { model.choosePreset($0) },
+                                    onSave: { model.savePreset(named: $0) },
+                                    onRename: { model.renameSelectedPreset(to: $0) },
+                                    onDelete: { model.deleteSelectedPreset() })
+            }
+            .formStyle(.columns)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .disabled(model.isRenaming)
+
             RenamePatternEditor(pattern: $model.pattern, layout: .grid)
                 .padding(.horizontal, 20)
             .padding(.vertical, 14)

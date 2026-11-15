@@ -4,8 +4,8 @@ import MinivuCore
 
 /// Everything Batch Convert asks about (DESIGN.md 5, "Tools"): the output
 /// format and its options, where the files go and what they are called,
-/// what to do about names already taken, and the resize, rotate and flip
-/// applied on the way.
+/// what to do about names already taken, and the edits (a preset's), resize,
+/// rotate, flip and watermark applied on the way.
 ///
 /// `Codable`, and remembered between launches; decoding fills anything
 /// missing from the defaults, so settings saved by an older minivu still
@@ -18,6 +18,18 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         /// bookmark: under the sandbox a path alone couldn't be written to
         /// in a later session.
         case chosenFolder(bookmark: Data)
+    }
+
+    /// What happens to the pages of a multi-page original: a PDF, a
+    /// multi-page TIFF, the frames of an animation.
+    public enum Pages: Codable, Hashable, Sendable {
+        /// The first page or frame only, as Batch Convert has always done.
+        case first
+        /// Every page: into one multi-page file where the format holds pages
+        /// (`holdsPages`: TIFF, GIF), otherwise one file per page.
+        case all
+        /// One file per page, for the pages in the range (Extract Pages).
+        case separate(PageRange)
     }
 
     public enum Naming: Codable, Hashable, Sendable {
@@ -37,11 +49,27 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
     public var quarterTurns: Int
     public var flipHorizontal: Bool
     public var flipVertical: Bool
+    /// Edit steps applied to every image first, before the turn, flip and
+    /// resize: a preset's (`BatchEdits.portable` decided which steps may be
+    /// here). Auto Enhance steps are measured again on each image.
+    public var edits: [EditOperation]
+    /// A watermark stamped last, after the resize, so it is drawn crisply
+    /// at the output's size. Its lengths are fractions of the short side, so
+    /// it covers the same share of every photo.
+    public var watermark: Watermark?
+    /// HDR originals keep their highlights where the format can hold them:
+    /// written with an ISO gain map as JPEG, HEIC or AVIF, the way Save keeps
+    /// a gain-map photo HDR. Off, or for any other format, they are tone
+    /// mapped to SDR.
+    public var keepsHDR: Bool
+    /// The pages of multi-page originals; the first only by default.
+    public var pages: Pages
 
     public init(options: ExportOptions = .defaults(for: .jpeg), destination: Destination = .besideOriginals,
                 naming: Naming = .keep, existingFiles: BatchFileWriter.ExistingFilePolicy = .keepBoth,
                 resize: BatchResize = BatchResize(), quarterTurns: Int = 0, flipHorizontal: Bool = false,
-                flipVertical: Bool = false) {
+                flipVertical: Bool = false, edits: [EditOperation] = [], watermark: Watermark? = nil,
+                keepsHDR: Bool = true, pages: Pages = .first) {
         self.options = options
         self.destination = destination
         self.naming = naming
@@ -50,10 +78,15 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         self.quarterTurns = quarterTurns
         self.flipHorizontal = flipHorizontal
         self.flipVertical = flipVertical
+        self.edits = edits
+        self.watermark = watermark
+        self.keepsHDR = keepsHDR
+        self.pages = pages
     }
 
     private enum CodingKeys: String, CodingKey {
         case options, destination, naming, existingFiles, resize, quarterTurns, flipHorizontal, flipVertical
+        case edits, watermark, keepsHDR, pages
     }
 
     public init(from decoder: any Decoder) throws {
@@ -68,6 +101,18 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         quarterTurns = (try? c.decodeIfPresent(Int.self, forKey: .quarterTurns)) ?? d.quarterTurns
         flipHorizontal = (try? c.decodeIfPresent(Bool.self, forKey: .flipHorizontal)) ?? d.flipHorizontal
         flipVertical = (try? c.decodeIfPresent(Bool.self, forKey: .flipVertical)) ?? d.flipVertical
+        edits = (try? c.decodeIfPresent([EditOperation].self, forKey: .edits)) ?? d.edits
+        watermark = (try? c.decodeIfPresent(Watermark.self, forKey: .watermark)) ?? d.watermark
+        keepsHDR = (try? c.decodeIfPresent(Bool.self, forKey: .keepsHDR)) ?? d.keepsHDR
+        pages = (try? c.decodeIfPresent(Pages.self, forKey: .pages)) ?? d.pages
+    }
+
+    /// Formats that hold several pages in one file, which "every page"
+    /// writes into: TIFF (pages) and GIF (frames). HEIC is left out: an
+    /// animated HEIC is a different kind of file from the photo HEIC a
+    /// batch is asked for, and every other format holds one picture.
+    public static func holdsPages(_ format: ExportFormat) -> Bool {
+        format == .tiff || format == .gif
     }
 
     /// The settings `output` is converted with. Remove location is for
@@ -82,10 +127,11 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
     }
 
     /// The edit operations for a source of `sourceSize` (oriented pixels):
-    /// turn, then flip, then resize, so a width or long side refers to the
-    /// picture as it comes out. Empty when the pixels only change format.
+    /// the edits, then turn, then flip, then resize, so a width or long side
+    /// refers to the picture as it comes out, then the watermark. Empty when
+    /// the pixels only change format.
     public func operations(sourceSize: CGSize) -> [EditOperation] {
-        var operations: [EditOperation] = []
+        var operations = edits
         let turns = ((quarterTurns % 4) + 4) % 4
         if turns != 0 { operations.append(.rotate90(turns: turns)) }
         if flipHorizontal { operations.append(.flip(horizontal: true)) }
@@ -94,17 +140,25 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         if let size = resize.targetSize(for: turned) {
             operations.append(.resize(width: size.width, height: size.height, filter: resize.filter))
         }
+        if let watermark, !watermark.isIdentity { operations.append(.watermark(watermark)) }
         return operations
     }
 
     /// The output name for a source (at `index` in the batch), with the
     /// format's extension.
+    ///
+    /// An output taken from one page of a multi-page original (a source with
+    /// a `page`) is told apart by its page number: where the pattern names
+    /// it (`{page}`) or, failing that, after the name ("scan-03.jpg"), so
+    /// the pages of one file never ask for one name.
     public func outputName(for source: RenameSource, index: Int, namer: RenameNamer?) -> String {
         let ext = options.format.fileExtension
-        guard let namer else {
-            return RenameNamer.split(source.url.lastPathComponent).base + "." + ext
-        }
-        return namer.name(for: source, index: index, newExtension: ext)
+        let name = namer?.name(for: source, index: index, newExtension: ext)
+            ?? RenameNamer.split(source.url.lastPathComponent).base + "." + ext
+        guard let page = source.page, namer?.pattern.usesPageNumber != true else { return name }
+        let (base, nameExtension) = RenameNamer.split(name)
+        let number = RenameNamer.pageLabel(page, of: source.pageCount ?? page)
+        return base + "-" + number + (nameExtension.isEmpty ? "" : "." + nameExtension)
     }
 
     public var pattern: RenamePattern? {

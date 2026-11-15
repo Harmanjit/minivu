@@ -57,6 +57,8 @@ import AppKit
     @objc optional func saveImage(_ sender: Any?)
     @objc optional func saveImageAs(_ sender: Any?)
     @objc optional func revertToSaved(_ sender: Any?)
+    /// The viewer's edits as a Batch Convert preset (G6); only the viewer.
+    @objc optional func saveEditsAsPreset(_ sender: Any?)
     @objc optional func rotateLeft(_ sender: Any?)
     @objc optional func rotateRight(_ sender: Any?)
     @objc optional func flipHorizontal(_ sender: Any?)
@@ -144,6 +146,14 @@ import AppKit
     /// Prints with a page layout. Page Setup is AppKit's own
     /// `NSApplication.runPageLayout(_:)`.
     @objc optional func printImages(_ sender: Any?)
+    /// Every page of multi-page files (or a range) as separate files: the
+    /// Batch Convert sheet in its Extract Pages mode (G17).
+    @objc optional func extractPages(_ sender: Any?)
+    /// The images, in an order chosen, as one multi-page TIFF, PDF or
+    /// animation (G17).
+    @objc optional func createMultiPageFile(_ sender: Any?)
+    /// The images joined into one picture, in a row, a column or a grid (G17).
+    @objc optional func makeImageStrip(_ sender: Any?)
     @objc optional func makeContactSheet(_ sender: Any?)
     @objc optional func makeMontage(_ sender: Any?)
     @objc optional func setAsDesktopPicture(_ sender: Any?)
@@ -199,6 +209,7 @@ extension Selector {
     static let saveImage = #selector(MinivuActions.saveImage(_:))
     static let saveImageAs = #selector(MinivuActions.saveImageAs(_:))
     static let revertToSaved = #selector(MinivuActions.revertToSaved(_:))
+    static let saveEditsAsPreset = #selector(MinivuActions.saveEditsAsPreset(_:))
     static let rotateLeft = #selector(MinivuActions.rotateLeft(_:))
     static let rotateRight = #selector(MinivuActions.rotateRight(_:))
     static let flipHorizontal = #selector(MinivuActions.flipHorizontal(_:))
@@ -254,6 +265,9 @@ extension Selector {
     static let batchConvert = #selector(MinivuActions.batchConvert(_:))
     static let batchRename = #selector(MinivuActions.batchRename(_:))
     static let printImages = #selector(MinivuActions.printImages(_:))
+    static let extractPages = #selector(MinivuActions.extractPages(_:))
+    static let createMultiPageFile = #selector(MinivuActions.createMultiPageFile(_:))
+    static let makeImageStrip = #selector(MinivuActions.makeImageStrip(_:))
     static let makeContactSheet = #selector(MinivuActions.makeContactSheet(_:))
     static let makeMontage = #selector(MinivuActions.makeMontage(_:))
     static let setAsDesktopPicture = #selector(MinivuActions.setAsDesktopPicture(_:))

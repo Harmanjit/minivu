@@ -110,28 +110,38 @@ import os
     static func setLabel(_ label: ColorLabel, for urls: [URL], writer: MarksFileWriter = .shared,
                          completion: @escaping ([URL]) -> Void = { _ in }) {
         guard !urls.isEmpty else { return }
+        work = Task {
+            let result = await write(label, for: urls, writer: writer)
+            if !result.failed.isEmpty { NSSound.beep() }
+            completion(result.done)
+        }
+    }
+
+    /// `setLabel`'s work, awaited and silent: the files that took the label
+    /// and those that didn't, for a caller that reports failures itself (a
+    /// Shortcuts action, which has no window to beep at).
+    static func write(_ label: ColorLabel, for urls: [URL],
+                      writer: MarksFileWriter = .shared) async -> (done: [URL], failed: [URL]) {
+        guard !urls.isEmpty else { return ([], []) }
         let names = standardNames
         let job = FileWriteQueue.shared.enqueue(touching: urls) {
-            await BlockingWork.run { () -> (done: [URL], failed: Int) in
-                var done: [URL] = [], failed = 0
+            await BlockingWork.run { () -> (done: [URL], failed: [URL]) in
+                var done: [URL] = [], failed: [URL] = []
                 for url in urls {
                     do {
                         try FinderTags.setColorLabel(label, for: url, standardNames: names)
                         done.append(url)
                     } catch {
-                        failed += 1
+                        failed.append(url)
                         labelLog.error("Labelling \(url.lastPathComponent, privacy: .private) failed: \(error.localizedDescription, privacy: .public)")
                     }
                 }
                 return (done, failed)
             }
         }
-        work = Task {
-            let result = (try? await job.value)?.value ?? ([], urls.count)
-            if result.failed > 0 { NSSound.beep() }
-            writer.labelChanged(label, of: result.done)
-            completion(result.done)
-        }
+        let result: (done: [URL], failed: [URL]) = (try? await job.value)?.value ?? ([], urls)
+        writer.labelChanged(label, of: result.done)
+        return result
     }
 }
 

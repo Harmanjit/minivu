@@ -112,7 +112,7 @@ struct SaveAsAccessoryView: View {
         let format = model.options.format
         Form {
             Picker("Format", selection: $model.format) {
-                ForEach(ExportFormat.allCases, id: \.self) { format in
+                ForEach(ExportFormat.writableCases, id: \.self) { format in
                     Text(format.title).tag(format)
                 }
             }
@@ -169,7 +169,7 @@ struct SaveAsAccessoryView: View {
                             Toggle("Progressive", isOn: $model.options.progressive)
                         }
                         if format.supports16Bit {
-                            Toggle("16 bits per channel", isOn: $model.options.sixteenBit)
+                            Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.options.sixteenBit)
                         }
                         if format.supportsMetadata {
                             Toggle("Keep metadata (EXIF, GPS, IPTC, XMP)", isOn: $model.options.keepMetadata)

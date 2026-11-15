@@ -1290,6 +1290,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         if let enabled = validateToolAction(menuItem.action) { return enabled }
         if let enabled = validateClipboardAction(menuItem.action) { return enabled }
         if let enabled = validateLiveTextAction(menuItem.action) { return enabled }
+        if let enabled = validateBatchPresetAction(menuItem.action) { return enabled }
         switch menuItem.action {
         case .nextImage: return model.canGoNext
         case .previousImage: return model.canGoPrevious

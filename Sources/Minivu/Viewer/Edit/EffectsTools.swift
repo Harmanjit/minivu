@@ -32,6 +32,10 @@ protocol EffectTool: EditToolState {
 ///
 /// The effect shows at once with its defaults, as a dialog with a preview
 /// would, so opening Drop Shadow already shows a shadow.
+///
+/// Without a document (Batch Convert's watermark, which has no photo to
+/// preview on) the state only holds the payload for its inspector, and the
+/// caller reads `payload` when the user applies.
 @Observable final class EffectToolState<Payload: Hashable & Sendable>: EffectTool {
     let kind: EffectKind
     /// What the tool opened with, and what Reset returns to.
@@ -40,7 +44,7 @@ protocol EffectTool: EditToolState {
 
     /// For a canvas overlay, which isn't SwiftUI: every change to the payload.
     @ObservationIgnored var onChange: (() -> Void)?
-    @ObservationIgnored private let document: EditDocument
+    @ObservationIgnored private let document: EditDocument?
     @ObservationIgnored private let makeOperation: (Payload) -> EditOperation
     /// Applied or cancelled. The shared colour panel can outlive the
     /// inspector whose well opened it, and a colour picked there afterwards
@@ -48,7 +52,7 @@ protocol EffectTool: EditToolState {
     /// the committed edit, with no tool open to apply or cancel it.
     @ObservationIgnored private var isClosed = false
 
-    init(kind: EffectKind, document: EditDocument, initial: Payload,
+    init(kind: EffectKind, document: EditDocument?, initial: Payload,
          operation: @escaping (Payload) -> EditOperation) {
         self.kind = kind
         self.document = document
@@ -60,7 +64,7 @@ protocol EffectTool: EditToolState {
 
     var title: String { kind.title }
     var operation: EditOperation { makeOperation(payload) }
-    var hasPendingChanges: Bool { document.preview != nil }
+    var hasPendingChanges: Bool { document?.preview != nil }
 
     /// Changes the payload; the preview follows (renders coalesce, so a
     /// dragged slider skips states the GPU can't keep up with).
@@ -77,13 +81,13 @@ protocol EffectTool: EditToolState {
     func apply() {
         guard !isClosed else { return }
         isClosed = true
-        document.apply(operation)   // an identity commits nothing and clears the preview
+        document?.apply(operation)   // an identity commits nothing and clears the preview
     }
 
     func cancel() {
         guard !isClosed else { return }
         isClosed = true
-        document.preview = nil
+        document?.preview = nil
     }
 
     func reset() {
@@ -91,6 +95,7 @@ protocol EffectTool: EditToolState {
     }
 
     private func showPreview() {
+        guard let document else { return }
         let op = operation
         document.preview = op.isIdentity ? nil : op
     }

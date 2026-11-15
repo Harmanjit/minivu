@@ -17,6 +17,7 @@ import Foundation
 /// | `{modified}`, `{modified:HH.mm}` | the modification date |
 /// | `{width}`, `{height}` | the picture's pixel size as displayed |
 /// | `{ext}` | the original extension, without the dot |
+/// | `{page}`, `{frame}` | the page or frame number, from 1, padded to the file's page count (Extract Pages and Batch Convert's every-page outputs only) |
 ///
 /// A date format is a Unicode date pattern (`DateFormatter.dateFormat`),
 /// `yyyy-MM-dd` when left out. Names are made in this order: tokens, then
@@ -111,6 +112,8 @@ public struct RenamePattern: Codable, Hashable, Sendable {
         case width
         case height
         case fileExtension
+        /// The page or frame an output was taken from.
+        case page
     }
 
     /// The pattern's pieces, and the tokens it doesn't know ("{nmae}"),
@@ -164,6 +167,7 @@ public struct RenamePattern: Codable, Hashable, Sendable {
         case "width" where parts.count == 1: return .width
         case "height" where parts.count == 1: return .height
         case "ext" where parts.count == 1: return .fileExtension
+        case "page" where parts.count == 1, "frame" where parts.count == 1: return .page
         default: return nil
         }
     }
@@ -179,6 +183,12 @@ public struct RenamePattern: Codable, Hashable, Sendable {
             }
         }
     }
+
+    /// Whether the pattern names the page or frame (`{page}`), which outputs
+    /// taken from one page of a multi-page file need to tell them apart.
+    public var usesPageNumber: Bool {
+        tokens.tokens.contains(.page)
+    }
 }
 
 /// What a pattern may need to know about one file.
@@ -193,15 +203,21 @@ public struct RenameSource: Hashable, Sendable {
     /// As displayed (EXIF orientation applied).
     public var pixelWidth: Int?
     public var pixelHeight: Int?
+    /// For an output taken from one page of a multi-page file: that page,
+    /// from 1, and how many the file has (`{page}` is padded to its digits).
+    public var page: Int?
+    public var pageCount: Int?
 
     public init(url: URL, modified: Date? = nil, dateTaken: Date? = nil, dateTakenTimeZone: TimeZone? = nil,
-                pixelWidth: Int? = nil, pixelHeight: Int? = nil) {
+                pixelWidth: Int? = nil, pixelHeight: Int? = nil, page: Int? = nil, pageCount: Int? = nil) {
         self.url = url
         self.modified = modified
         self.dateTaken = dateTaken
         self.dateTakenTimeZone = dateTakenTimeZone
         self.pixelWidth = pixelWidth
         self.pixelHeight = pixelHeight
+        self.page = page
+        self.pageCount = pageCount
     }
 
     /// Fills in the date taken (EXIF DateTimeOriginal, else DateTimeDigitized)
@@ -270,10 +286,18 @@ public struct RenameNamer {
         var byKey: [String: DateFormatter] = [:]
     }
 
-    public init(pattern: RenamePattern, timeZone: TimeZone = .current) {
+    /// - Parameter allowsPageNumber: false for Batch Rename, which renames
+    ///   whole files: `{page}` is then an unknown token, shown and refused,
+    ///   rather than quietly naming nothing.
+    public init(pattern: RenamePattern, timeZone: TimeZone = .current, allowsPageNumber: Bool = true) {
         self.pattern = pattern
         self.timeZone = timeZone
-        (tokens, unknownTokens) = RenamePattern.parse(pattern.text)
+        var (tokens, unknown) = RenamePattern.parse(pattern.text)
+        if !allowsPageNumber, tokens.contains(.page) {
+            tokens = tokens.map { $0 == .page ? .literal("{page}") : $0 }
+            unknown.append("{page}")
+        }
+        (self.tokens, unknownTokens) = (tokens, unknown)
     }
 
     /// The base name (no extension) for the file at `index` in the batch.
@@ -292,6 +316,8 @@ public struct RenameNamer {
             case .width: result += source.pixelWidth.map(String.init) ?? ""
             case .height: result += source.pixelHeight.map(String.init) ?? ""
             case .fileExtension: result += Self.split(original).ext
+            case .page:
+                if let page = source.page { result += Self.pageLabel(page, of: source.pageCount ?? page) }
             }
         }
         if !pattern.find.isEmpty {
@@ -333,6 +359,14 @@ public struct RenameNamer {
         formatter.dateFormat = format
         formatters.byKey[key] = formatter
         return formatter.string(from: date)
+    }
+
+    /// A page number padded to the digits of the page count ("03" of 12),
+    /// so a folder of pages sorts in order.
+    public static func pageLabel(_ page: Int, of count: Int) -> String {
+        let digits = String(max(count, page)).count
+        let number = String(page)
+        return String(repeating: "0", count: max(0, digits - number.count)) + number
     }
 
     /// "photo.jpg" → ("photo", "jpg"); ".profile" and "README" have no

@@ -53,6 +53,9 @@ import MinivuRender
     var onEncoded: ((Int) -> Void)?
 
     private var nextIndex = 0
+    /// The pages of the file being worked through, shared by its page
+    /// outputs (Extract Pages, every page as separate files).
+    private let sequences = PageSequences()
     private var results: [Int: FileResult] = [:]
     private let rawSlot = AsyncSlot()
 
@@ -107,9 +110,9 @@ import MinivuRender
                 outcome.written.append(url)
                 if let trashed { outcome.trashed.append(trashed) }
             case .skipped(let reason)?:
-                outcome.skipped.append(Entry(source: outputs[index].source, detail: reason))
+                outcome.skipped.append(Entry(source: outputs[index].source, detail: Self.detail(reason, outputs[index])))
             case .failed(let reason)?:
-                outcome.failed.append(Entry(source: outputs[index].source, detail: reason))
+                outcome.failed.append(Entry(source: outputs[index].source, detail: Self.detail(reason, outputs[index])))
             case nil:
                 break
             }
@@ -152,13 +155,19 @@ import MinivuRender
                     break
                 }
             }
-            let data: Data
+            let encoded: BatchConverter.Encoded
             do {
-                let converter = self.converter, settings = self.settings.settings(for: output), source = output.source
-                data = try await withTaskExecutorPreference(BatchWorkExecutor.shared) {
-                    try await converter.encodedData(for: source, settings: settings)
+                let converter = self.converter, settings = self.settings.settings(for: output)
+                let cancel = progress.cancellation, sequences = self.sequences
+                encoded = try await withTaskExecutorPreference(BatchWorkExecutor.shared) {
+                    try await converter.encoded(output, settings: settings, cancel: cancel, sequences: sequences)
                 }
                 if isRaw { rawSlot.release() }
+            } catch is CancellationError {
+                // A multi-page file stopped part way: it was deleted, and
+                // nothing more starts.
+                if isRaw { rawSlot.release() }
+                break
             } catch {
                 if isRaw { rawSlot.release() }
                 results[index] = .failed(SaveAlert.message(for: error))
@@ -167,16 +176,25 @@ import MinivuRender
             }
             onEncoded?(index)
             // Converted after Cancel: dropped, never written.
-            guard !progress.isCancelled else { break }
+            guard !progress.isCancelled else {
+                if case .file(let temporary) = encoded { try? FileManager.default.removeItem(at: temporary) }
+                break
+            }
 
             let destination = output.destination, trash = self.trash, catalog = self.catalog
             let original = output.replacesOriginal ? output.source : nil
             let folder = destination.deletingLastPathComponent()
             let write = writes.enqueue(replacing: [destination]) {
                 try await BlockingWork.run {
-                    try BatchFileWriter.commit(data, to: destination, policy: policy, catalog: catalog, trash: trash,
-                                               original: original) { name in
-                        taken.contains(Self.pathKey(folder.appendingPathComponent(name)))
+                    let isTaken = { (name: String) in taken.contains(Self.pathKey(folder.appendingPathComponent(name))) }
+                    switch encoded {
+                    case .data(let data):
+                        return try BatchFileWriter.commit(data, to: destination, policy: policy, catalog: catalog,
+                                                          trash: trash, original: original, isTaken: isTaken)
+                    case .file(let temporary):
+                        return try BatchFileWriter.commit(fileAt: temporary, to: destination, policy: policy,
+                                                          catalog: catalog, trash: trash, original: original,
+                                                          isTaken: isTaken)
                     }
                 }
             }
@@ -192,6 +210,13 @@ import MinivuRender
             }
             progress.advance()
         }
+    }
+
+    /// A reason, with the page it concerns when the output is one page of
+    /// a multi-page original ("Page 3: …").
+    nonisolated static func detail(_ reason: String, _ output: BatchOutput) -> String {
+        guard case .page(let index, _) = output.pages else { return reason }
+        return "Page \(index + 1): \(reason)"
     }
 
     nonisolated static func pathKey(_ url: URL) -> String {
@@ -232,13 +257,21 @@ import MinivuRender
     var currentName = ""
     private(set) var isCancelled = false
     private(set) var isFinished = false
+    /// Cancel as work off the main actor sees it: a multi-page file checks
+    /// it between pages.
+    @ObservationIgnored let cancellation = CancellationFlag()
 
     init(total: Int) {
         self.total = total
     }
 
     func advance() { done = min(done + 1, total) }
-    func cancel() { isCancelled = true }
+    /// For work that reports how far it is itself (pages of one file).
+    func set(done count: Int) { done = min(max(count, done), total) }
+    func cancel() {
+        isCancelled = true
+        cancellation.cancel()
+    }
     func finish() { isFinished = true }
 }
 

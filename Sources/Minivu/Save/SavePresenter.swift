@@ -63,8 +63,8 @@ enum SavePresenter {
     /// Save (⌘S): writes the edited image over its original, in the original's
     /// format with the options last used for that format, after confirming the
     /// overwrite (with "Don't ask again"). Formats minivu can't write (camera
-    /// RAW, WebP, JPEG XL, AVIF, PDF, SVG, PSD, animated files) fall back to
-    /// Save As. On success calls `document.markSaved()`, invalidates caches and
+    /// RAW, WebP, JPEG XL, PDF, SVG, PSD, animated files, and AVIF on a Mac
+    /// whose ImageIO has no AVIF encoder) fall back to Save As. On success calls `document.markSaved()`, invalidates caches and
     /// calls `completion(true)`.
     ///
     /// Saves run one after another (`FileWriteQueue`): ⌘S, an edit and ⌘S

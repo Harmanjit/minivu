@@ -265,15 +265,6 @@ nonisolated final class LayoutImageProvider: @unchecked Sendable {
     }
 }
 
-/// A flag a long job checks between steps; set from any thread.
-nonisolated final class CancellationFlag: @unchecked Sendable {
-    private let lock = NSLock()
-    private var cancelled = false
-
-    var isCancelled: Bool { lock.withLock { cancelled } }
-    func cancel() { lock.withLock { cancelled = true } }
-}
-
 /// Draws pages. The context's user space is the page in layout units with
 /// y growing upwards from the bottom-left corner, as Core Graphics has it;
 /// callers set the transform (a printer's flipped view, a PDF's points).
