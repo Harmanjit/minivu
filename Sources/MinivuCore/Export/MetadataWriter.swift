@@ -5,7 +5,9 @@ import UniformTypeIdentifiers
 
 /// Writes Edit Metadata's changes: title, caption, keywords, creator,
 /// copyright, the date taken and the location, into the file itself
-/// without re-encoding a pixel, or into an XMP sidecar beside it.
+/// without re-encoding a pixel, or into an XMP sidecar beside it. The
+/// browser's quick keyword edits and the ratings, tag and colour label
+/// minivu mirrors into files (G2, `MarksXMP`) take the same path.
 ///
 /// **In the file** (JPEG, HEIC/HEIF, PNG, TIFF): the descriptive fields are
 /// written as XMP (dc:title, dc:description, dc:subject, dc:creator,
@@ -204,6 +206,9 @@ public enum MetadataWriter {
                     in: metadata)
         }
         if edit.removeLocation { LocationMetadata.strip(metadata) }
+        if let rating = edit.rating { MarksXMP.setRating(rating, in: metadata) }
+        if let tagged = edit.tagged { MarksXMP.setTagged(tagged, in: metadata) }
+        if let label = edit.colorLabel { MarksXMP.setLabel(label, in: metadata) }
     }
 
     /// A language alternative (title, description, rights) as its default
@@ -259,6 +264,11 @@ public enum MetadataWriter {
         if edit.changesKeywords, Set(actual.keywords) != Set(expected.keywords) { throw Error.didNotTake("keywords") }
         if edit.date != nil, let date = expected.dateTaken, actual.dateTaken != date { throw Error.didNotTake("date taken") }
         if checkLocation, edit.removeLocation, actual.hasLocation { throw Error.didNotTake("location removal") }
+        if edit.rating != nil, actual.rating != expected.rating { throw Error.didNotTake("rating") }
+        if edit.tagged != nil, (actual.pickLabel == MarksXMP.accepted) != (expected.pickLabel == MarksXMP.accepted) {
+            throw Error.didNotTake("tag")
+        }
+        if edit.colorLabel != nil, actual.label != expected.label { throw Error.didNotTake("label") }
     }
 
     // MARK: - HEIC and TIFF

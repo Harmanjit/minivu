@@ -187,10 +187,17 @@ public struct MetadataEdit: Hashable, Sendable {
     public var removedKeywords: [String] = []
     public var date: DateChange?
     public var removeLocation = false
+    /// Stars as `xmp:Rating` (G2): 1 to 5, or 0 to clear a rating (a
+    /// reject, -1, is kept). Nil leaves it alone.
+    public var rating: Int?
+    /// The tag as `digiKam:PickLabel` 3 (`MarksXMP`); nil leaves it alone.
+    public var tagged: Bool?
+    /// The colour label as `xmp:Label`; `.none` removes a colour's name.
+    public var colorLabel: ColorLabel?
 
     public init(title: String? = nil, caption: String? = nil, creator: String? = nil, copyright: String? = nil,
                 addedKeywords: [String] = [], removedKeywords: [String] = [], date: DateChange? = nil,
-                removeLocation: Bool = false) {
+                removeLocation: Bool = false, rating: Int? = nil, tagged: Bool? = nil, colorLabel: ColorLabel? = nil) {
         self.title = title
         self.caption = caption
         self.creator = creator
@@ -199,12 +206,18 @@ public struct MetadataEdit: Hashable, Sendable {
         self.removedKeywords = removedKeywords
         self.date = date
         self.removeLocation = removeLocation
+        self.rating = rating
+        self.tagged = tagged
+        self.colorLabel = colorLabel
     }
 
     public var isEmpty: Bool {
         title == nil && caption == nil && creator == nil && copyright == nil && addedKeywords.isEmpty
-            && removedKeywords.isEmpty && date == nil && !removeLocation
+            && removedKeywords.isEmpty && date == nil && !removeLocation && !changesMarks
     }
+
+    /// Whether this changes the stars, the tag or the colour label.
+    public var changesMarks: Bool { rating != nil || tagged != nil || colorLabel != nil }
 
     /// `fields` as they should read once this edit is written. A date shift
     /// of a photo with no date taken leaves it without one.
@@ -217,6 +230,17 @@ public struct MetadataEdit: Hashable, Sendable {
         result.keywords = keywords(applyingTo: fields.keywords)
         if let date { result.dateTaken = date.applied(to: fields.dateTaken) }
         if removeLocation { result.hasLocation = false }
+        if let rating {
+            let stars = min(max(rating, 0), 5)
+            result.rating = stars > 0 ? stars : fields.rating.flatMap { $0 < 0 ? $0 : nil }
+        }
+        if let tagged {
+            result.pickLabel = tagged ? MarksXMP.accepted : fields.pickLabel == MarksXMP.accepted ? nil : fields.pickLabel
+        }
+        if let colorLabel {
+            result.label = colorLabel != .none ? colorLabel.name
+                : fields.label.flatMap { ColorLabel(xmpLabel: $0) == nil ? $0 : nil }
+        }
         return result
     }
 
@@ -259,11 +283,18 @@ public struct MetadataFields: Hashable, Sendable {
     public var keywords: [String] = []
     public var dateTaken: WallClock?
     public var hasLocation = false
+    /// `xmp:Rating` as written: 1 to 5 stars, 0, or -1 for a reject.
+    public var rating: Int?
+    /// digiKam's pick (3 is minivu's tag; see `MarksXMP`).
+    public var pickLabel: Int?
+    /// `xmp:Label`: a colour's name, or another application's label text.
+    public var label: String?
     /// The sidecar the values were partly read from, if any.
     public var sidecar: URL?
 
     public init(title: String = "", caption: String = "", creator: String = "", copyright: String = "",
-                keywords: [String] = [], dateTaken: WallClock? = nil, hasLocation: Bool = false, sidecar: URL? = nil) {
+                keywords: [String] = [], dateTaken: WallClock? = nil, hasLocation: Bool = false,
+                rating: Int? = nil, pickLabel: Int? = nil, label: String? = nil, sidecar: URL? = nil) {
         self.title = title
         self.caption = caption
         self.creator = creator
@@ -271,6 +302,9 @@ public struct MetadataFields: Hashable, Sendable {
         self.keywords = keywords
         self.dateTaken = dateTaken
         self.hasLocation = hasLocation
+        self.rating = rating
+        self.pickLabel = pickLabel
+        self.label = label
         self.sidecar = sidecar
     }
 
@@ -330,6 +364,9 @@ public struct MetadataFields: Hashable, Sendable {
         fields.dateTaken = text(exif, kCGImagePropertyExifDateTimeOriginal).flatMap(WallClock.init(exif:))
             ?? xmpDate(metadata, ["exif:DateTimeOriginal", "photoshop:DateCreated"])
         fields.hasLocation = LocationMetadata.isPresent(properties: properties, metadata: metadata)
+        fields.rating = MarksXMP.rating(in: metadata)
+        fields.pickLabel = MarksXMP.pickLabel(in: metadata)
+        fields.label = MarksXMP.label(in: metadata)
         return fields
     }
 
@@ -345,6 +382,9 @@ public struct MetadataFields: Hashable, Sendable {
         }
         if let date = Self.xmpDate(metadata, ["exif:DateTimeOriginal", "photoshop:DateCreated"]) { dateTaken = date }
         if LocationMetadata.isPresent(properties: [:], metadata: metadata) { hasLocation = true }
+        if let rating = MarksXMP.rating(in: metadata) { self.rating = rating }
+        if let pick = MarksXMP.pickLabel(in: metadata) { pickLabel = pick }
+        if let label = MarksXMP.label(in: metadata) { self.label = label }
     }
 
     static func creatorText(_ names: [String]) -> String {
