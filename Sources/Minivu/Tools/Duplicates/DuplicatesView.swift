@@ -45,12 +45,14 @@ struct DuplicatesView: View {
                     }
                 }
                 .fixedSize()
+                .disabled(model.isRunning)
                 Picker("Find:", selection: $model.mode) {
                     Text("Identical Files").tag(DuplicateFinder.Mode.exact)
                     Text("Similar Images").tag(DuplicateFinder.Mode.similar)
                 }
                 .pickerStyle(.segmented)
                 .fixedSize()
+                .disabled(model.isRunning)
                 Spacer()
                 if model.isRunning {
                     Button("Stop") { model.stop() }

@@ -1,4 +1,4 @@
-# Feature notes: find across folders, flat view, filters, smart folders and collections (G3)
+# Feature notes: find across folders, flat view, filters, smart folders and collections (G3), duplicate finder (G5)
 
 Branch `feature/org`. Notes for the documentation pass: what was built,
 why, the limits, and which DESIGN.md, wiki and help sections should change.
@@ -333,3 +333,207 @@ folder"). Nothing new animates.
   queried.
 - **Help Browser.md:** Flat View, More Filters, Find, Smart Folders and
   Collections sections.
+
+---
+
+# G5: duplicate and similar image finder
+
+## What the user can do
+
+- **Tools > Find Duplicates…** (no shortcut, like Contact Sheet and
+  Montage: an occasional tidy-up). Available in the browser whenever it
+  shows a folder, a list or a selection. It opens one window, **Find
+  Duplicates**; asking again brings it forward pointed at what the browser
+  shows now.
+- **Look in:** *Selected Images (N)* (the default when images are
+  selected), *“Folder”* (the folder shown, without its subfolders; for a
+  list the browser shows instead of a folder, such as search results or a
+  collection, this is *Images Shown*), or *“Folder” and Subfolders* (the
+  tree, through the same walk and limits as the flat view and Find).
+- **Find:** *Identical Files* (same bytes) or *Similar Images* (pictures
+  that look alike: resized or re-encoded copies, edits, bursts). Return
+  runs **Find**; while it runs there is a progress bar with what it is
+  doing ("Comparing files of the same size… 120 of 400", "Analysing
+  images… 50 of 300", "Comparing images with each other…") and **Stop**
+  (Esc), which shows the groups among what was compared so far, with a note
+  saying it stopped early.
+- **Results:** groups, each headed "3 identical files, 4.2 MB each" or
+  "4 similar images", listing per file a checkbox, its thumbnail, name,
+  folder (full path on hover), pixel dimensions, size and date modified.
+  The file the keep rule suggests keeping has a **Keep** badge.
+- **Similarity** slider (Similar Images only, after a run): Stricter to
+  Looser, with the value shown; the groups change as it moves, with
+  nothing analysed again. Remembered between runs.
+- **Keep:** *Highest Resolution* (default), *Largest File* or *Oldest*
+  (earliest of created and modified). Ties go to the next criterion, then
+  path order. Remembered.
+- **Mark Suggested** ticks every file except each group's suggested keeper
+  (it never ticks a whole group); **Clear Marks** unticks all; the
+  checkboxes tick and untick single files. Nothing is ever ticked unless
+  the user does one of these. The footer says "3 marked, 12.4 MB".
+- **Move to Trash…** asks first: "Move 3 files to the Trash? You can put
+  them back from the Trash in Finder.", warning when every file of a group
+  is marked ("In 1 group every file is marked, so no copy of it will be
+  left here."). Confirmed, the files go through `FileWriteQueue.trash`
+  (queued saves land first; the viewer asks about unsaved edits of any of
+  them first, as the browser's Move to Trash does). Trashed files leave
+  the groups; a group left with one file leaves the list.
+- **Show in Browser** shows the selected rows, or every file found when
+  none is selected, as a list in the browser titled "Duplicates" or
+  "Similar Images" (a place in Back/Forward, like search results; every
+  browser command works on it). **Compare** opens 2 to 4 selected rows in
+  the compare window, stepping through the rest of their groups.
+
+## Design and why
+
+- **Exact:** files are grouped by byte size first (free, from the listing;
+  empty files are left out), and only files that share a size are read,
+  through a streamed CryptoKit SHA-256 (`ContentHash`, 1 MB chunks, so a
+  2 GB TIFF costs one chunk of memory). Groups are sorted by the space
+  their spare copies take. The same file reached twice (a symbolic link)
+  is counted once.
+- **Similar:** `VNGenerateImageFeaturePrintRequest` on the device, from a
+  256 px decode: the browser's thumbnail cache tier when it has a current
+  one (so a browsed folder costs no decode at all), else
+  `ImageDecoder.thumbnail` (embedded previews for RAW). The print is kept
+  as plain floats; the distance is Euclidean, which is what Vision's
+  `computeDistance` returns (tested). `SimilarityIndex` compares every
+  print with every other by one Accelerate matrix product a block of 256
+  rows at a time, keeping for each image at most its 16 nearest pairs
+  within the loosest threshold, so memory is proportional to the number of
+  images. Groups at a threshold are the connected pairs under it (single
+  linkage: a burst A~B~C is one group), recomputed in about a millisecond
+  when the slider moves.
+- **Threshold scale** (revision 2 prints, measured in
+  `DuplicateFinderTests` on synthetic scenes): a resized or re-encoded copy
+  lands 0.05 to 0.42 from its original (a PNG of the same pixels 0.05 to
+  0.08); different pictures 0.56 and more. Range 0.05 to 0.80, default
+  0.45 (`SimilarityIndex.thresholdRange`, `defaultThreshold`).
+- **Cache:** a `fingerprints` table in the thumbnail database
+  (Caches/minivu/thumbnails.sqlite, schema 1 → 2; a version 1 cache only
+  gains the table and keeps its thumbnails). Keyed by file identity
+  (volume UUID and file identifier, so a rename or move on the volume
+  keeps it), valid while size and modification date match (a save
+  replaces the file, so it misses). It holds the SHA-256 and the print
+  (with Vision's revision; another revision is made again). Bounded at
+  64 MB (about 20,000 prints), oldest used dropped first after every run;
+  Settings' Clear Thumbnail Cache empties it too. It is a cache, not the
+  catalog: losing it costs time, never data, and the catalog gets no
+  schema change.
+- **Memory** (`DuplicateFinder.analysisWorkers(physicalMemory:)`,
+  `maximumSimilarImages(physicalMemory:)`): prints are made one at a time
+  on Macs with 8 GB or less, two up to 16 GB, three above; one similarity
+  search compares at most 10,000 images on 8 GB Macs and 20,000 (the
+  walk's own limit) on larger ones, saying so in a note when it stops
+  there. Comparing holds every print twice plus one block of distances:
+  about 130 MB at 20,000.
+- **Threads:** the run is one `BlockingWork` job on a GCD thread with a
+  `CancellationFlag` checked between files, chunks and blocks; progress
+  reaches the main actor at most a hundred times a phase
+  (`ProgressRelay`). Closing the window cancels the run and drops its
+  result.
+- **Nothing is deleted without the user:** the finder only marks on the
+  user's word, Move to Trash asks every time, and files go to the Trash
+  (recoverable), never deleted. Tests replace `FileWriteQueue.putInTrash`
+  with a scratch folder (`TrashSafetyTests.Bin`) and the confirmation with
+  `DuplicatePrompts.confirmTrash`.
+- **SwiftUI** for the window (a form plus a few hundred rows, not a hot
+  path), thumbnails from `AppServices.thumbnails`, asked for as rows appear
+  and cancelled as they scroll away. Nothing animates.
+
+### Measured (M-series, release build, `DuplicateBenchmark`, `MINIVU_BENCH_DIR=~/latent/TestAssets`)
+
+| What | Time |
+|---|---|
+| Similarity index of 10,000 prints (768 floats) | 132 ms |
+| Similarity index of 20,000 prints | 512 ms |
+| Regrouping at a new threshold (20,000) | 1.3 ms |
+| Prints of 82 real photos (NEF, JPEG, HEIC, TIFF), cold | 1,263 ms (15 ms a photo) |
+| The same, from the cache | 1.8 ms |
+| SHA-256 of the same 1.1 GB | 466 ms |
+
+## Accessibility
+
+Pickers are labelled "Look in:", "Find:" and "Keep:"; the slider
+"Similarity threshold", its value read as "0.45, 3 groups"; each row's
+checkbox "Mark IMG_1.jpg for the Trash", separate from the row, which reads
+"IMG_1.jpg, 4.2 MB, 6000 by 4000, date, in Holiday, suggested to keep";
+thumbnails are hidden from VoiceOver; the list is "Duplicate groups"; the
+progress row reads as one element. Nothing animates, so Reduce Motion has
+nothing to change.
+
+## Limits
+
+- Similar images are found within one run's images, at most 10,000 (8 GB)
+  or 20,000; the walk limits of the flat view apply to the tree scope.
+- Single linkage can chain a long burst of slowly changing shots into one
+  group at loose thresholds; the slider separates them.
+- Hard links to one file count as identical files (trashing one frees no
+  space).
+- Feature prints from a 256 px decode don't see differences smaller than
+  that (a dust spot, a small retouch); Identical Files is exact.
+- A file's cached fingerprint follows it by identity; a file whose
+  contents change while size and date are kept (`touch -r`) keeps its old
+  fingerprint until either changes.
+
+## Tests
+
+- MinivuCoreTests/DuplicateFinderTests: hash streaming a file of 39
+  chunks, hash cancellation, exact groups (size first, only same-size files
+  read, empty files, the same file twice, cancellation), cached hashes
+  (used while size and date match, re-read after), similar grouping of
+  resized and re-encoded copies versus different pictures at the default
+  threshold, threshold behaviour (strict, loose, nesting), distance equals
+  Vision's, cached prints (second run makes none, a changed file makes
+  one), prints from the thumbnail cache, cancellation, the index (chains,
+  neighbour cap, other revisions, more than one block), keep rules, memory
+  policy.
+- MinivuCoreTests/FingerprintCacheTests: hash and print sharing a row,
+  stale rows, pruning by bytes (oldest first), the version 1 to 2
+  migration keeping thumbnails, Clear Thumbnail Cache, identity across a
+  rename.
+- MinivuTests/DuplicatesModelTests: scopes, exact runs per scope and for
+  the selection, the threshold regrouping without running again, keep
+  rules and Mark Suggested, Stop, closing mid-run, the real similar search
+  and the memory cap's note.
+- MinivuTests/DuplicatesWindowTests: the browser's menu item and source,
+  one window retargeted, Move to Trash only after confirming (into a test
+  folder) with the whole-group warning, Show in Browser and Back, Compare.
+- MainMenuTests: Tools menu order and the item's action.
+- DuplicateBenchmark (opt-in, `MINIVU_BENCH_DIR`): the figures above.
+
+## Menus and shortcuts
+
+| Menu | Item | Shortcut |
+|---|---|---|
+| Tools | Find Duplicates… (after Batch Rename…) | none |
+
+No key equivalent was added, so nothing could clash; `noShortcutIsUsedTwice`
+passes. In the window: Return runs Find, Esc stops a run.
+
+## What the documentation pass should change (G5)
+
+- **DESIGN.md 4.5 (Memory):** the finder's memory policy (one print at a
+  time on 8 GB Macs, at most 10,000 / 20,000 images per similarity
+  search), the 256 px decodes, the fingerprint cache's 64 MB bound.
+- **DESIGN.md 4.5 (thumbnail cache paragraph):** the thumbnail database's
+  `fingerprints` table (schema 2), keyed by file identity, size and date;
+  emptied by Clear Thumbnail Cache.
+- **DESIGN.md 4.8 (Tools):** a "Find Duplicates" entry: exact by size then
+  streamed SHA-256; similar by Vision feature prints and `SimilarityIndex`
+  (block matrix product, 16 nearest pairs, single linkage); threshold range
+  and default with the measurements; trashing only through
+  `FileWriteQueue.trash` after `DuplicatePrompts.confirmTrash`.
+- **DESIGN.md 5 (Tools list and Menu shortcuts table):** Tools > Find
+  Duplicates… (none); the window's controls as described above.
+- **DESIGN.md 8 (Known limits):** the limits above.
+- **Wiki Tools.md:** a Find Duplicates section (what the user can do,
+  above). **Wiki Architecture.md:** MinivuCore/Duplicates (`ContentHash`,
+  `FeaturePrint`, `FingerprintCache`, `DuplicateFinder`, `SimilarityIndex`)
+  and Minivu/Tools/Duplicates. **Limitations.md**, **Accessibility.md**:
+  as above.
+- **Wiki Security-and-Privacy.md / help Privacy.md:** feature prints are
+  made on the Mac by Vision and kept in minivu's cache; nothing is sent
+  anywhere.
+- **Help Tools.md:** a Find Duplicates section; **Keyboard Shortcuts**
+  page: nothing to add (generated from the menu, and the item has no key).
