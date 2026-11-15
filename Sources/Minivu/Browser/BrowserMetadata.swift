@@ -27,6 +27,23 @@ extension BrowserWindowController {
         }
     }
 
+    /// The preview pane's keyword tokens and field (G4): a quick Edit
+    /// Metadata of one file's keywords, written the same way and refreshed
+    /// the same way. Unsaved edits of it in the viewer are asked about first.
+    func writeKeywords(_ edit: MetadataEdit, to url: URL) {
+        guard let window else { return }
+        let write = { [weak self] in
+            MetadataEditor.write(edit, to: [url], skipped: [], on: window) { [weak self] outcome in
+                guard let outcome else { return }
+                for url in outcome.rewritten { BrowserModel.invalidateCaches(url) }
+                if !outcome.rewritten.isEmpty { self?.model.reload() }
+                ViewerWindowController.current?.metadataDidChange(outcome.rewritten)
+            }
+        }
+        guard let viewer = ViewerWindowController.current else { return write() }
+        viewer.resolveUnsavedEdits(before: [url], then: write)
+    }
+
     /// Whether the selection has an image whose metadata can be written
     /// (in the file or in a sidecar), with no sheet up. By extension only,
     /// so it is cheap for a large selection.

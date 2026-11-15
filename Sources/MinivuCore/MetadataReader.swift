@@ -94,6 +94,13 @@ public enum MetadataReader {
     /// Everything worth showing in the info panel, grouped. Empty sections
     /// and missing values are left out.
     public static func sections(for url: URL) -> [MetadataSection] {
+        sectionsAndFields(for: url).sections
+    }
+
+    /// The sections, and the fields Edit Metadata edits for a file whose
+    /// metadata can be written (nil otherwise): the info panel's keyword
+    /// editor works on them. One read of the file for both.
+    public static func sectionsAndFields(for url: URL) -> (sections: [MetadataSection], fields: MetadataFields?) {
         let p = Properties(url: url)
         var sections: [MetadataSection] = []
         func add(_ title: String, _ items: [MetadataItem]) {
@@ -101,15 +108,16 @@ public enum MetadataReader {
         }
         add("File", fileItems(url))
         add("Image", imageItems(url, p))
-        if let p {
+        let writable = MetadataWriter.method(for: url) != .unsupported
+        let fields = p != nil || writable ? MetadataFields.read(from: url) : nil
+        if let p, let fields {
             add("Camera", cameraItems(p))
             add("Exposure", exposureItems(p))
-            let fields = MetadataFields.read(from: url)
             add("Dates", dateItems(p, sidecarDate: fields.sidecar == nil ? nil : fields.dateTaken))
             add("GPS", gpsItems(p))
             add("Description", descriptionItems(url, p, fields))
         }
-        return sections
+        return (sections, writable ? fields : nil)
     }
 
     static func fileItems(_ url: URL) -> [MetadataItem] {

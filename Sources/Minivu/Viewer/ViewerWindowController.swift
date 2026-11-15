@@ -647,7 +647,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         filmstrip.setCurrent(model.index)
         // The info panel reads metadata only while it can be seen.
         if infoHost.window != nil, !infoHost.isHiddenOrHasHiddenAncestor {
-            infoHost.rootView = InfoPanelView(url: entry.url, modified: entry.modified)
+            infoHost.rootView = infoPanel(for: entry)
         }
         histogramPanel.setEntry(entry)
         stopAnimation()
@@ -1316,7 +1316,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         case .top:
             filmstrip.setActive(visible)
         case .right:
-            if visible { infoHost.rootView = InfoPanelView(url: model.current?.url, modified: model.current?.modified) }
+            if visible { infoHost.rootView = infoPanel(for: model.current) }
             histogramPanel.setActive(visible)
             updateChrome()
         case .bottom, .left:

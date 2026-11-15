@@ -18,6 +18,30 @@ extension ViewerWindowController {
         }
     }
 
+    /// The info panel's keyword tokens and field (G4): a quick Edit
+    /// Metadata of the image's keywords. Unsaved edits are asked about
+    /// first, as for Edit Metadata.
+    func writeKeywords(_ edit: MetadataEdit, to url: URL) {
+        resolveUnsavedEdits(before: [url]) { [weak self] in
+            guard let self, let window = self.window, !self.isClosing else { return }
+            MetadataEditor.write(edit, to: [url], skipped: [], on: window) { [weak self] outcome in
+                guard let self, let outcome else { return }
+                for url in outcome.rewritten { BrowserModel.invalidateCaches(url) }
+                self.metadataDidChange(outcome.rewritten)
+            }
+        }
+    }
+
+    /// The info panel for `entry`, its keywords editable where the file's
+    /// metadata can be written.
+    func infoPanel(for entry: FolderEntry?) -> InfoPanelView {
+        guard let entry else { return InfoPanelView(url: nil) }
+        let editable = MetadataWriter.method(for: entry.url) != .unsupported
+        return InfoPanelView(url: entry.url, modified: entry.modified, editKeywords: editable ? { [weak self] edit in
+            self?.writeKeywords(edit, to: entry.url)
+        } : nil)
+    }
+
     var canEditMetadata: Bool {
         guard !isClosing, window?.attachedSheet == nil, let entry = model.current else { return false }
         return MetadataWriter.method(for: entry.url) != .unsupported
