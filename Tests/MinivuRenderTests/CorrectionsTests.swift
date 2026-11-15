@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 /// Auto enhance, noise reduction, vignette, perspective correction, canvas
 /// size and the watermark through `EditGraph`, rendered and read back in
 /// the working space (extended linear Display P3).
-@Suite struct CorrectionsTests {
+@Suite(.offCooperativePool) struct CorrectionsTests {
     typealias F = EditFixtures
 
     /// What Core Image's analysis suggested for a dull, flat photo (measured

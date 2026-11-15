@@ -113,13 +113,22 @@ public struct BatchConverter: Sendable {
         let job = try Perf.measure("batch.prepare") {
             try prepare(url, page: page, settings: settings, keepingHDR: settings.keepsHDR, sequence: sequence)
         }
+        // Encoding blocks, and HEIF and AVIF wait on their encoders' own
+        // queues: on GCD (BlockingWork) even when a caller runs this on the
+        // cooperative pool rather than `BatchWorkExecutor`, where enough such
+        // waits at once deadlock the pool (see `BlockingWork`).
+        let options = settings.options
         if job.keepsHDR, let hdr = try await renderer.renderHDRForExport(job.snapshot(settings: displaySettings)) {
-            return try Perf.measure("batch.encode") {
-                try ImageEncoder.encode(hdr, options: settings.options, metadataSource: url, gainMap: true)
+            return try await BlockingWork.run {
+                try Perf.measure("batch.encode") {
+                    try ImageEncoder.encode(hdr, options: options, metadataSource: url, gainMap: true)
+                }
             }
         }
         let image = try await Perf.measure("batch.render") { try await sdrImage(job, settings: settings) }
-        return try Perf.measure("batch.encode") { try ImageEncoder.encode(image, options: settings.options, metadataSource: url) }
+        return try await BlockingWork.run {
+            try Perf.measure("batch.encode") { try ImageEncoder.encode(image, options: options, metadataSource: url) }
+        }
     }
 
     /// Every page of `url`, converted, into one multi-page file at a hidden

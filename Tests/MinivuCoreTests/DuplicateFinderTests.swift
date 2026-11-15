@@ -55,7 +55,7 @@ func resized(_ image: CGImage, width: Int) -> CGImage {
     return ctx.makeImage()!
 }
 
-@Suite struct DuplicateFinderTests {
+@Suite(.offCooperativePool) struct DuplicateFinderTests {
     func entry(_ url: URL) throws -> FolderEntry { try #require(FolderEntry(url: url)) }
 
     func write(_ bytes: [UInt8], to url: URL) throws -> URL {

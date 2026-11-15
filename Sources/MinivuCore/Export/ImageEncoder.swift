@@ -129,6 +129,9 @@ public enum ImageEncoder {
     static func encode(_ image: CGImage, into destination: CGImageDestination, options: ExportOptions, metadataSource: URL?,
                        gainMap: Bool = false) throws {
         let format = options.format
+        if format == .heic || format == .avif {
+            BlockingWork.expectOffCooperativePool("ImageEncoder HEIF/AVIF encode")
+        }
         // A gain map's base is ImageIO's own SDR rendition in Display P3;
         // converting the HDR pixels first would clip what the map keeps.
         let pixels = gainMap ? image : try Perf.measure("encode.prepare") { try prepare(image, options: options) }

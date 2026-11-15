@@ -292,6 +292,7 @@ public final class MultiPageWriter {
             pdf?.closePDF()
             pdf = nil
         case .gif, .heics:
+            if settings.format == .heics { BlockingWork.expectOffCooperativePool("MultiPageWriter animated HEIC") }
             guard let destination, CGImageDestinationFinalize(destination) else {
                 throw ExportError.encodingFailed(settings.format == .gif ? .gif : .heic)
             }

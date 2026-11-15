@@ -4,7 +4,7 @@ import CoreGraphics
 @testable import MinivuRender
 
 /// The detector's check that an eye is red before proposing a circle.
-@Suite struct RedEyeDetectorTests {
+@Suite(.offCooperativePool) struct RedEyeDetectorTests {
     /// 400 x 200 sRGB: skin, a red-eyed pupil at (100, 100) and a brown eye
     /// with a dark pupil at (300, 100), each with a catchlight.
     static func eyes() -> CGImage {

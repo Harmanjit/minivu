@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 
 /// Edit Metadata's writer (G1) and the location removal it shares with
 /// Save As and Batch Convert (S4).
-@Suite struct MetadataWriterTests {
+@Suite(.offCooperativePool) struct MetadataWriterTests {
     typealias F = ExportFixtures
 
     /// The formats rewritten in place, with the extension each is written under.
