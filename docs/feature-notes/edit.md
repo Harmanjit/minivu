@@ -173,9 +173,17 @@ resolution.
   pass through untouched (HDR included) and under it they are only scaled.
   Every length is a fraction of the short side rounded to whole working
   pixels, so preview and full resolution show the same watermark in the same
-  place (tested within two proxy pixels). Tiling repeats one bitmap (stamp
-  plus gap) with `CIAffineTile`, anchored at the chosen position, so a tiled
-  50 MP photo still costs one small bitmap.
+  place (tested within two proxy pixels, at the default sizes and at the
+  sliders' far ends). The bitmap holds the stamp alone: tiling pads it with
+  transparent Core Image pixels to the cell (stamp plus gap) and repeats
+  that with `CIAffineTile`, anchored at the chosen position, so the widest
+  spacing costs no more memory than the narrowest (an earlier version drew
+  the gap into the bitmap, about 3 GB for a 6000 x 4000 photo at size 100%
+  and spacing 5x). A stamp too big for the photo (a long text at a large
+  size) is shrunk to fit inside the margins, by the same fraction at every
+  scale (`WatermarkGraph.Layout`, measured again up to four times because
+  fonts track small sizes wider), so the saved file never loses a watermark
+  the preview shows and the bitmap is never larger than the photo.
 - **The picture's file.** Stored as a read-only security-scoped bookmark
   (`.withSecurityScope` + `.securityScopeAllowOnlyReadAccess`, falling back
   to a plain bookmark outside the sandbox) plus the file name, so a saved
@@ -192,7 +200,8 @@ resolution.
   needed. The inspector's state type is the generic `EffectToolState`, so a
   preset editor can reuse `WatermarkInspectorView` with a state of its own.
 - **Limits.** One line of text, no rotation, no outline or shadow for
-  legibility over busy photos. Tiles form a straight grid (no diagonal or
+  legibility over busy photos. A text or picture too large for the photo
+  is shown smaller than the Size slider says (fitted inside the margins). Tiles form a straight grid (no diagonal or
   staggered rows). The picture is drawn at 8 bits, so an HDR logo is shown
   SDR.
 - **DESIGN.md, wiki and help changes.** DESIGN.md 4.7 "Effects, drawing and
@@ -246,7 +255,13 @@ lens corrections of minivu's own.
     undone), first makes the original again with those settings (the
     engine at full size, or the viewer's rules for none) and puts it on the
     document in place of the old one, which frees it; stages made from the
-    old one go too;
+    old one go too. The two lanes share that decode
+    (`EditRenderer.remadeSource`, `EditDocument.sourceRemake`): after an
+    undo past the last RAW step both need the plain original, and the
+    second waits for the first's decode instead of running its own. A
+    render that finishes after the original was replaced keeps neither the
+    stage nor the proxy it built from the old one, so no second full-size
+    original stays in memory;
   - a preview whose original doesn't match (the tool's sliders moving)
     doesn't wait for that: the engine develops the file at exactly the
     preview's size through `CIRAWFilter.scaleFactor`, resampled with the
@@ -282,19 +297,37 @@ lens corrections of minivu's own.
   and runs on the RAW Core Image context, so `RawRenderer.memoryTarget`'s
   512 MB limit applies on small Macs. Developed originals are half float
   (192 MB for 24 MP, twice an 8-bit SDR render), since later edits work in
-  half float anyway. The editor's slots are separate from `ImageLoader`'s
-  RAW slot, so a viewer prefetch and an edit render can overlap (rare: the
-  viewer prefetches no renders on 8 GB Macs).
+  half float anyway. On Macs with 8 GB or less the viewer's RAW renders
+  (`ImageLoader`, which allows one of its own) take the editor's slot too
+  (`RawRenderer.withViewerRenderSlot`, policy
+  `viewerSharesEditSlot(physicalMemory:)`), so the whole app renders one RAW
+  at a time there: opening RAW Adjustments while the viewer is still
+  rendering the photo waits for it, and the viewer's next photo waits for
+  an edit render. Batch Convert renders RAW files through the editor's
+  path, so it shares the slot as well. On larger Macs the viewer keeps its
+  own slot, so a photo shown while the editor renders doesn't wait.
+  `RawDevelopFilter` hands out the engine's image under a lock and renders
+  it outside, which is right only if that image keeps the settings it was
+  made with; `oneFilterRendersTwoSettingsAtOnceWithoutMixingThem` pins it
+  (eight renders of two settings at once from one filter, on a Mac with
+  two editor slots, each match a render alone), so a preview needn't wait
+  behind a full render of the same file.
 - **Limits.** Save can't write RAW files (as before), so the settings reach
   a file through Save As (or Copy). The engine's white balance picker
   (`neutralLocation`), sharpness, local contrast, detail, moiré and lens
   correction aren't offered. The canvas shows the engine's rendering while
   the tool is open even for a document that used the camera's embedded
   JPEG, and a RAW step makes every later render use the engine. If the
-  engine's size differs from the embedded preview's by a few pixels, the
-  first developed original changes the document's size by that much;
-  normalised operations follow, absolute ones (Canvas Size) keep their
-  pixels. The open filter's own memory (the RAW data it holds) stays while
+  engine's size or framing differs from the embedded preview's by a few
+  pixels (the default "preview or render" plan edits the camera's
+  full-size embedded JPEG), the first developed original changes the
+  document's size by that much, and undoing the last RAW step brings the
+  JPEG's size back; normalised operations follow, operations stored in
+  absolute pixels (Canvas Size, Resize) keep their pixels and so sit a few
+  pixels off. The RAW step still reports `changesGeometry == false`, since
+  the change depends on the camera, not the settings. Fixing it would mean
+  making every RAW original with the engine once a RAW step exists, or
+  storing absolute operations relative to the size they were made at. The open filter's own memory (the RAW data it holds) stays while
   the document is edited. A full-resolution render while zoomed in during
   a drag costs a full development (about 0.6 s for 24 MP) each time the
   slider settles.
@@ -360,7 +393,16 @@ lens corrections of minivu's own.
   Vision. The analysis sees the committed edit (or the shown one for Copy
   Subject) at 8 bits, which detection doesn't mind. A step made before a
   geometry change keeps its mask (it was found for its own input); a new
-  Remove Background after a crop finds the subject again.
+  Remove Background after a crop finds the subject again. Each mask hashes
+  its PNG once when made (`SubjectMask.digest`), so comparing operations on
+  the main thread (tools checking for a change) tells different masks
+  apart without comparing a few hundred KB of bytes, and masks with the
+  same byte count no longer share a hash; only masks with equal digests
+  compare bytes. Every copy of the operation still holds the PNG (shared
+  `Data`, not copied); a Batch Convert preset that stores a Remove
+  Background step would store the mask of the photo it was made on, which
+  suits no other photo, so the batch wave should leave this operation out
+  of presets or find the subject per file.
 - **Limits.** All instances or nothing: no picking one subject, no brush to
   refine the edge, no feathering control. The edge is as soft as Vision
   makes it, stretched to the full size (soft rather than blocky on a
