@@ -36,9 +36,17 @@ let package = Package(
             resources: [.copy("Help/HelpPages")],
             swiftSettings: [.defaultIsolation(MainActor.self)]
         ),
+        // Started when the test bundle loads, on a thread of its own: ends a
+        // run whose cooperative pool is starved instead of letting it hang
+        // (docs/feature-notes/coop-starvation.md). C, for the load-time
+        // constructor Swift can't declare. Test-only; never in the app.
+        .target(
+            name: "MinivuTestWatchdog",
+            path: "Tests/MinivuTestWatchdog"
+        ),
         .testTarget(
             name: "MinivuCoreTests",
-            dependencies: ["MinivuCore"],
+            dependencies: ["MinivuCore", "MinivuTestWatchdog"],
             path: "Tests/MinivuCoreTests",
             // A catalog written by the minivu that had schema version 2,
             // for the upgrade test.
@@ -48,12 +56,12 @@ let package = Package(
         // lets tests import an executable target.
         .testTarget(
             name: "MinivuTests",
-            dependencies: ["Minivu"],
+            dependencies: ["Minivu", "MinivuTestWatchdog"],
             path: "Tests/MinivuTests"
         ),
         .testTarget(
             name: "MinivuRenderTests",
-            dependencies: ["MinivuRender", "MinivuCore"],
+            dependencies: ["MinivuRender", "MinivuCore", "MinivuTestWatchdog"],
             path: "Tests/MinivuRenderTests"
         ),
     ]
