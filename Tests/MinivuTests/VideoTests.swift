@@ -194,6 +194,33 @@ extension AppWindowTests {
         }
     }
 
+    /// Compare Selected with a video among the photos (G18): allowed, and
+    /// the video compared by its still, said to be a video.
+    @MainActor @Suite(.serialized) struct VideoCompareTests {
+        init() { _ = NSApplication.shared }
+
+        @Test func aVideoIsComparedByItsStill() async throws {
+            let savedCatalog = CompareWindowController.catalog
+            CompareWindowController.catalog = .inMemory()
+            defer { CompareWindowController.catalog = savedCatalog }
+            let t = try ScratchFolder()
+            let photo = try #require(FolderEntry(url: try t.jpeg("a.jpg", width: 320, height: 240)))
+            let video = try #require(FolderEntry(url: try await TestVideos.make(at: t.url.appendingPathComponent("b.mov"),
+                                                                                width: 320, height: 192)))
+            CompareWindowController.show(entries: [photo, video], allImages: [photo, video])
+            defer { CompareWindowController.current?.window?.close() }
+            let controller = try #require(CompareWindowController.current)
+            let panes = controller.paneViews
+            #expect(panes.count == 2)
+            await TestTiming.waitUntil { panes.allSatisfy { $0.canvas.image != nil } && panes[1].secondLine != "Video" }
+            #expect(panes[1].canvas.image?.imageSize == CGSize(width: 320, height: 192))
+            #expect(panes[1].secondLine == "Video, 0:03")
+            #expect(!panes[0].secondLine.hasPrefix("Video"))
+            // Nothing in the window plays it: no frame commands, no player.
+            #expect(!controller.responds(to: .togglePlayback) && !controller.responds(to: .copyFrame))
+        }
+    }
+
     /// A video in the viewer: its first frame on the canvas, the commands
     /// that make no sense for it turned off, and a player made only when
     /// asked and let go when the user moves on or closes the viewer. The
