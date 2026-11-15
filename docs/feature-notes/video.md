@@ -471,7 +471,7 @@ Part 2 and the HDR check add:
   Frame As… (no shortcuts).
 - **DESIGN.md 4.x Save As:** the `videoFrame` source, `suggestedName`,
   metadata options hidden for a frame.
-- **DESIGN.md 7, "Core Image on macOS 27":** add that a `clampedToExtent()`
+- **DESIGN.md, "Core Image on macOS 27" (end of section 7):** add that a `clampedToExtent()`
   image read by a sampling general kernel (`CIKernel` with a sampler) is
   also clipped to 1, and that the bump map now passes the photo unclamped
   and holds its height samples to the image's bounds in the kernel (as the
