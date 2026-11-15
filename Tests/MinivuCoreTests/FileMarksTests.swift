@@ -250,7 +250,7 @@ import UniformTypeIdentifiers
         let t = try TemporaryFolder()
         let url = try t.file("a.jpg")
         try FinderTags.setColorLabel(.blue, for: url)
-        #expect(FinderTags.entries(of: url) == ["Blue\n4"])
+        #expect(try FinderTags.entries(of: url) == ["Blue\n4"])
         #expect(FinderTags.tags(for: url) == ["Blue"])
         try FinderTags.setTags(["Blue", "Holiday"], for: url)
         try FinderTags.setColorLabel(.red, for: url)
@@ -263,6 +263,20 @@ import UniformTypeIdentifiers
         #expect(getxattr(alone.path, FinderTags.attributeName, nil, 0, 0, 0) < 0, "no empty attribute left")
         // Nothing to do leaves the file alone; a missing file throws.
         #expect(throws: (any Error).self) { try FinderTags.setColorLabel(.red, for: t.url.appendingPathComponent("gone.jpg")) }
+    }
+
+    /// Tags that can't be read are never replaced by the new label alone.
+    @Test func unreadableTagsAreNotOverwritten() throws {
+        let t = try TemporaryFolder()
+        let url = try t.file("a.jpg")
+        let garbage = Data("not a property list".utf8)
+        #expect(garbage.withUnsafeBytes { setxattr(url.path, FinderTags.attributeName, $0.baseAddress, garbage.count, 0, 0) } == 0)
+        #expect(throws: (any Error).self) { try FinderTags.entries(of: url) }
+        #expect(throws: (any Error).self) { try FinderTags.setColorLabel(.red, for: url) }
+        var stored = Data(count: garbage.count)
+        let read = stored.withUnsafeMutableBytes { getxattr(url.path, FinderTags.attributeName, $0.baseAddress, garbage.count, 0, 0) }
+        #expect(read == garbage.count && stored == garbage, "the attribute is as it was")
+        #expect(try FinderTags.entries(of: try t.file("b.jpg")).isEmpty, "no tags at all is not an error")
     }
 }
 

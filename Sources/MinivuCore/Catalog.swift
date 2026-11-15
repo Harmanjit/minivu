@@ -958,16 +958,23 @@ public enum FinderTags {
         uniqueKeysWithValues: ColorLabel.allCases.filter { $0 != .none }.map { ($0.finderColorIndex, $0.name) })
 
     /// The file's tags exactly as stored, colours included; empty when it
-    /// has none or they can't be read.
-    public static func entries(of url: URL) -> [String] {
+    /// has none. Throws when it has tags that can't be read (the attribute
+    /// changed while it was read, or isn't a list of names), so a write
+    /// built on them can't drop the tags it couldn't see.
+    public static func entries(of url: URL) throws -> [String] {
         let path = url.path
         let size = getxattr(path, attributeName, nil, 0, 0, 0)
+        if size < 0 {
+            guard errno == ENOATTR else { throw posixError(path) }
+            return []
+        }
         guard size > 0 else { return [] }
         var data = Data(count: size)
         let read = data.withUnsafeMutableBytes { getxattr(path, attributeName, $0.baseAddress, size, 0, 0) }
+        guard read >= 0 else { throw posixError(path) }
         guard read == size,
               let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String]
-        else { return [] }
+        else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: path]) }
         return values
     }
 
@@ -993,10 +1000,11 @@ public enum FinderTags {
     /// other tags. Written as Finder writes tags, with the colour beside the
     /// name, so the label shows in its colour whatever the name. The
     /// attribute is removed when no tag is left. A file that already says
-    /// this is left alone.
+    /// this is left alone, and one whose tags can't be read is refused
+    /// (`entries(of:)` throws) rather than left with only the new label.
     public static func setColorLabel(_ label: ColorLabel, for url: URL,
                                      standardNames: [Int: String] = englishColorNames) throws {
-        let old = entries(of: url)
+        let old = try entries(of: url)
         let new = entries(old, settingColorLabel: label, standardNames: standardNames)
         guard new != old else { return }
         let path = url.path
