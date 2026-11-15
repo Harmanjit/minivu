@@ -1,4 +1,4 @@
-# Feature notes: slideshow video export (branch feature/out)
+# Feature notes: slideshow video and web gallery export (branch feature/out)
 
 Notes for the documentation pass. Nothing here has gone into DESIGN.md,
 the wiki or the help pages yet; the last section of each goal says where
@@ -182,3 +182,177 @@ it should.
   separately.
 - **Wiki Security-and-Privacy.md** / help Privacy.md: exporting writes only
   the chosen file; music is read through the bookmarks already kept.
+
+## G21: HTML web gallery
+
+### What the user can do
+
+- **Tools > Create Web Gallery…** in the browser (no shortcut, like Contact
+  Sheet and Montage; between Contact Sheet… and Montage Wallpaper…). It
+  takes the tools' pictures (`toolImages`): the selected pictures, or every
+  picture shown (filters applied) when none is selected. Greyed out with no
+  pictures and while a sheet is up (`canPerformTools`, with the other
+  sheet-opening tools). Not in the viewer.
+- **The dialog** ("Create Web Gallery", a sheet):
+  - *Title*, starting as the browser folder's name. It heads index.html,
+    each page's way back, and names the gallery's folder.
+  - *Pictures*: Thumbnails (CSS px, 64–512, default 200; written at twice
+    that for Retina screens), Large pictures (long side in px, 320–8192,
+    default 1600; smaller pictures keep their size), Include the original
+    files (off).
+  - *Layout*: Columns (stepper; 0 shows "Fit the window", a responsive grid,
+    the default; 1–12 fixed, falling to two on screens under 640 px), Theme
+    (Light, Dark, Automatic: follows the viewer's appearance; default
+    Automatic), Order (As Shown, Name, Date Taken, Date Modified; default As
+    Shown).
+  - *Captions*: File name (on), Title and caption from the metadata (on:
+    the title under each thumbnail; title and caption on the picture's
+    page), Date taken (off; the date taken, else the modification date).
+  - *File*: Format (JPEG, HEIC, AVIF; only formats this Mac's ImageIO can
+    write are listed), Quality slider (10–100%, default 85%), Keep metadata
+    (on), Remove location (on; off is only possible with metadata kept).
+    The footer says where the format shows (HEIC: Safari only; AVIF: current
+    Safari, Chrome, Firefox, Edge).
+  - The bottom bar: "24 pictures · 25 pages · up to 1600 px", Cancel (Esc),
+    Create… (Return). Every choice except the title is remembered (defaults
+    key `webGallerySettings`, one Codable value; missing fields take their
+    defaults, numbers are clamped into range).
+- **Create…** closes the dialog and opens an open panel (folders only, New
+  Folder allowed, prompt "Create Gallery") for the folder the gallery goes
+  in, starting in the browser's folder. Cancel returns to the dialog with
+  its choices. The gallery is a new folder in it named after the title
+  ("Trip"), or "Trip 2" if that name is taken; nothing is ever replaced.
+- **Progress**: the contact sheet's progress sheet, "Picture 3 of 24", then
+  "Writing the pages", with Cancel (Esc); shown after 0.3 s. Cancel leaves
+  nothing in the chosen folder. Pictures that can't be read are left out
+  and listed afterwards in an alert (up to eight); if none can be made, the
+  usual save alert says why ("The web gallery couldn’t be created.") and no
+  gallery is placed. Nothing opens afterwards (opening Safari or Finder
+  would launch another app); the folder appears in the browser if it shows
+  that folder.
+
+### What is written
+
+```
+Trip/
+  index.html          thumbnail grid: title, count, a linked thumbnail each
+  style.css           the only style sheet
+  pages/<stem>.html   one page per picture
+  images/<stem>.jpg   large pictures (.heic / .avif as chosen)
+  thumbnails/<stem>.jpg
+  originals/<name>    only with Include the original files
+```
+
+- **One page per picture with Previous and Next, no JavaScript at all**
+  (chosen over a lightbox). It works with scripts off and from `file://` in
+  any browser, each picture has its own address to bookmark or send, Back
+  works, large pictures load only when their page opens, and screen readers
+  get plain links and headings. Each page has a bar (the title linking back
+  to its thumbnail in the grid, "3 of 24", Previous, Next; at the ends the
+  missing step is a dimmed `aria-disabled` span), `<link rel="prev/next">`,
+  the large picture (clicking it steps on; the last goes back to the grid),
+  its captions, and "Download the original file (name)" when included.
+- **Nothing from outside**: no fonts (the system font stack), no scripts,
+  analytics or CDN links; every `href`/`src` is a relative path inside the
+  gallery. Each page carries a Content-Security-Policy meta forbidding
+  scripts, objects, frames, forms and `<base>` (a second line of defence),
+  `referrer: no-referrer`, and `generator: minivu`. The CSP deliberately
+  leaves images and styles unrestricted, since `'self'` is unreliable for
+  `file://` pages.
+- **Pictures** go through Batch Convert's own path: `BatchConverter.image`
+  with a long-side `BatchResize` (Lanczos, never enlarging), the viewer's
+  RAW setting, always SDR; then `ImageEncoder` with the Save As rules,
+  always **sRGB**, progressive JPEG. Thumbnails are drawn from the large
+  picture with Core Graphics (high interpolation) and carry no metadata.
+  AVIF is not a Save As format: the new `ImageEncoder.encode(_:typeIdentifier:options:metadataSource:)`
+  writes it with HEIC's rules (both are HEIF files; EXIF and IPTC survive,
+  checked). `img` tags carry width and height, so pages don't jump while
+  loading; thumbnails use `loading="lazy"`.
+
+### Security
+
+- **Escaping**: `WebGalleryHTML.escape` is applied to every string from a
+  file name or metadata (and the title) in text and attributes alike:
+  `& < > " '` become references, attributes are always double-quoted, and
+  control characters HTML forbids (and U+FFFE/U+FFFF) become U+FFFD.
+- **Links**: `WebGalleryHTML.link` percent-encodes each path component as
+  precomposed UTF-8, keeping only RFC 3986 unreserved characters, so a name
+  can't add a scheme (`javascript:`), a query, a fragment or a `/`; the only
+  `..` is the one the page itself adds. Thumbnail anchors are `p1`, `p2`…,
+  never names.
+- **File names** (`WebGalleryPlanner.safeName`): control characters, `/`,
+  `:` and `\` become `-`, leading dots and spaces go (no hidden files, no
+  `..`), names are cut to 200 bytes of UTF-8, then checked with
+  `FileOperations.nameProblem` ("picture" stands in when unusable). Pages,
+  large pictures and thumbnails share one stem per picture; stems (and
+  originals' names) are made unique with Batch Convert's
+  `BatchNameKey.uniqueName` ("photo 2"), compared without case or Unicode
+  normalisation whatever the volume, so the gallery survives being copied
+  to a case-insensitive disk or a web server. The gallery folder's name is
+  the title made safe ("Web Gallery" if nothing is left), numbered with
+  `FileOperations.uniqueName`.
+- **Atomic and cancellable**: everything is written into a scratch folder
+  on the destination's volume (`ContactSheetExport.scratchFolder`, the
+  system's item-replacement folder), then the finished folder is moved in
+  with one exclusive rename (`FileOperations.moveExclusively`, retried
+  under the next free name if another app took it) through
+  `FileWriteQueue.shared.enqueue(replacing:)`. Cancel, a failure or a quit
+  leaves either no gallery or a complete one; the scratch folder is always
+  removed.
+- **Privacy**: Remove location is on by default; thumbnails never carry
+  metadata. No entitlement was added: the open panel grants the folder,
+  and the sources are already readable. No network code.
+
+### Design decisions and why
+
+- **One picture at a time**, on GCD threads through `BatchWorkExecutor`
+  (the render and two encodes block): memory stays one picture plus its
+  thumbnail, and at most one camera RAW render is in hand, matching
+  `BatchConvertJob`'s RAW rule without its slot. Headers are read for
+  titles, dates or Date Taken order only (`WebGallerySettings.needsMetadata`),
+  through `MetadataFields.read` (XMP first, then IPTC/EXIF, sidecars laid
+  over).
+- **Thumbnails at 2×** of a CSS size rather than a pixel size, so the grid
+  is sharp on Retina screens and the setting means what the reader sees.
+- **sRGB always**: browsers assume it for untagged pictures, and it shows
+  right even without colour management; the dialog says HDR photos look as
+  on a standard display.
+- Code: `Sources/MinivuCore/WebGallery/` (settings, planner and names, HTML
+  and CSS; pure and tested in milliseconds), `Sources/Minivu/Tools/WebGallery/`
+  (`WebGalleryExport`, `WebGallerySheet` with model, view and controller,
+  `BrowserWebGallery`). Seams for tests: `WebGalleryExport.chooseFolder`,
+  the converter, `readFields`, `formatDate`.
+
+### Limits
+
+- Pictures are made one at a time, so a large gallery takes a while (about
+  as long as a one-at-a-time Batch Convert).
+- Fixed English text on the pages ("Previous", "Next", "3 of 24"); the
+  page's `lang` is "en".
+- No per-gallery colours or custom templates; three themes only.
+- HEIC galleries only show in Safari; the dialog says so.
+- Animated pictures become stills (the first frame).
+- Multi-page files contribute their first page.
+
+### Where the docs should change
+
+- **DESIGN.md 4.8 Tools**: a "Web gallery" paragraph: the folder layout,
+  pages without script, the escaping and link-encoding rules, safe and
+  unique names via `nameProblem` and `BatchNameKey`, rendering through
+  `BatchConverter` + `ImageEncoder` (sRGB, AVIF via HEIC rules), scratch
+  folder + one exclusive rename through `FileWriteQueue`, one picture at a
+  time.
+- **DESIGN.md 4.7 Editing / export**: `ImageEncoder` can now write a
+  destination type outside `ExportFormat` (AVIF) with another format's rules.
+- **DESIGN.md 5, menu table**: Tools gains "Create Web Gallery… | none"
+  after Contact Sheet…; the Tools paragraph describes the dialog.
+- **DESIGN.md 8 Known limits**: one picture at a time; English page text;
+  HEIC galleries Safari only.
+- **Wiki Tools.md** and help **HelpPages/Tools.md**: a "Web Gallery"
+  section with the dialog's choices, the folder it makes, opening it from
+  disk, Cancel, and what each format plays in.
+- **Wiki Security-and-Privacy.md** / help Privacy.md: galleries contain no
+  external links or scripts; location removed by default; thumbnails carry
+  no metadata.
+- **Wiki Keyboard-Shortcuts.md** / the keyboard-shortcuts page: nothing (no
+  shortcut), unless it lists every Tools item.
