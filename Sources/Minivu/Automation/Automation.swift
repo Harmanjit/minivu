@@ -40,11 +40,19 @@ import MinivuRender
         case renameProblems([String])
         /// Folders minivu may not change (named here); nothing was renamed.
         case foldersNotWritable([String])
+        /// Files minivu may not change (named here); no label was set.
+        case filesNotWritable([String])
+        /// Some labels couldn't be written as they ran (a file changed or
+        /// its tags couldn't be read); the others were.
+        case labelFailed([String])
         /// Some renames failed as they ran (a file changed or went away after
         /// the checks); the rest were done.
         case renameFailed([String])
         /// Some conversions failed; the files that converted are not handed on.
         case conversionFailed(String)
+        /// ImageIO on this Mac has no encoder for the format (AVIF on a Mac
+        /// without it); nothing was converted.
+        case formatNotWritable(String)
         case noImages
 
         var errorDescription: String? {
@@ -66,8 +74,17 @@ import MinivuRender
                     + "folders in its sidebar (File > Add Folder to Sidebar…). It may not change:\n" + Self.list(folders)
             case .renameFailed(let lines):
                 "Some files couldn’t be renamed; the others were.\n" + Self.list(lines)
+            case .filesNotWritable(let names):
+                "No label was set. minivu may not change "
+                    + (names.count == 1 ? "this file" : "these files")
+                    + " (a colour label is written into the file’s Finder tags):\n" + Self.list(names)
+            case .labelFailed(let names):
+                "Some files couldn’t be labelled; the others were. Their Finder tags couldn’t be read or "
+                    + "written:\n" + Self.list(names)
             case .conversionFailed(let detail):
                 detail
+            case .formatNotWritable(let format):
+                "This Mac can’t write \(format) files, so nothing was converted. Choose another format."
             case .noImages:
                 "There were no images to work on."
             }
@@ -111,7 +128,8 @@ import MinivuRender
     /// that did convert are removed, so a shortcut never carries on with
     /// part of what it was given and no warning.
     static func convert(_ sources: [URL], settings: BatchConvertSettings) async throws -> [URL] {
-        try await convert(sources.map { ($0, settings) })
+        guard settings.options.format.isWritable else { throw Failure.formatNotWritable(settings.options.format.title) }
+        return try await convert(sources.map { ($0, settings) })
     }
 
     /// Resize: each file keeps its own format where minivu can write it
@@ -281,10 +299,34 @@ import MinivuRender
         }
     }
 
-    // COLOUR LABEL: when colour labels land (another branch adds them to the
-    // catalog), add `setColorLabel(_:for:)` here beside `setRating`, written
-    // through `BrowserModel.catalogWrites` the same way, and a
-    // `SetColorLabelIntent` in AutomationIntents.swift (marked there too).
+    // MARK: - Colour label
+
+    /// Gives `urls` the colour label `label` (`.none` removes it): the file's
+    /// standard Finder colour tag, written exactly as Image > Label writes it
+    /// (`ColorLabelCommand.write`: in line behind other writes of the files,
+    /// other tags kept, the XMP copy when ratings are written into files).
+    /// Returns once written.
+    ///
+    /// A label lives in the file, not the catalog, so unlike a rating it
+    /// needs permission to change each file. All or nothing up front: if
+    /// minivu may not change any one of them (`unwritableFiles`), nothing is
+    /// labelled. What can still fail is a file whose tags can't be read or
+    /// that changes as it is written; those are named and the rest keep
+    /// their label.
+    static func setColorLabel(_ label: ColorLabel, for urls: [URL]) async throws {
+        guard !urls.isEmpty else { return }
+        let closed = await BlockingWork.run { unwritableFiles(urls) }
+        guard closed.isEmpty else { throw Failure.filesNotWritable(closed.map(\.lastPathComponent)) }
+        let result = await ColorLabelCommand.write(label, for: urls)
+        guard result.failed.isEmpty else { throw Failure.labelFailed(result.failed.map(\.lastPathComponent)) }
+    }
+
+    /// The files of `urls` minivu may not change, asked with access(2) as
+    /// `unwritableFolders` asks of folders: the sandbox answers too, so a
+    /// file a shortcut passed for reading only is caught here. Blocking.
+    nonisolated static func unwritableFiles(_ urls: [URL]) -> [URL] {
+        urls.filter { !FileManager.default.isWritableFile(atPath: $0.path) }
+    }
 
     // MARK: - Open
 

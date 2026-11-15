@@ -19,14 +19,18 @@ import MinivuRender
 // itself could not: it opens no connection, and it reads only the files the
 // shortcut passed.
 
-/// Image formats minivu writes, for Convert Images.
+/// Image formats minivu writes, for Convert Images. The list is a literal
+/// (Shortcuts reads it from the compiler's record), so AVIF is offered
+/// everywhere and `Automation.convert` refuses it, before converting
+/// anything, on a Mac whose ImageIO can't write it.
 enum AutomationFormat: String, AppEnum {
-    case jpeg, heic, png, tiff, jpeg2000, gif, bmp, tga, ico
+    case jpeg, heic, avif, png, tiff, jpeg2000, gif, bmp, tga, ico
 
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Image Format"
     static let caseDisplayRepresentations: [AutomationFormat: DisplayRepresentation] = [
         .jpeg: "JPEG",
         .heic: "HEIC",
+        .avif: "AVIF",
         .png: "PNG",
         .tiff: "TIFF",
         .jpeg2000: "JPEG 2000",
@@ -76,7 +80,7 @@ struct ConvertImagesIntent: AppIntent {
     @Parameter(title: "Format", default: .jpeg)
     var format: AutomationFormat
 
-    @Parameter(title: "Quality", description: "For JPEG, HEIC and JPEG 2000: 1 to 100.", default: 90,
+    @Parameter(title: "Quality", description: "For JPEG, HEIC, AVIF and JPEG 2000: 1 to 100.", default: 90,
                inclusiveRange: (1, 100))
     var quality: Int
 
@@ -208,12 +212,55 @@ struct SetRatingIntent: AppIntent {
     }
 }
 
-// COLOUR LABEL: when colour labels land, add a `SetColorLabelIntent` here,
-// shaped like `SetRatingIntent`: an `AutomationColorLabel` AppEnum with a
-// literal `caseDisplayRepresentations` (the labels' names, as the menus
-// show them; "None" clears), `originalsOnly: true`, and a call to
-// `Automation.setColorLabel(_:for:)` (marked in Automation.swift). Add it to
-// AutomationIntentsTests and to the list in docs/feature-notes/sys.md.
+/// The colour labels, for Set Colour Label: Finder's seven standard colour
+/// tags and None, in the order of Image > Label. The raw values are
+/// `ColorLabel`'s, so `colorLabel` never falls back.
+enum AutomationColorLabel: Int, AppEnum {
+    case none, red, orange, yellow, green, blue, purple, gray
+
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Colour Label"
+    static let caseDisplayRepresentations: [AutomationColorLabel: DisplayRepresentation] = [
+        .none: "None",
+        .red: "Red",
+        .orange: "Orange",
+        .yellow: "Yellow",
+        .green: "Green",
+        .blue: "Blue",
+        .purple: "Purple",
+        .gray: "Gray",
+    ]
+
+    var colorLabel: ColorLabel { ColorLabel(rawValue: rawValue) ?? .none }
+}
+
+/// Sets the colour label minivu shows: the file's standard Finder colour
+/// tag, as Image > Label sets it.
+struct SetColorLabelIntent: AppIntent {
+    static let title: LocalizedStringResource = "Set Colour Label"
+    static let description = IntentDescription(
+        "Gives images a colour label: the standard Finder colour tag, so Finder and Spotlight see it too. Other tags are kept; None removes the colour label.",
+        categoryName: "Images")
+
+    @Parameter(title: "Images", supportedContentTypes: [.image])
+    var images: [IntentFile]
+
+    @Parameter(title: "Label", default: .red)
+    var label: AutomationColorLabel
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Label \(\.$images) \(\.$label)")
+    }
+
+    func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
+        let label = label.colorLabel
+        let input = try await AutomationInput.make(images, originalsOnly: true)
+        let labelled = try await input.use { urls in
+            try await Automation.setColorLabel(label, for: urls)
+            return urls
+        }
+        return .result(value: await AutomationInput.files(labelled))
+    }
+}
 
 /// Opens images or a folder in minivu.
 struct OpenInMinivuIntent: AppIntent {

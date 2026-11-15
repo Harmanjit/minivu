@@ -250,6 +250,69 @@ extension AppWindowTests {
             #expect(catalog.marks(for: a) == .none)
         }
 
+        // MARK: - Colour label
+
+        /// The file's Finder tags exactly as stored ("Name\nColour").
+        func tags(_ url: URL) throws -> [String] { try FinderTags.entries(of: url) }
+
+        func setTags(_ entries: [String], on url: URL) throws {
+            let data = try PropertyListSerialization.data(fromPropertyList: entries, format: .binary, options: 0)
+            let result = data.withUnsafeBytes {
+                setxattr(url.path, "com.apple.metadata:_kMDItemUserTags", $0.baseAddress, data.count, 0, 0)
+            }
+            try #require(result == 0)
+        }
+
+        /// Set Colour Label writes the standard colour tag as Image > Label
+        /// does, keeping the user's own tags, and None takes it off again.
+        @Test func setColorLabelWritesTheFinderTagAndKeepsOtherTags() async throws {
+            let t = try ScratchFolder()
+            let a = try t.jpeg("a.jpg", width: 10, height: 10)
+            let b = try t.jpeg("b.jpg", width: 10, height: 10)
+            try setTags(["Holiday", "Project\n4"], on: a)
+
+            let intent = SetColorLabelIntent()
+            intent.images = [IntentFile(fileURL: a), IntentFile(fileURL: b)]
+            intent.label = .green
+            #expect(try await intent.perform().value?.map(\.fileURL) == [a, b])
+            let names = ColorLabelCommand.standardNames
+            #expect(try tags(a) == ["Holiday", "Project\n4", "\(names[2] ?? "Green")\n2"])
+            #expect(ColorLabelCommand.label(of: FinderTag.read(from: b), standardNames: names) == .green)
+
+            intent.label = .none
+            _ = try await intent.perform()
+            #expect(try tags(a) == ["Holiday", "Project\n4"])
+            #expect(try tags(b).isEmpty)
+            #expect(catalog.marks(for: a) == .none, "a label is a Finder tag, not a catalog mark")
+        }
+
+        /// A file minivu may not change (a read-only file stands in for one
+        /// the sandbox gave for reading only) labels nothing, not even the
+        /// files it could change, and the error names it.
+        @Test func aFileMinivuMayNotChangeLabelsNothing() async throws {
+            let t = try ScratchFolder()
+            let a = try t.jpeg("a.jpg", width: 10, height: 10)
+            let locked = try t.jpeg("locked.jpg", width: 10, height: 10)
+            try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: locked.path)
+            defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: locked.path) }
+
+            await #expect(throws: Automation.Failure.filesNotWritable(["locked.jpg"])) {
+                try await Automation.setColorLabel(.red, for: [a, locked])
+            }
+            #expect(try tags(a).isEmpty && tags(locked).isEmpty)
+
+            // A file that came as data has no Finder tags to change.
+            let intent = SetColorLabelIntent()
+            intent.images = [IntentFile(data: Data(), filename: "x.jpg")]
+            intent.label = .red
+            await #expect(throws: Automation.Failure.notAFileOnDisk("x.jpg")) { try await intent.perform() }
+        }
+
+        /// The labels in Shortcuts are Image > Label's, under the same numbers.
+        @Test func everyColorLabelIsOffered() {
+            #expect(AutomationColorLabel.allCases.map(\.colorLabel) == ColorLabel.allCases)
+        }
+
         // MARK: - The shortcut's files
 
         /// A file with no place on disk is copied for Convert under its own
@@ -301,6 +364,12 @@ extension AppWindowTests {
             await #expect(throws: Automation.Failure.notOnInternalStorage("IMG_0001.JPG")) { try await rating.perform() }
             #expect(catalog.marks(for: good) == .none, "nothing rated, the good file included")
 
+            let label = SetColorLabelIntent()
+            label.images = [IntentFile(fileURL: good), IntentFile(fileURL: elsewhere)]
+            label.label = .blue
+            await #expect(throws: Automation.Failure.notOnInternalStorage("IMG_0001.JPG")) { try await label.perform() }
+            #expect(try FinderTags.entries(of: good).isEmpty, "nothing labelled, the good file included")
+
             let convert = ConvertImagesIntent()
             convert.images = [IntentFile(fileURL: elsewhere)]
             convert.format = .png
@@ -328,6 +397,24 @@ extension AppWindowTests {
             let converted = try #require(files.first?.fileURL)
             #expect(type(converted) == UTType.heic.identifier && pixelSize(converted) == CGSize(width: 10, height: 5))
             #expect(files.first?.removedOnCompletion == true, "Shortcuts removes the file once it has taken it")
+        }
+
+        /// G14: Convert Images writes AVIF where ImageIO can, with the
+        /// quality asked for and without the location.
+        @Test(.enabled(if: ExportFormat.avif.isWritable)) func convertImagesToAVIF() async throws {
+            let t = try ScratchFolder()
+            let url = try locatedJPEG(t, "a.jpg")
+            let intent = ConvertImagesIntent()
+            intent.images = [IntentFile(fileURL: url)]
+            intent.format = .avif
+            intent.quality = 60
+            intent.longSide = nil
+            intent.removeLocation = true
+            let converted = try #require(try await intent.perform().value?.first?.fileURL)
+            #expect(converted.pathExtension == "avif" && type(converted) == "public.avif")
+            #expect(pixelSize(converted) == CGSize(width: 40, height: 20))
+            #expect(properties(converted)[kCGImagePropertyGPSDictionary] == nil)
+            #expect(AutomationFormat.avif.exportFormat == .avif)
         }
 
         @Test func resizeRenameAndRatingIntents() async throws {
@@ -367,6 +454,7 @@ extension AppWindowTests {
             #expect(OpenInMinivuIntent.openAppWhenRun)
             #expect(!ConvertImagesIntent.openAppWhenRun && !ResizeImagesIntent.openAppWhenRun)
             #expect(!RenameImagesIntent.openAppWhenRun && !SetRatingIntent.openAppWhenRun)
+            #expect(!SetColorLabelIntent.openAppWhenRun)
         }
     }
 }
