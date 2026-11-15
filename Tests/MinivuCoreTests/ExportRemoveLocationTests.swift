@@ -7,7 +7,7 @@ import ImageIO
 /// S4 in docs/SECURITY-REVIEW.md: Save As and Batch Convert's "Remove
 /// location", on by default, which leaves out the GPS dictionary, its XMP
 /// mirror and the IPTC place names and keeps the rest.
-@Suite struct ExportRemoveLocationTests {
+@Suite(.offCooperativePool) struct ExportRemoveLocationTests {
     typealias F = ExportFixtures
 
     @Test(arguments: [ExportFormat.jpeg, .png, .heic, .tiff])

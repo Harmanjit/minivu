@@ -7,7 +7,7 @@ import ImageIO
 /// Encode timings for a 24 MP photo. Runs only when MINIVU_BENCH_DIR points
 /// at the test assets, e.g.
 ///     MINIVU_BENCH_DIR=~/latent/TestAssets swift test --filter ExportBenchmark
-@Suite(.serialized) struct ExportBenchmark {
+@Suite(.serialized, .offCooperativePool) struct ExportBenchmark {
     static let folder = ProcessInfo.processInfo.environment["MINIVU_BENCH_DIR"].map { URL(fileURLWithPath: $0) }
 
     @Test(.enabled(if: folder.map { FileManager.default.fileExists(atPath: $0.appendingPathComponent("HSB_6548.jpg").path) } ?? false))
