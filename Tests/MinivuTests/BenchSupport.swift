@@ -81,17 +81,21 @@ enum Bench {
 
     /// Runs `body` `warmups` times untimed, then `runs` times timed, and
     /// reports the timed runs. `setup` runs before every run, untimed.
+    /// `timing` is told when each timed run starts (true) and ends (false),
+    /// for a watcher that should count only those (`MainThreadMonitor`).
     @discardableResult
     static func measure(_ suite: String, _ metric: String, warmups: Int = 1, runs: Int = runs(),
                         extra: @autoclosure () -> String = "", setup: () throws -> Void = {},
-                        _ body: () throws -> Void) throws -> [Double] {
+                        timing: (Bool) -> Void = { _ in }, _ body: () throws -> Void) throws -> [Double] {
         for _ in 0..<warmups { try setup(); try body() }
         var samples: [Double] = []
         for _ in 0..<runs {
             try setup()
+            timing(true)
             let start = ContinuousClock.now
             try body()
             samples.append(milliseconds(ContinuousClock.now - start))
+            timing(false)
         }
         report(suite, metric, samples, extra())
         return samples
@@ -100,14 +104,17 @@ enum Bench {
     @discardableResult
     static func measure(_ suite: String, _ metric: String, warmups: Int = 1, runs: Int = runs(),
                         extra: @autoclosure () -> String = "", isolation: isolated (any Actor)? = #isolation,
-                        setup: () async throws -> Void = {}, _ body: () async throws -> Void) async throws -> [Double] {
+                        setup: () async throws -> Void = {}, timing: (Bool) -> Void = { _ in },
+                        _ body: () async throws -> Void) async throws -> [Double] {
         for _ in 0..<warmups { try await setup(); try await body() }
         var samples: [Double] = []
         for _ in 0..<runs {
             try await setup()
+            timing(true)
             let start = ContinuousClock.now
             try await body()
             samples.append(milliseconds(ContinuousClock.now - start))
+            timing(false)
         }
         report(suite, metric, samples, extra())
         return samples
@@ -174,11 +181,15 @@ enum Bench {
     /// sleeps a millisecond, over and over. A block that waited `L` ms means
     /// the main thread was busy for about that long, so the waits of 2 ms
     /// or more are added up. Resolution about a millisecond; a busy spell
-    /// shorter than 2 ms is not counted.
+    /// shorter than 2 ms is not counted. Counts only while `counting` is
+    /// on: pass `counting` as a measurement's `timing`, so the setup between
+    /// runs is left out.
     final class MainThreadMonitor: @unchecked Sendable {
         private let lock = NSLock()
-        private var running = true
+        private var running = true, isCounting = false
         private var blocked = 0.0, longest = 0.0, stalls = 0
+
+        func counting(_ on: Bool) { lock.withLock { isCounting = on } }
 
         init() {
             Thread.detachNewThread { [self] in
@@ -190,6 +201,7 @@ enum Bench {
                     let waited = Bench.milliseconds(ContinuousClock.now - start)
                     if waited >= 2 {
                         lock.withLock {
+                            guard isCounting else { return }
                             blocked += waited
                             longest = max(longest, waited)
                             stalls += 1
@@ -209,11 +221,13 @@ enum Bench {
             }
         }
 
-        /// The same as `key=value` pairs for a BENCH line.
-        func stopText() -> String {
+        /// The same as `key=value` pairs for a BENCH line: the busy time and
+        /// spells per run, and the longest spell of all.
+        func stopText(runs: Int) -> String {
             let main = stop()
-            return String(format: "main_blocked_ms=%.1f main_longest_ms=%.1f main_stalls=%d", main.blocked, main.longest,
-                          main.stalls)
+            let n = Double(max(runs, 1))
+            return String(format: "main_blocked_ms=%.1f main_longest_ms=%.1f main_stalls=%.1f", main.blocked / n,
+                          main.longest, Double(main.stalls) / n)
         }
     }
 }

@@ -81,17 +81,21 @@ enum Bench {
 
     /// Runs `body` `warmups` times untimed, then `runs` times timed, and
     /// reports the timed runs. `setup` runs before every run, untimed.
+    /// `timing` is told when each timed run starts (true) and ends (false),
+    /// for a watcher that should count only those (`MainThreadMonitor`).
     @discardableResult
     static func measure(_ suite: String, _ metric: String, warmups: Int = 1, runs: Int = runs(),
                         extra: @autoclosure () -> String = "", setup: () throws -> Void = {},
-                        _ body: () throws -> Void) throws -> [Double] {
+                        timing: (Bool) -> Void = { _ in }, _ body: () throws -> Void) throws -> [Double] {
         for _ in 0..<warmups { try setup(); try body() }
         var samples: [Double] = []
         for _ in 0..<runs {
             try setup()
+            timing(true)
             let start = ContinuousClock.now
             try body()
             samples.append(milliseconds(ContinuousClock.now - start))
+            timing(false)
         }
         report(suite, metric, samples, extra())
         return samples
@@ -100,14 +104,17 @@ enum Bench {
     @discardableResult
     static func measure(_ suite: String, _ metric: String, warmups: Int = 1, runs: Int = runs(),
                         extra: @autoclosure () -> String = "", isolation: isolated (any Actor)? = #isolation,
-                        setup: () async throws -> Void = {}, _ body: () async throws -> Void) async throws -> [Double] {
+                        setup: () async throws -> Void = {}, timing: (Bool) -> Void = { _ in },
+                        _ body: () async throws -> Void) async throws -> [Double] {
         for _ in 0..<warmups { try await setup(); try await body() }
         var samples: [Double] = []
         for _ in 0..<runs {
             try await setup()
+            timing(true)
             let start = ContinuousClock.now
             try await body()
             samples.append(milliseconds(ContinuousClock.now - start))
+            timing(false)
         }
         report(suite, metric, samples, extra())
         return samples
