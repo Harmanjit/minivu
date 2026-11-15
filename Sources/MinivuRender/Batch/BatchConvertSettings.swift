@@ -4,8 +4,8 @@ import MinivuCore
 
 /// Everything Batch Convert asks about (DESIGN.md 5, "Tools"): the output
 /// format and its options, where the files go and what they are called,
-/// what to do about names already taken, and the resize, rotate and flip
-/// applied on the way.
+/// what to do about names already taken, and the edits (a preset's), resize,
+/// rotate, flip and watermark applied on the way.
 ///
 /// `Codable`, and remembered between launches; decoding fills anything
 /// missing from the defaults, so settings saved by an older minivu still
@@ -37,11 +37,25 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
     public var quarterTurns: Int
     public var flipHorizontal: Bool
     public var flipVertical: Bool
+    /// Edit steps applied to every image first, before the turn, flip and
+    /// resize: a preset's (`BatchEdits.portable` decided which steps may be
+    /// here). Auto Enhance steps are measured again on each image.
+    public var edits: [EditOperation]
+    /// A watermark stamped last, after the resize, so it is drawn crisply
+    /// at the output's size. Its lengths are fractions of the short side, so
+    /// it covers the same share of every photo.
+    public var watermark: Watermark?
+    /// HDR originals keep their highlights where the format can hold them:
+    /// written with an ISO gain map as JPEG, HEIC or AVIF, the way Save keeps
+    /// a gain-map photo HDR. Off, or for any other format, they are tone
+    /// mapped to SDR.
+    public var keepsHDR: Bool
 
     public init(options: ExportOptions = .defaults(for: .jpeg), destination: Destination = .besideOriginals,
                 naming: Naming = .keep, existingFiles: BatchFileWriter.ExistingFilePolicy = .keepBoth,
                 resize: BatchResize = BatchResize(), quarterTurns: Int = 0, flipHorizontal: Bool = false,
-                flipVertical: Bool = false) {
+                flipVertical: Bool = false, edits: [EditOperation] = [], watermark: Watermark? = nil,
+                keepsHDR: Bool = true) {
         self.options = options
         self.destination = destination
         self.naming = naming
@@ -50,10 +64,14 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         self.quarterTurns = quarterTurns
         self.flipHorizontal = flipHorizontal
         self.flipVertical = flipVertical
+        self.edits = edits
+        self.watermark = watermark
+        self.keepsHDR = keepsHDR
     }
 
     private enum CodingKeys: String, CodingKey {
         case options, destination, naming, existingFiles, resize, quarterTurns, flipHorizontal, flipVertical
+        case edits, watermark, keepsHDR
     }
 
     public init(from decoder: any Decoder) throws {
@@ -68,6 +86,9 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         quarterTurns = (try? c.decodeIfPresent(Int.self, forKey: .quarterTurns)) ?? d.quarterTurns
         flipHorizontal = (try? c.decodeIfPresent(Bool.self, forKey: .flipHorizontal)) ?? d.flipHorizontal
         flipVertical = (try? c.decodeIfPresent(Bool.self, forKey: .flipVertical)) ?? d.flipVertical
+        edits = (try? c.decodeIfPresent([EditOperation].self, forKey: .edits)) ?? d.edits
+        watermark = (try? c.decodeIfPresent(Watermark.self, forKey: .watermark)) ?? d.watermark
+        keepsHDR = (try? c.decodeIfPresent(Bool.self, forKey: .keepsHDR)) ?? d.keepsHDR
     }
 
     /// The settings `output` is converted with. Remove location is for
@@ -82,10 +103,11 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
     }
 
     /// The edit operations for a source of `sourceSize` (oriented pixels):
-    /// turn, then flip, then resize, so a width or long side refers to the
-    /// picture as it comes out. Empty when the pixels only change format.
+    /// the edits, then turn, then flip, then resize, so a width or long side
+    /// refers to the picture as it comes out, then the watermark. Empty when
+    /// the pixels only change format.
     public func operations(sourceSize: CGSize) -> [EditOperation] {
-        var operations: [EditOperation] = []
+        var operations = edits
         let turns = ((quarterTurns % 4) + 4) % 4
         if turns != 0 { operations.append(.rotate90(turns: turns)) }
         if flipHorizontal { operations.append(.flip(horizontal: true)) }
@@ -94,6 +116,7 @@ public struct BatchConvertSettings: Codable, Hashable, Sendable {
         if let size = resize.targetSize(for: turned) {
             operations.append(.resize(width: size.width, height: size.height, filter: resize.filter))
         }
+        if let watermark, !watermark.isIdentity { operations.append(.watermark(watermark)) }
         return operations
     }
 
