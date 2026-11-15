@@ -37,6 +37,11 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
     let tagButton = NSButton()
     /// What the tag button shows, so it's redrawn only when that changes.
     private var shownTagged: Bool?
+    /// Beside the stars for a video (G18): the grid's play mark and length,
+    /// so its still is never taken for a photo. Double-clicking the still
+    /// opens the viewer, where it plays; the pane itself never plays.
+    let videoBadge = VideoBadgeView()
+    private var videoInfoTask: Task<Void, Never>?
 
     /// False while the pane is collapsed: nothing is decoded for a preview
     /// nobody can see.
@@ -126,7 +131,13 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         tagButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-        for view in [marksStars, spacer, tagButton] as [NSView] { marksBar.addArrangedSubview(view) }
+        // Unlike the grid's, which the cell speaks for, this one is read
+        // by VoiceOver itself ("Video, 0:12").
+        videoBadge.setAccessibilityElement(true)
+        videoBadge.setAccessibilityRole(.staticText)
+        videoBadge.isHidden = true
+        for view in [marksStars, videoBadge, spacer, tagButton] as [NSView] { marksBar.addArrangedSubview(view) }
+        marksBar.setCustomSpacing(10, after: marksStars)
         marksBar.orientation = .horizontal
         marksBar.isHidden = true
         marksBar.translatesAutoresizingMaskIntoConstraints = false
@@ -279,9 +290,29 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
                              bytes > 0 ? bytes.formatted(.byteCount(style: .file)) : ""))
             setInfoVisible(false)
         case .image(let entry, let neighbours):
+            showVideoBadge(for: entry)
             setInfoVisible(true)
             info.rootView = InfoPanelView(url: entry.url, modified: entry.modified, editKeywords: keywordEditing(for: entry.url))
             showImage(entry, neighbours: neighbours)
+        }
+    }
+
+    /// The badge for a video, its length read off the main thread (one read
+    /// of the file's header); hidden for anything else.
+    private func showVideoBadge(for entry: FolderEntry) {
+        videoInfoTask?.cancel()
+        videoInfoTask = nil
+        videoBadge.isHidden = entry.kind != .video
+        guard entry.kind == .video else { return }
+        videoBadge.duration = nil
+        videoBadge.setAccessibilityLabel("Video")
+        let url = entry.url
+        videoInfoTask = Task { [weak self] in
+            let info = await BlockingWork.run { VideoFrames.info(for: url) }
+            guard !Task.isCancelled, let self, case .image(let shown, _) = self.content, shown.url == url,
+                  let info else { return }
+            self.videoBadge.duration = info.duration
+            self.videoBadge.setAccessibilityLabel("Video, " + VideoFrames.durationText(info.duration))
         }
     }
 

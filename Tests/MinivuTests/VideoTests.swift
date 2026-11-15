@@ -194,6 +194,38 @@ extension AppWindowTests {
         }
     }
 
+    /// The browser's preview pane on a video: its first frame, the play
+    /// mark and length beside the stars (read by VoiceOver), and the info
+    /// panel's Video section below.
+    @MainActor @Suite(.serialized) struct VideoPreviewPaneTests {
+        @Test func showsTheStillWithTheLength() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let photo = try #require(FolderEntry(url: try t.jpeg("a.jpg", width: 320, height: 240)))
+            let video = try #require(FolderEntry(url: try await TestVideos.make(at: t.url.appendingPathComponent("b.mov"),
+                                                                                width: 320, height: 192)))
+            let preview = PreviewPaneController()
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 640),
+                                  styleMask: [.titled], backing: .buffered, defer: false)
+            window.contentViewController = preview
+            window.setContentSize(NSSize(width: 320, height: 640))
+            window.contentView?.layoutSubtreeIfNeeded()
+            defer { preview.isVisible = false }
+
+            preview.show(.image(video, neighbours: []))
+            await TestTiming.waitUntil(seconds: 30) {
+                preview.canvasView?.image != nil && preview.videoBadge.duration != nil
+            }
+            #expect(preview.canvasView?.image?.imageSize == CGSize(width: 320, height: 192))
+            #expect(!preview.videoBadge.isHidden && preview.videoBadge.duration == 3)
+            #expect(preview.videoBadge.isAccessibilityElement()
+                && preview.videoBadge.accessibilityLabel() == "Video, 0:03")
+
+            preview.show(.image(photo, neighbours: []))
+            #expect(preview.videoBadge.isHidden)
+        }
+    }
+
     /// Compare Selected with a video among the photos (G18): allowed, and
     /// the video compared by its still, said to be a video.
     @MainActor @Suite(.serialized) struct VideoCompareTests {
