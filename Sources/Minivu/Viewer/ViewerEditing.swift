@@ -331,6 +331,11 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
         // One click, whose analysis takes a moment: not again while it runs.
         case .autoEnhance:
             return canEditCurrent && autoEnhanceTask == nil && responds(to: .autoEnhance)
+        // Settings for Apple's RAW engine: a RAW file's, and no other's.
+        case .adjustRaw:
+            return canEditCurrent && current?.entry.kind == .raw && responds(to: .adjustRaw)
+        case .removeBackground:
+            return canEditCurrent && responds(to: .removeBackground)
         case .editComment:
             guard !isClosing, let entry = model.current else { return false }
             return ["jpg", "jpeg", "jpe"].contains(entry.url.pathExtension.lowercased())

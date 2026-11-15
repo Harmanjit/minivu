@@ -30,7 +30,8 @@ extension AppWindowTests {
         @Test func viewerWithEveryToolIsFreed() async throws {
             let folder = try ScratchFolder()
             let list = try jpegs(["a.jpg", "b.jpg"], in: folder)
-            let actions = ViewerToolsPanel.groups.flatMap(\.tools).compactMap(\.action)
+            // RAW Adjustments is offered only for RAW files (and beeps here).
+            let actions = ViewerToolsPanel.groups.flatMap(\.tools).compactMap(\.action).filter { $0 != .adjustRaw }
             #expect(actions.count >= 20)
 
             weak var viewer: ViewerWindowController?

@@ -71,12 +71,18 @@ import MinivuCore
         #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
                            "Resize/Resample…", "Canvas Size…", "Crop…", "Straighten…", "Perspective…", "-",
-                           "Adjust", "Effects", "Retouch", "Text and Shapes…", "Watermark…", "-", "Edit Comment…", "-",
+                           "Adjust", "Effects", "Retouch", "Text and Shapes…", "Watermark…", "Remove Background…", "-",
+                           "Edit Comment…", "-",
                            "Play Animation", "-", "Rating", "Tag", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
         let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
-        #expect(adjust.items.compactMap(\.action) == [.adjustLighting, .adjustColors, .adjustCurves, .adjustLevels,
+        #expect(adjust.items.compactMap(\.action) == [.adjustRaw, .adjustLighting, .adjustColors, .adjustCurves,
+                                                      .adjustLevels,
                                                       .autoEnhance, .sharpenImage, .blurImage, .reduceNoise])
+        // Copy Subject follows Copy, with no key of its own.
+        let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
+        let copy = try #require(edit.items.firstIndex { $0.action == #selector(NSText.copy(_:)) })
+        #expect(edit.items[copy + 1].action == .copySubject && edit.items[copy + 1].keyEquivalent.isEmpty)
         let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
         #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative, .addDropShadow,
                                                        .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,
@@ -155,6 +161,7 @@ import MinivuCore
             .addDropShadow, .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens, .drawAnnotations,
             .cloneStamp, .healingBrush, .removeRedEye,
             .autoEnhance, .reduceNoise, .addVignette, .correctPerspective, .changeCanvasSize, .addWatermark,
+            .adjustRaw, .removeBackground, .copySubject,
             .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
             .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
             #selector(NSApplication.runPageLayout(_:)),

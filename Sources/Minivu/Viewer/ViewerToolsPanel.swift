@@ -40,6 +40,7 @@ final class ViewerToolsPanel: NSView {
             Tool(title: "Rotate & Flip", symbol: "rotate.right", action: showRotateFlipAction),
             Tool(title: "Straighten", symbol: "level", action: .straightenImage),
             Tool(title: "Perspective", symbol: "perspective", action: .correctPerspective),
+            Tool(title: "RAW Adjustments", symbol: "camera.aperture", action: .adjustRaw),
             Tool(title: "Auto Enhance", symbol: "wand.and.stars", action: .autoEnhance),
             Tool(title: "Lighting", symbol: "sun.max", action: .adjustLighting),
             Tool(title: "Colors", symbol: "paintpalette", action: .adjustColors),
@@ -67,6 +68,7 @@ final class ViewerToolsPanel: NSView {
             Tool(title: "Clone Stamp", symbol: "square.on.square", action: .cloneStamp),
             Tool(title: "Healing Brush", symbol: "bandage", action: .healingBrush),
             Tool(title: "Red-Eye Removal", symbol: "eye", action: .removeRedEye),
+            Tool(title: "Remove Background", symbol: "person.and.background.dotted", action: .removeBackground),
         ]),
     ]
 

@@ -84,6 +84,9 @@ extension ViewerWindowController {
     /// Whether the viewer handles `action`, or nil to let the rest of the
     /// chain answer.
     func validateClipboardAction(_ action: Selector?) -> Bool? {
+        // Copy Subject finds the subject first, which takes a moment: not
+        // again while it does (ViewerSubject.swift).
+        if action == .copySubject { return displayed != nil && canvas.image != nil && copySubjectTask == nil }
         guard action == #selector(NSText.copy(_:)) else { return nil }
         return displayed != nil && canvas.image != nil
     }

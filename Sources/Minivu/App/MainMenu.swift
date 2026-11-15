@@ -93,6 +93,9 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Cut", #selector(NSText.cut(_:)), "x")
         menu.add("Copy", #selector(NSText.copy(_:)), "c")
+        // The viewer's picture with its background cut away; nothing else
+        // implements it, so it stays disabled in the browser.
+        menu.add("Copy Subject", .copySubject)
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)
@@ -199,6 +202,9 @@ enum MainMenu {
         menu.addItem(.separator())
 
         let adjust = NSMenu(title: "Adjust")
+        // RAW files only: the RAW engine's settings come before every edit.
+        adjust.add("RAW Adjustments…", .adjustRaw)
+        adjust.addItem(.separator())
         adjust.add("Lighting…", .adjustLighting, "l", [.command, .option])
         adjust.add("Colors…", .adjustColors, "c", [.command, .option])
         adjust.add("Curves…", .adjustCurves, "m", [.command, .shift])
@@ -231,6 +237,7 @@ enum MainMenu {
         menu.add("Retouch", nil).submenu = retouch
         menu.add("Text and Shapes…", .drawAnnotations)
         menu.add("Watermark…", .addWatermark)
+        menu.add("Remove Background…", .removeBackground)
         menu.addItem(.separator())
         menu.add("Edit Comment…", .editComment)
     }

@@ -93,6 +93,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// Auto Enhance measuring the image (ViewerCorrections.swift); nil when
     /// it isn't.
     var autoEnhanceTask: Task<Void, Never>?
+    /// Copy Subject finding and rendering the subject (ViewerSubject.swift);
+    /// nil when it isn't.
+    var copySubjectTask: Task<Void, Never>?
     /// The open tool pinned the tools panel (rather than the user), so it
     /// unpins when the tool closes.
     var toolPinnedPanel = false
