@@ -406,10 +406,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 }
 
-/// Greys out anything on an external volume in the open panel, so the user
-/// can't pick a folder minivu would then refuse (VolumePolicy).
+/// Greys out anything on an external volume in an open or save panel, so
+/// the user can't pick a folder minivu would then refuse (VolumePolicy).
 final class InternalVolumesOnly: NSObject, NSOpenSavePanelDelegate {
     func panel(_ sender: Any, shouldEnable url: URL) -> Bool {
         VolumePolicy.isAllowed(url)
+    }
+}
+
+/// A tool's output folder is on a volume `VolumePolicy` refuses. The panel
+/// greys such folders out; the tool checks again before it writes, since a
+/// path can be typed into the panel.
+nonisolated struct ExternalVolumeError: LocalizedError, Equatable {
+    var folder: URL
+
+    var errorDescription: String? {
+        "“\(FileManager.default.displayName(atPath: folder.path))” isn’t on this Mac’s internal storage. "
+            + "minivu only writes to folders on this Mac’s internal storage."
     }
 }

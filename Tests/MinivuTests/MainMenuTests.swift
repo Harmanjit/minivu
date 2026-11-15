@@ -166,7 +166,8 @@ import MinivuCore
             .cloneStamp, .healingBrush, .removeRedEye,
             .autoEnhance, .reduceNoise, .addVignette, .correctPerspective, .changeCanvasSize, .addWatermark,
             .adjustRaw, .removeBackground, .copySubject,
-            .startSlideshow, .batchConvert, .batchRename, .printImages, .makeContactSheet, .makeMontage,
+            .startSlideshow, .exportSlideshowVideo, .batchConvert, .batchRename, .printImages, .makeContactSheet,
+            .createWebGallery, .makeMontage,
             .extractPages, .createMultiPageFile, .makeImageStrip, .setAsDesktopPicture, .captureScreen, .captureWindow, .captureSelection, .manageExternalEditors,
             .copyText, .shareFiles, #selector(AppDelegate.toggleLiveText(_:)), .saveEditsAsPreset,
             #selector(NSApplication.runPageLayout(_:)),
@@ -234,10 +235,10 @@ import MinivuCore
     @Test func toolsItems() throws {
         let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
         let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
-        #expect(titles == ["Start Slideshow", "-", "Batch Convert…", "Batch Rename…", "Extract Pages…",
-                           "Find Duplicates…", "-",
+        #expect(titles == ["Start Slideshow", "Export Slideshow Video…", "-", "Batch Convert…", "Batch Rename…",
+                           "Extract Pages…", "Find Duplicates…", "-",
                            "Create Multi-Page File…", "Image Strip…", "Contact Sheet…",
-                           "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
+                           "Create Web Gallery…", "Montage Wallpaper…", "Set as Desktop Picture", "-", "Capture", "-",
                            "Open in External Editor"])
         // The multi-page tools have no shortcuts.
         for title in ["Extract Pages…", "Create Multi-Page File…", "Image Strip…"] {
@@ -245,6 +246,8 @@ import MinivuCore
         }
         let slideshow = try item("Start Slideshow")
         #expect(slideshow.keyEquivalent == "f" && slideshow.keyEquivalentModifierMask == [.command, .shift])
+        #expect(try item("Export Slideshow Video…").keyEquivalent.isEmpty)
+        #expect(try item("Create Web Gallery…").keyEquivalent.isEmpty)
         let rename = try item("Batch Rename…")
         #expect(rename.keyEquivalent == MainMenu.Key.f2 && rename.keyEquivalentModifierMask == [.shift])
         let duplicates = try item("Find Duplicates…")

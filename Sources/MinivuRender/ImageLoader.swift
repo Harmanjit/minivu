@@ -554,6 +554,29 @@ public struct DisplaySettings: Sendable, Equatable {
         return try TextureUploader.upload(decoded)
     }
 
+    /// One texture fitted into `size`, decoded on the calling thread exactly
+    /// as a load would (a RAW file's embedded preview when it covers the
+    /// size, otherwise a render, as `settings` say), but outside the queue
+    /// and the cache: for work that renders each image once and holds its
+    /// own few textures, such as a slideshow video export. Blocks for as
+    /// long as the decode takes, so call it from a background thread.
+    /// Throws `CancellationError` if `isCancelled` says so before a step.
+    public nonisolated static func decodeOnce(_ url: URL, fitting size: CGSize, settings: DisplaySettings,
+                                              isCancelled: @Sendable () -> Bool = { false }) throws -> ImageTexture {
+        let stop = StopFlag()
+        func run(_ stage: Job.Stage) throws -> ImageTexture {
+            if isCancelled() { stop.set(true) }
+            return try decodeAndUpload(url: url, target: size, page: 0, settings: settings, stage: stage, stop: stop)
+        }
+        guard ImageFormats.kind(of: url) == .raw else { return try run(.decode) }
+        if case .render = rawPlan(settings: settings) { return try run(.rawRender) }
+        do {
+            return try run(.decode)
+        } catch is NeedsRawRender {
+            return try run(.rawRender)
+        }
+    }
+
     /// A RAW file's embedded preview when it covers the request; otherwise
     /// throws `NeedsRawRender`, and the job waits for the render slot.
     ///

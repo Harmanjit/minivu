@@ -201,22 +201,33 @@ enum ContactSheetExport {
     }
 }
 
-/// A sheet with a progress bar and Cancel, shown while a contact sheet is
-/// made; only after a moment, so a quick one-page sheet doesn't flash it.
+/// A sheet with a progress bar and Cancel, shown while a contact sheet or a
+/// slideshow video is made; only after a moment, so a quick one-page sheet
+/// doesn't flash it.
 final class ContactSheetProgress {
     private weak var parent: NSWindow?
     private var sheet: NSWindow?
     private let bar = NSProgressIndicator()
     private let detail = NSTextField(labelWithString: "")
     private var pending: Task<Void, Never>?
+    private let describe: (Int, Int) -> String
     let cancel = CancellationFlag()
 
-    init(on parent: NSWindow, title: String, pageCount: Int, delay: Duration) {
+    /// "Page 2 of 5" under the bar; nothing for a single page.
+    nonisolated static func pageText(done: Int, of total: Int) -> String {
+        total > 1 ? "Page \(min(done + 1, total)) of \(total)" : ""
+    }
+
+    /// - Parameter describe: the line under the bar for (steps done, steps);
+    ///   pages by default. A slideshow video counts percent.
+    init(on parent: NSWindow, title: String, pageCount: Int, delay: Duration,
+         describe: @escaping (Int, Int) -> String = ContactSheetProgress.pageText) {
         self.parent = parent
+        self.describe = describe
         bar.isIndeterminate = false
         bar.minValue = 0
         bar.maxValue = Double(max(pageCount, 1))
-        detail.stringValue = pageCount > 1 ? "Page 1 of \(pageCount)" : ""
+        detail.stringValue = describe(0, pageCount)
         pending = Task { [weak self] in
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
@@ -226,7 +237,7 @@ final class ContactSheetProgress {
 
     func update(done: Int, of total: Int) {
         bar.doubleValue = Double(done)
-        if total > 1 { detail.stringValue = "Page \(min(done + 1, total)) of \(total)" }
+        detail.stringValue = describe(done, total)
     }
 
     private func show(_ title: String) {

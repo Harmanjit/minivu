@@ -141,6 +141,8 @@ import AppKit
     // none is selected (`BrowserWindowController.toolImages`); the viewer on
     // the image it shows (the slideshow on its whole list, from that image).
     @objc optional func startSlideshow(_ sender: Any?)
+    /// A video of what the slideshow would play, with its settings (G9).
+    @objc optional func exportSlideshowVideo(_ sender: Any?)
     @objc optional func batchConvert(_ sender: Any?)
     @objc optional func batchRename(_ sender: Any?)
     /// Tools > Find Duplicates… (G5): identical files or similar pictures in
@@ -158,6 +160,8 @@ import AppKit
     /// The images joined into one picture, in a row, a column or a grid (G17).
     @objc optional func makeImageStrip(_ sender: Any?)
     @objc optional func makeContactSheet(_ sender: Any?)
+    /// A folder of web pages of the pictures, for any browser (G21).
+    @objc optional func createWebGallery(_ sender: Any?)
     @objc optional func makeMontage(_ sender: Any?)
     @objc optional func setAsDesktopPicture(_ sender: Any?)
     /// Screen captures, handled by the app delegate: the capture is saved to
@@ -285,6 +289,7 @@ extension Selector {
     static let removeBackground = #selector(MinivuActions.removeBackground(_:))
     static let copySubject = #selector(MinivuActions.copySubject(_:))
     static let startSlideshow = #selector(MinivuActions.startSlideshow(_:))
+    static let exportSlideshowVideo = #selector(MinivuActions.exportSlideshowVideo(_:))
     static let batchConvert = #selector(MinivuActions.batchConvert(_:))
     static let batchRename = #selector(MinivuActions.batchRename(_:))
     static let findDuplicates = #selector(MinivuActions.findDuplicates(_:))
@@ -293,6 +298,7 @@ extension Selector {
     static let createMultiPageFile = #selector(MinivuActions.createMultiPageFile(_:))
     static let makeImageStrip = #selector(MinivuActions.makeImageStrip(_:))
     static let makeContactSheet = #selector(MinivuActions.makeContactSheet(_:))
+    static let createWebGallery = #selector(MinivuActions.createWebGallery(_:))
     static let makeMontage = #selector(MinivuActions.makeMontage(_:))
     static let setAsDesktopPicture = #selector(MinivuActions.setAsDesktopPicture(_:))
     static let captureScreen = #selector(MinivuActions.captureScreen(_:))

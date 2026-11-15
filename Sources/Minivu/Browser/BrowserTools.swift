@@ -39,13 +39,14 @@ extension BrowserWindowController {
     /// running without its sheet.
     func canPerformTools(_ action: Selector) -> Bool? {
         let opensSheet: [Selector] = [.batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip,
-                                      .printImages, .makeContactSheet, .makeMontage]
+                                      .printImages, .makeContactSheet, .makeMontage, .exportSlideshowVideo,
+                                      .createWebGallery]
         if opensSheet.contains(action), let window, BatchTools.hasSheet(on: window) { return false }
         let batches: [Selector] = [.batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip]
         if batches.contains(action), isRunningBatch || isTransferring { return false }
         return switch action {
-        case .startSlideshow, .batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip,
-             .printImages, .makeContactSheet, .makeMontage:
+        case .startSlideshow, .exportSlideshowVideo, .batchConvert, .batchRename, .extractPages, .createMultiPageFile,
+             .makeImageStrip, .printImages, .makeContactSheet, .makeMontage, .createWebGallery:
             model.imageCount > 0
         case .setAsDesktopPicture, .openInExternalEditor:
             toolLeadImage != nil

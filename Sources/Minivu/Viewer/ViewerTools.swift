@@ -8,6 +8,7 @@ extension ViewerWindowController {
     func validateToolAction(_ action: Selector?) -> Bool? {
         switch action {
         case .startSlideshow: model.count > 0
+        case .exportSlideshowVideo: model.count > 0 && window?.attachedSheet == nil
         case .printImages: model.current != nil && window?.attachedSheet == nil
         case .setAsDesktopPicture, .openInExternalEditor: model.current != nil
         default: nil
