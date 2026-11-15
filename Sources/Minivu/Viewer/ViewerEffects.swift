@@ -83,6 +83,8 @@ extension ViewerWindowController {
             presentTool(state, inspector: LensInspectorView(state: state, actions: actions), overlay: overlay,
                         onViewChange: { [weak overlay] in overlay?.viewChanged() })
             return state
+        case .watermark:
+            return presentWatermark(document: document)
         }
     }
 

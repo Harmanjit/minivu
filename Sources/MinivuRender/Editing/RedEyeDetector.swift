@@ -106,24 +106,62 @@ public enum RedEyeDetector {
 }
 
 extension EditRenderer {
-    /// The committed edit (no preview) rendered small, 8-bit sRGB, for
-    /// analysis such as face detection: the long edge at most
-    /// `maxPixelSize`, from the proxy when it has enough pixels. HDR values
-    /// are clipped, which detection doesn't mind.
-    public func renderForAnalysis(_ document: EditDocument, maxPixelSize: Int) async throws -> CGImage {
+    /// The committed edit (no preview), or the picture `operations` make,
+    /// rendered small, 8-bit sRGB, for analysis such as face detection: the
+    /// long edge at most `maxPixelSize`, from the proxy when it has enough
+    /// pixels and shows the same RAW settings. HDR values are clipped, which
+    /// detection doesn't mind.
+    ///
+    /// A RAW file whose original doesn't show the RAW settings of
+    /// `operations` (right after the RAW tool's Apply, before the
+    /// full-resolution render that would make it, or a tool's live settings)
+    /// is developed again by the engine at the analysis size only, as a
+    /// preview of the sliders is, never at full size: an analysis needs at
+    /// most a couple of thousand pixels, and a full-size original of its own
+    /// would sit in memory beside the document's and the one the lanes are
+    /// making. Once no RAW step is left (all undone) the plain original
+    /// comes from the remake the lanes share (`remadeSource`), which they
+    /// need anyway, so it is still decoded once.
+    public func renderForAnalysis(_ document: EditDocument, operations: [EditOperation]? = nil,
+                                  maxPixelSize: Int) async throws -> CGImage {
+        let operations = operations ?? document.operations
         try await prepare(document)
-        guard let source = document.source else { throw EditRenderError.renderFailed }
-        let operations = document.operations
-        let proxy = document.proxy
-        let context = self.context
+        guard var source = document.source else { throw EditRenderError.renderFailed }
+        let develop = Self.rawDevelop(kind: document.entry.kind, operations: operations)
+        if develop == nil, source.develop != nil {
+            guard let remade = await remadeSource(document, develop: nil, qos: .userInitiated) else {
+                throw EditRenderError.renderFailed
+            }
+            source = remade
+        }
+        let output = EditGraph.outputSize(source: source.size, operations: operations)
+        let long = max(output.width, output.height)
+        let maximum = Self.maximumScale(outputSize: output, sourceScale: source.scale)
+        let scale = long > 0 ? min(maximum, Double(maxPixelSize) / long) : maximum
+        let proxy = document.proxy.flatMap { $0.develop == develop && $0.scale >= scale - 1e-9 ? $0 : nil }
+        var filter: RawDevelopFilter?
+        if source.develop != develop, proxy == nil {
+            // Opened once for the document (and checked against the file the
+            // operations were made on). A camera the engine doesn't know has
+            // no settings to apply, so its original serves as it is.
+            if document.rawFilter == nil { _ = await rawDefaults(for: document) }
+            filter = document.rawFilter
+        }
+        let context = self.context, gpu = self.gpu, settings = ImageLoader.shared.settings
+        let renderSource = source, developFilter = filter
         // Core Image's readback waits for the GPU: on GCD (BlockingWork).
         return try await BlockingWork.run {
-            let output = EditGraph.outputSize(source: source.size, operations: operations)
-            let long = max(output.width, output.height)
-            let maximum = Self.maximumScale(outputSize: output, sourceScale: source.scale)
-            let scale = long > 0 ? min(maximum, Double(maxPixelSize) / long) : maximum
-            let working = Self.workingImage(source: source, proxy: proxy, scale: scale)
-            let image = EditGraph.image(source: working, sourceSize: source.size, operations: operations, scale: scale)
+            let working: CIImage
+            if let filter = developFilter {
+                // At the size of the original the operations refer to, as
+                // the RAW tool's previews are developed.
+                working = try Self.renderDeveloped(filter, develop: develop, fullSize: renderSource.size, scale: scale,
+                                                   settings: settings, gpu: gpu).image
+            } else {
+                working = Self.workingImage(source: renderSource, proxy: proxy, scale: scale)
+            }
+            let image = EditGraph.image(source: working, sourceSize: renderSource.size, operations: operations,
+                                        scale: scale)
             guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
                   let result = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: sRGB)
             else { throw EditRenderError.renderFailed }

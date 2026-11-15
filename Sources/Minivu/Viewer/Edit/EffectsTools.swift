@@ -3,9 +3,10 @@ import SwiftUI
 import Observation
 import MinivuRender
 
-/// The special effects the tools panel opens (DESIGN.md 5 and 7).
+/// The special effects the tools panel opens (DESIGN.md 5 and 7), and the
+/// watermark, which is edited the same way.
 nonisolated enum EffectKind: String, CaseIterable, Sendable {
-    case dropShadow, frame, bumpMap, sketch, oilPaint, lens
+    case dropShadow, frame, bumpMap, sketch, oilPaint, lens, watermark
 
     var title: String {
         switch self {
@@ -15,6 +16,7 @@ nonisolated enum EffectKind: String, CaseIterable, Sendable {
         case .sketch: "Sketch"
         case .oilPaint: "Oil Painting"
         case .lens: "Lens"
+        case .watermark: "Watermark"
         }
     }
 }

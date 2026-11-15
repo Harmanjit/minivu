@@ -54,7 +54,7 @@ public enum EditGraph {
         var image = source
         for op in operations where !op.isIdentity {
             let next = fullSize(after: op, from: full)
-            image = apply(op, to: image, size: next, scale: scale)
+            image = apply(op, to: image, from: full, size: next, scale: scale)
             full = next
         }
         return image
@@ -82,6 +82,11 @@ public enum EditGraph {
             return Size(width: r.width, height: r.height)
         case .dropShadow, .frame:
             return EffectsGraph.fullSize(after: op, from: size)
+        case .perspective(let quad):
+            let s = quad.outputSize(width: size.width, height: size.height)
+            return Size(width: s.width, height: s.height)
+        case .canvasSize(let canvas):
+            return Size(width: canvas.width, height: canvas.height)
         default:
             return size
         }
@@ -142,9 +147,10 @@ public enum EditGraph {
 
     // MARK: - Operations
 
-    /// One operation on the working image; `size` is the full-resolution
-    /// size it produces.
-    private static func apply(_ op: EditOperation, to image: CIImage, size: Size, scale: Double) -> CIImage {
+    /// One operation on the working image; `input` is the full-resolution
+    /// size it starts from and `size` the one it produces.
+    private static func apply(_ op: EditOperation, to image: CIImage, from input: Size, size: Size,
+                              scale: Double) -> CIImage {
         // The working image is `workingLength` of the full size; its own
         // extent says so exactly, whatever produced it.
         let w = image.extent.width.rounded()
@@ -282,6 +288,32 @@ public enum EditGraph {
 
         case .redEye(let spots):
             return RetouchGraph.removeRedEye(spots, in: image, fullSize: size, scale: scale)
+
+        case .autoEnhance(let enhance):
+            return CorrectionsGraph.autoEnhance(image, enhance, scale: scale)
+
+        case .noiseReduction(let level, let sharpness):
+            return CorrectionsGraph.reduceNoise(image, level: level, sharpness: sharpness, scale: scale)
+
+        case .vignette(let amount, let radius, let feather):
+            return CorrectionsGraph.vignette(image, amount: amount, radius: radius, feather: feather)
+
+        case .perspective(let quad):
+            return CorrectionsGraph.perspective(image, quad, outputWidth: outW, outputHeight: outH)
+
+        case .canvasSize(let canvas):
+            return CorrectionsGraph.canvasSize(image, canvas, input: input, scale: scale, outputWidth: outW,
+                                               outputHeight: outH)
+
+        case .watermark(let watermark):
+            return WatermarkGraph.apply(watermark, to: image, scale: scale)
+
+        case .rawDevelop:
+            // Applied where the original is developed (`EditRenderer`).
+            return image
+
+        case .removeBackground(let remove):
+            return SubjectGraph.removeBackground(image, remove)
 
         case .negative:
             // Inverted on the encoded scale, as a film negative looks: middle

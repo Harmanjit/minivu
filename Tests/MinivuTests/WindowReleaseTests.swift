@@ -30,7 +30,8 @@ extension AppWindowTests {
         @Test func viewerWithEveryToolIsFreed() async throws {
             let folder = try ScratchFolder()
             let list = try jpegs(["a.jpg", "b.jpg"], in: folder)
-            let actions = ViewerToolsPanel.groups.flatMap(\.tools).compactMap(\.action)
+            // RAW Adjustments is offered only for RAW files (and beeps here).
+            let actions = ViewerToolsPanel.groups.flatMap(\.tools).compactMap(\.action).filter { $0 != .adjustRaw }
             #expect(actions.count >= 20)
 
             weak var viewer: ViewerWindowController?
@@ -48,7 +49,16 @@ extension AppWindowTests {
                 #expect(viewer?.canEditCurrent == true, "round \(round)")
                 for action in actions {
                     autoreleasepool { _ = NSApp.sendAction(action, to: viewer, from: nil) }
-                    if action == .resizeImage {
+                    if action == .autoEnhance {
+                        // One click, no tool: it measures the image and applies.
+                        await TestTiming.waitUntil { viewer?.autoEnhanceTask == nil }
+                        // Taken back, so moving on has no unsaved edit to ask about.
+                        autoreleasepool {
+                            if viewer?.editSession?.document.canUndo == true { viewer?.editSession?.document.undo() }
+                        }
+                        continue
+                    }
+                    if action == .resizeImage || action == .changeCanvasSize {
                         // A sheet rather than a panel tool: cancelled by ending it.
                         await TestTiming.waitUntil { window?.attachedSheet != nil }
                         #expect(window?.attachedSheet != nil, "\(action) did not open")
@@ -94,6 +104,40 @@ extension AppWindowTests {
                 window.isReleasedWhenClosed = false
                 parent = window
                 ResizeSheet.present(size: CGSize(width: 600, height: 400), on: window) { results.append($0) }
+                sheet = window.attachedSheet
+            }
+            try autoreleasepool {
+                let attached = try #require(sheet)
+                attached.contentView?.layoutSubtreeIfNeeded()
+                let escape = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+                                                           timestamp: 0, windowNumber: attached.windowNumber,
+                                                           context: nil, characters: "\u{1b}",
+                                                           charactersIgnoringModifiers: "\u{1b}", isARepeat: false,
+                                                           keyCode: 53))
+                #expect(attached.performKeyEquivalent(with: escape))
+            }
+            await TestTiming.waitUntil { results.count == 1 }
+            #expect(results.count == 1 && results.first == .some(nil))
+            #expect(parent?.attachedSheet == nil)
+            autoreleasepool { parent?.close() }
+            await drain()
+            await TestTiming.waitUntil { sheet == nil && parent == nil }
+            #expect(sheet == nil)
+            #expect(parent == nil)
+        }
+
+        /// The Canvas Size sheet, cancelled with Esc, reports no operation and
+        /// leaves nothing of it or its parent behind, as Resize's doesn't.
+        @Test func canvasSizeSheetCancelledByItsButtonIsFreed() async throws {
+            weak var parent: NSWindow?
+            weak var sheet: NSWindow?
+            var results: [EditOperation?] = []
+            autoreleasepool {
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled],
+                                      backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                parent = window
+                CanvasSizeSheet.present(size: CGSize(width: 600, height: 400), on: window) { results.append($0) }
                 sheet = window.attachedSheet
             }
             try autoreleasepool {

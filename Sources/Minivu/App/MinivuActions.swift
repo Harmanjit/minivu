@@ -115,6 +115,22 @@ import AppKit
     @objc optional func healingBrush(_ sender: Any?)
     @objc optional func removeRedEye(_ sender: Any?)
 
+    // MARK: More Core Image tools (G11) and the watermark
+    /// Applies Core Image's automatic adjustments at once, as one step.
+    @objc optional func autoEnhance(_ sender: Any?)
+    @objc optional func reduceNoise(_ sender: Any?)
+    @objc optional func addVignette(_ sender: Any?)
+    @objc optional func correctPerspective(_ sender: Any?)
+    @objc optional func changeCanvasSize(_ sender: Any?)
+    @objc optional func addWatermark(_ sender: Any?)
+
+    // MARK: RAW settings (G10) and subjects (G8)
+    /// Opens the RAW tool: Apple's RAW engine's own settings. RAW files only.
+    @objc optional func adjustRaw(_ sender: Any?)
+    @objc optional func removeBackground(_ sender: Any?)
+    /// Puts the subject of the picture on screen on the clipboard, cut out.
+    @objc optional func copySubject(_ sender: Any?)
+
     // MARK: Tools (Phase 7)
     // The browser works on its selected images, or every image shown when
     // none is selected (`BrowserWindowController.toolImages`); the viewer on
@@ -218,6 +234,15 @@ extension Selector {
     static let cloneStamp = #selector(MinivuActions.cloneStamp(_:))
     static let healingBrush = #selector(MinivuActions.healingBrush(_:))
     static let removeRedEye = #selector(MinivuActions.removeRedEye(_:))
+    static let autoEnhance = #selector(MinivuActions.autoEnhance(_:))
+    static let reduceNoise = #selector(MinivuActions.reduceNoise(_:))
+    static let addVignette = #selector(MinivuActions.addVignette(_:))
+    static let correctPerspective = #selector(MinivuActions.correctPerspective(_:))
+    static let changeCanvasSize = #selector(MinivuActions.changeCanvasSize(_:))
+    static let addWatermark = #selector(MinivuActions.addWatermark(_:))
+    static let adjustRaw = #selector(MinivuActions.adjustRaw(_:))
+    static let removeBackground = #selector(MinivuActions.removeBackground(_:))
+    static let copySubject = #selector(MinivuActions.copySubject(_:))
     static let startSlideshow = #selector(MinivuActions.startSlideshow(_:))
     static let batchConvert = #selector(MinivuActions.batchConvert(_:))
     static let batchRename = #selector(MinivuActions.batchRename(_:))

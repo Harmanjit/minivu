@@ -93,6 +93,9 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.add("Cut", #selector(NSText.cut(_:)), "x")
         menu.add("Copy", #selector(NSText.copy(_:)), "c")
+        // The viewer's picture with its background cut away; nothing else
+        // implements it, so it stays disabled in the browser.
+        menu.add("Copy Subject", .copySubject)
         menu.add("Paste", #selector(NSText.paste(_:)), "v")
         menu.add("Select All", #selector(NSText.selectAll(_:)), "a")
         menu.add("Select Tagged", .selectTagged)
@@ -197,18 +200,25 @@ enum MainMenu {
         menu.add("Flip Vertical", .flipVertical)
         menu.addItem(.separator())
         menu.add("Resize/Resample…", .resizeImage, "i", [.command, .option])
+        menu.add("Canvas Size…", .changeCanvasSize)
         menu.add("Crop…", .cropImage, "k")
         menu.add("Straighten…", .straightenImage)
+        menu.add("Perspective…", .correctPerspective)
         menu.addItem(.separator())
 
         let adjust = NSMenu(title: "Adjust")
+        // RAW files only: the RAW engine's settings come before every edit.
+        adjust.add("RAW Adjustments…", .adjustRaw)
+        adjust.addItem(.separator())
         adjust.add("Lighting…", .adjustLighting, "l", [.command, .option])
         adjust.add("Colors…", .adjustColors, "c", [.command, .option])
         adjust.add("Curves…", .adjustCurves, "m", [.command, .shift])
         adjust.add("Levels…", .adjustLevels, "l", [.command, .shift])
+        adjust.add("Auto Enhance", .autoEnhance)
         adjust.addItem(.separator())
         adjust.add("Sharpen…", .sharpenImage)
         adjust.add("Blur…", .blurImage)
+        adjust.add("Noise Reduction…", .reduceNoise)
         menu.add("Adjust", nil).submenu = adjust
 
         let effects = NSMenu(title: "Effects")
@@ -222,6 +232,7 @@ enum MainMenu {
         effects.add("Sketch…", .applySketch)
         effects.add("Oil Painting…", .applyOilPaint)
         effects.add("Lens…", .applyLens)
+        effects.add("Vignette…", .addVignette)
         menu.add("Effects", nil).submenu = effects
 
         let retouch = NSMenu(title: "Retouch")
@@ -230,6 +241,8 @@ enum MainMenu {
         retouch.add("Red-Eye Removal…", .removeRedEye)
         menu.add("Retouch", nil).submenu = retouch
         menu.add("Text and Shapes…", .drawAnnotations)
+        menu.add("Watermark…", .addWatermark)
+        menu.add("Remove Background…", .removeBackground)
         menu.addItem(.separator())
         menu.add("Edit Comment…", .editComment)
         // ⌘I as Get Info is in Finder and Info in Photos: the image's

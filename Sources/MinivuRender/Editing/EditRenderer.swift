@@ -27,14 +27,20 @@ final class EditSource: @unchecked Sendable {
     let scale: Double
     let isHDR: Bool
     let contentHeadroom: Float
+    /// The RAW tool's settings this original was developed with; nil for
+    /// one decoded by the viewer's rules (any file that isn't RAW, and a RAW
+    /// file before any RAW step).
+    let develop: RawDevelop?
 
-    init(texture: MTLTexture?, image: CIImage, size: CGSize, scale: Double = 1, isHDR: Bool, contentHeadroom: Float) {
+    init(texture: MTLTexture?, image: CIImage, size: CGSize, scale: Double = 1, isHDR: Bool, contentHeadroom: Float,
+         develop: RawDevelop? = nil) {
         self.texture = texture
         self.image = image
         self.size = size
         self.scale = scale
         self.isHDR = isHDR
         self.contentHeadroom = contentHeadroom
+        self.develop = develop
     }
 }
 
@@ -44,11 +50,21 @@ final class EditProxy: @unchecked Sendable {
     let image: CIImage
     /// Its size over the original's (`EditGraph.workingLength` per axis).
     let scale: Double
+    /// The RAW settings it shows (see `EditSource.develop`): the original's
+    /// for a proxy made from it, the RAW tool's live ones for a proxy the
+    /// engine developed at this size while the tool's sliders move.
+    let develop: RawDevelop?
+    let isHDR: Bool
+    let contentHeadroom: Float
 
-    init(texture: MTLTexture, image: CIImage, scale: Double) {
+    init(texture: MTLTexture, image: CIImage, scale: Double, develop: RawDevelop? = nil, isHDR: Bool = false,
+         contentHeadroom: Float = 1) {
         self.texture = texture
         self.image = image
         self.scale = scale
+        self.develop = develop
+        self.isHDR = isHDR
+        self.contentHeadroom = contentHeadroom
     }
 }
 
@@ -65,6 +81,8 @@ final class EditProxy: @unchecked Sendable {
 /// intermediate either way). Saving never uses it.
 final class EditStage: @unchecked Sendable {
     let source: EditSource
+    /// The RAW settings of the image it was rendered from (see `EditProxy`).
+    let develop: RawDevelop?
     /// The operations it holds, and the scale it was rendered at.
     let operations: [EditOperation]
     let scale: Double
@@ -73,9 +91,10 @@ final class EditStage: @unchecked Sendable {
     let texture: MTLTexture
     let image: CIImage
 
-    init(source: EditSource, operations: [EditOperation], scale: Double, size: CGSize, texture: MTLTexture,
-         image: CIImage) {
+    init(source: EditSource, develop: RawDevelop?, operations: [EditOperation], scale: Double, size: CGSize,
+         texture: MTLTexture, image: CIImage) {
         self.source = source
+        self.develop = develop
         self.operations = operations
         self.scale = scale
         self.size = size
@@ -83,8 +102,10 @@ final class EditStage: @unchecked Sendable {
         self.image = image
     }
 
-    func matches(source: EditSource, operations prefix: ArraySlice<EditOperation>, scale: Double) -> Bool {
-        self.source === source && abs(self.scale - scale) < 1e-9 && self.operations[...] == prefix
+    func matches(source: EditSource, develop: RawDevelop?, operations prefix: ArraySlice<EditOperation>,
+                 scale: Double) -> Bool {
+        self.source === source && self.develop == develop && abs(self.scale - scale) < 1e-9
+            && self.operations[...] == prefix
     }
 }
 
@@ -116,6 +137,38 @@ final class EditStage: @unchecked Sendable {
 /// document has moved away from, rather than along (a preview cancelled or
 /// applied, an undo), while a render of the newer state is on its way: it
 /// would show the dropped state for a frame (see `isOvertaken`).
+///
+/// **RAW settings.** The RAW tool's step (`EditOperation.rawDevelop`) is
+/// not a graph operation: it changes how the sensor data is developed, so
+/// it changes the original itself, and `EditGraph` passes the image through
+/// it untouched. Every original and proxy records the settings it shows
+/// (`EditSource.develop`, `EditProxy.develop`), and each render compares
+/// them with the settings its operations ask for (the last RAW step's;
+/// `RawDevelop.inEffect`):
+///
+/// - a full-resolution render, or any render once no RAW step is left (all
+///   undone), first makes the original again with those settings and puts
+///   it on the document in place of the old one, which frees it. Both lanes
+///   share that decode (`remadeSource`): after an undo past the last RAW
+///   step the preview waits for the full lane's decode rather than run a
+///   second one, and a render that finishes after the original changed
+///   keeps neither the stage nor the proxy it built from the old one;
+/// - a preview while the tool's sliders move doesn't wait for that: the
+///   engine develops the file again at the preview's own size (its scale
+///   factor skips the work a smaller picture doesn't need; 65-78 ms at half
+///   size for 24 MP on M4, with the file kept open on the document as
+///   `RawDevelopFilter`), and that image is the proxy the preview and the
+///   next ones with the same settings start from.
+///
+/// So undo and redo are a change of operations like any other, and the
+/// renders that follow make the original agree again; a save renders from
+/// an original with the committed settings, decoding one if the document's
+/// doesn't have them. HDR follows the viewer's RAW settings, as the first
+/// decode does: with extended dynamic range on, every developed image keeps
+/// highlights above white and measures its own headroom. Engine renders take
+/// one of the editor's RAW slots (`RawRenderer.withEditRenderSlot`: one at a
+/// time on 8 GB Macs, shared there with the viewer's RAW renders) and run on
+/// the RAW context, with its memory limit.
 ///
 /// **Measured** on M4, release build, 6032 x 4032 JPEG (`EditBenchmark`):
 ///
@@ -181,23 +234,30 @@ final class EditStage: @unchecked Sendable {
         let token = document.preparationToken
         let gpu = self.gpu, context = self.context
         let expected = document.sourceSignature
+        // A document prepared again (after a release) with RAW steps decodes
+        // its original with their settings straight away.
+        let develop = Self.rawDevelop(kind: kind, operations: document.operations)
+        let rawFilter = document.rawFilter
         let preparation = Task { [weak document] in
             // A full-resolution decode and a GPU wait block their thread for
             // 100 ms or more: on GCD, not the cooperative pool (BlockingWork).
-            let (source, proxy, signature) = try await BlockingWork.run {
-                () throws -> (EditSource, EditProxy?, FileSignature?) in
+            let (source, proxy, signature, filter) = try await BlockingWork.run {
+                () throws -> (EditSource, EditProxy?, FileSignature?, RawDevelopFilter?) in
                 // Read before decoding, so a change racing the decode is caught.
                 let signature = FileSignature.read(url)
                 if let expected, signature != expected { throw EditRenderError.sourceChanged(url) }
-                let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu)
+                let filter = develop == nil ? rawFilter : rawFilter ?? RawDevelopFilter(url: url)
+                let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu,
+                                                 develop: develop, rawFilter: filter)
                 let scale = Self.proxyScale(sourceSize: source.size, sourceScale: source.scale, longEdge: edge)
                 let proxy = try scale.map { try Self.makeProxy(source, scale: $0, context: context, gpu: gpu) }
-                return (source, proxy, signature)
+                return (source, proxy, signature, filter)
             }
             guard let document, document.preparationToken == token else { return }
             document.source = source
             document.proxy = proxy
             document.sourceSize = source.size
+            if document.rawFilter == nil { document.rawFilter = filter }
             if document.sourceSignature == nil { document.sourceSignature = signature }
         }
         document.preparation = preparation
@@ -213,6 +273,8 @@ final class EditStage: @unchecked Sendable {
         document.preparation = nil
         document.source = nil
         document.proxy = nil
+        document.rawFilter = nil
+        document.sourceRemake = nil
         document.previewLane.pending = nil
         document.fullLane.pending = nil
         document.previewLane.stage = nil
@@ -301,7 +363,9 @@ final class EditStage: @unchecked Sendable {
     nonisolated private static func exportSource(_ snapshot: EditDocument.Snapshot, settings: DisplaySettings,
                                                  requireHDR: Bool = false, gpu: GPU,
                                                  decodeLimit: Int) throws -> EditSource {
-        if let prepared = snapshot.source, prepared.scale >= 1, prepared.isHDR || !requireHDR {
+        let develop = rawDevelop(kind: snapshot.kind, operations: snapshot.operations)
+        if let prepared = snapshot.source, prepared.scale >= 1, prepared.isHDR || !requireHDR,
+           snapshot.kind != .raw || prepared.develop == develop {
             return prepared
         }
         // Re-reading the file is only safe if it is still the file the
@@ -312,7 +376,8 @@ final class EditStage: @unchecked Sendable {
             throw EditRenderError.sourceChanged(snapshot.url)
         }
         return try loadSource(url: snapshot.url, page: snapshot.page, kind: snapshot.kind,
-                              settings: settings, gpu: gpu, forExport: true, decodeLimit: decodeLimit)
+                              settings: settings, gpu: gpu, forExport: true, decodeLimit: decodeLimit,
+                              develop: develop)
     }
 
     nonisolated private static func exportImage(_ snapshot: EditDocument.Snapshot, colorSpace: CGColorSpace,
@@ -353,81 +418,165 @@ final class EditStage: @unchecked Sendable {
         }
     }
 
+    /// What a render made besides its texture, for the document to keep.
+    private struct RunResult: Sendable {
+        let texture: ImageTexture
+        /// A proxy it built (larger, or developed with new RAW settings).
+        let proxy: EditProxy?
+        let stage: EditStage?
+        /// The RAW file opened in the engine, if this render opened it.
+        let rawFilter: RawDevelopFilter?
+    }
+
     private func run(_ request: RenderLane.Request, for document: EditDocument, full: Bool) async {
         do {
             try await prepare(document)
         } catch {
             return   // an unreadable file: nothing to show, and the viewer reports decode errors
         }
-        guard let source = document.source else { return }
+        guard var source = document.source else { return }
+        let token = document.preparationToken
         let operations = document.renderedOperations
         let revision = document.revision
         let committed = document.operations, preview = document.preview
         let lane = full ? document.fullLane : document.previewLane
         lane.runningRevision = revision
         defer { lane.runningRevision = nil }
+        let pixelSize = request.pixelSize ?? 1
+
+        // RAW settings (see the type's documentation). For any other file
+        // `develop` is nil, as is every source's and proxy's, so nothing
+        // below changes for it.
+        let kind = document.entry.kind, url = document.entry.url
+        let develop = Self.rawDevelop(kind: kind, operations: operations)
+        if source.develop != develop, full || develop == nil {
+            // The original made again first, by one decode both lanes share.
+            guard let remade = await remadeSource(document, develop: develop, qos: full ? .utility : .userInitiated),
+                  document.preparationToken == token else { return }
+            source = remade
+        }
+        let sourceShowsDevelop = source.develop == develop
+        let developPreview = !sourceShowsDevelop
+        let rawFilter = document.rawFilter
+        let settings = ImageLoader.shared.settings
+        let expected = document.sourceSignature
+        // Only a proxy showing the same settings can serve.
+        let proxy = document.proxy.flatMap { $0.develop == develop ? $0 : nil }
+
         let outputSize = EditGraph.outputSize(source: source.size, operations: operations)
-        let proxy = document.proxy
         let plan = full
             ? Self.fullResolutionPlan(outputSize: outputSize, sourceScale: source.scale)
-            : Self.previewPlan(outputSize: outputSize, pixelSize: request.pixelSize ?? 1, proxyScale: proxy?.scale,
+            : Self.previewPlan(outputSize: outputSize, pixelSize: pixelSize, proxyScale: proxy?.scale,
                                sourceScale: source.scale)
         let gpu = self.gpu, context = self.context
-        let stageLength = Self.stageLength(operations: operations, committed: committed.count, sourceSize: source.size)
+        // A render that makes its own original or proxy from the RAW engine
+        // starts without a stage: the stage's image may show other settings.
+        let stageLength = sourceShowsDevelop
+            ? Self.stageLength(operations: operations, committed: committed.count, sourceSize: source.size) : nil
         let stage = stageLength.flatMap { length in
-            lane.stage.flatMap { $0.matches(source: source, operations: operations.prefix(length), scale: plan.scale) ? $0 : nil }
+            lane.stage.flatMap {
+                $0.matches(source: source, develop: develop, operations: operations.prefix(length), scale: plan.scale)
+                    ? $0 : nil
+            }
         }
 
+        let renderSource = source
         // `renderTexture` waits for the GPU: on GCD, not the cooperative pool.
-        let result = await BlockingWork.run(qos: full ? .utility : .userInitiated) {
-            () -> (ImageTexture, EditProxy?, EditStage?)? in
+        let result = await BlockingWork.run(qos: full ? .utility : .userInitiated) { () -> RunResult? in
             do {
+                var filter = rawFilter
+                var plan = plan
                 var workingProxy = proxy
+                var newProxy: EditProxy?
                 var newStage: EditStage?
+                var isHDR = renderSource.isHDR, headroom = renderSource.contentHeadroom
                 let image: CIImage
                 if let stage {
                     image = EditGraph.image(source: stage.image, sourceSize: stage.size,
                                             operations: Array(operations[stage.operations.count...]), scale: plan.scale)
                 } else {
-                    if plan.rebuildProxy {
-                        workingProxy = try Self.makeProxy(source, scale: plan.scale, context: context, gpu: gpu)
+                    if developPreview, plan.rebuildProxy || !plan.useProxy {
+                        // The RAW tool's sliders: the engine develops the file
+                        // at exactly the size this preview asks for. (Not the
+                        // quarter more a growing proxy gets: every slider
+                        // frame develops again anyway, so the extra pixels
+                        // would only cost time.)
+                        let long = Double(max(outputSize.width, outputSize.height))
+                        let scale = long > 0 ? min(plan.maximumScale, Double(pixelSize) / long) : plan.maximumScale
+                        if filter == nil {
+                            if let expected, FileSignature.read(url) != expected {
+                                throw EditRenderError.sourceChanged(url)
+                            }
+                            filter = RawDevelopFilter(url: url)
+                        }
+                        guard let filter else { throw DecodeError.noImage(url) }
+                        let developed = try Self.renderDeveloped(filter, develop: develop, fullSize: renderSource.size,
+                                                                 scale: scale, settings: settings, gpu: gpu)
+                        workingProxy = EditProxy(texture: developed.texture, image: developed.image, scale: scale,
+                                                 develop: develop, isHDR: settings.rendersHDRRaw,
+                                                 contentHeadroom: developed.headroom)
+                        newProxy = workingProxy
+                        plan = Plan(scale: scale, maximumScale: plan.maximumScale, useProxy: true, rebuildProxy: false)
+                    } else if plan.rebuildProxy {
+                        workingProxy = try Self.makeProxy(renderSource, scale: plan.scale, context: context, gpu: gpu)
+                        newProxy = workingProxy
                     }
-                    let working = Self.workingImage(source: source, proxy: plan.useProxy ? workingProxy : nil,
+                    if developPreview, let workingProxy {
+                        isHDR = workingProxy.isHDR
+                        headroom = workingProxy.contentHeadroom
+                    }
+                    let working = Self.workingImage(source: renderSource, proxy: plan.useProxy ? workingProxy : nil,
                                                     scale: plan.scale)
                     if let stageLength {
                         let prefix = Array(operations.prefix(stageLength))
-                        let size = EditGraph.outputSize(source: source.size, operations: prefix)
-                        let staged = EditGraph.image(source: working, sourceSize: source.size, operations: prefix,
+                        let size = EditGraph.outputSize(source: renderSource.size, operations: prefix)
+                        let staged = EditGraph.image(source: working, sourceSize: renderSource.size, operations: prefix,
                                                      scale: plan.scale)
                         let (texture, stagedImage) = try Self.renderIntermediate(staged, context: context, gpu: gpu,
                                                                                  label: "an edit stage")
-                        newStage = EditStage(source: source, operations: prefix, scale: plan.scale, size: size,
-                                             texture: texture, image: stagedImage)
+                        newStage = EditStage(source: renderSource, develop: develop, operations: prefix,
+                                             scale: plan.scale, size: size, texture: texture, image: stagedImage)
                         image = EditGraph.image(source: stagedImage, sourceSize: size,
                                                 operations: Array(operations[stageLength...]), scale: plan.scale)
                     } else {
-                        image = EditGraph.image(source: working, sourceSize: source.size, operations: operations,
+                        image = EditGraph.image(source: working, sourceSize: renderSource.size, operations: operations,
                                                 scale: plan.scale)
                     }
                 }
                 let texture = try Self.renderTexture(image, context: context, gpu: gpu)
                 let output = ImageTexture(texture: texture, imageSize: outputSize,
                                           isFullResolution: plan.scale >= plan.maximumScale,
-                                          isHDR: source.isHDR, contentHeadroom: source.contentHeadroom)
-                return (output, plan.rebuildProxy && stage == nil ? workingProxy : nil, newStage)
+                                          isHDR: isHDR, contentHeadroom: headroom)
+                return RunResult(texture: output, proxy: newProxy, stage: newStage,
+                                 rawFilter: filter !== rawFilter ? filter : nil)
             } catch {
                 return nil
             }
         }
 
         // Released, or prepared again from scratch, while rendering.
-        guard let (texture, newProxy, newStage) = result, document.source === source else { return }
-        if let newProxy, newProxy.scale > (document.proxy?.scale ?? 0) {
-            document.proxy = newProxy
+        guard let result, document.preparationToken == token else { return }
+        let texture = result.texture
+        if let filter = result.rawFilter, document.rawFilter == nil { document.rawFilter = filter }
+        // The original made again while this rendered (by the other lane):
+        // a stage or proxy built from the old one would keep its pixels
+        // alive, and may be the wrong size, so neither is kept.
+        let sourceIsCurrent = document.source === source
+        if let newProxy = result.proxy, sourceIsCurrent {
+            // Keep the proxy that shows the document's settings now: a larger
+            // one, or one developed with settings the old one doesn't show.
+            let wanted = Self.rawDevelop(kind: kind, operations: document.renderedOperations)
+            if let current = document.proxy {
+                if newProxy.develop == wanted, current.develop != wanted || newProxy.scale > current.scale {
+                    document.proxy = newProxy
+                }
+            } else {
+                document.proxy = newProxy
+            }
         }
         // A render without a stage to use (none fits its operations, or it
         // made one) drops the lane's old one, whose memory nothing needs.
-        if stage == nil { lane.stage = newStage }
+        if stage == nil { lane.stage = sourceIsCurrent ? result.stage : nil }
         guard Self.shouldDeliver(revision: revision, full: full, after: document.lastDelivered) else { return }
         if revision != document.revision,
            Self.isOvertaken(committed: committed, preview: preview,
@@ -443,6 +592,64 @@ final class EditStage: @unchecked Sendable {
         document.lastDelivered = (revision, full)
         document.deliveredOperations = operations
         request.completion(texture)
+    }
+
+    /// The document's original made again with `develop` (see the type's
+    /// documentation), put on the document in place of the one it had, which
+    /// frees that one, if the document still wants those settings when it is
+    /// done. The lanes share one decode: a lane asking for the same
+    /// settings while a remake is under way waits for it rather than decode
+    /// the file a second time (after the last RAW step is undone both lanes
+    /// need the plain original at once). Nil when the file can't be decoded
+    /// or has changed, or the document was released meanwhile.
+    func remadeSource(_ document: EditDocument, develop: RawDevelop?,
+                      qos: DispatchQoS.QoSClass) async -> EditSource? {
+        if let remake = document.sourceRemake, remake.develop == develop { return await remake.task.value }
+        guard document.source != nil else { return nil }
+        let token = document.preparationToken
+        let url = document.entry.url, page = document.page, kind = document.entry.kind
+        let settings = ImageLoader.shared.settings, gpu = self.gpu
+        let expected = document.sourceSignature, rawFilter = document.rawFilter
+        let id = UUID()
+        let task = Task { [weak document] () -> EditSource? in
+            let made = await BlockingWork.run(qos: qos) { () -> (EditSource, RawDevelopFilter?)? in
+                do {
+                    // The same check as `prepare`: the operations were made
+                    // on the file as it was first decoded.
+                    if let expected, FileSignature.read(url) != expected { throw EditRenderError.sourceChanged(url) }
+                    let filter = develop == nil ? rawFilter : rawFilter ?? RawDevelopFilter(url: url)
+                    let source = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu,
+                                                     develop: develop, rawFilter: filter)
+                    return (source, filter)
+                } catch {
+                    return nil
+                }
+            }
+            guard let document else { return nil }
+            if document.sourceRemake?.id == id { document.sourceRemake = nil }
+            guard let (source, filter) = made, document.preparationToken == token else { return nil }
+            if let filter, document.rawFilter == nil { document.rawFilter = filter }
+            // Put on the document only while its operations still ask for
+            // these settings (committed, or a live preview's) and its
+            // original doesn't already show them: a remake for settings
+            // undone meanwhile serves the render that asked for it and no
+            // more, rather than leave an original no render wants.
+            let wanted = [document.operations, document.renderedOperations].map {
+                Self.rawDevelop(kind: kind, operations: $0)
+            }
+            if wanted.contains(develop), document.source?.develop != develop {
+                // Stages made from the old original go with it.
+                document.source = source
+                document.sourceSize = source.size
+                for lane in [document.previewLane, document.fullLane] where lane.stage?.source !== source {
+                    lane.stage = nil
+                }
+            }
+            return source
+        }
+        document.sourceRemake = EditDocument.SourceRemake(id: id, develop: develop, task: task)
+        document.sourceRemakes += 1
+        return await task.value
     }
 
     /// Whether a finished render may replace what was delivered last: only
@@ -605,7 +812,8 @@ final class EditStage: @unchecked Sendable {
     nonisolated static func makeProxy(_ source: EditSource, scale: Double, context: CIContext, gpu: GPU) throws -> EditProxy {
         let image = lanczos(source.image, to: source.size, scale: scale)
         let (texture, proxyImage) = try renderIntermediate(image, context: context, gpu: gpu, label: "an edit proxy")
-        return EditProxy(texture: texture, image: proxyImage, scale: scale)
+        return EditProxy(texture: texture, image: proxyImage, scale: scale, develop: source.develop,
+                         isHDR: source.isHDR, contentHeadroom: source.contentHeadroom)
     }
 
     /// Renders `image` (extent at the origin, whole pixels) into a half-float
@@ -682,9 +890,16 @@ final class EditStage: @unchecked Sendable {
     /// read in tiles, so a saved file keeps every pixel; a file whose header
     /// claims more than `decodeLimit` bytes of that is refused with
     /// `DecodeError.tooLarge` before it is decoded.
+    ///
+    /// A RAW file with RAW tool settings (`develop`) is developed with them
+    /// by Apple's RAW engine, through `rawFilter` when the document has the
+    /// file open already; a camera the engine doesn't know falls back to the
+    /// viewer's rules, as without settings.
     nonisolated static func loadSource(url: URL, page: Int, kind: ImageKind?, settings: DisplaySettings,
                                        gpu: GPU, forExport: Bool = false,
-                                       decodeLimit: Int = ImageDecoder.exportDecodeLimit()) throws -> EditSource {
+                                       decodeLimit: Int = ImageDecoder.exportDecodeLimit(),
+                                       develop: RawDevelop? = nil,
+                                       rawFilter: RawDevelopFilter? = nil) throws -> EditSource {
         if kind == .raw {
             // The RAW path decodes the embedded preview at the size the header
             // claims, so an export reads the header first, as `decode` does for
@@ -693,6 +908,9 @@ final class EditStage: @unchecked Sendable {
             if forExport, let info = ImageDecoder.info(for: url), info.pixelSize != .zero,
                ImageDecoder.exceedsExportBudget(info, byteLimit: decodeLimit) {
                 throw DecodeError.tooLarge(url)
+            }
+            if let develop, let filter = rawFilter ?? RawDevelopFilter(url: url) {
+                return try developedSource(filter, develop: develop, settings: settings, gpu: gpu)
             }
             if let raw = try loadRaw(url: url, settings: settings, gpu: gpu) {
                 return raw
@@ -748,8 +966,10 @@ final class EditStage: @unchecked Sendable {
             return try upload(preview, gpu: gpu)
         }
         do {
-            let rendered = try RawRenderer.render(url: url, maxPixelSize: nil, hdr: plan == .render(hdr: true),
-                                                  headroom: settings.rawHeadroom, gpu: gpu)
+            let rendered = try RawRenderer.withEditRenderSlot {
+                try RawRenderer.render(url: url, maxPixelSize: nil, hdr: plan == .render(hdr: true),
+                                       headroom: settings.rawHeadroom, gpu: gpu)
+            }
             return try wrap(rendered)
         } catch DecodeError.noImage {
             guard let preview = try? ImageDecoder.decodeRawPreview(url) else { return nil }

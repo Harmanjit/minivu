@@ -154,7 +154,7 @@ public enum RawRenderer {
     /// it reaches the texture.
     private static let sharedContext = makeContext(gpu: .shared)
 
-    private static func context(for gpu: GPU) -> CIContext {
+    static func context(for gpu: GPU) -> CIContext {
         gpu === GPU.shared ? sharedContext : makeContext(gpu: gpu)
     }
 
@@ -192,8 +192,81 @@ public enum RawRenderer {
         physicalMemory <= 8 << 30 ? 512 : nil
     }
 
+    // MARK: - Slots
+
+    /// How many RAW renders the editor may run at once (the RAW tool's
+    /// previews and full-resolution sources, a RAW being decoded for an
+    /// edit, a save or a batch conversion): one on Macs with 8 GB or less,
+    /// where two at once would add their engine buffers together (about
+    /// 1.6 GB each at full size), two elsewhere, so a preview needn't wait
+    /// behind a full render of the same photo.
+    nonisolated static func concurrentEditRenders(physicalMemory: UInt64) -> Int {
+        physicalMemory <= 8 << 30 ? 1 : 2
+    }
+
+    /// Whether the viewer's RAW renders (`ImageLoader`, which allows one of
+    /// its own) take the editor's slot too: on Macs with 8 GB or less, so
+    /// the whole app renders one RAW at a time there, as the viewer alone
+    /// always did. Elsewhere the viewer keeps its own slot, and a photo
+    /// shown while the editor renders doesn't wait for it.
+    nonisolated static func viewerSharesEditSlot(physicalMemory: UInt64) -> Bool {
+        physicalMemory <= 8 << 30
+    }
+
+    /// The slots for this Mac.
+    static let slots = RenderSlots(physicalMemory: ProcessInfo.processInfo.physicalMemory)
+
+    /// Runs `body`, a render through the RAW engine for the editor, in one
+    /// of the editor's slots, waiting for one to free. Blocks its thread:
+    /// call it from GCD (`BlockingWork`), never the cooperative pool.
+    static func withEditRenderSlot<T>(_ body: () throws -> T) rethrows -> T {
+        try slots.withEditRender(body)
+    }
+
+    /// Runs `body`, the viewer's RAW render, in the editor's slot where the
+    /// two share one (`viewerSharesEditSlot`), otherwise straight away
+    /// (`ImageLoader` already keeps its own renders to one). Blocks its
+    /// thread like `withEditRenderSlot`, but calls `checkStop` while it
+    /// waits, so a render the viewer no longer wants leaves as soon as it
+    /// throws rather than when the slot frees.
+    static func withViewerRenderSlot<T>(checkStop: () throws -> Void, _ body: () throws -> T) throws -> T {
+        try slots.withViewerRender(checkStop: checkStop, body)
+    }
+
+    /// The editor's slots and whether the viewer shares them; an instance
+    /// per Mac size, so tests can try both.
+    final class RenderSlots: Sendable {
+        let editSlots: Int
+        let viewerShares: Bool
+        private let semaphore: DispatchSemaphore
+
+        init(physicalMemory: UInt64) {
+            editSlots = RawRenderer.concurrentEditRenders(physicalMemory: physicalMemory)
+            viewerShares = RawRenderer.viewerSharesEditSlot(physicalMemory: physicalMemory)
+            semaphore = DispatchSemaphore(value: editSlots)
+        }
+
+        func withEditRender<T>(_ body: () throws -> T) rethrows -> T {
+            semaphore.wait()
+            defer { semaphore.signal() }
+            return try body()
+        }
+
+        /// How often a waiting viewer render asks whether it is still wanted.
+        static let stopCheckInterval: DispatchTimeInterval = .milliseconds(50)
+
+        func withViewerRender<T>(checkStop: () throws -> Void = {}, _ body: () throws -> T) throws -> T {
+            guard viewerShares else { return try body() }
+            while semaphore.wait(timeout: .now() + Self.stopCheckInterval) == .timedOut {
+                try checkStop()
+            }
+            defer { semaphore.signal() }
+            return try body()
+        }
+    }
+
     /// The largest channel value anywhere in `texture`.
-    private static func peakValue(of texture: MTLTexture, gpu: GPU) -> Float? {
+    static func peakValue(of texture: MTLTexture, gpu: GPU) -> Float? {
         let space = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!
         guard let image = CIImage(mtlTexture: texture, options: [.colorSpace: space]) else { return nil }
         let maximum = image.applyingFilter("CIAreaMaximum", parameters: [kCIInputExtentKey: CIVector(cgRect: image.extent)])

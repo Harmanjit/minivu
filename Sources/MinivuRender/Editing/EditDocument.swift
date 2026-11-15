@@ -167,7 +167,27 @@ import MinivuCore
     /// Set by `EditRenderer`; see there.
     var source: EditSource?
     var proxy: EditProxy?
+    /// The RAW file open in Apple's RAW engine, once the RAW tool or a RAW
+    /// step needed it (see `RawDevelopFilter`).
+    var rawFilter: RawDevelopFilter?
+    /// The last subject Remove Background or Copy Subject found, and the
+    /// operations of the picture it was found in (see
+    /// `EditRenderer.subjectMask(for:operations:)`).
+    var subjectMaskCache: (operations: [EditOperation], mask: SubjectMask?)?
     var preparation: Task<Void, Error>?
+    /// The original being made again with other RAW settings, which both
+    /// lanes wait for rather than decode the file twice (see
+    /// `EditRenderer.remadeSource`).
+    var sourceRemake: SourceRemake?
+    /// How many times the original has been made again; for tests.
+    var sourceRemakes = 0
+
+    struct SourceRemake {
+        let id: UUID
+        let develop: RawDevelop?
+        let task: Task<EditSource?, Never>
+    }
+
     /// Changes when the renderer releases the document, so a preparation
     /// that finishes afterwards doesn't bring the original back.
     var preparationToken = 0
@@ -228,6 +248,13 @@ extension EditDocument {
             guard let sourceSignature else { return true }
             let now = FileStamp.read(url)
             return now == sourceSignature || OwnWrites.isOwn(url, stamp: now)
+        }
+
+        /// The same picture with `more` operations after these, for a render
+        /// of it with something added (Copy Subject's cut-out and crop).
+        public func appending(_ more: [EditOperation]) -> Snapshot {
+            Snapshot(url: url, page: page, kind: kind, operations: operations + more, sourceSize: sourceSize,
+                     source: source, settings: settings, sourceSignature: sourceSignature)
         }
     }
 

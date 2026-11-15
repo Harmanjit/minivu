@@ -46,7 +46,7 @@ nonisolated struct AdjustmentSection: Sendable {
 /// The slider inspectors: every tool whose state is a few numbers that make
 /// one operation per section.
 nonisolated enum AdjustmentKind: String, CaseIterable, Sendable {
-    case lighting, colors, sharpen, blur, straighten
+    case lighting, colors, sharpen, blur, straighten, noiseReduction, vignette
 
     var title: String {
         switch self {
@@ -55,6 +55,8 @@ nonisolated enum AdjustmentKind: String, CaseIterable, Sendable {
         case .sharpen: "Sharpen"
         case .blur: "Blur"
         case .straighten: "Straighten"
+        case .noiseReduction: "Noise Reduction"
+        case .vignette: "Vignette"
         }
     }
 
@@ -95,6 +97,17 @@ nonisolated enum AdjustmentKind: String, CaseIterable, Sendable {
             [AdjustmentSection(title: nil, sliders: [
                 AdjustmentSlider(title: "Angle", range: -45...45, defaultValue: 0, decimals: 1, unit: "°"),
             ]) { v in .rotate(degrees: v[0], autoCrop: true) }]
+        case .noiseReduction:
+            [AdjustmentSection(title: nil, sliders: [
+                AdjustmentSlider(title: "Level", range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
+                AdjustmentSlider(title: "Sharpness", range: 0...2, defaultValue: 0.4, decimals: 2),
+            ]) { v in .noiseReduction(level: v[0], sharpness: v[1]) }]
+        case .vignette:
+            [AdjustmentSection(title: nil, sliders: [
+                AdjustmentSlider(title: "Amount", range: -1...1, defaultValue: 0.5, displayScale: 100),
+                AdjustmentSlider(title: "Radius", range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
+                AdjustmentSlider(title: "Feather", range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
+            ]) { v in .vignette(amount: v[0], radius: v[1], feather: v[2]) }]
         }
     }
 }
@@ -150,8 +163,8 @@ extension EditToolState {
         self.document = document
         sections = kind.sections
         values = sections.map { $0.sliders.map(\.defaultValue) }
-        // Sharpen and blur start at a visible setting, shown at once as a
-        // dialog with a preview would.
+        // Sharpen, blur, noise reduction and the vignette start at a visible
+        // setting, shown at once as a dialog with a preview would.
         for index in sections.indices where !operation(for: index).isIdentity {
             update(section: index)
         }

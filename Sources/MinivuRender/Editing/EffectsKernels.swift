@@ -268,6 +268,79 @@ enum EffectsKernels {
             return float4(dot(gx, gx), dot(gx, gy), dot(gy, gy), 1.0);
         }
         """,
+        "effectsVignette": """
+        // The vignette (CorrectionsGraph.vignette): a gain in linear light that
+        // eases in with the distance from the centre. frame: centre x, y and
+        // half width, half height (working pixels, y up); shape: where the
+        // falloff starts and how far it runs (fractions of the way to a
+        // corner), the gain at the corners in stops, unused. A gain scales
+        // HDR values like the rest, and premultiplied alpha stays valid.
+        [[stitchable]] float4 effectsVignette(coreimage::sampler image, float4 frame, float4 shape,
+                                              coreimage::destination dest) {
+            float2 p = dest.coord();
+            float4 s = image.sample(image.transform(p));
+            float2 d = (p - frame.xy) / max(frame.zw, float2(1e-3));
+            float r = length(d) * 0.70710678;
+            float t = smoothstep(shape.x, shape.x + max(shape.y, 1e-3), r);
+            return float4(s.rgb * exp2(shape.z * t), s.a);
+        }
+        """,
+        "effectsDenoise": """
+        // Noise reduction (CorrectionsGraph.reduceNoise): a bilateral filter on
+        // encoded values. Each neighbour within `radius` taps is weighted by
+        // its distance (spatial sigma, working pixels) and by how far its
+        // colour is from the centre's (range sigma, encoded units), so noise
+        // smaller than the range sigma averages away while edges, which
+        // differ by more, keep. The same loop sums the spatial weights alone:
+        // a plain blur, whose difference from the bilateral result is the
+        // edges without the noise, added back `sharpness` times.
+        // params: spatial sigma, range sigma, radius in taps, sharpness; bounds:
+        // the image's minX minY maxX maxY, to which samples are held, which
+        // repeats its edge pixels outward.
+        [[stitchable]] float4 effectsDenoise(coreimage::sampler src, float4 params, float4 bounds,
+                                             coreimage::destination dest) {
+            float2 p = dest.coord();
+            float2 lo = bounds.xy + 0.5, hi = max(bounds.zw - 0.5, lo);
+            float4 c = src.sample(src.transform(clamp(p, lo, hi)));
+            float3 ce = effectsEncode3(c.a > 0.0 ? c.rgb / c.a : float3(0.0));
+            float spatial = 0.5 / max(params.x * params.x, 1e-4);
+            float range = 0.5 / max(params.y * params.y, 1e-8);
+            int r = int(params.z + 0.5);
+            float3 sum = float3(0.0), plain = float3(0.0);
+            float weights = 0.0, plainWeights = 0.0;
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dx = -r; dx <= r; dx++) {
+                    float2 o = float2(float(dx), float(dy));
+                    float4 s = src.sample(src.transform(clamp(p + o, lo, hi)));
+                    float3 se = effectsEncode3(s.a > 0.0 ? s.rgb / s.a : float3(0.0));
+                    float3 d = se - ce;
+                    float ws = exp(-dot(o, o) * spatial);
+                    float w = ws * exp(-dot(d, d) * range);
+                    sum += se * w;
+                    weights += w;
+                    plain += se * ws;
+                    plainWeights += ws;
+                }
+            }
+            float3 smooth = sum / max(weights, 1e-6);
+            float3 blurred = plain / max(plainWeights, 1e-6);
+            float3 result = smooth + params.w * (smooth - blurred);
+            return float4(effectsDecode3(result) * c.a, c.a);
+        }
+        """,
+        "effectsPerspective": """
+        // Perspective correction (CorrectionsGraph.perspective): where each
+        // output pixel samples the input, by the homography that takes the
+        // output rectangle, normalised to 0...1 (y up), onto the chosen
+        // quadrilateral in working pixels. Rows of the 3 x 3 matrix, and the
+        // output's size.
+        [[stitchable]] float2 effectsPerspective(float3 row0, float3 row1, float3 row2, float2 size,
+                                                 coreimage::destination dest) {
+            float3 q = float3(dest.coord() / max(size, float2(1.0)), 1.0);
+            float w = dot(row2, q);
+            return float2(dot(row0, q), dot(row1, q)) / (abs(w) > 1e-6 ? w : 1e-6);
+        }
+        """,
     ]
 
     /// The compiled kernel named `name`, compiled on first use (about 90 ms
