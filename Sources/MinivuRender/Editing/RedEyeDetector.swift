@@ -111,55 +111,61 @@ extension EditRenderer {
     /// long edge at most `maxPixelSize`, from the proxy when it has enough
     /// pixels and shows the same RAW settings. HDR values are clipped, which
     /// detection doesn't mind.
+    ///
+    /// A RAW file whose original doesn't show the RAW settings of
+    /// `operations` (right after the RAW tool's Apply, before the
+    /// full-resolution render that would make it, or a tool's live settings)
+    /// is developed again by the engine at the analysis size only, as a
+    /// preview of the sliders is, never at full size: an analysis needs at
+    /// most a couple of thousand pixels, and a full-size original of its own
+    /// would sit in memory beside the document's and the one the lanes are
+    /// making. Once no RAW step is left (all undone) the plain original
+    /// comes from the remake the lanes share (`remadeSource`), which they
+    /// need anyway, so it is still decoded once.
     public func renderForAnalysis(_ document: EditDocument, operations: [EditOperation]? = nil,
                                   maxPixelSize: Int) async throws -> CGImage {
         let operations = operations ?? document.operations
-        let source = try await source(for: document, showing: operations)
-        let proxy = document.proxy.flatMap { $0.develop == source.develop ? $0 : nil }
-        let context = self.context
+        try await prepare(document)
+        guard var source = document.source else { throw EditRenderError.renderFailed }
+        let develop = Self.rawDevelop(kind: document.entry.kind, operations: operations)
+        if develop == nil, source.develop != nil {
+            guard let remade = await remadeSource(document, develop: nil, qos: .userInitiated) else {
+                throw EditRenderError.renderFailed
+            }
+            source = remade
+        }
+        let output = EditGraph.outputSize(source: source.size, operations: operations)
+        let long = max(output.width, output.height)
+        let maximum = Self.maximumScale(outputSize: output, sourceScale: source.scale)
+        let scale = long > 0 ? min(maximum, Double(maxPixelSize) / long) : maximum
+        let proxy = document.proxy.flatMap { $0.develop == develop && $0.scale >= scale - 1e-9 ? $0 : nil }
+        var filter: RawDevelopFilter?
+        if source.develop != develop, proxy == nil {
+            // Opened once for the document (and checked against the file the
+            // operations were made on). A camera the engine doesn't know has
+            // no settings to apply, so its original serves as it is.
+            if document.rawFilter == nil { _ = await rawDefaults(for: document) }
+            filter = document.rawFilter
+        }
+        let context = self.context, gpu = self.gpu, settings = ImageLoader.shared.settings
+        let renderSource = source, developFilter = filter
         // Core Image's readback waits for the GPU: on GCD (BlockingWork).
         return try await BlockingWork.run {
-            let output = EditGraph.outputSize(source: source.size, operations: operations)
-            let long = max(output.width, output.height)
-            let maximum = Self.maximumScale(outputSize: output, sourceScale: source.scale)
-            let scale = long > 0 ? min(maximum, Double(maxPixelSize) / long) : maximum
-            let working = Self.workingImage(source: source, proxy: proxy, scale: scale)
-            let image = EditGraph.image(source: working, sourceSize: source.size, operations: operations, scale: scale)
+            let working: CIImage
+            if let filter = developFilter {
+                // At the size of the original the operations refer to, as
+                // the RAW tool's previews are developed.
+                working = try Self.renderDeveloped(filter, develop: develop, fullSize: renderSource.size, scale: scale,
+                                                   settings: settings, gpu: gpu).image
+            } else {
+                working = Self.workingImage(source: renderSource, proxy: proxy, scale: scale)
+            }
+            let image = EditGraph.image(source: working, sourceSize: renderSource.size, operations: operations,
+                                        scale: scale)
             guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
                   let result = context.createCGImage(image, from: image.extent, format: .RGBA8, colorSpace: sRGB)
             else { throw EditRenderError.renderFailed }
             return result
         }
-    }
-
-    /// The document's original, prepared if need be, and for a RAW file
-    /// developed again first when it doesn't show the RAW settings of
-    /// `operations` (right after the RAW tool's Apply, before the
-    /// full-resolution render that would make it). A new original for the
-    /// committed settings replaces the document's; one for others (a tool's
-    /// live settings) serves this caller only.
-    func source(for document: EditDocument, showing operations: [EditOperation]) async throws -> EditSource {
-        try await prepare(document)
-        guard let source = document.source else { throw EditRenderError.renderFailed }
-        let kind = document.entry.kind
-        let develop = Self.rawDevelop(kind: kind, operations: operations)
-        guard source.develop != develop else { return source }
-        let url = document.entry.url, page = document.page, settings = ImageLoader.shared.settings
-        let expected = document.sourceSignature, rawFilter = document.rawFilter, gpu = self.gpu
-        let token = document.preparationToken
-        let (developed, filter) = try await BlockingWork.run { () throws -> (EditSource, RawDevelopFilter?) in
-            if let expected, FileSignature.read(url) != expected { throw EditRenderError.sourceChanged(url) }
-            let filter = develop == nil ? rawFilter : rawFilter ?? RawDevelopFilter(url: url)
-            let developed = try Self.loadSource(url: url, page: page, kind: kind, settings: settings, gpu: gpu,
-                                                develop: develop, rawFilter: filter)
-            return (developed, filter)
-        }
-        guard document.preparationToken == token else { return developed }
-        if document.rawFilter == nil { document.rawFilter = filter }
-        if document.source === source, develop == Self.rawDevelop(kind: kind, operations: document.operations) {
-            document.source = developed
-            document.sourceSize = developed.size
-        }
-        return developed
     }
 }

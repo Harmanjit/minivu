@@ -262,6 +262,81 @@ import Metal
         renderer.release(doc)
     }
 
+    /// An analysis (Remove Background, Auto Enhance, Perspective's Auto, red
+    /// eyes) right after the RAW tool's Apply develops the file at the
+    /// analysis size only: the document keeps its original, no full-size
+    /// decode starts beside the one the full lane will make, and the
+    /// picture shows the new settings all the same.
+    @Test(.enabled(if: RawRendererTests.hasAssets))
+    func analysisDevelopsSmallRatherThanDecodeTheOriginalAgain() async throws {
+        let doc = document(Self.nef)
+        try await renderer.prepare(doc, proxyPixelSize: 800)
+        let original = try #require(doc.source)
+        let plain = try await renderer.renderForAnalysis(doc, maxPixelSize: 600)
+        doc.apply(.rawDevelop(RawDevelop(exposure: 1.5)))
+        let before = doc.sourceRemakes
+        let brighter = try await renderer.renderForAnalysis(doc, maxPixelSize: 600)
+        #expect(max(brighter.width, brighter.height) == 600)
+        #expect(brighter.width == plain.width && brighter.height == plain.height)
+        #expect(meanByte(brighter) > meanByte(plain) + 20, "\(meanByte(plain)) -> \(meanByte(brighter))")
+        #expect(doc.source === original, "an analysis doesn't replace the original")
+        #expect(doc.sourceRemakes == before, "no full-size decode for an analysis")
+        #expect(doc.previewLane.stage == nil || doc.previewLane.stage?.source === doc.source)
+        #expect(doc.fullLane.stage == nil || doc.fullLane.stage?.source === doc.source)
+
+        // The same picture the full-resolution original gives, near enough.
+        _ = await fullResolution(doc)
+        #expect(doc.source?.develop == RawDevelop(exposure: 1.5))
+        let fromFull = try await renderer.renderForAnalysis(doc, maxPixelSize: 600)
+        #expect(abs(meanByte(fromFull) - meanByte(brighter)) < 6, "\(meanByte(fromFull)) vs \(meanByte(brighter))")
+        renderer.release(doc)
+    }
+
+    /// Once the last RAW step is undone an analysis takes the plain original
+    /// from the remake the lanes share: the renders that follow it don't
+    /// decode the file again.
+    @Test(.enabled(if: RawRendererTests.hasAssets))
+    func analysisAfterUndoSharesTheLanesDecode() async throws {
+        let doc = document(Self.nef)
+        try await renderer.prepare(doc, proxyPixelSize: 800)
+        doc.apply(.rawDevelop(RawDevelop(exposure: -1)))
+        _ = await fullResolution(doc)
+        #expect(doc.source?.develop == RawDevelop(exposure: -1))
+        doc.undo()
+        let before = doc.sourceRemakes
+        renderer.renderPreview(doc, pixelSize: 800) { _ in }
+        renderer.renderFullResolution(doc) { _ in }
+        _ = try await renderer.renderForAnalysis(doc, maxPixelSize: 600)
+        // (Waited for rather than awaited: a render of a state already
+        // delivered at full resolution never calls its completion.)
+        let end = Date().addingTimeInterval(30 * TestTiming.slack)
+        while Date() < end, doc.previewLane.isRunning || doc.fullLane.isRunning
+            || doc.previewLane.pending != nil || doc.fullLane.pending != nil {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(doc.source?.develop == nil)
+        #expect(doc.sourceRemakes == before + 1, "\(doc.sourceRemakes - before) decodes")
+        renderer.release(doc)
+    }
+
+    /// A remake finished after its settings were undone serves the render
+    /// that asked for it but isn't put on the document, which keeps the
+    /// original its operations want; one for the settings in effect is.
+    @Test(.enabled(if: RawRendererTests.hasAssets))
+    func aRemakeForSettingsNoLongerWantedIsNotInstalled() async throws {
+        let doc = document(Self.nef)
+        try await renderer.prepare(doc, proxyPixelSize: 800)
+        let original = try #require(doc.source)
+        let stale = await renderer.remadeSource(doc, develop: RawDevelop(exposure: 1), qos: .userInitiated)
+        #expect(stale?.develop == RawDevelop(exposure: 1))
+        #expect(doc.source === original, "no step asks for those settings")
+
+        doc.apply(.rawDevelop(RawDevelop(exposure: 1)))
+        let wanted = await renderer.remadeSource(doc, develop: RawDevelop(exposure: 1), qos: .userInitiated)
+        #expect(wanted != nil && doc.source === wanted)
+        renderer.release(doc)
+    }
+
     /// One engine filter, two settings rendered at once from two threads:
     /// each comes out as it does alone (the editor's two RAW slots on
     /// larger Macs let a preview and a full render overlap).

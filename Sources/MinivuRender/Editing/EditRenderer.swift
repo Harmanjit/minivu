@@ -596,15 +596,16 @@ final class EditStage: @unchecked Sendable {
 
     /// The document's original made again with `develop` (see the type's
     /// documentation), put on the document in place of the one it had, which
-    /// frees that one. The lanes share one decode: a lane asking for the same
+    /// frees that one, if the document still wants those settings when it is
+    /// done. The lanes share one decode: a lane asking for the same
     /// settings while a remake is under way waits for it rather than decode
     /// the file a second time (after the last RAW step is undone both lanes
     /// need the plain original at once). Nil when the file can't be decoded
     /// or has changed, or the document was released meanwhile.
-    private func remadeSource(_ document: EditDocument, develop: RawDevelop?,
-                              qos: DispatchQoS.QoSClass) async -> EditSource? {
+    func remadeSource(_ document: EditDocument, develop: RawDevelop?,
+                      qos: DispatchQoS.QoSClass) async -> EditSource? {
         if let remake = document.sourceRemake, remake.develop == develop { return await remake.task.value }
-        guard let old = document.source else { return nil }
+        guard document.source != nil else { return nil }
         let token = document.preparationToken
         let url = document.entry.url, page = document.page, kind = document.entry.kind
         let settings = ImageLoader.shared.settings, gpu = self.gpu
@@ -628,7 +629,15 @@ final class EditStage: @unchecked Sendable {
             if document.sourceRemake?.id == id { document.sourceRemake = nil }
             guard let (source, filter) = made, document.preparationToken == token else { return nil }
             if let filter, document.rawFilter == nil { document.rawFilter = filter }
-            if document.source === old {
+            // Put on the document only while its operations still ask for
+            // these settings (committed, or a live preview's) and its
+            // original doesn't already show them: a remake for settings
+            // undone meanwhile serves the render that asked for it and no
+            // more, rather than leave an original no render wants.
+            let wanted = [document.operations, document.renderedOperations].map {
+                Self.rawDevelop(kind: kind, operations: $0)
+            }
+            if wanted.contains(develop), document.source?.develop != develop {
                 // Stages made from the old original go with it.
                 document.source = source
                 document.sourceSize = source.size
