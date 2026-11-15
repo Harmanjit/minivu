@@ -126,6 +126,27 @@ import MinivuCore
         #expect(MarksXMP.readMarks(from: url) == Catalog.Marks(rating: 3, isTagged: true))
     }
 
+    /// Quitting while a rating is still on the catalog's queue (reading a
+    /// few hundred sidecars, say) still writes it: the flush before quitting
+    /// waits for that queue and for the change to reach the writer.
+    @Test func flushingBeforeQuittingWaitsForTheCatalogsQueue() async throws {
+        let t = try ScratchFolder()
+        let url = try Self.image("a.jpg", in: t)
+        let harness = Harness(delay: .seconds(60))
+        let queue = DispatchQueue(label: "minivu.test.catalog-writes")
+        let catalog = harness.catalog
+        queue.async {
+            Thread.sleep(forTimeInterval: 0.2)   // still reading the file's own marks
+            catalog.setRating(3, for: [url])
+        }
+        await harness.writer.flush(after: queue)
+        #expect(harness.writer.pendingCount == 0)
+        let writing = try #require(harness.writer.writing, "the rating was handed to the write queue")
+        await writing.value
+        #expect(harness.calls.edits.map(\.rating) == [3])
+        #expect(Self.xmp(url, "xmp:Rating") == "3")
+    }
+
     @Test func writesGoThroughTheWriteQueue() async throws {
         let t = try ScratchFolder()
         let url = try Self.image("a.jpg", in: t)

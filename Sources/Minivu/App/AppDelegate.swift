@@ -190,7 +190,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     ///    image does (Save / Don't Save / Cancel).
     /// 2. Writes still running (a Save, Save As, comment or batch rotate):
     ///    wait for them, so the file the user just saved is really on disk
-    ///    and no hidden temporary file is left behind.
+    ///    and no hidden temporary file is left behind. With "Write ratings
+    ///    into files" on, that includes ratings and tags still on the
+    ///    catalog's queue or waiting out their quiet period.
     /// 3. A copy or move under way: it stops after the item it is on (its
     ///    hidden temporary copy would otherwise stay in the destination),
     ///    leaving every item either transferred or where it was. A batch
@@ -201,15 +203,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let viewer = ViewerWindowController.current
         let hasEdits = viewer?.hasUnsavedEdits == true
         let writes = FileWriteQueue.shared
-        // Ratings waiting out their quiet period go into the queue now.
-        MarksFileWriter.shared.flush()
-        guard hasEdits || writes.pendingCount > 0 || FileTransfer.isActive || BatchTools.renamesRunning > 0 else {
+        // A rating may not have reached the file writer yet (it is still on
+        // the catalog's queue), so with the setting on there is always
+        // something to wait for.
+        let marks = MarksFileWriter.shared
+        let marksMayBePending = marks.isEnabled() || marks.pendingCount > 0
+        guard hasEdits || marksMayBePending || writes.pendingCount > 0 || FileTransfer.isActive
+                || BatchTools.renamesRunning > 0 else {
             return .terminateNow
         }
 
         func finishWritesThenQuit() {
             FileTransfer.cancelActive()
             Task {
+                // Ratings and tags pressed just before quitting go into the
+                // write queue first, so waiting for it below includes them.
+                await marks.flush(after: BrowserModel.catalogWrites)
                 await FileTransfer.waitUntilInactive()
                 await BatchTools.waitForRenames()
                 await writes.waitUntilIdle()

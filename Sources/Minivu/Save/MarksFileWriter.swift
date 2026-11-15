@@ -126,6 +126,21 @@ nonisolated private let marksLog = Logger(subsystem: "com.minivu.app", category:
         }
     }
 
+    /// Before quitting: waits for the rating and tag changes still on
+    /// `queue` (the catalog's), then for the main-queue blocks that bring
+    /// them here (`CatalogFileMirror`), and hands everything pending to the
+    /// write queue. A plain `flush()` would miss a change the catalog is
+    /// still making, say while it reads a few hundred sidecars first.
+    func flush(after queue: DispatchQueue) async {
+        // The catalog posts each change to the main queue as it commits it,
+        // so a main-queue block posted once `queue` has drained comes after
+        // them all.
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            queue.async { DispatchQueue.main.async { done.resume() } }
+        }
+        flush()
+    }
+
     /// For tests: writes what is pending now and waits for it.
     func flushAndWait() async {
         flush()
