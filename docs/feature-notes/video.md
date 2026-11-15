@@ -115,8 +115,8 @@ the control bar's edit button follow `canEditCurrent`):
   Resize Images shortcut) fails for that file with "contains no image
   minivu can decode", and the rest of the batch goes on.
 - **Batch Rename includes videos**: renaming is a file operation.
-- **Compare Selected** is unchanged: a video in a comparison shows its
-  first frame (left for part 2 to decide).
+- **Compare Selected** shows a video by its first frame (decided in part
+  2; see below).
 
 ### Design decisions
 
@@ -212,7 +212,7 @@ the control bar's edit button follow `canEditCurrent`):
   to avoid reading the whole file), so a few files with odd containers
   may be a frame or two out.
 - Slideshow, Batch Convert, Print, Contact Sheet and Montage skip videos;
-  Compare shows only a video's first frame.
+  Compare shows only a video's first frame, never plays it.
 - Only internal volumes, as for photos.
 
 ### Tests
@@ -236,6 +236,180 @@ the control bar's edit button follow `canEditCurrent`):
 - Every movie is made in the test with AVAssetWriter (`TestVideos`, in
   both test targets): H.264, silent (no audio track), first frame black,
   then a flat colour. The player in tests is muted besides.
+
+## G18, part 2: describe, copy and save frames, Compare, resources
+
+### What the user can do
+
+- **Read about a video** in the viewer's info panel (I) and the browser's
+  preview pane. The Video section gives dimensions, duration, frame rate,
+  codec, audio, HDR and now the **data rate** ("12.4 Mbit/s", the file's
+  size over its length, as QuickTime Player's inspector gives it). From
+  the movie's own metadata, as an iPhone or camera writes it, come a
+  **Camera** section (make, model), **Dates** > Original (when recording
+  began, on the camera's clock with its offset, "1 May 2024 at 14:30:05
+  +02:00"; a movie without one shows the container's creation time in the
+  Mac's zone) and **GPS** (latitude, longitude, altitude, written as for a
+  photo). All are shown only.
+- **Preview pane:** a video's still has the grid's play mark and length
+  beside the stars ("▶ 0:12"), read by VoiceOver as "Video, 0:12".
+  Double-clicking the still opens the viewer, where it plays; the pane
+  never plays.
+- **Copy Frame** (Edit menu, after Copy Subject, no shortcut): puts the
+  frame on screen on the clipboard as a picture at the video's own size
+  (a 4K clip gives a 3840 × 2160 picture whatever the window's size).
+  The frame on screen is where the player stands, playing or paused, or
+  the first frame (the still) before anything has played.
+- **Save Frame As…** (File menu, after Save As…, no shortcut): the same
+  frame through the Save As panel, with its formats, quality, size
+  estimate and quality comparison. It pauses a playing video first, so the
+  panel saves what the user sees. The name starts as "clip frame 0.12"
+  (the time as a player shows it, dots for the colons a file name can't
+  hold). The metadata options are hidden: the picture carries none of the
+  movie's metadata.
+- Both are greyed out for photos, in the browser and in Compare. ⌘C stays
+  off for a video (part 1): its still is not the video, and a command named
+  for the frame says what the user gets.
+- **Compare Selected** accepts videos and compares each by its first
+  frame, zoomable like a photo. The pane's second line reads "Video, 0:12"
+  where a photo's gives the exposure. Compare never plays a video.
+
+### Design decisions
+
+- **Metadata read only when asked.** `VideoFrames.metadata(for:)` (data
+  rate, creation date, ISO 6709 location, make, model) is a separate read
+  from `VideoFrames.info(for:)`, which the grid's detail line and every
+  thumbnail use; the info panel alone pays for it, once per file shown.
+- **Dates.** QuickTime's `creationdate` key keeps the zone the camera was
+  in ("2024-05-01T14:30:05+0200"), so it is shown on that clock with its
+  offset, as a photo's EXIF date with OffsetTimeOriginal is; the
+  container's creation time is an instant, shown in the Mac's zone.
+- **Location.** ISO 6709 in all three forms phones and cameras use
+  (decimal degrees, degrees and minutes, degrees minutes and seconds, each
+  with an optional fraction) and an optional altitude; anything else, or
+  out of range, is left out rather than guessed.
+- **Remove location for videos: out of scope (verified).**
+  `AVAssetExportSession` with the passthrough preset and
+  `AVMetadataItemFilter.forSharing()` does strip the location without
+  re-encoding the samples, but it is not lossless for the file or trivial
+  for minivu: it writes a whole new movie (gigabytes for a long 4K clip,
+  minutes of disk work in the write queue), it supports only QuickTime and
+  MPEG-4 outputs (not the MTS, MPEG or DV minivu lists), and passthrough
+  rewrites the container, dropping what the export session doesn't carry
+  (timed metadata tracks such as Cinematic mode's and spatial video's
+  extra data, chapter tracks, some vendor atoms) and the sharing filter
+  also removes other personal items. Save As's Remove location and Batch
+  Convert's are for pictures; a video's location is shown, not edited, as
+  the rest of its metadata (part 1: Edit Metadata refuses videos).
+- **The frame.** `VideoFrames.still(of:at:)`: an exact frame
+  (`AVAssetImageGenerator`, zero tolerance, no `maximumSize`, preferred
+  transform applied, `forceSDR`). A player paused at the very end reports
+  a time just past the last frame, which has no exact frame; the last one
+  before it (within 1 s) is taken then. It is decoded from the file, not
+  read back from the screen, so it is the video's own pixels at its own
+  size, never the scaled or tone-mapped picture on screen.
+- **SDR.** Copy and Save As give every picture in standard range, and so
+  do these: the clipboard's consumers and the formats Save As writes are
+  SDR. An HDR clip's frame is tone mapped by AVFoundation.
+- **Save Frame As reuses Save As** (`SavePresenter.presentSaveFrameAs`):
+  `SaveImageSource` gains a `videoFrame` origin, decoded once and shared by
+  the estimate, the comparison and the write, which goes through
+  `FileWriteQueue` like every save. `SaveAsModel` gains `suggestedName`
+  and `carriesMetadata` (false for a frame, hiding Keep metadata and Remove
+  location); the write passes no metadata source. The panel only writes
+  picture types, so the movie can't be chosen as the target.
+- **Copy Frame writes the pasteboard only once the frame is decoded**, as
+  Copy does, so a failure leaves the clipboard as it was and beeps.
+- **Compare: allowed, by the still (decision).** Compare is for judging
+  pictures side by side with synchronised zoom; a player per pane would
+  mean up to four decoders and audio routes at once, and playing in step
+  isn't what Compare is for. Leaving videos out (as the slideshow does)
+  would make choosing between two takes of a clip impossible here, and
+  the still is free: it is the viewer's own first frame, through the same
+  loader and cache. The pane says "Video, 0:12" so it is never taken for a
+  photo. No frame commands or playback exist in the Compare window.
+- **No hover scrubbing in the grid** (not wanted: lean). A thumbnail is one
+  frame; nothing decodes as the pointer moves.
+- **Memory and battery.**
+  - Idle means idle: no player exists until the user asks to play; a
+    paused player decodes nothing; a hidden or covered viewer pauses
+    (part 1).
+  - One player at a time: only the viewer makes one, minivu shows one
+    viewer, and it stops its player before showing another item.
+    `VideoPlayback.liveCount` counts players made and not stopped, and the
+    tests hold it to 0 or 1.
+  - No thumbnail storms: the thumbnail service runs at most a worker per
+    core (less two), last in first out, dropping thumbnails scrolled past
+    before their turn; inside that, `VideoFrames.frameSlots` lets at most
+    three frames decode at once, whatever the number of workers. A video's
+    thumbnail now opens its file once (the length is read from the asset
+    the frame is taken from, not from a second `info` read).
+    `VideoFrames.decoding` counts frames in flight and their peak, for the
+    test.
+  - The grid's lengths are read one file at a time on a utility queue
+    (`PixelSizeCache`, part 1).
+
+### Limits
+
+- A video's metadata (location included) is shown, never removed or
+  edited.
+- The saved or copied frame is SDR and carries no metadata (no date or
+  location from the movie).
+- Copy Frame and Save Frame As are in the viewer only; in the browser, open
+  the video first.
+- Compare shows a video's first frame only.
+
+### Tests
+
+- MinivuCoreTests/VideoFramesTests: `infoPanelShowsDataRateDateAndLocation`
+  (a movie written with an iPhone's QuickTime keys: sections, data rate,
+  date on the camera's clock with its offset, GPS, make and model);
+  `readsISO6709AndQuickTimeDates` (all three ISO 6709 forms, bad input,
+  zoned and unzoned dates, the data-rate text); `infoPanelDescribesTheVideo`
+  now expects the Dates section the container's own date gives and the
+  data rate; `aFolderOfVideosDecodesAFewFramesAtATime` (ten videos, a
+  worker each: every thumbnail arrives, at most three frames decode at
+  once, cancelled ones never decode; it fails with eight at once if the
+  cap is lifted).
+- MinivuTests/VideoTests: `copyFrameAndSaveFrameAsTakeTheFrameOnScreen`
+  (private pasteboard: the black first frame at the video's size before
+  playing, the blue frame after seeking to 1.5 s, Save Frame As pausing and
+  handing over that time, both off for a photo, ⌘C still off);
+  `VideoFrameSaveTests.savesTheFrameAtItsOwnSize` (the write through
+  `SavePresenter.write`: size, colour, name, no metadata, the movie
+  untouched); `onePlayerAtATime`; `VideoCompareTests.aVideoIsComparedByItsStill`;
+  `VideoPreviewPaneTests.showsTheStillWithTheLength`.
+- MainMenuTests: Copy Frame after Copy Subject, Save Frame As… after Save
+  As…, neither with a key; the File menu's titles.
+
+## HDR check: every effect keeps highlights on macOS 27
+
+`hdrHighlightsSurviveEveryKindOfTool` (MinivuRenderTests/EditRendererTests)
+now runs every effect: bump map, sketch, oil paint, lens, frame,
+grayscale, sepia and negative, beside drop shadow ("effect"). Preview
+(through the Lanczos proxy) and full resolution are both checked.
+
+- **Found and fixed: the bump map.** It handed the photo and its height
+  field to its sampling kernel with their edges repeated by
+  `clampedToExtent()`, which macOS 27 brings back clipped to 1: an HDR
+  photo's brightest value came out 1.0 in both lanes. Now the photo is
+  passed as it stands (the kernel reads it only at the pixel it writes),
+  the height field is made from the unclamped photo and cropped to it,
+  blurred over repeated edges only where a Gaussian blur reads them (which
+  doesn't clip), and the kernel holds its height samples to the image's
+  bounds itself (`bounds` argument), as the noise-reduction kernel already
+  did. `EffectsTests.bumpMapKeepsAndShadesHDRHighlights` (a 3.0 square on
+  1.5 ground, from a bitmap and from a half-float texture) failed with 1.0
+  before the fix and passes after: the flat middle keeps 3.0, the edge
+  facing away is shaded, the picture's edges stay 1.5.
+- **Measured and fine:** oil paint (already fixed with `sourceBounds`),
+  lens (a warp kernel over a clamped image does not clip), frame,
+  grayscale, sepia.
+- **By design not HDR:** the sketch is a drawing on white paper, so its
+  test checks the highlights reach white (between 0.95 and 1.01) rather
+  than stop short; the negative turns values above white into values below
+  black, so its test checks the darkest value goes below -0.2 (a highlight
+  clipped to 1 first would stop at 0).
 
 ### Where the documentation should change
 
@@ -279,3 +453,39 @@ the control bar's edit button follow `canEditCurrent`):
   "Next image" stays "→ ↓ Space" with a note that Space plays a video
   instead. HelpTests' `directKeysMatchTheKeyTables` should then press
   `ViewerKeyCommand.command(…, isVideo: true)` for those rows.
+
+Part 2 and the HDR check add:
+
+- **DESIGN.md 4.2 / 4.5:** `VideoFrames.metadata` is read only for the
+  info panel; a video's thumbnail opens its file once; `VideoFrames.decoding`
+  and `VideoPlayback.liveCount` as the checks behind "three frames at
+  once" and "one player".
+- **DESIGN.md 5, Viewer:** Copy Frame and Save Frame As (the frame on
+  screen, the video's own size, SDR, no metadata).
+- **DESIGN.md 5, Browser window / preview pane:** the play mark and length
+  beside the stars; the info panel's Data rate, Camera, Dates and GPS for
+  a video.
+- **DESIGN.md 5, Compare:** videos allowed, compared by their first frame,
+  "Video, 0:12" in the header, never played.
+- **DESIGN.md 5, Menu shortcuts table:** Edit > Copy Frame and File > Save
+  Frame As… (no shortcuts).
+- **DESIGN.md 4.x Save As:** the `videoFrame` source, `suggestedName`,
+  metadata options hidden for a frame.
+- **DESIGN.md 7, "Core Image on macOS 27":** add that a `clampedToExtent()`
+  image read by a sampling general kernel (`CIKernel` with a sampler) is
+  also clipped to 1, and that the bump map now passes the photo unclamped
+  and holds its height samples to the image's bounds in the kernel (as the
+  noise-reduction kernel does), with the Gaussian blur the only consumer
+  of a repeated edge. Note that every effect is now in
+  `hdrHighlightsSurviveEveryKindOfTool`, with the sketch and negative
+  checked for what they do with a highlight.
+- **DESIGN.md 8 (Known limits):** a video's location can't be removed
+  (with the reasons above); frames are saved and copied in SDR without
+  metadata.
+- **Wiki:** Viewer (Copy Frame, Save Frame As), Browser (preview pane
+  badge, video metadata), Compare (videos by their still).
+- **Help pages:** Viewer.md's "Videos" section (Copy Frame, Save Frame
+  As…, what the info panel shows), Browser.md (the preview pane's badge),
+  Compare (videos by their first frame).
+- **Keyboard Shortcuts page:** nothing new (both commands have no key).
+
