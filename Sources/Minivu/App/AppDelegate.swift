@@ -40,6 +40,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // open-file event arrives. minivu has one browser, not tabs.
         MainMenu.install()
         NSWindow.allowsAutomaticWindowTabbing = false
+        // Logged for the hand check of a launch by a shortcut (sys.md): the
+        // event that launched minivu and which parameters it carries.
+        launchEvent = Self.describe(NSAppleEventManager.shared().currentAppleEvent)
+    }
+
+    /// The Apple event that launched minivu, for the log.
+    private var launchEvent = "none"
+
+    /// An Apple event as its class, ID and parameter keywords, all as
+    /// four-character codes ("aevt/odoc [----]"). Never the values: an
+    /// open-documents event carries the user's file paths.
+    nonisolated static func describe(_ event: NSAppleEventDescriptor?) -> String {
+        guard let event else { return "none" }
+        let keywords = event.numberOfItems > 0
+            ? (1...event.numberOfItems).map { fourCharCode(event.keywordForDescriptor(at: $0)) } : []
+        return "\(fourCharCode(event.eventClass))/\(fourCharCode(event.eventID)) [\(keywords.joined(separator: " "))]"
+    }
+
+    nonisolated static func fourCharCode(_ code: FourCharCode) -> String {
+        let bytes = [24, 16, 8, 0].map { UInt8(truncatingIfNeeded: code >> $0) }
+        return bytes.allSatisfy { (0x20...0x7E).contains($0) }
+            ? String(decoding: bytes, as: UTF8.self) : String(format: "0x%08X", code)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -70,9 +92,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         Perf.measure("launch.bookmarks") { _ = BookmarkStore.shared }
         Perf.milestone("launch.bookmarks")
 
+        pendingOpens += Self.paths(fromArguments: Array(CommandLine.arguments.dropFirst()))
+        // A launch made only to run a Shortcuts action shows no window
+        // (IntentLaunch); any other shows the browser, as it always has.
+        let launch = IntentLaunch.shared
+        launch.showWindow = { [weak self] in self?.showBrowser() }
+        launch.hide = { NSApp.setActivationPolicy(.accessory) }
+        launch.quit = { NSApp.terminate(nil) }
+        var windowRequested = !pendingOpens.isEmpty || NSApp.isActive
+        #if DEBUG
+        windowRequested = windowRequested || SnapshotHarness.Configuration(environment: ProcessInfo.processInfo.environment) != nil
+        #endif
+        let isDefault = (notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool).map(String.init) ?? "unset"
+        log.info("launch: event \(self.launchEvent, privacy: .public), default \(isDefault, privacy: .public), active \(NSApp.isActive, privacy: .public)")
+        launch.launchFinished(windowRequested: windowRequested)
+
+        #if DEBUG
+        SnapshotHarness.startIfRequested(app: self)
+        #endif
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        IntentLaunch.shared.userAsked()
+    }
+
+    /// A Dock or Finder click on minivu while it runs. Only a launch made
+    /// for a shortcut has something to do here: it shows the browser.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        IntentLaunch.shared.userAsked()
+        return true
+    }
+
+    /// Makes and shows the browser, once: at launch, or when the user asks
+    /// for minivu after a launch made for a shortcut.
+    private func showBrowser() {
+        guard browser == nil else { return }
+        // From `.accessory` (after a launch for a shortcut) the menu bar can
+        // stay the previous app's unless minivu activates after the switch,
+        // on the next run-loop turn.
+        if NSApp.activationPolicy() == .accessory {
+            NSApp.setActivationPolicy(.regular)
+            DispatchQueue.main.async { NSApp.activate() }
+        } else {
+            NSApp.setActivationPolicy(.regular)
+        }
         let browser = BrowserWindowController()
         self.browser = browser
-        let requested = pendingOpens + Self.paths(fromArguments: Array(CommandLine.arguments.dropFirst()))
+        let requested = pendingOpens
         pendingOpens = []
         // Shown first so a refusal can appear as a sheet on it. If nothing
         // requested could be opened, the browser still needs a folder.
@@ -85,10 +151,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // After the window exists, so this can be a sheet on it like every
         // other explanation, and behind any refusal `open` has just queued.
         reportCatalogTrouble()
-
-        #if DEBUG
-        SnapshotHarness.startIfRequested(app: self)
-        #endif
     }
 
     /// Compiles the shaders on a background thread so the window appears
@@ -196,6 +258,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         BrowserModel.catalogWrites.sync {}
     }
 
+    /// Whether a quit replies `.terminateLater` (and waits) rather than
+    /// quitting now: a running Shortcuts action counts as pending work.
+    nonisolated static func quitMustWait(hasEdits: Bool, marksMayBePending: Bool, pendingWrites: Int,
+                                         transferActive: Bool, renamesRunning: Int, actionsRunning: Int) -> Bool {
+        hasEdits || marksMayBePending || pendingWrites > 0 || transferActive || renamesRunning > 0 || actionsRunning > 0
+    }
+
     /// Quitting must not lose work. Three things can be at risk:
     ///
     /// 1. Unsaved edits in the viewer: ask, exactly as moving to another
@@ -210,6 +279,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     ///    leaving every item either transferred or where it was. A batch
     ///    rename under way finishes (a swap hides a file for a moment).
     ///
+    ///
     /// `.terminateLater` keeps the app alive until `reply` is called.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let viewer = ViewerWindowController.current
@@ -220,26 +290,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // something to wait for.
         let marks = MarksFileWriter.shared
         let marksMayBePending = marks.isEnabled() || marks.pendingCount > 0
-        guard hasEdits || marksMayBePending || writes.pendingCount > 0 || FileTransfer.isActive
-                || BatchTools.renamesRunning > 0 else {
+        let launch = IntentLaunch.shared
+        guard Self.quitMustWait(hasEdits: hasEdits, marksMayBePending: marksMayBePending,
+                                pendingWrites: writes.pendingCount, transferActive: FileTransfer.isActive,
+                                renamesRunning: BatchTools.renamesRunning, actionsRunning: launch.running) else {
             return .terminateNow
         }
 
+        // A Shortcuts action already running is waited for; one that begins
+        // during the wait, or the user opening minivu, cancels the quit
+        // (IntentLaunch.quitReply): the waits may already have passed it.
+        launch.quitWaits()
+        func reply(_ proceed: Bool) {
+            NSApp.reply(toApplicationShouldTerminate: launch.quitReply(proceed))
+        }
         func finishWritesThenQuit() {
             FileTransfer.cancelActive()
             Task {
+                await launch.waitUntilNoActions()
                 // Ratings and tags pressed just before quitting go into the
                 // write queue first, so waiting for it below includes them.
                 await marks.flush(after: BrowserModel.catalogWrites)
                 await FileTransfer.waitUntilInactive()
                 await BatchTools.waitForRenames()
                 await writes.waitUntilIdle()
-                NSApp.reply(toApplicationShouldTerminate: true)
+                reply(true)
             }
         }
         if let viewer, hasEdits {
             viewer.reviewUnsavedEditsBeforeQuitting { mayQuit in
-                if mayQuit { finishWritesThenQuit() } else { NSApp.reply(toApplicationShouldTerminate: false) }
+                if mayQuit { finishWritesThenQuit() } else { reply(false) }
             }
         } else {
             finishWritesThenQuit()
@@ -252,6 +332,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     func application(_ application: NSApplication, open urls: [URL]) {
         guard browser != nil else {
             pendingOpens += urls
+            IntentLaunch.shared.userAsked()
             return
         }
         open(urls)
