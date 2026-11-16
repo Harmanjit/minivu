@@ -14,13 +14,17 @@ public struct MetadataItem: Sendable, Hashable {
 }
 
 public struct MetadataSection: Sendable, Hashable, Identifiable {
+    /// Localized, for display.
     public var title: String
     public var items: [MetadataItem]
-    public var id: String { title }
+    /// The English title, the same in every language: "File", "Description"…
+    public var key: String
+    public var id: String { key }
 
-    public init(title: String, items: [MetadataItem]) {
+    public init(title: String, items: [MetadataItem], key: String? = nil) {
         self.title = title
         self.items = items
+        self.key = key ?? title
     }
 }
 
@@ -103,8 +107,10 @@ public enum MetadataReader {
     public static func sectionsAndFields(for url: URL) -> (sections: [MetadataSection], fields: MetadataFields?) {
         let p = Properties(url: url)
         var sections: [MetadataSection] = []
-        func add(_ title: String, _ items: [MetadataItem]) {
-            if !items.isEmpty { sections.append(MetadataSection(title: title, items: items)) }
+        func add(_ title: LocalizedStringResource, _ items: [MetadataItem]) {
+            if !items.isEmpty {
+                sections.append(MetadataSection(title: localized(title), items: items, key: title.key))
+            }
         }
         add("File", fileItems(url))
         // A video's header, read once for the sections below as well.
@@ -135,13 +141,14 @@ public enum MetadataReader {
         var items = Items()
         let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey, .creationDateKey])
         items.add("Name", url.lastPathComponent)
-        items.add("Kind", formatName(for: url))
+        items.add(.init("Kind", comment: "File format"), formatName(for: url))
         if let size = values?.fileSize {
             let bytes = Int64(size)
-            items.add("Size", "\(bytes.formatted(.byteCount(style: .file))) (\(bytes.formatted(.number)) bytes)")
+            items.add("Size", localized(.init("\(bytes.formatted(.byteCount(style: .file))) (\(bytes) bytes)",
+                                             comment: "File size: rounded, then exact")))
         }
-        items.add("Modified", values?.contentModificationDate?.formatted(date: .abbreviated, time: .standard))
-        items.add("Created", values?.creationDate?.formatted(date: .abbreviated, time: .standard))
+        items.add(.init("Modified", comment: "Date the file was last changed"), values?.contentModificationDate?.formatted(date: .abbreviated, time: .standard))
+        items.add(.init("Created", comment: "Date the file was created"), values?.creationDate?.formatted(date: .abbreviated, time: .standard))
         return items.list
     }
 
@@ -155,9 +162,9 @@ public enum MetadataReader {
             // past what an Int holds.
             items.add("Megapixels", String(format: "%.1f MP", Double(w) * Double(h) / 1_000_000))
         }
-        items.add("Bit depth", "\(info.bitDepth) bits per channel")
+        items.add("Bit depth", localized("\(info.bitDepth) bits per channel"))
         items.add("Color model", info.colorModel)
-        items.add("Profile", info.profileName)
+        items.add(.init("Profile", comment: "Colour profile"), info.profileName)
         if info.kind == .raster || info.kind == .raw {
             items.add("Orientation", orientationName(info.orientation))
         }
@@ -165,9 +172,11 @@ public enum MetadataReader {
            let dpiH = p.double(p.root, kCGImagePropertyDPIHeight) {
             items.add("DPI", dpiW == dpiH ? trimmed(dpiW) : "\(trimmed(dpiW)) × \(trimmed(dpiH))")
         }
-        items.add("Alpha", info.hasAlpha ? "Yes" : "No")
-        if info.pageCount > 1 { items.add(info.isAnimated ? "Frames" : "Pages", "\(info.pageCount)") }
-        if info.isHDR { items.add("HDR", "Yes") }
+        items.add("Alpha", info.hasAlpha ? localized(.init("Yes", comment: "Info panel value")) : localized(.init("No", comment: "Info panel value")))
+        if info.pageCount > 1 {
+            items.add(info.isAnimated ? .init("Frames", comment: "Info panel label: frames in an animation") : "Pages", "\(info.pageCount)")
+        }
+        if info.isHDR { items.add("HDR", localized(.init("Yes", comment: "Info panel value"))) }
         return items.list
     }
 
@@ -182,9 +191,9 @@ public enum MetadataReader {
         items.add("Frame rate", info.frameRate.map { "\(trimmed(($0 * 100).rounded() / 100)) fps" })
         items.add("Codec", info.codec)
         items.add("Data rate", metadata?.dataRate.map(formatDataRate))
-        items.add("Audio", info.hasAudio ? "Yes" : "No")
-        if info.isHDR { items.add("HDR", "Yes") }
-        if !info.isPlayable { items.add("Playable", "No") }
+        items.add("Audio", info.hasAudio ? localized(.init("Yes", comment: "Info panel value")) : localized(.init("No", comment: "Info panel value")))
+        if info.isHDR { items.add("HDR", localized(.init("Yes", comment: "Info panel value"))) }
+        if !info.isPlayable { items.add("Playable", localized(.init("No", comment: "Info panel value"))) }
         return items.list
     }
 
@@ -198,8 +207,8 @@ public enum MetadataReader {
 
     static func videoCameraItems(_ m: VideoMetadata) -> [MetadataItem] {
         var items = Items()
-        items.add("Make", m.make)
-        items.add("Model", m.model)
+        items.add(.init("Make", comment: "Camera or lens maker"), m.make)
+        items.add(.init("Model", comment: "Camera model"), m.model)
         return items.list
     }
 
@@ -207,7 +216,7 @@ public enum MetadataReader {
     /// zone (with the offset, as for a photo), otherwise in this Mac's zone.
     static func videoDateItems(_ m: VideoMetadata) -> [MetadataItem] {
         var items = Items()
-        items.add("Original", m.created.map {
+        items.add(.init("Original", comment: "Date the photo was taken"), m.created.map {
             formatExifDate(ExifDate(date: $0.date, timeZone: $0.timeZone ?? .current, hasOffset: $0.timeZone != nil))
         })
         return items.list
@@ -221,15 +230,15 @@ public enum MetadataReader {
         items.add("Latitude", formatCoordinate(location.latitude, ref: nil, positive: "N", negative: "S"))
         items.add("Longitude", formatCoordinate(location.longitude, ref: nil, positive: "E", negative: "W"))
         if let altitude = location.altitude {
-            items.add("Altitude", altitude < 0 ? "\(trimmed(-altitude)) m below sea level" : "\(trimmed(altitude)) m")
+            items.add("Altitude", altitude < 0 ? localized("\(trimmed(-altitude)) m below sea level") : "\(trimmed(altitude)) m")
         }
         return items.list
     }
 
     static func cameraItems(_ p: Properties) -> [MetadataItem] {
         var items = Items()
-        items.add("Make", p.string(p.tiff, kCGImagePropertyTIFFMake))
-        items.add("Model", p.string(p.tiff, kCGImagePropertyTIFFModel))
+        items.add(.init("Make", comment: "Camera or lens maker"), p.string(p.tiff, kCGImagePropertyTIFFMake))
+        items.add(.init("Model", comment: "Camera model"), p.string(p.tiff, kCGImagePropertyTIFFModel))
         items.add("Lens", p.lensModel)
         items.add("Lens make", p.string(p.exif, kCGImagePropertyExifLensMake))
         items.add("Serial number", p.string(p.exif, kCGImagePropertyExifBodySerialNumber)
@@ -245,18 +254,21 @@ public enum MetadataReader {
         if let f = p.double(p.exif, kCGImagePropertyExifFNumber), f > 0 { items.add("Aperture", formatAperture(f)) }
         if let iso = p.iso { items.add("ISO", "\(iso)") }
         if let bias = p.double(p.exif, kCGImagePropertyExifExposureBiasValue) { items.add("Exposure bias", formatBias(bias)) }
-        items.add("Program", p.int(p.exif, kCGImagePropertyExifExposureProgram).flatMap(programName))
+        items.add(.init("Program", comment: "Camera exposure program"), p.int(p.exif, kCGImagePropertyExifExposureProgram).flatMap(programName))
         items.add("Metering", p.int(p.exif, kCGImagePropertyExifMeteringMode).flatMap(meteringName))
         items.add("Flash", p.int(p.exif, kCGImagePropertyExifFlash).map(flashDescription))
         if let mm = p.double(p.exif, kCGImagePropertyExifFocalLength), mm > 0 {
             var text = formatFocalLength(mm)
             if let equivalent = p.double(p.exif, kCGImagePropertyExifFocalLenIn35mmFilm), equivalent > 0,
                abs(equivalent - mm) >= 0.5 {
-                text += " (\(formatFocalLength(equivalent)) in 35 mm)"
+                text = localized(.init("\(text) (\(formatFocalLength(equivalent)) in 35 mm)",
+                                       comment: "A focal length, then its 35 mm film equivalent"))
             }
             items.add("Focal length", text)
         }
-        items.add("White balance", p.int(p.exif, kCGImagePropertyExifWhiteBalance).map { $0 == 1 ? "Manual" : "Auto" })
+        items.add("White balance", p.int(p.exif, kCGImagePropertyExifWhiteBalance).map {
+            $0 == 1 ? localized(.init("Manual", comment: "Camera setting")) : localized(.init("Auto", comment: "Camera setting: automatic"))
+        })
         return items.list
     }
 
@@ -266,11 +278,11 @@ public enum MetadataReader {
     static func dateItems(_ p: Properties, sidecarDate: WallClock? = nil) -> [MetadataItem] {
         var items = Items()
         if let sidecarDate, sidecarDate != p.dateOriginal.map({ WallClock(date: $0.date, in: $0.timeZone) }) {
-            items.add("Original", WallClock.formatted(sidecarDate))
+            items.add(.init("Original", comment: "Date the photo was taken"), WallClock.formatted(sidecarDate))
         } else {
-            items.add("Original", p.dateOriginal.map(formatExifDate))
+            items.add(.init("Original", comment: "Date the photo was taken"), p.dateOriginal.map(formatExifDate))
         }
-        items.add("Digitized", p.dateDigitized.map(formatExifDate))
+        items.add(.init("Digitized", comment: "Date the photo was digitized"), p.dateDigitized.map(formatExifDate))
         return items.list
     }
 
@@ -286,10 +298,10 @@ public enum MetadataReader {
         }
         if let altitude = p.double(p.gps, kCGImagePropertyGPSAltitude) {
             let below = p.int(p.gps, kCGImagePropertyGPSAltitudeRef) == 1
-            items.add("Altitude", "\(trimmed(altitude)) m" + (below ? " below sea level" : ""))
+            items.add("Altitude", below ? localized("\(trimmed(altitude)) m below sea level") : "\(trimmed(altitude)) m")
         }
         if let direction = p.double(p.gps, kCGImagePropertyGPSImgDirection) {
-            items.add("Direction", "\(trimmed(direction))°")
+            items.add(.init("Direction", comment: "Compass direction the camera faced"), "\(trimmed(direction))°")
         }
         return items.list
     }
@@ -300,16 +312,16 @@ public enum MetadataReader {
     /// software, which it doesn't edit.
     static func descriptionItems(_ url: URL, _ p: Properties, _ fields: MetadataFields) -> [MetadataItem] {
         var items = Items()
-        items.add("Title", fields.title)
+        items.add(.init("Title", comment: "Image title (metadata)"), fields.title)
         items.add("Description", fields.caption)
         var comments = [p.string(p.exif, kCGImagePropertyExifUserComment), p.string(p.png, kCGImagePropertyPNGComment)]
         if p.type == UTType.jpeg.identifier { comments += jpegComments(url).map(Optional.some) }
-        items.add("Comment", unique(comments).joined(separator: "\n"))
+        items.add(.init("Comment", comment: "Image comment (metadata)"), unique(comments).joined(separator: "\n"))
         items.add("Keywords", fields.keywords.joined(separator: ", "))
-        items.add("Artist", fields.creator)
+        items.add(.init("Artist", comment: "Image creator (metadata)"), fields.creator)
         items.add("Copyright", fields.copyright)
         items.add("Software", p.string(p.tiff, kCGImagePropertyTIFFSoftware))
-        items.add("Sidecar", fields.sidecar?.lastPathComponent)
+        items.add(.init("Sidecar", comment: "XMP sidecar file name"), fields.sidecar?.lastPathComponent)
         return items.list
     }
 
@@ -410,40 +422,40 @@ public enum MetadataReader {
 
     static func orientationName(_ o: CGImagePropertyOrientation) -> String {
         switch o {
-        case .up: "Normal"
-        case .upMirrored: "Mirrored horizontally"
-        case .down: "Rotated 180°"
-        case .downMirrored: "Mirrored vertically"
-        case .leftMirrored: "Mirrored horizontally, rotated 270° clockwise"
-        case .right: "Rotated 90° clockwise"
-        case .rightMirrored: "Mirrored horizontally, rotated 90° clockwise"
-        case .left: "Rotated 270° clockwise"
-        @unknown default: "Unknown"
+        case .up: localized(.init("Normal", comment: "Image orientation: not rotated"))
+        case .upMirrored: localized("Mirrored horizontally")
+        case .down: localized("Rotated 180°")
+        case .downMirrored: localized("Mirrored vertically")
+        case .leftMirrored: localized("Mirrored horizontally, rotated 270° clockwise")
+        case .right: localized("Rotated 90° clockwise")
+        case .rightMirrored: localized("Mirrored horizontally, rotated 90° clockwise")
+        case .left: localized("Rotated 270° clockwise")
+        @unknown default: localized(.init("Unknown", comment: "Image orientation"))
         }
     }
 
     static func programName(_ value: Int) -> String? {
         switch value {
-        case 1: "Manual"
-        case 2: "Program"
-        case 3: "Aperture priority"
-        case 4: "Shutter priority"
-        case 5: "Creative"
-        case 6: "Action"
-        case 7: "Portrait"
-        case 8: "Landscape"
+        case 1: localized(.init("Manual", comment: "Camera setting"))
+        case 2: localized(.init("Program", comment: "Camera exposure program"))
+        case 3: localized("Aperture priority")
+        case 4: localized("Shutter priority")
+        case 5: localized(.init("Creative", comment: "Camera exposure program"))
+        case 6: localized(.init("Action", comment: "Camera exposure program: sports"))
+        case 7: localized(.init("metadata.program.portrait", defaultValue: "Portrait", comment: "Camera exposure program: portrait mode"))
+        case 8: localized(.init("metadata.program.landscape", defaultValue: "Landscape", comment: "Camera exposure program: landscape mode"))
         default: nil
         }
     }
 
     static func meteringName(_ value: Int) -> String? {
         switch value {
-        case 1: "Average"
-        case 2: "Center-weighted"
-        case 3: "Spot"
-        case 4: "Multi-spot"
-        case 5: "Matrix"
-        case 6: "Partial"
+        case 1: localized("Average")
+        case 2: localized("Center-weighted")
+        case 3: localized("Spot")
+        case 4: localized("Multi-spot")
+        case 5: localized("Matrix")
+        case 6: localized("Partial")
         default: nil
         }
     }
@@ -452,16 +464,20 @@ public enum MetadataReader {
     /// (1 forced on, 2 forced off, 3 auto), bit 5 "no flash function", bit
     /// 6 red-eye reduction. 16 is the common "Off, did not fire".
     static func flashDescription(_ value: Int) -> String {
-        if value & 0x20 != 0 { return "No flash function" }
-        let fired = value & 1 != 0 ? "fired" : "did not fire"
-        var text = switch (value >> 3) & 3 {
-        case 1: "On, \(fired)"
-        case 2: "Off, \(fired)"
-        case 3: "Auto, \(fired)"
-        default: fired.prefix(1).uppercased() + fired.dropFirst()
+        if value & 0x20 != 0 { return localized(.init("No flash function", comment: "Camera flash")) }
+        let fired = value & 1 != 0
+        let text = switch ((value >> 3) & 3, fired) {
+        case (1, true): localized(.init("On, fired", comment: "Camera flash"))
+        case (1, false): localized(.init("On, did not fire", comment: "Camera flash"))
+        case (2, true): localized(.init("Off, fired", comment: "Camera flash"))
+        case (2, false): localized(.init("Off, did not fire", comment: "Camera flash"))
+        case (3, true): localized(.init("Auto, fired", comment: "Camera flash"))
+        case (3, false): localized(.init("Auto, did not fire", comment: "Camera flash"))
+        case (_, true): localized(.init("Fired", comment: "Camera flash"))
+        case (_, false): localized(.init("Did not fire", comment: "Camera flash"))
         }
-        if value & 0x40 != 0 { text += ", red-eye reduction" }
-        return text
+        guard value & 0x40 != 0 else { return text }
+        return localized(.init("\(text), red-eye reduction", comment: "%@ is the flash's mode, such as “On, fired”"))
     }
 
     /// "NIKON CORPORATION" + "NIKON D750" -> "NIKON D750";
@@ -578,10 +594,10 @@ public enum MetadataReader {
     /// Collects items, skipping missing and blank values.
     struct Items {
         var list: [MetadataItem] = []
-        mutating func add(_ label: String, _ value: String?) {
+        mutating func add(_ label: LocalizedStringResource, _ value: String?) {
             guard let value else { return }
             let clean = MetadataReader.cleaned(value)
-            if !clean.isEmpty { list.append(MetadataItem(label: label, value: clean)) }
+            if !clean.isEmpty { list.append(MetadataItem(label: localized(label), value: clean)) }
         }
     }
 
