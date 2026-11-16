@@ -153,8 +153,12 @@ enum WebGalleryExport {
     /// nothing usable is left.
     nonisolated static func folderName(for title: String) -> String {
         let safe = WebGalleryPlanner.safeName(title)
-        return safe.isEmpty || BatchNameKey.problem(with: safe) != nil ? "Web Gallery" : safe
+        return safe.isEmpty || BatchNameKey.problem(with: safe) != nil
+            ? localized(.init("Web Gallery", comment: "Folder name of a web gallery whose title can't name a folder")) : safe
     }
+
+    /// The title of a gallery that wasn't given one.
+    nonisolated static var defaultTitle: String { localized(.init("Gallery", comment: "Default title of a web gallery")) }
 
     nonisolated static func makeFolders(in gallery: URL, originals: Bool) throws {
         var folders = [WebGalleryHTML.pagesFolder, WebGalleryHTML.imagesFolder, WebGalleryHTML.thumbnailsFolder]
@@ -301,8 +305,8 @@ enum WebGalleryExport {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Create Gallery"
-        panel.message = "Choose where to put the folder “\(folderName(for: title))”."
+        panel.prompt = localized("Create Gallery")
+        panel.message = localized(.init("Choose where to put the folder “\(folderName(for: title))”.", comment: "%@ is a folder name"))
         if let startFolder { panel.directoryURL = startFolder }
         // The panel holds its delegate weakly; the completion keeps it.
         let delegate = InternalVolumesOnly()

@@ -35,7 +35,7 @@ final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizin
         model = PrintAccessoryModel(settings: job.currentSettings)
         super.init(nibName: nil, bundle: nil)
         // The panel already has a "Layout" section (pages per sheet, borders).
-        title = "Picture Layout"
+        title = localized(.init("Picture Layout", comment: "Print panel pane: how pictures are laid out on the page"))
         model.onChange = { [weak self] settings in self?.settingsChanged(settings) }
         job.onPreviewReady { [weak self] in self?.layoutRevision += 1 }
     }
@@ -71,12 +71,12 @@ final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizin
 
     nonisolated static func summary(_ settings: PrintLayoutSettings) -> [(name: String, value: String)] {
         [
-            ("Images per Page", "\(settings.imagesPerPage)"),
-            ("Scaling", settings.scaling == .fit ? "Fit" : "Fill"),
-            ("Margins", PrintLength.text(points: settings.margin)),
-            ("Spacing", PrintLength.text(points: settings.spacing)),
-            ("Captions", settings.caption.title),
-            ("Auto-Rotate", settings.autoRotate ? "On" : "Off"),
+            (localized("Images per Page"), settings.imagesPerPage.formatted()),
+            (localized("Scaling"), settings.scaling == .fit ? localized("Fit") : localized("Fill")),
+            (localized("Margins"), PrintLength.text(points: settings.margin)),
+            (localized("Spacing"), PrintLength.text(points: settings.spacing)),
+            (localized("Captions"), settings.caption.title),
+            (localized("Auto-Rotate"), settings.autoRotate ? localized("On") : localized("Off")),
         ]
     }
 }

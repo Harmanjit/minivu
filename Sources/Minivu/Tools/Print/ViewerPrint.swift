@@ -19,7 +19,7 @@ extension ViewerWindowController {
             return
         }
         let snapshot = document.snapshot()
-        let progress = SaveProgress(on: window, title: "Preparing “\(entry.name)” for printing…")
+        let progress = SaveProgress(on: window, title: localized("Preparing “\(entry.name)” for printing…"))
         Task { [weak window] in
             do {
                 // Display P3 keeps the gamut the edit was made in; the
@@ -34,7 +34,7 @@ extension ViewerWindowController {
                 PrintPresenter.present(items: [item], title: entry.name, on: window)
             } catch {
                 progress.finish()
-                SaveAlert.show(error, title: "“\(entry.name)” couldn’t be prepared for printing.", on: window)
+                SaveAlert.show(error, title: localized("“\(entry.name)” couldn’t be prepared for printing."), on: window)
             }
         }
     }

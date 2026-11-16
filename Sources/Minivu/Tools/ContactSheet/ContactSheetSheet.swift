@@ -56,9 +56,9 @@ import MinivuCore
     /// "24 images · 2 pages · 2480 × 3508 px".
     var summary: String {
         let size = settings.pagePixelSize
-        let images = items.count == 1 ? "1 image" : "\(items.count) images"
-        let pages = pageCount == 1 ? "1 page" : "\(pageCount) pages"
-        return "\(images) · \(pages) · \(Int(size.width)) × \(Int(size.height)) px"
+        return [localized("\(items.count) images"), localized("\(pageCount) pages"),
+                localized(.init("\(String(Int(size.width))) × \(String(Int(size.height))) px", comment: "Width × height in pixels"))]
+            .joined(separator: " · ")
     }
 
     /// Renders page 1 small, after a short pause so a slider dragged or a
@@ -152,7 +152,7 @@ struct ContactSheetView: View {
             }
             .frame(width: size.width * fit, height: size.height * fit)
             .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
-            Text(model.pageCount > 1 ? "Page 1 of \(model.pageCount)" : "Page 1")
+            Text(model.pageCount > 1 ? localized("Page \(1) of \(model.pageCount)") : localized("Page 1"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
@@ -185,7 +185,8 @@ struct ContactSheetView: View {
                     counter("\(model.settings.columns)", $model.settings.columns, in: ContactSheetSettings.columnRange)
                 }
                 LabeledContent("Rows") {
-                    counter(model.settings.rows == 0 ? "Auto (one page)" : "\(model.settings.rows)",
+                    counter(model.settings.rows == 0 ? localized(.init("Auto (one page)", comment: "Contact sheet rows: as many as fit one page"))
+                                                     : "\(model.settings.rows)",
                             $model.settings.rows, in: ContactSheetSettings.rowRange)
                 }
                 LabeledContent("Spacing") { pixelField($model.settings.spacing) }
@@ -219,8 +220,8 @@ struct ContactSheetView: View {
                 Text("File")
             } footer: {
                 Text(model.settings.format == .pdf
-                     ? "One PDF with every page; pictures are embedded at the size of their cells."
-                     : model.pageCount > 1 ? "One file per page, saved into a folder you choose." : "One picture file.")
+                     ? localized("One PDF with every page; pictures are embedded at the size of their cells.")
+                     : model.pageCount > 1 ? localized("One file per page, saved into a folder you choose.") : localized("One picture file."))
                     .paragraphFooter()
             }
         }
@@ -279,7 +280,7 @@ final class ContactSheetController {
         let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 751, height: 640), styleMask: [.titled],
                              backing: .buffered, defer: true)
         panel.isReleasedWhenClosed = false
-        panel.title = "Contact Sheet"
+        panel.title = localized("Contact Sheet")
         let host = NSHostingView(rootView: ContactSheetView(model: model, onCancel: { [weak self] in self?.close() },
                                                             onSave: { [weak self] in self?.save() }))
         panel.contentView = host
@@ -350,7 +351,8 @@ final class ContactSheetController {
         let pageCount = settings.pageCount(imageCount: items.count)
         // A big sheet shows its progress at once; a small one only if slow.
         let delay: Duration = items.count > 40 || pageCount > 2 ? .zero : .milliseconds(500)
-        let progress = ContactSheetProgress(on: window, title: "Making “\(base)”…", pageCount: pageCount, delay: delay)
+        let progress = ContactSheetProgress(on: window, title: localized(.init("Making “\(base)”…", comment: "%@ is the name of the file or folder being made")),
+                                            pageCount: pageCount, delay: delay)
         work = Task { [weak window] in
             do {
                 let urls = try await ContactSheetExport.export(items: items, settings: settings, header: header,
@@ -362,7 +364,7 @@ final class ContactSheetController {
                 progress.finish()
             } catch {
                 progress.finish()
-                SaveAlert.show(error, title: "The contact sheet couldn’t be saved.", on: window)
+                SaveAlert.show(error, title: localized("The contact sheet couldn’t be saved."), on: window)
             }
         }
     }

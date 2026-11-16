@@ -32,9 +32,9 @@ import MinivuCore
 
     /// "24 pictures · 25 pages · up to 1600 px": a page each, and the index.
     var summary: String {
-        let pictures = images.count == 1 ? "1 picture" : "\(images.count) pictures"
-        let pages = images.count == 0 ? "1 page" : "\(images.count + 1) pages"
-        return "\(pictures) · \(pages) · up to \(settings.largeSize) px"
+        [localized("\(images.count) pictures"), localized("\(images.count + 1) pages"),
+         localized(.init("up to \(String(settings.largeSize)) px", comment: "The largest picture size in pixels"))]
+            .joined(separator: " · ")
     }
 
     /// What happens to the originals' metadata, under the Pictures section
@@ -43,17 +43,17 @@ import MinivuCore
     var originalsNote: String? {
         guard settings.includesOriginals else { return nil }
         if settings.originalsKeepLocation {
-            return "The original files keep all their metadata, including where each photo was taken."
+            return localized("The original files keep all their metadata, including where each photo was taken.")
         }
-        return "Where each photo was taken is removed from the original files too; they keep their other metadata. An original it can’t be removed from, such as a camera raw file, is left out."
+        return localized("Where each photo was taken is removed from the original files too; they keep their other metadata. An original it can’t be removed from, such as a camera raw file, is left out.")
     }
 
     /// What the chosen format plays in, under the File section.
     var formatNote: String {
         switch settings.format {
-        case .jpeg: "JPEG shows in every browser."
-        case .heic: "HEIC shows in Safari only (macOS 14, iOS 17 and later)."
-        case .avif: "AVIF shows in current Safari, Chrome, Firefox and Edge."
+        case .jpeg: localized("JPEG shows in every browser.")
+        case .heic: localized("HEIC shows in Safari only (macOS 14, iOS 17 and later).")
+        case .avif: localized("AVIF shows in current Safari, Chrome, Firefox and Edge.")
         }
     }
 }
@@ -69,7 +69,7 @@ struct WebGalleryView: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    TextField("Title", text: $model.title, prompt: Text("Gallery"))
+                    TextField("Title", text: $model.title, prompt: Text(WebGalleryExport.defaultTitle))
                 } footer: {
                     Text("The gallery is a folder with index.html, a page for each picture and a style sheet. It needs nothing from the internet, and opens from disk in any browser.")
                         .paragraphFooter()
@@ -92,7 +92,9 @@ struct WebGalleryView: View {
                 Section("Layout") {
                     LabeledContent("Columns") {
                         HStack(spacing: 6) {
-                            let text = model.settings.columns == 0 ? "Fit the window" : "\(model.settings.columns)"
+                            let text = model.settings.columns == 0
+                                ? localized(.init("Fit the window", comment: "Web gallery columns: as many as fit the browser window"))
+                                : "\(model.settings.columns)"
                             Text(text).monospacedDigit()
                             Stepper("Columns", value: $model.settings.columns, in: WebGallerySettings.columnRange)
                                 .labelsHidden()
@@ -156,7 +158,7 @@ struct WebGalleryView: View {
         .frame(width: 520, height: 640)
     }
 
-    private func pixelField(_ label: String, _ value: Binding<Int>) -> some View {
+    private func pixelField(_ label: LocalizedStringKey, _ value: Binding<Int>) -> some View {
         HStack(spacing: 6) {
             TextField(label, value: value, format: .number.grouping(.never))
                 .labelsHidden()
@@ -203,7 +205,7 @@ final class WebGalleryController {
         let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 640), styleMask: [.titled],
                              backing: .buffered, defer: true)
         panel.isReleasedWhenClosed = false
-        panel.title = "Create Web Gallery"
+        panel.title = localized("Create Web Gallery")
         let host = NSHostingView(rootView: WebGalleryView(model: model, onCancel: { [weak self] in self?.close() },
                                                           onCreate: { [weak self] in self?.create() }))
         panel.contentView = host
@@ -247,14 +249,14 @@ final class WebGalleryController {
         let title = model.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let count = images.count
         let progress = ContactSheetProgress(
-            on: window, title: "Making “\(WebGalleryExport.folderName(for: title))”…", pageCount: count + 1,
-            delay: .milliseconds(300),
-            describe: { done, _ in done < count ? "Picture \(done + 1) of \(count)" : "Writing the pages" })
+            on: window, title: localized(.init("Making “\(WebGalleryExport.folderName(for: title))”…", comment: "%@ is the name of the file or folder being made")),
+            pageCount: count + 1, delay: .milliseconds(300),
+            describe: { done, _ in done < count ? localized("Picture \(done + 1) of \(count)") : localized("Writing the pages") })
         self.progress = progress
         work = Task { [weak window] in
             do {
                 let outcome = try await WebGalleryExport.export(
-                    images: images, title: title.isEmpty ? "Gallery" : title, settings: settings, into: folder,
+                    images: images, title: title.isEmpty ? WebGalleryExport.defaultTitle : title, settings: settings, into: folder,
                     cancel: progress.cancel, progress: { done, total in progress.update(done: done, of: total) })
                 self.outcome = outcome
                 progress.finish()
@@ -265,7 +267,7 @@ final class WebGalleryController {
                 progress.finish()
             } catch {
                 progress.finish()
-                SaveAlert.show(error, title: "The web gallery couldn’t be created.", on: window)
+                SaveAlert.show(error, title: localized("The web gallery couldn’t be created."), on: window)
             }
             self.progress = nil
         }
@@ -277,23 +279,26 @@ final class WebGalleryController {
     nonisolated static func skippedMessage(_ skipped: [WebGalleryExport.Skipped],
                                            withheld: [String] = []) -> (title: String, detail: String) {
         func named(_ lines: [String]) -> [String] {
-            lines.count > 8 ? Array(lines.prefix(8)) + ["…and \((lines.count - 8).formatted()) more."] : lines
+            lines.count > 8
+                ? Array(lines.prefix(8)) + [localized(.init("…and \(lines.count - 8) more.", comment: "End of a list of files that is too long to show"))]
+                : lines
         }
         let title: String
         var lines: [String] = []
         if !skipped.isEmpty {
-            title = skipped.count == 1 ? "1 picture was left out of the gallery."
-                                       : "\(skipped.count.formatted()) pictures were left out of the gallery."
-            lines = named(skipped.map { "\($0.name): \($0.reason)" })
+            title = localized("\(skipped.count) pictures were left out of the gallery.")
+            lines = named(skipped.map {
+                localized(.init("\($0.name): \($0.reason)", comment: "A file name, then what went wrong with it"))
+            })
             if !withheld.isEmpty { lines.append("") }
         } else {
-            title = withheld.count == 1 ? "1 original file was left out of the gallery."
-                                        : "\(withheld.count.formatted()) original files were left out of the gallery."
+            title = localized("\(withheld.count) original files were left out of the gallery.")
         }
         if !withheld.isEmpty {
+            // One or several, not a plural rule: the text doesn't show the number.
             lines.append(withheld.count == 1
-                ? "Where this photo was taken couldn’t be removed from its original file, so only its large picture is in the gallery:"
-                : "Where these photos were taken couldn’t be removed from their original files, so only their large pictures are in the gallery:")
+                ? localized("Where this photo was taken couldn’t be removed from its original file, so only its large picture is in the gallery:")
+                : localized("Where these photos were taken couldn’t be removed from their original files, so only their large pictures are in the gallery:"))
             lines += named(withheld)
         }
         return (title, lines.joined(separator: "\n"))
