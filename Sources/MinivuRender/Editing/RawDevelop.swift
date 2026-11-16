@@ -171,6 +171,8 @@ final class RawDevelopFilter: @unchecked Sendable {
     /// origin. With `hdr` highlights reach up to `headroom` (see
     /// `RawRenderer.maximumHeadroom`), handed to `render`, which must have
     /// finished with it when it returns: the filter stays locked until then.
+    /// Never return the image, or anything still lazily built from it, out
+    /// of `render`; return a finished texture or values.
     /// Nil to `render` when the engine makes nothing. Called inside an editor
     /// RAW slot (`RawRenderer.withEditRenderSlot`), never the reverse, so the
     /// lock order is slot, then filter.
