@@ -190,15 +190,15 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         for stars in 1...5 {
             let button = symbolButton("star", action: #selector(starClicked(_:)))
             button.tag = stars
-            button.toolTip = stars == 1 ? "Rate 1 star (click again to clear)" : "Rate \(stars) stars (click again to clear)"
+            button.toolTip = localized(.init("Rate \(stars) stars (click again to clear)", comment: "Tooltip of a star button"))
             starButtons.append(button)
         }
         tagButton.target = self
         configure(tagButton, symbol: "checkmark.circle", action: #selector(tagClicked(_:)))
-        tagButton.toolTip = "Tag (T)"
+        tagButton.toolTip = localized(.init("Tag (T)", comment: "Tooltip: tag the image (a mark, like a flag); T is its key"))
         configure(trashButton, symbol: "trash", action: #selector(trashClicked(_:)))
-        trashButton.toolTip = "Move to Trash (⌫)"
-        trashButton.setAccessibilityLabel("Move to Trash")
+        trashButton.toolTip = localized(.init("Move to Trash (⌫)", comment: "Tooltip; ⌫ is its key"))
+        trashButton.setAccessibilityLabel(localized("Move to Trash"))
         zoomLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         zoomLabel.textColor = .secondaryLabelColor
 
@@ -310,7 +310,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
             guard !(error is CancellationError) else { return }
             displayedEntry = entry
             canvas.setImage(nil, preserveView: false)
-            errorLabel.stringValue = "minivu can’t display “\(entry.name)”."
+            errorLabel.stringValue = localized("minivu can’t display “\(entry.name)”.")
             errorLabel.isHidden = false
             needsLayout = true
             updateZoom()
@@ -389,13 +389,14 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     /// A video's size and length, from its tracks in one read.
     private func readVideoSummary(of entry: FolderEntry) {
         let url = entry.url
-        exposureLabel.stringValue = "Video"
+        exposureLabel.stringValue = localized(.init("Video", comment: "Noun: the file is a video"))
         summaryTask = Task { [weak self] in
             let info = await BlockingWork.run { VideoFrames.info(for: url) }
             guard !Task.isCancelled, let self, self.entry?.url == url, let info else { return }
             self.detailLabel.stringValue = "\(Int(info.pixelSize.width)) × \(Int(info.pixelSize.height))  ·  "
                 + Self.fileSizeText(entry.fileSize)
-            self.exposureLabel.stringValue = "Video, " + VideoFrames.durationText(info.duration)
+            let length = VideoFrames.durationText(info.duration)
+            self.exposureLabel.stringValue = localized(.init("Video, \(length)", comment: "A video and its length (0:12)"))
         }
     }
 
@@ -421,12 +422,12 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         // The browser's and viewer's stars and tag mark, in the same colours.
         for button in starButtons {
             let filled = button.tag <= marks.rating
-            let label = button.tag == 1 ? "Rate 1 star" : "Rate \(button.tag) stars"
+            let label = localized(.init("Rate \(button.tag) stars", comment: "VoiceOver: a star button"))
             button.image = NSImage(systemSymbolName: filled ? "star.fill" : "star", accessibilityDescription: label)
             button.contentTintColor = filled ? StarRatingView.filledColor : .tertiaryLabelColor
         }
         tagButton.image = NSImage(systemSymbolName: marks.isTagged ? "checkmark.circle.fill" : "checkmark.circle",
-                                  accessibilityDescription: marks.isTagged ? "Tagged" : "Not Tagged")
+                                  accessibilityDescription: marks.isTagged ? TagBadge.taggedText : TagBadge.notTaggedText)
         tagButton.contentTintColor = marks.isTagged ? .controlAccentColor : .secondaryLabelColor
     }
 
@@ -459,7 +460,8 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
     }
 
     private func updateZoom() {
-        zoomLabel.stringValue = canvas.image == nil ? "" : "\(Int(canvas.zoomPercent.rounded()))%"
+        let percent = Int(canvas.zoomPercent.rounded())
+        zoomLabel.stringValue = canvas.image == nil ? "" : localized(.init("\(percent)%", comment: "Zoom level"))
     }
 
     // MARK: - ImageCanvasViewDelegate
