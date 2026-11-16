@@ -44,8 +44,9 @@ Most numbers are in milliseconds (ms). 1,000 ms is one second.
    time you do it on a folder of camera files.**
    - It takes 2.8 to 3.5 seconds for 1,000 photos.
    - minivu reads each file's *header* (the small block of details at the
-     start of an image file) one file after another, on one thread. Nine
-     other cores sit idle.
+     start of an image file) one file after another, in chunks of 200, with
+     no two reads at the same time. The Mac has ten cores, so there is room
+     to read several at once.
 
 4. **The RAW exposure slider stutters.**
    - Each frame takes 83.7 ms. Smooth movement needs 16 ms or less (60 frames
@@ -55,15 +56,15 @@ Most numbers are in milliseconds (ms). 1,000 ms is one second.
 
 5. **Batch Convert does far more work than it needs when it shrinks photos.**
    - Converting 20 photos to 2,048 px JPEGs takes 1,506 ms.
-   - Per photo, preparing the pixels takes 150 ms and writing the JPEG only
-     13.2 ms.
+   - Per photo, preparing the pixels takes about 130 ms and writing the JPEG
+     only about 12 ms.
    - The photo is decoded at its full 24 megapixels and then shrunk. Peak
-     memory reaches about 1,057 MB.
+     memory reaches about 1,065 MB.
    - The web gallery uses the same code, at 2,753 ms for 20 pictures.
 
 6. **HDR photos with a gain map open about four times slower than ordinary
    JPEGs.**
-   - They take 205 to 207 ms against 50 to 59 ms.
+   - They take 205 to 209 ms against 50 to 59 ms.
    - 15.5 ms of that is spent only on checking *whether* the photo is HDR.
    - A *gain map* is a hidden second picture inside the file that tells the
      screen how much brighter each part may go. Modern iPhone photos carry
@@ -88,11 +89,11 @@ Most numbers are in milliseconds (ms). 1,000 ms is one second.
 
 | # | Action | What it fixes | Size |
 |---|---|---|---|
-| 1 | Tidy each folder path once per batch instead of once per file, and send one change notice per batch | the 131.7 ms and 45.2 ms freezes when renaming or moving files | small |
+| 1 | Tidy the shown folder's path once instead of on every file, and merge change notices over a short time window | the 131.7 ms and 45.2 ms freezes when renaming or moving files | small |
 | 2 | Read file headers on four threads at once | the 2.8 to 3.5 s rating sort and metadata filter, and Find by camera details | small |
 | 3 | Skip the disk lookup in the ratings cache when the cache is empty, and look in the cache before touching the disk | a third of big-folder open time | small |
-| 4 | Decode at a smaller size when Batch Convert or the web gallery is shrinking photos | 150 ms per photo in Batch Convert, and about 1 GB of memory | medium |
-| 5 | Develop RAW files at half size while a slider is being dragged, then at full size when it is let go | the 83.7 ms RAW slider frame | medium |
+| 4 | Decode at a smaller size when Batch Convert or the web gallery is shrinking photos | about 130 ms per photo in Batch Convert, and about 1 GB of memory | medium |
+| 5 | Measure how RAW develop time changes with size, and if a smaller develop is clearly faster, use it while a slider is being dragged | the 83.7 ms RAW slider frame | medium |
 
 Before any of these, the benchmark kit itself needs a few small fixes
 (phase 0 in section 4), so that the before-and-after numbers can be trusted.
@@ -127,9 +128,11 @@ changed.
   tail).
 - **Main-thread time.** The window benchmarks also report how long the main
   thread was busy, to about 1 ms, counting only busy spells of 2 ms or more.
-- **Runs.** Every benchmark ran twice. Where the two runs differed by more
-  than 15%, it ran a third time and the middle of the three was used.
-  Otherwise the two were averaged.
+- **Runs.** Every benchmark ran twice. A third run was added where the two
+  runs differed by more than 15%, or where one of them was contended (see
+  below; that is why Batch Convert got a third run). For an entry with three
+  runs, every number in it is the middle of the three, even the numbers that
+  agreed. Otherwise the two were averaged.
 - **Profiles.** Instruments' Time Profiler recorded where the time went. A
   *profile* samples every thread once a millisecond and notes which function
   it is in, so you can see which code the time is spent in.
@@ -145,8 +148,8 @@ with it:
 
 - The first full pass overlapped those builds, so it was thrown away.
 - Every later benchmark waited until no other build or test was running. If
-  one started part-way through, the benchmark was thrown away and rerun, up
-  to three times.
+  one started part-way through, the benchmark was thrown away and tried
+  again, up to three tries in all (so at most two reruns).
 - A run that was still disturbed after three tries is called *contended*.
 
 ### Corrections from the review
@@ -159,18 +162,35 @@ account:
    Two of their three runs were contended, and the "middle of three" landed
    on a contended one (4,535 and 3,965 ms). The clean runs are 2,848 to
    3,498 ms for sort by rating and 3,030 to 3,528 ms for the metadata filter.
-   This document uses only the clean runs.
+   This document uses only the clean runs, for the main-thread time too.
 2. **Opening a JPEG or HEIC in the viewer gives two different answers.** Some
    runs come out at 50 ms (JPEG) and 66 ms (HEIC). Others come out at 59 and
    74 ms. Both groups were seen twice. This document gives both.
 3. **The older decode benchmarks ran three at a time.** The filter for
    `DecodeBenchmark` also caught `FitBenchmark` and `RawBenchmark`, so they
-   ran side by side and slowed each other down. Their numbers are not used
-   anywhere in this document.
+   ran side by side and slowed each other down, by up to about 2 times. Their
+   numbers are not used anywhere in this document.
 4. **Batch Convert's phase split from Instruments is wrong.** Instruments
    pairs up the start and end markers wrongly when two photos are processed
    at once (render 85 + encode 124 comes to more than the 145 ms total). This
    document uses the benchmark's own per-photo numbers instead.
+
+A later check of this document against the raw files found the same mistake
+as in point 1 in two more places, and this document now uses clean runs for
+them:
+
+5. **Grid scroll.** Two of its three runs were contended, so the middle of
+   three (86.94 ms per screen, main thread 8.2 ms) was a contended run. The
+   clean runs are 81.24 and 82.62 ms per screen, with 5.1 and 6.6 ms on the
+   main thread.
+6. **Batch Convert's per-photo and memory numbers.** The per-photo render and
+   encode times came from run 1, which was contended. The clean runs give a
+   2,048 px JPEG render of about 130 ms (126.1 and 134.1) and an encode of
+   about 12 ms (11.5 and 12.2), an AVIF encode of about 411 ms (not 504.1),
+   and a JPEG peak of about 1,065 MB (not 1,057). The HEIC total's middle
+   of three (2,202.39 ms) was also the contended run; its clean runs are
+   2,196.58 and 2,231.36 ms. The JPEG total (1,506.24 ms) and AVIF total
+   (5,359.27 ms) came from clean runs and stand.
 
 ### Caveats: what these numbers do not tell you
 
@@ -268,12 +288,17 @@ unless the row says otherwise.
 | sort 20,000 by name | 115.43 | 118.69 | | quick | string comparison |
 | catalog ratings query, 20,000 files | 42.59 | 43.58 | | instant | |
 | read 500 pixel sizes | 40.92 | 41.12 | | instant | |
-| **sort 1,000 camera photos by rating** (clean runs) | **2,848 to 3,498** | | 20.1 | **slow** | reading headers one at a time: about 569 to 705 ms per 200 files. Ratings 54%, filter details 44%, nearly all in the RAW header reader. |
-| **filter 1,000 camera photos by metadata** (clean runs) | **3,030 to 3,528** | | 18.8 | **slow** | same as above |
+| **sort 1,000 camera photos by rating** (clean runs) | **2,848 to 3,498** | | 2.4 to 2.5 | **slow** | reading headers one at a time: about 569 to 705 ms per 200 files, nearly all in reading each file's rating (`MarksXMP.readMarks`) |
+| **filter 1,000 camera photos by metadata** (clean runs) | **3,030 to 3,528** | | 0.0 | **slow** | reading headers one at a time, nearly all in reading each file's details (`FilterMetadata.read`) |
 
-The main thread is only busy for about 20 ms during the rating sort and the
-filter, so the window still responds. You just wait about 3 seconds for the
-grid to re-sort.
+The two rows are separate measurements, taken one after the other in the
+same benchmark. One profile covers both together: there, reading ratings is
+54% and reading filter details 44%, and Apple's RAW header reader is a large
+part of each (46% and 42%, counting what it calls).
+
+The main thread is busy for only about 2.5 ms during the rating sort and
+about 0 ms during the filter, so the window still responds. You just wait
+about 3 seconds for the grid to re-sort.
 
 ### Thumbnails
 
@@ -296,8 +321,8 @@ empty. *Warm* means the thumbnails were already saved.
 
 | what | median ms | p90 ms | main ms | feels | where the time goes |
 |---|---:|---:|---:|---|---|
-| open a JPEG | 50 or 59 (two groups) | 60.27 | 24.2 to 27.8 | instant to quick | decode 21.4, upload 5.2. Building the window takes about 13.6 ms per open before the decode even starts. |
-| open a HEIC | 66 or 74 (two groups) | 75.66 | 20.9 to 26.1 | quick | decode 40.1, upload 5.8 |
+| open a JPEG | 50 or 59 (two groups) | 60.27 (one run, not split by group) | 23 to 31 | instant to quick | decode 21.4, upload 5.2. Building the window takes about 12 ms per open before the decode even starts. |
+| open a HEIC | 66 or 74 (two groups) | 75.66 (the 66 ms group) | 21 to 27 | quick | decode 40.1, upload 5.8 |
 | open a NEF (its built-in preview) | 62.43 | 64.98 | 27.0 | quick | preview 35.2, plus two side header reads of 7.5 and 7.0 |
 | open a NEF with Render RAW | 210.99 | 229.62 | 25.9 | noticeable | the RAW develop, 186.9 |
 | open an HDR gain-map photo | 206.69 | 213.10 | 28.2 | noticeable | decode 133 to 151, HDR check 15.5, upload 36.0 (CPU drawing 34.1) |
@@ -334,7 +359,7 @@ the photo that the sliders draw from, so they stay fast.
 | save a JPEG in place | 102.80 | 104.12 | quick | the JPEG encoder 79.5 |
 | save a HEIC in place | 113.85 | 117.22 | quick | the HEIC encoder 100.9 |
 | Save As AVIF | 309.87 | 320.37 | noticeable | the AVIF encoder 253.2 |
-| slideshow video, 10 slides | 5,576.55 | 5,633.05 | slow | drawing 1.07 s, decoding 711 ms, captions 108 ms; about 4 s not yet explained |
+| slideshow video, 10 slides | 5,576.55 | 5,633.05 | slow | drawing 1.07 s, decoding 711 ms, captions 108 ms, waiting for slides 58 ms, adding frames 53 ms; about 3.6 s not yet explained (if the phases run one after another) |
 
 Saving already happens off the main thread.
 
@@ -344,7 +369,7 @@ Saving already happens off the main thread.
 |---|---:|---:|---:|---|---|
 | copy 1,000 files (folder not shown) | 333.11 | 337.28 | 7.9 | noticeable, in the background | the file system's clone call |
 | move 1,000 files (folder not shown) | 226.51 | 230.66 | 8.1 | noticeable, in the background | the file system's rename call |
-| **move 1,000 files into the folder on screen** | 424.24 | 439.62 | **200.1** | noticeable, with freezes up to 45.2 ms | 1,002 change notices; tidying paths is 82% of handling them |
+| **move 1,000 files into the folder on screen** | 424.24 | 439.62 | **200.1** | noticeable, with freezes up to 45.2 ms | 1,002 change notices; comparing paths (`samePath`) is 82% of handling them, and the path tidying inside it 78% |
 | **Batch Rename 1,000 files** | 621.76 | 690.98 | **369.2** | noticeable, with a 131.7 ms freeze | path tidying, plus clearing thumbnail entries (30%) |
 | move 100 of 1,000 files to the Bin | 42.36 | 49.22 | 35.1 | instant, but a 31.3 ms freeze | |
 | 20 writes of 8 MB queued | 54.71 | 64.86 | | instant | |
@@ -356,9 +381,9 @@ Saving already happens off the main thread.
 | info panel fields | 0.09 to 0.56 | | instant | |
 | Count Colors (24 MP), count | 26.66 | 26.77 | instant | |
 | Count Colors, decode | 62.08 | 65.62 | quick | |
-| **Batch Convert 20 photos to 2,048 px JPEG** | **1,506.24** | 1,583.14 | slow | per photo: render 150 ms, encode 13.2. Profile: loading the source is 78%, a full 24 MP decode and draw. Peak 1,057 MB. |
-| Batch Convert 20 to full-size HEIC | 2,202.39 | 2,317.03 | slow | render 75.3, encode 143.8 per photo; colour conversion for the hardware encoder |
-| Batch Convert 20 to full-size AVIF | 5,359.27 | 5,492.98 | slow | Apple's software AVIF encoder, 78% of all samples; encode 504.1 per photo |
+| **Batch Convert 20 photos to 2,048 px JPEG** | **1,506.24** | 1,583.14 | slow | per photo: render about 130 ms, encode about 12. Profile: loading the source is 78%, a full 24 MP decode and draw. Peak about 1,065 MB. |
+| Batch Convert 20 to full-size HEIC | 2,197 to 2,231 (clean runs) | 2,211 to 2,350 | slow | render 68 to 76, encode about 146 per photo; an ImageIO/CoreGraphics colour-converting copy is 45% of the profile |
+| Batch Convert 20 to full-size AVIF | 5,359.27 | 5,492.98 | slow | Apple's software AVIF encoder, 78% of all samples; encode about 411 per photo |
 | Batch Convert to 2,048 px, replacing the originals | 1,515.43 | 1,560.88 | slow | same as the 2,048 px row |
 | web gallery of 20 pictures | 2,753.02 | 2,905.43 | slow | about 138 ms per picture, through the same code as Batch Convert, one picture at a time |
 
@@ -382,10 +407,10 @@ Saving already happens off the main thread.
 
 | what | start MB | peak MB | end MB | notes |
 |---|---:|---:|---:|---|
-| scroll through 5,000 thumbnails (466 screens) | 40 | 281 (280 in the review) | 267 | 86.94 ms per screen, main thread 8.2 ms. The wiki says about 186 MB. |
+| scroll through 5,000 thumbnails (466 screens) | 40 | 281 (280 in the review) | 267 | about 81 to 83 ms per screen, main thread 5 to 7 ms (clean runs). The wiki says about 186 MB. |
 | flip through 20 photos as fast as they arrive | 14 | 380 | 374 | more than the screen textures alone should need; not yet explained |
-| Batch Convert to 2,048 px (2 at a time) | | 1,057 to 1,069 | | |
-| Batch Convert to HEIC | | 1,032 to 1,081 | | |
+| Batch Convert to 2,048 px (2 at a time) | | 1,065 to 1,069 (clean runs) | | |
+| Batch Convert to HEIC | | 1,064 to 1,081 (clean runs) | | |
 | Batch Convert to AVIF | | 1,150 to 1,173 | | |
 | slideshow video | | 376 | | |
 | Count Colors | 14 | 274 to 285 | | |
@@ -436,9 +461,14 @@ numbers worth believing.
 - *Change:*
   - Commit the two `#if DEBUG` guards already in the worktree
     (`CooperativeStarvationTests.swift`, `CooperativePoolTests.swift`).
-  - Add a release `--build-tests` step that only compiles to
-    `.github/workflows/ci.yml`. CI builds debug only today.
-- *Verify:* CI fails if a debug-only helper is used in a release test again.
+  - Build the release tests locally (Xcode 27.2) before each benchmark run;
+    bench.sh already does this.
+  - Do *not* add a release step to `.github/workflows/ci.yml` yet. Every
+    Xcode 26 on the GitHub runner crashes building this module for release
+    (the comment in ci.yml explains it), which is why app packaging is out of
+    CI. A release step would turn every push red. Add it once the runner has
+    a toolchain that can build release.
+- *Verify:* `swift build -c release --build-tests` succeeds locally.
 
 **0.2 Give each signpost its own ID (S)**
 - *Problem:* `Perf.begin` starts every interval without an ID
@@ -451,11 +481,17 @@ numbers worth believing.
   more than the per-file total.
 
 **0.3 Stop the older benchmarks running side by side (S)**
-- *Problem:* `DecodeBenchmark`, `FitBenchmark` and `RawBenchmark` are
-  top-level suites, so one filter ran all three at once. Their results
-  differed by up to 32% from a run on their own.
-- *Change:* nest them under the serialized `Benchmarks` parent, or make each
-  filter match exactly one suite.
+- *Problem:* `DecodeBenchmark`, `FitBenchmark` and `RawBenchmark` all live in
+  `Tests/MinivuRenderTests/DecodeBenchmark.swift`. The `DecodeBenchmark`
+  filter most likely matched that file name in the test IDs, so it ran all
+  three. Each suite is serialized inside itself, but separate suites run in
+  parallel, so they ran side by side. Their results differed from a run on
+  its own by up to about 2 times (TIFF full decode, 500.5 against 249.4 ms),
+  and not always in the same direction (the HEIC thumbnail was faster side
+  by side).
+- *Change:* nest them under the serialized `Benchmarks` parent, or move
+  `FitBenchmark` and `RawBenchmark` into files of their own so a filter
+  catches one suite only.
 
 **0.4 Put the waiting and rerunning into bench.sh (S)**
 - *Change:*
@@ -475,72 +511,93 @@ numbers worth believing.
 
 ### Phase 1: quick wins (all small)
 
-**1.1 Tidy each folder path once per batch, not per file (S)**
+**1.1 Tidy the shown folder's path once, not on every file (S)**
 - *Measured problem:*
   - Moving 1,000 files into the folder on screen: 200.1 ms of main-thread
     time, of which handling change notices is 197.14 ms over 1,002 notices.
     Longest freeze 45.2 ms.
   - Batch Rename of 1,000 files: 369.2 ms of main-thread time, longest freeze
-    131.7 ms. The profile shows 12 change notices with a 92 ms median, and
-    941 ms of the 1,006 ms inside them is spent in `samePath`.
+    131.7 ms. The profile shows 12 change notices with a 92 ms median. Inside
+    them, 842 ms of the 1,006 ms is spent in `samePath` (about 84%), and
+    803 ms in the path tidying under it. (Over the whole recording, including
+    calls outside the notices, `samePath` is 941 ms.)
   - In the move profile, `samePath` is 82% of the notice handling, and the
     path tidying underneath it is 78%.
 - *Cause:*
   - `BrowserModel.swift:1588-1590`: `samePath` tidies *both* paths through the
     file system (`standardizedFileURL`) every time it is called.
-  - It is called for each changed file in `catalogChanged`
-    (`BrowserModel.swift:1068-1074`), and again through `isShown`
-    (`BrowserModel.swift:986-990`). The folder on screen is tidied again on
-    every call, even though it never changes.
+  - It is called twice for each changed file in `catalogChanged`
+    (`BrowserModel.swift:1068-1074`):
+    - first as `samePath(url, snapshot.folder)`, which asks "is this file the
+      shown folder itself?"
+    - then through `isShown` (`BrowserModel.swift:986-990`), which asks "is
+      this file's parent the shown folder?"
+  - The folder on screen is tidied again on every call, even though it never
+    changes.
 - *Change:*
   - Store the folder's tidied path once, when the folder is shown.
     `BrowserModel.swift:478` already tidies it; keep the result.
-  - Inside `catalogChanged`, remember the answer for each parent folder in a
-    small dictionary. The files in one batch nearly always share one or two
-    parent folders, so this becomes one or two lookups per batch instead of
-    up to four per file.
+  - Rewrite the first check too, so it does not tidy the whole file path:
+    compare (tidied parent) + "/" + name with the stored tidied folder.
+  - Inside `catalogChanged`, remember the tidied path of each parent folder
+    in a small dictionary. Then each file costs a dictionary lookup instead
+    of up to four tidies. This only helps when one notice carries many
+    files, as in Batch Rename. In the move case each notice carries one file
+    today, so the dictionary saves nothing there until 1.2 merges notices;
+    the stored folder path still helps.
   - The behaviour stays exactly the same. Paths like `/tmp` and
     `/private/tmp` are still treated as the same, because each distinct
     folder is still tidied once.
   - Look at `BrowserManagement.swift:262` and `BrowserBatch.swift:247` too,
     which filter by folder the same way.
 - *Expected gain:* Batch Rename's main-thread time drops from 369.2 ms to
-  roughly 190 ms, and the 131.7 ms freeze goes. Item 1.2 removes most of the
-  rest of the move cost.
+  roughly 190 ms, and the 131.7 ms freeze goes. Most of the main-thread
+  saving when moving files also comes from this item, because the cost is
+  per file, not per notice.
 - *Risk:* low. These are reads only, so no data is at risk. Test a folder
   reached through a symbolic link, and `/tmp`.
 - *Effort:* S.
 - *Verify:* `files.rename1000` (main thread ≤ 200 ms) and
   `files.move1000Shown` (`catalogChanged_main_ms` ≤ 100).
 
-**1.2 Send one change notice per batch, not one per file (S)**
+**1.2 Merge change notices over a short time window (S)**
 - *Measured problem:* moving 1,000 files sends 1,002 change notices
-  (`catalogChanged_calls`). The profile counts 6,012 notice handlers and
-  6,001 sidebar reloads on the main thread.
+  (`catalogChanged_calls`), each costing about 0.15 to 0.2 ms on the main
+  thread. Over six profiled moves of 1,000 files, the profile counts 6,012
+  notice handlers and 6,001 sidebar reloads on the main thread, so about
+  1,002 and 1,000 per move.
 - *Cause:*
   - `FileTransfer.swift:163-165` moves or copies one file at a time, and each
     file gets its own catalog transaction. (A *transaction* is a group of
     database changes that are saved together or not at all.)
   - `Catalog.post` (`Catalog.swift:1028-1031`) then sends a separate notice
-    to the main thread for each one.
+    to the main thread for each one, about every 0.2 ms.
 - *Change:*
   - Keep one transaction per file, so ratings still follow each file even if
     the move is cancelled half-way.
-  - Only combine the *notices*: `post` adds the files to a waiting list, and
-    sends one notice to the main thread if none is already on its way. That
-    notice carries every file on the list.
+  - Only combine the *notices*: `post` adds the files to a waiting list and,
+    if no notice is scheduled, schedules one for about 50 to 100 ms later.
+    That notice carries every file on the list. (Sending one only "if none
+    is already on its way" would not be enough: the main thread is mostly
+    idle, so each notice would be handled before the next file arrived, and
+    there would still be tens to hundreds of notices.)
+  - Alternatively, post once per transfer batch from `FileTransfer`.
+  - `post` runs on background threads, so the waiting list needs a lock.
   - Do the same for `postLibraryChange`.
-- *Expected gain:* main-thread time for moving 1,000 files into the folder on
-  screen drops close to that of a move with no window (8.1 ms).
-- *Risk:* low. The listeners (the viewer at
-  `ViewerWindowController.swift:244`, Compare at
-  `CompareWindowController.swift:95`) already accept a list of files. They
-  run at most one turn of the run loop later. Check that no test counts
-  notices.
+- *Expected gain:* far fewer notices and sidebar reloads. Most of the
+  per-file path cost is removed by 1.1, not by this item. Together, the
+  main-thread time for moving 1,000 files into the folder on screen should
+  drop close to that of a move with no window (8.1 ms).
+- *Risk:* low. The main listener is `BrowserModel` (`BrowserModel.swift:364`);
+  the viewer (`ViewerWindowController.swift:244`) and Compare
+  (`CompareWindowController.swift:95`) listen too. All of them already accept
+  a list of files. They hear about changes up to 100 ms later. Check that no
+  test counts notices.
 - *Effort:* S.
-- *Verify:* `files.move1000Shown`: main thread ≤ 30 ms, longest freeze under
-  16 ms, notices in single figures, total close to `files.move1000`
-  (226.51 ms). `files.copy1000` and `files.move1000` should not change.
+- *Verify:* `files.move1000Shown`, together with 1.1: main thread ≤ 30 ms,
+  longest freeze under 16 ms, notices in single figures, total close to
+  `files.move1000` (226.51 ms). `files.copy1000` and `files.move1000` should
+  not change.
 
 **1.3 Clear thumbnail entries in one go after a rename (S)**
 - *Measured problem:* in Batch Rename of 1,000 files, clearing thumbnail
@@ -551,15 +608,17 @@ numbers worth believing.
     every call. So each call costs more the bigger that set is, and 1,000
     calls multiply it.
   - Each call also sends its own delete to the thumbnail store.
-  - It is called twice per renamed file (`BrowserBatch.swift:235-240`,
-    `BrowserManagement.swift:243-248`).
+  - In Batch Rename it is called twice per renamed file, for the old and the
+    new name (`BrowserBatch.swift:235-240`). Moving and copying files calls
+    it the same way (`BrowserManagement.swift:243-248`).
   - The benchmark may have more failed decodes than a normal session, so the
     real cost may be lower.
 - *Change:*
   - Keep failed decodes in a dictionary keyed by path, so removing one is a
     single step.
   - Add `invalidate(_ urls: [URL])`: take the lock once, and send one store
-    transaction for the whole list. Use it from both call sites.
+    transaction for the whole list. Use it from both call sites, the rename
+    one and the move/copy one.
 - *Expected gain:* about 70 ms less main-thread time per 1,000-file rename.
 - *Risk:* low. The generation counter must still go up before any running
   thumbnail job can deliver an old picture.
@@ -575,11 +634,13 @@ numbers worth believing.
   - Metadata filter: 3,030 to 3,528 ms (clean runs).
   - Find in the browser by camera details: 3,037 ms for 1,000 files.
   - Find by camera details: 346.71 ms for 120 files.
-  - Profile: reading ratings 54%, reading filter details 44%, both mostly
-    inside the RAW header reader.
+  - The rating sort's time is nearly all `MarksXMP.readMarks`, and the
+    filter's nearly all `FilterMetadata.read`. Apple's RAW header reader is a
+    large part of both.
 - *Cause:*
-  - `BrowserModel.swift:1180-1196` (`readWantedFileMarks`) reads each file of
-    a chunk in a plain loop, on one thread.
+  - `BrowserModel.swift:1181-1199` (`readWantedFileMarks`) reads each file of
+    a chunk in a plain loop, and does the chunks one after another, so only
+    one file is read at a time.
   - `CatalogLibrary.swift:95-111` (`loadFilterMetadata`, also used by Find
     through `ImageSearch.swift`) does the same.
   - The reads do not depend on each other, and the ratings cache already
@@ -587,16 +648,21 @@ numbers worth believing.
 - *Change:*
   - Inside each chunk, read the files with
     `DispatchQueue.concurrentPerform`, at most 4 at a time (or half the cores,
-    whichever is smaller), at utility priority so thumbnails still go first.
+    whichever is smaller).
+  - Choose the priority on purpose. Today the reads run at utility priority,
+    and macOS puts utility work mostly on the efficiency cores. The user is
+    waiting for the sort, so user-initiated priority is reasonable, with the
+    cap of 4 leaving room for thumbnails. If the reads stay at utility, base
+    the estimate on the efficiency cores instead.
   - Write the results into an array by position, then merge.
   - Keep one catalog write per chunk, so the database still sees one
     transaction per chunk.
   - Keep checking the cancel flag for each file.
-  - On a volume minivu marks as slow (spinning or network disk), use 2.
-- *Expected gain:* about three times faster on the 4 performance cores. Sort
-  by rating and the metadata filter about 1 second, Find in the browser about
-  1 second, Find about 120 ms. Nobody has checked yet whether the RAW header
-  reader speeds up with more threads, so measure it.
+- *Expected gain:* at user-initiated priority, about three times faster on
+  the 4 performance cores. Sort by rating and the metadata filter about
+  1 second, Find in the browser about 1 second, Find about 120 ms. On the
+  efficiency cores the gain will be smaller. Nobody has checked yet whether
+  the RAW header reader speeds up with more threads, so measure it.
 - *Risk:* low. Headers are small, so memory is not a concern on 8 GB Macs.
   Thumbnail workers may run at the same time, which is why it is capped at 4.
 - *Effort:* S.
@@ -606,7 +672,8 @@ numbers worth believing.
   - `metadataFilterOpen` ≤ 1,300 ms
   - `findInBrowser1000.metadataCold` ≤ 1,200 ms
   - `find.metadataCold` ≤ 140 ms
-  - main-thread time unchanged at about 20 ms
+  - main-thread time unchanged at about 3 ms (rating sort) and about 0 ms
+    (filter)
 
 **1.5 Big folders: check the ratings cache before touching the disk (S)**
 - *Measured problem:* the ratings-cache pass is about a third of opening a
@@ -615,8 +682,9 @@ numbers worth believing.
   tidying is 34%.
 - *Cause:*
   - `FileMarks.swift:229-236`: `cachedMarks` first looks the file up on disk
-    (`lstat`), then tidies its path (`FileMarks.swift:272`), and only then
-    looks in the cache.
+    (`lstat`, twice for a file with a sidecar, `FileMarks.swift:279-283`),
+    then tidies its path (`FileMarks.swift:272`), and only then looks in the
+    cache.
   - It runs for every image without a catalog row
     (`BrowserModel.swift:772-783`).
   - The cache lives only in memory. So on the first open after launch it is
@@ -627,8 +695,14 @@ numbers worth believing.
   - Look in the cache first, and look up the file on disk only if it is
     there.
   - Return straight away if the cache is empty.
-  - `marks(for:)` must build its keys the same way, through the same helper,
-    so lookups keep matching.
+  - `marks(for:)` and `forget(_:)` (`FileMarks.swift:267-270`) must build
+    their keys the same way, through the same helper. Otherwise lookups stop
+    matching, and marks that minivu writes would leave old entries behind
+    that still look current.
+  - One small change in behaviour: today a missing file comes back as "known,
+    no marks" from the `lstat` check (`FileMarks.swift:230`). Returning early
+    on an empty cache makes it "unknown", which queues a read that finds
+    nothing. That is harmless.
 - *Expected gain:* the pass falls to nearly nothing on an empty cache. Opening
   10,000 files in the window goes from 269.83 ms to about 180 ms, and 20,000
   from 538.16 ms to about 350 ms.
@@ -642,9 +716,11 @@ numbers worth believing.
 
 **1.6 Viewer: start the decode before building the window (S)**
 - *Measured problem:* opening a JPEG takes 50 or 59 ms, and a HEIC 66 or
-  74 ms. The main-thread profile shows about 13.6 ms per open building and
-  showing the window (going full screen 7.6 ms, creating the window 4.5 ms)
-  *before* anything asks for the photo's pixels.
+  74 ms. The main-thread profile shows about 12 ms per open building and
+  showing the window (going full screen up to 7.6 ms, creating the window
+  4.5 ms) *before* anything asks for the photo's pixels. (The whole of
+  `show` is 13.6 ms per open, but that includes `showCurrent`, which starts
+  the decode.)
 - *Cause:* `ViewerWindowController.show` (`ViewerWindowController.swift:31`)
   builds the window first. Then `present` (`ViewerWindowController.swift:305-308`)
   goes full screen before `showCurrent`, which is the first point that asks
@@ -654,8 +730,8 @@ numbers worth believing.
   (`AppServices.images.prefetch`). When the window asks for it a moment later,
   the loader joins the job already running instead of starting a second one
   (`ImageLoader.swift:369-372`).
-- *Expected gain:* about 12 ms off each open. JPEG about 40 to 47 ms, HEIC
-  about 55 to 62 ms.
+- *Expected gain:* about 12 ms off each open. JPEG about 38 to 47 ms, HEIC
+  about 54 to 62 ms.
 - *Risk:* low. The size asked for must match the size the window works out,
   or the cache will miss. Check this with two displays.
 - *Effort:* S.
@@ -681,20 +757,31 @@ numbers worth believing.
 **1.8 HDR photos: check for a gain map without extracting it (S)**
 - *Measured problem:* opening an HDR gain-map photo spends 15.5 ms just
   checking whether it is HDR (out of 15.7 ms of file information). The same
-  check runs in Save, Batch Convert, slideshow video and Count Colors.
-- *Cause:* `ImageDecoder.hasHDRContent` (`ImageDecoder.swift:643-657`) asks
-  ImageIO to copy out the gain map (`CGImageSourceCopyAuxiliaryDataInfoAtIndex`),
-  twice, only to find out whether there is one.
+  check runs inside every `ImageDecoder.info` call, so it also reaches Save,
+  Batch Convert, slideshow video, Count Colors, Batch Rename size tokens, the
+  info panel, page sequences, the image strip and Find on PDF and SVG.
+- *Cause:*
+  - `ImageDecoder.hasHDRContent` (`ImageDecoder.swift:643-657`) asks ImageIO
+    to copy out the gain map (`CGImageSourceCopyAuxiliaryDataInfoAtIndex`)
+    only to find out whether there is one. It tries up to two kinds of gain
+    map and stops at the first match (`ImageDecoder.swift:648-650`), so a
+    file with an ISO gain map pays once and other HDR files twice.
+  - `SaveSupport.hasGainMap` (`SaveSupport.swift:101-109`) is a
+    second copy of the same check.
 - *Change:*
   - Read the file's table of contents instead
     (`kCGImagePropertyFileContentsDictionary` → images → auxiliary data
     types). `embeddedThumbnailLongEdge` (`ImageDecoder.swift:279`) already
     reads that table.
-  - Fall back to the current call only when the table has no auxiliary data
-    list.
+  - Trust the table only when it says "yes, there is a gain map". When it
+    says no, fall back to today's call, in case a file's table leaves the
+    gain map out. That costs little, because the check is already cheap on
+    ordinary files (0.4 ms on HEIC).
+  - Change `SaveSupport.hasGainMap` the same way, or make it call the shared
+    check.
   - Keep the separate PQ/HLG colour-space check.
 - *Expected gain:* about 15 ms off every HDR open and every flip to an HDR
-  photo, and off each HDR file in Save and Batch Convert.
+  photo, and off each HDR file in Save, Batch Convert and the other callers.
 - *Risk:* HDR detection must stay correct. Test Apple, ISO 21496-1 and Ultra
   HDR files.
 - *Effort:* S.
@@ -720,8 +807,11 @@ numbers worth believing.
 - *Effort:* S.
 - *Verify:* first, check that the cache really is the cause: run
   `memory.gridScroll5000` with the limit lowered and see if the peak moves.
-  Then aim for peak ≤ 200 MB, with time per screen within 10% of today's
-  86.94 ms. Add a scroll back to the top: main-thread time unchanged.
+  Then aim for a peak of about 210 MB on the 16 GB reference Mac (the limit
+  falls by 72 MB, from 200 to 128 MB, so even if the cache explains the
+  whole peak, 281 − 72 ≈ 209 MB). An 8 GB Mac, at 64 MB, could get near
+  145 MB. Time per screen should stay within 10% of today's clean runs,
+  about 82 ms. Add a scroll back to the top: main-thread time unchanged.
 
 ### Phase 2: bigger gains (medium)
 
@@ -729,9 +819,12 @@ numbers worth believing.
 (M)**
 - *Measured problem:*
   - Batch Convert of 20 photos to 2,048 px JPEG: 1,506.24 ms. Per photo,
-    render 150 ms and encode 13.2 ms. Peak memory 1,057 MB.
-  - Profile: loading the source is 78%. That is a full 24 MP decode (53%) and
-    drawing it at full size (73%). The JPEG encode is 7%.
+    render about 130 ms and encode about 12 ms (clean runs). Peak memory
+    about 1,065 MB.
+  - Profile: loading the source is 78%. Inside it are a full 24 MP decode
+    (53%) and drawing it at full size (73%). These two overlap (each counts
+    what it calls), so they are not separate costs and do not add up. The
+    JPEG encode is 7%.
   - Web gallery of 20 pictures: 2,753.02 ms, about 138 ms per picture, through
     the same code.
   - For comparison, the viewer decodes the same JPEG to screen size in
@@ -750,9 +843,11 @@ numbers worth believing.
     that makes the photo smaller with nothing before it except a rotate or a
     flip.
   - For JPEG and HEIC only, decode at the smallest exact fraction of the full
-    size (1/2, 1/4 or 1/8) that is still at least the target size, using
-    `ImageDecoder.scaledDecodeSize`. For 6,032 px down to 2,048 or 1,600 px,
-    that is 3,016 px. Never decode smaller than the target.
+    size (1/2, 1/4 or 1/8) that is still at least the target size. For
+    6,032 px down to 2,048 or 1,600 px, that is 3,016 px. Never decode
+    smaller than the target. `ImageDecoder.scaledDecodeSize`
+    (`ImageDecoder.swift:598-605`) accepts up to 3% too small, so either call
+    it with a strict margin or work the size out separately.
   - Tell the renderer the decoded size really is the source size. Otherwise
     `workingImage` (`EditRenderer.swift:798`) would scale it back up.
   - The existing Lanczos resize then goes from 3,016 px to the target, so the
@@ -761,15 +856,17 @@ numbers worth believing.
   - Keep the full decode for PNG and TIFF (they have no cheap smaller
     decode), for format changes only, for any other edit before the resize,
     for enlarging, for RAW, and for HDR output.
-- *Expected gain:* render about 150 → 50 ms per photo. Batch Convert to
-  2,048 px about 1,506 → 650 to 800 ms. Web gallery about 2,753 → 1,300 to
-  1,500 ms. Peak memory much lower: a picture at 3,016 px has a quarter of the
-  pixels of the full 6,032 px one.
+- *Expected gain:* render about 130 → 60 to 80 ms per photo. (The older
+  `FitBenchmark` already takes 42 to 49 ms just to decode this JPEG at
+  3,016 px, before the upload, the draw and the Lanczos resize, so 50 ms is
+  out of reach.) Batch Convert to 2,048 px about 1,506 → 800 to 1,000 ms.
+  Web gallery about 2,753 → 1,500 to 1,900 ms. Peak memory much lower: a
+  picture at 3,016 px has a quarter of the pixels of the full 6,032 px one.
 - *Risk:* output pixels change very slightly. HDR output is untouched.
 - *Effort:* M.
 - *Verify:*
-  - `batch.jpeg2048_20`: median ≤ 800 ms, `render_ms` ≤ 60, `peak_mb` ≤ 600
-  - `webGallery.export20` ≤ 1,500 ms
+  - `batch.jpeg2048_20`: median ≤ 1,000 ms, `render_ms` ≤ 80, `peak_mb` ≤ 600
+  - `webGallery.export20` ≤ 1,900 ms
   - `batch.heicFull_20` and `batch.avifFull_20` unchanged
   - a new test comparing old and new output: same size, and a *PSNR* of at
     least 45 dB on the test JPEG and HEIC. (PSNR measures how close two
@@ -784,34 +881,49 @@ numbers worth believing.
 - *Change:* use a task group limited by
   `BatchConvertJob.defaultConcurrency()` (1 on 8 GB Macs). Keep the pictures
   in their original order for the pages.
-- *Expected gain:* about 1.7 times faster on top of 2.1, so about 800 ms.
+- *Expected gain:* about 1.7 times faster on top of 2.1, so about 900 to
+  1,100 ms.
 - *Risk:* memory is limited by the same rule as Batch Convert. Cancelling and
   the skipped-files list must keep working in order.
 - *Effort:* S.
-- *Verify:* `webGallery.export20` ≤ 900 ms, and peak memory no higher than
+- *Verify:* `webGallery.export20` ≤ 1,100 ms, and peak memory no higher than
   Batch Convert's.
 
-**2.3 RAW slider: develop at half size while dragging (M)**
+**2.3 RAW slider: measure smaller develops first, then develop smaller while
+dragging (M)**
 - *Measured problem:* the RAW exposure slider takes 83.73 ms per frame
   (p90 85.88). The RAW develop alone is 76 ms per frame.
 - *Cause:* on every slider frame, `EditRenderer.swift:513-536` develops the
   RAW again at exactly the preview size (3,456 px), with draft mode off
   (`RawDevelop.swift:171`).
+- *What we already know:* not enough to promise a gain.
+  - The comment at `RawDevelop.swift:133-137` says a re-develop at half the
+    sensor's size (about 3,016 px) took 65 to 78 ms. That is about today's
+    76 ms at 3,456 px, so nobody has yet measured a develop much smaller
+    than the preview.
+  - The same comment says draft mode measured no faster at those sizes, so
+    it stays off. This plan does not turn it on.
+  - The older `RawBenchmark` took 147 to 180 ms for a 3,008 px develop, but
+    it ran side by side with other benchmarks (see 0.3), so it says little.
 - *Change:*
-  - While the slider is moving, develop at about half the preview size and
-    show it scaled up. Draft mode could be turned on too.
-  - When the mouse is let go, or after 150 ms without movement, develop once
-    at full quality.
+  - First, measure a scale sweep of the develop (for example 0.29, 0.4 and
+    0.57 of full size). A gain may only appear below the RAW engine's own
+    half-size threshold.
+  - Only if a size is clearly faster: while the slider is moving, develop at
+    that size and show it scaled up. When the mouse is let go, or after
+    150 ms without movement, develop once at full quality.
   - Frames must not pile up: only the latest slider value is drawn.
-- *Expected gain:* an estimate of 25 to 35 ms per frame while dragging, about
-  three times better. This has not been measured. Final quality is the same.
+- *Expected gain:* unknown until the sweep is measured. Do not count on the
+  earlier guess of 25 to 35 ms per frame. Final quality is the same.
 - *Risk:* the picture is visibly softer while dragging, which is normal in
   RAW editors. For HDR RAW, measure the brightness headroom on the final
   develop, not the draft. Memory goes down. Saving always develops at full
   size.
 - *Effort:* M.
-- *Verify:* split `edit.slider_rawExposure` into a dragging case (median
-  under 33 ms, p90 under 40) and a release case (one full develop, about
+- *Verify:* first, a new benchmark of the develop at each size in the
+  sweep. If the change goes ahead, split `edit.slider_rawExposure` into a
+  dragging case (aim for a median under 33 ms, p90 under 40, if the sweep
+  shows that is reachable) and a release case (one full develop, about
   80 ms).
 
 **2.4 Viewer: decode the selected photo while the user is still in the
@@ -822,7 +934,7 @@ browser (M)**
   ask the image loader to prepare it at the viewer's size. Opening it is then
   a cache hit, which the loader hands over at once (`ImageLoader.swift:276-279`).
   Cancel when the selection moves on. Never develop a RAW from the browser.
-- *Expected gain:* on a hit, only main-thread work remains: about 25 to 30 ms
+- *Expected gain:* on a hit, only main-thread work remains: about 21 to 31 ms
   for JPEG and HEIC.
 - *Risk:* extra decodes while the user arrows through the grid cost battery,
   so keep the pause and the cancelling. One extra screen texture fits easily
@@ -840,9 +952,13 @@ browser (M)**
     sort by rating.
   - The viewer also does two side header reads per NEF (7.5 and 7.0 ms), off
     the main thread. They cost battery, not waiting.
-  - From the profile, each file may go through the header parser up to three
-    times (ratings, filter details, and finding the main picture at 20.5%).
-    This is inferred from the call paths, not counted.
+  - When both the filter and the rating sort need a file, it goes through
+    the header parser twice: once for ratings and once for filter details.
+    Finding the main picture (20.5% of the profile) runs on the same opened
+    file as the filter's property read (`SearchCriteria.swift:53-55`), so it
+    is most likely the same parse showing up under a different call, not a
+    third one. This is inferred from the code and the call paths, not
+    counted.
 - *Cause:*
   - `FileMarksCache` lives only in memory (`FileMarks.swift:217-249`).
   - `MarksXMP.readMarks` (`FileMarks.swift:173`) and `FilterMetadata.read`
@@ -854,7 +970,7 @@ browser (M)**
   - Make the ratings cache look in the catalog before reading the file.
 - *Expected gain:* sorting a folder seen before by rating: about 3 s → about
   40 ms, judging by the saved metadata filter. One header read per file
-  instead of two or three.
+  instead of two.
 - *Risk:* ratings could go stale if a sidecar file is edited by another app.
   Including the sidecar's date in the check prevents that, as the memory
   cache already does. The catalog change must only add columns.
@@ -869,8 +985,11 @@ browser (M)**
 - *Measured problem:* the HDR decode is 133 to 151 ms, and the upload 36.0 ms
   (34.1 of it drawing on the CPU). The ordinary JPEG decode of the same size
   is 21.4 ms.
-- *Cause:* the gain map is applied on the CPU at full size, then the result
-  is converted again on the CPU for the texture.
+- *Cause:* only partly known. minivu already asks ImageIO for a screen-sized
+  HDR decode (`ImageDecoder.swift:439-449`), so the extra time is spent
+  inside ImageIO, where we cannot see how it applies the gain map. The
+  result is then converted again on the CPU for the texture (the 34.1 ms).
+  Profile the decode before building this.
 - *Change:* for gain-map photos at screen size, decode the ordinary picture at
   screen size and apply the gain map with Core Image on the graphics chip,
   straight into the texture. Keep today's path for PQ/HLG files and as a
@@ -883,22 +1002,33 @@ browser (M)**
 - *Verify:* `viewer.open_hdrGainMap` under 90 ms, plus a pixel comparison test
   and an HDR on/off display-setting test.
 
-**3.3 Export: drop one full-size CPU drawing step (M, prototype first)**
-- *Measured problem:* in Batch Convert to full-size HEIC (2,202.39 ms), an
-  ImageIO copy-with-colour-conversion is 45% of the time. For export, the
-  decoded picture is then drawn a second time into a bitmap for the graphics
-  chip, which is never shown.
+**3.3 Export: drop unneeded full-size CPU work (M, prototype first)**
+- *Measured problem:* in Batch Convert to full-size HEIC (about 2,200 ms),
+  a CoreGraphics copy-with-colour-conversion
+  (`CGImageCreateCopyWithParameters`, called through ImageIO's thumbnail
+  call) is 45% of the time.
+- *Cause:* `batch.heicFull_20` has no edits, so `BatchConverter.sdrImage`
+  (`BatchConverter.swift:221-230`) calls `ImageDecoder.decode` directly. The
+  full-size decode goes through ImageIO's thumbnail call, which makes the
+  colour-converting copy. Exports that go through the renderer (a resize or
+  an edit) also draw the decoded picture a second time into a bitmap for the
+  graphics chip, which is never shown.
 - *Change:* two parts, each measured on its own.
-  - For export, always use the existing `tiledSource` path
-    (`EditRenderer.swift:966`), so the picture goes straight to Core Image.
   - For a full-size decode with no rotation, use
     `CGImageSourceCreateImageAtIndex` instead of the thumbnail call
-    (`ImageDecoder.swift:446-449`).
+    (`ImageDecoder.swift:446-458`). This is the only part that can move
+    `batch.heicFull_20`.
+  - For exports that go through the renderer, always use the existing
+    `tiledSource` path (`EditRenderer.swift:966`), so the picture goes
+    straight to Core Image. This does not affect `batch.heicFull_20`;
+    measure it on a resize or an edit instead.
 - *Expected gain:* not measured. Build a small benchmark first, and only
   build the change if it saves at least 15%.
 - *Risk:* pixels change slightly, because Core Image does the colour
   conversion. Use the same PSNR test as 2.1. Rotation must still be applied.
-- *Verify:* `batch.heicFull_20` ≤ 1,800 ms; `save.inPlace_jpeg` no slower.
+- *Verify:* for the first part, `batch.heicFull_20` ≤ 1,800 ms; for the
+  second, a renderer export (for example `batch.jpeg2048_20` with an edit
+  added) at least 15% faster; `save.inPlace_jpeg` no slower.
 
 **3.4 An 8 GB test mode for the memory rules (M)**
 - *Problem (unmeasured):* on an 8 GB Mac today's rules allow, all at once:
@@ -957,8 +1087,9 @@ browser (M)**
 - **Compare's main-thread freezes** (44.9 ms for two photos, 63.9 ms for
   four). Take a Time Profiler trace first.
 - **The first warm screen's 16.0 ms freeze** in the window. Not profiled.
-- **The slideshow video's missing 4 seconds** out of 5,576.55 ms. Add a
-  signpost around the wait for the video encoder first.
+- **The slideshow video's missing 3.6 seconds** out of 5,576.55 ms (if its
+  phases run one after another). Add a signpost around the wait for the
+  video encoder first.
 - **The RAW memory limit on 8 GB Macs.** At 256 MB the develops used less
   memory than at 512 MB (698 against 996 MB for the first file), with renders
   of 366 against 348 ms. That is one run each. Rerun 256, 384 and 512 three
@@ -976,8 +1107,10 @@ browser (M)**
 The numbers say these are already fast enough, or the gain is too small for
 the risk:
 
-- **Next and previous photo:** 7.79 and 9.02 ms. Items 1.6 and 1.8 shave the
-  not-yet-loaded case (43.86 ms) as a side effect.
+- **Next and previous photo:** 7.79 and 9.02 ms, and 43.86 ms for a photo not
+  yet loaded. No item in this plan changes the not-yet-loaded case: a flip
+  builds no window (so 1.6 does not apply), and the flip benchmark uses JPEG
+  and HEIC, where the HDR check is only 0.4 ms (so 1.8 does not either).
 - **The double colour conversion during upload:** 7.1 ms, and only on flips
   to a photo not yet loaded.
 - **Loading full-size textures ahead of zoom to 100%:** zoom is 118.64 to
@@ -987,8 +1120,8 @@ the risk:
 - **Save:** 102.80 / 113.85 ms, already off the main thread, mostly Apple's
   encoder.
 - **AVIF:** Apple's software encoder is 78% of the time and already keeps most
-  cores busy. More jobs at once would only add memory (peak
-  1,151 MB).
+  cores busy. More jobs at once would only add memory (peak 1,150 to
+  1,173 MB).
 - **More Batch Convert jobs at once in general:** revisit only after 2.1
   lowers memory.
 - **Small folders:** 44.42 ms with 11.3 ms on the main thread.
@@ -1041,20 +1174,31 @@ The free GitHub machines are slow and uneven: CI already stretches every time
 limit by 8 (`MINIVU_TEST_SLACK`). Time limits there can only catch disasters.
 So the plan uses two kinds of check.
 
-**In CI, check counts and memory, not time.** Counts do not depend on how
-busy the machine is. The kit already prints them. Run with the small
-built-in test files (`MINIVU_BENCH_QUICK`) and fail the build if:
+**In CI, check counts, not time or memory.** Counts do not depend on how
+busy the machine is, and the kit already prints them. Two limits apply:
 
-| check | budget | today |
-|---|---|---|
-| file opens per viewer flip (not yet loaded) | ≤ 3 | 4.0 |
-| header reads in Find, first time | = number of files | 120 for 120 |
-| catalog transactions per copied or moved file | = 1 | 1.00 |
-| change notices when moving files into the shown folder | ≤ number of files + 2, then single figures after 1.2 | 1,002 for 1,000 |
-| file opens per file with filter and rating sort | = 1 after 3.1 | up to 3 (inferred) |
-| thumbnail decodes on a warm first screen | = 0 | 0.0 |
-| grid scroll peak memory | ≤ 1.3 × today | 281 MB |
-| Batch Convert peak memory | ≤ 1.3 × today | 1,057 MB |
+- `MINIVU_BENCH_QUICK` only makes runs smaller and fewer. There are no
+  built-in test photos. Benchmarks that need real photos (viewer flips,
+  Batch Convert, Find on photos, the rating and filter reads) only run when
+  `MINIVU_BENCH_DIR` points at a photo folder (`Bench.jpeg`, `heic`, `nef`),
+  and CI has none, so they skip. The checks that need photos need a few
+  small test photos committed to the repository, or a runner that has them.
+  The others make their own files when `MINIVU_BENCH=1` is set, so they can
+  run in CI today with `MINIVU_BENCH=1 MINIVU_BENCH_QUICK=1`.
+- Memory peaks were measured on 24 MP photos in a release build. A quick,
+  debug run on small files says nothing about them, so the memory budgets
+  belong on the reference Mac (next table), not in CI.
+
+Fail the CI build if:
+
+| check | budget | today | needs real photos |
+|---|---|---|---|
+| file opens per viewer flip (not yet loaded) | ≤ 4 (no plan item reduces this) | 4.0 | yes |
+| header reads in Find, first time | = number of files | 120 for 120 | yes |
+| catalog transactions per copied or moved file | = 1 | 1.00 | no |
+| change notices when moving files into the shown folder | ≤ number of files + 2, then single figures after 1.2 | 1,002 for 1,000 | no |
+| file opens per file with filter and rating sort | = 1 after 3.1 | 2 (inferred) | yes |
+| thumbnail decodes on a warm first screen | = 0 | 0.0 | no |
 
 **On the reference Mac, check time against a saved baseline.** These are the
 targets to hold once the plan is done:
@@ -1064,14 +1208,16 @@ targets to hold once the plan is done:
 | `viewer.next_warm` | median < 16 ms | 7.79 |
 | `viewer.open_jpeg` | median < 50 ms | 50 or 59 |
 | `edit.slider_lighting` | median < 16 ms | 6.11 |
-| `edit.slider_rawExposure` (dragging) | median < 33 ms | 83.73 |
+| `edit.slider_rawExposure` (dragging) | median < 33 ms, if 2.3's size sweep shows it is reachable | 83.73 |
 | `edit.cropDragFrame` | p90 < 16 ms | 38.95 |
 | `files.rename1000` | main thread < 130 ms, longest freeze < 33 ms | 369.2, 131.7 |
 | `files.move1000Shown` | main thread < 30 ms | 200.1 |
 | `folder10000.openInWindow` | median < 190 ms | 269.83 |
 | `folder1000Photos.ratingSortOpen` | median < 1,200 ms (clean runs) | 2,848 to 3,498 |
-| `batch.jpeg2048_20` | median < 800 ms, peak < 600 MB | 1,506.24, 1,057 |
+| `batch.jpeg2048_20` | median < 1,000 ms, peak < 600 MB | 1,506.24, about 1,065 |
 | any window benchmark | longest main-thread freeze < 50 ms | 131.7 (rename) |
+| `memory.gridScroll5000` | peak ≤ 1.3 × the baseline | 281 MB |
+| `batch.heicFull_20` and `batch.avifFull_20` | peak ≤ 1.3 × the baseline | 1,064 to 1,081 and 1,150 to 1,173 MB |
 
 ### The benchmark routine
 
@@ -1086,8 +1232,9 @@ targets to hold once the plan is done:
    rerun and commit the new baseline in the same pull request, so the next
    slowdown is measured from the new level.
 4. **Test the test.** Check once that the routine works: add a 10 ms sleep to
-   decoding and see the comparison flag it. Add an extra header read and see
-   the CI count test fail.
+   decoding and see the comparison flag it. Add an extra catalog transaction
+   per moved file and see the CI count test fail. (Once test photos are in
+   CI, do the same with an extra header read.)
 5. **Keep the machine quiet.** Never run benchmarks while something else is
    building. bench.sh's gate (phase 0.4) waits for that, but it is still
    worth closing other work.
