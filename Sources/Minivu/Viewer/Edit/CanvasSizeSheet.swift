@@ -77,17 +77,17 @@ struct CanvasSizeSheetView: View {
                         ForEach(ResizeModel.Unit.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    dimensionRow("Width", pixels: state.model.width, percent: state.model.widthPercent,
+                    dimensionRow(localized("Width"), pixels: state.model.width, percent: state.model.widthPercent,
                                  setPixels: { state.model.setWidth($0) }, setPercent: { state.model.setWidthPercent($0) })
-                    dimensionRow("Height", pixels: state.model.height, percent: state.model.heightPercent,
+                    dimensionRow(localized("Height"), pixels: state.model.height, percent: state.model.heightPercent,
                                  setPixels: { state.model.setHeight($0) }, setPercent: { state.model.setHeightPercent($0) })
                 }
                 Section {
                     LabeledContent("Anchor") {
-                        AnchorGrid(selection: state.model.anchor, label: "Anchor") { state.model.anchor = $0 }
+                        AnchorGrid(selection: state.model.anchor, label: localized("Anchor")) { state.model.anchor = $0 }
                     }
                     Toggle("Transparent", isOn: $state.model.transparent)
-                    ColorPicker("Fill", selection: Binding(get: { state.model.fill.cgColor },
+                    ColorPicker(localized(.init("canvas.fill", defaultValue: "Fill", comment: "Noun: the colour of the added canvas area")), selection: Binding(get: { state.model.fill.cgColor },
                                                            set: { state.model.fill = EditColor($0) }),
                                 supportsOpacity: false)
                         .disabled(state.model.transparent)
@@ -170,7 +170,7 @@ enum CanvasSizeSheet {
         let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 480),
                              styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: true)
         sheet.isReleasedWhenClosed = false
-        sheet.title = "Canvas Size"
+        sheet.title = localized("Canvas Size")
         var finished = false
         // Weak holds, for the reason `ResizeSheet.present` gives.
         let finish = { [weak window, weak sheet] (op: EditOperation?) in

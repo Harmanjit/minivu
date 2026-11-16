@@ -70,6 +70,13 @@ final class RecentDestinationsMenu: NSObject, NSMenuDelegate {
     let action: Selector
     let store: RecentDestinations
 
+    static var copyTitle: String {
+        localized(.init("Copy To", comment: "Verb: copy the selected files to a folder chosen in the submenu"))
+    }
+    static var moveTitle: String {
+        localized(.init("Move To", comment: "Verb: move the selected files to a folder chosen in the submenu"))
+    }
+
     init(action: Selector, store: RecentDestinations = .shared) {
         self.action = action
         self.store = store
@@ -103,6 +110,6 @@ final class RecentDestinationsMenu: NSObject, NSMenuDelegate {
             menu.addItem(item)
         }
         if !store.folders.isEmpty { menu.addItem(.separator()) }
-        menu.addItem(NSMenuItem(title: "Choose Folder…", action: action, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: localized("Choose Folder…"), action: action, keyEquivalent: ""))
     }
 }

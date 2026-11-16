@@ -41,7 +41,9 @@ nonisolated struct ViewerModel: Equatable {
     /// "3 / 120" for the HUD.
     var positionText: String { images.isEmpty ? "" : "\(index + 1) / \(count)" }
     /// "3 of 120" for the window subtitle.
-    var subtitleText: String { images.isEmpty ? "" : "\(index + 1) of \(count)" }
+    var subtitleText: String {
+        images.isEmpty ? "" : localized(.init("\(index + 1) of \(count)", comment: "A number out of a total"))
+    }
 
     // MARK: - Moving
 
@@ -97,7 +99,9 @@ nonisolated struct ViewerModel: Equatable {
     /// "2 / 10" for the control bar; empty for single-page images.
     var pageText: String { isMultiPage ? "\(page + 1) / \(pageCount)" : "" }
     /// "Page 2 of 10" for the HUD; nil for single-page images.
-    var pageHUDText: String? { isMultiPage ? "Page \(page + 1) of \(pageCount)" : nil }
+    var pageHUDText: String? {
+        isMultiPage ? localized(.init("Page \(page + 1) of \(pageCount)", comment: "HUD: the page showing of a multi-page file")) : nil
+    }
 
     /// The header of `entry` has been read. Ignored when the viewer has
     /// moved on to another image in the meantime.

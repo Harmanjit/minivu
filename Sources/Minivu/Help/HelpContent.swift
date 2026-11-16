@@ -19,17 +19,22 @@ nonisolated enum HelpPage: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var title: String {
+    /// Matches the `# Title` of the page in the same language.
+    var title: String { title(locale: nil) }
+
+    /// The title in `locale`'s language (tests); see `localized(_:locale:)`.
+    func title(locale: Locale?) -> String {
         switch self {
-        case .gettingStarted: "Getting Started"
-        case .browser: "Browser"
-        case .viewer: "Viewer"
-        case .editing: "Editing"
-        case .effects: "Effects & Retouching"
-        case .tools: "Tools"
-        case .settings: "Settings"
-        case .privacy: "Privacy"
-        case .shortcuts: "Keyboard Shortcuts"
+        case .gettingStarted: localized(.init("Getting Started", comment: "Help page"), locale: locale)
+        case .browser:
+            localized(.init("Browser", comment: "The window with the folder list and the thumbnail grid"), locale: locale)
+        case .viewer: localized(.init("Viewer", comment: "The window that shows one image"), locale: locale)
+        case .editing: localized(.init("Editing", comment: "Help page about editing images"), locale: locale)
+        case .effects: localized(.init("Effects & Retouching", comment: "Help page"), locale: locale)
+        case .tools: localized(.init("Tools", comment: "Menu bar menu"), locale: locale)
+        case .settings: localized(.init("Settings", comment: "Window title"), locale: locale)
+        case .privacy: localized(.init("Privacy", comment: "Help page"), locale: locale)
+        case .shortcuts: localized("Keyboard Shortcuts", locale: locale)
         }
     }
 
@@ -65,15 +70,24 @@ nonisolated enum HelpPage: String, CaseIterable, Identifiable, Sendable {
 
 /// Reads the bundled pages.
 nonisolated enum HelpLibrary {
-    /// The resource folder (Package.swift copies it whole).
+    /// The resource folder (Package.swift copies it whole). English pages
+    /// are at its top; a translation is in a folder named for its language,
+    /// as the bundle's .lproj folders are (HelpPages/de/Browser.md,
+    /// HelpPages/pt-BR/Browser.md).
     static let folder = "HelpPages"
 
     /// The Markdown text of `page`, or nil for the generated page or a file
     /// that is missing. Small files, but still file I/O: callers read them
     /// through `BlockingWork`.
-    static func markdown(for page: HelpPage, bundle: Bundle = .minivuHelp) -> String? {
-        guard let name = page.resourceName,
-              let url = bundle.url(forResource: name, withExtension: "md", subdirectory: folder) else { return nil }
+    ///
+    /// In the first of `languages` that has the page, otherwise in English.
+    /// By default those are the bundle's preferred localizations: the
+    /// language the menus are in, so a page and the menus it names agree.
+    static func markdown(for page: HelpPage, bundle: Bundle = .minivuHelp, languages: [String]? = nil) -> String? {
+        guard let name = page.resourceName else { return nil }
+        let folders = (languages ?? bundle.preferredLocalizations).map { "\(folder)/\($0)" } + [folder]
+        guard let url = folders.lazy.compactMap({ bundle.url(forResource: name, withExtension: "md", subdirectory: $0) })
+            .first else { return nil }
         return try? String(contentsOf: url, encoding: .utf8)
     }
 
@@ -92,8 +106,8 @@ nonisolated enum HelpLibrary {
 }
 
 extension Bundle {
-    /// The app target's resource bundle (the help pages), found where a
-    /// shipped app keeps it.
+    /// The app target's resource bundle (the help pages and the compiled
+    /// Localizable.xcstrings), found where a shipped app keeps it.
     ///
     /// As with `Bundle.minivuRender`, an .app keeps resources in
     /// Contents/Resources, where SwiftPM's `Bundle.module` doesn't look. That

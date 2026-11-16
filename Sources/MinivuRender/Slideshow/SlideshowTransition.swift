@@ -25,14 +25,14 @@ public enum SlideshowTransition: String, Codable, CaseIterable, Sendable, Identi
 
     public var title: String {
         switch self {
-        case .crossFade: "Cross-Fade"
-        case .fadeThroughBlack: "Fade Through Black"
-        case .slide: "Slide"
-        case .push: "Push"
-        case .wipe: "Wipe"
-        case .zoom: "Zoom"
-        case .iris: "Iris"
-        case .dissolve: "Dissolve"
+        case .crossFade: localized(.init("Cross-Fade", comment: "Slideshow transition"))
+        case .fadeThroughBlack: localized(.init("Fade Through Black", comment: "Slideshow transition"))
+        case .slide: localized(.init("transition.slide", defaultValue: "Slide", comment: "Slideshow transition: the new picture slides in"))
+        case .push: localized(.init("Push", comment: "Slideshow transition: the new picture pushes the old one out"))
+        case .wipe: localized(.init("Wipe", comment: "Slideshow transition"))
+        case .zoom: localized(.init("transition.zoom", defaultValue: "Zoom", comment: "Slideshow transition: the new picture zooms in"))
+        case .iris: localized(.init("Iris", comment: "Slideshow transition: a circle opens on the new picture"))
+        case .dissolve: localized(.init("Dissolve", comment: "Slideshow transition"))
         }
     }
 

@@ -9,17 +9,17 @@ import MinivuCore
     /// `wholeGroups` is how many groups would keep no copy at all.
     static var confirmTrash: (NSWindow, Int, Int, @escaping (Bool) -> Void) -> Void = { window, count, wholeGroups, answer in
         let alert = NSAlert()
-        alert.messageText = count == 1 ? "Move 1 file to the Trash?" : "Move \(count.formatted()) files to the Trash?"
-        var detail = "You can put them back from the Trash in Finder."
+        alert.messageText = localized("Move \(count) files to the Trash?")
+        var detail = localized("You can put them back from the Trash in Finder.")
         if wholeGroups > 0 {
-            detail = (wholeGroups == 1 ? "In 1 group every file is marked, so no copy of it will be left here. "
-                : "In \(wholeGroups) groups every file is marked, so no copy of them will be left here. ") + detail
+            detail = localized(.init("In \(wholeGroups) groups every file is marked, so no copy of them will be left here. You can put them back from the Trash in Finder.",
+                                     comment: "Before moving duplicates to the Trash"))
             alert.alertStyle = .warning
         }
         alert.informativeText = detail
-        let move = alert.addButton(withTitle: "Move to Trash")
+        let move = alert.addButton(withTitle: localized("Move to Trash"))
         move.hasDestructiveAction = true
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: localized("Cancel"))
         alert.beginSheetModal(for: window) { answer($0 == .alertFirstButtonReturn) }
     }
 }
@@ -65,7 +65,7 @@ final class DuplicatesWindowController: NSWindowController, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: Self.defaultSize),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: true)
-        window.title = "Find Duplicates"
+        window.title = localized("Find Duplicates")
         window.minSize = Self.minimumSize
         window.isReleasedWhenClosed = false
         super.init(window: window)
@@ -137,7 +137,7 @@ final class DuplicatesWindowController: NSWindowController, NSWindowDelegate {
     func showInBrowser() {
         let files = model.selectedFiles.isEmpty ? model.allFiles : model.selectedFiles
         guard !files.isEmpty, let browser else { return }
-        let title = model.resultMode == .similar ? "Similar Images" : "Duplicates"
+        let title = model.resultMode == .similar ? localized("Similar Images") : localized(.init("Duplicates", comment: "Title of a list of duplicate files"))
         browser.open(list: VirtualList(kind: .files(files.map(\.url)), title: title))
         browser.showWindow(nil)
     }

@@ -136,7 +136,7 @@ final class LiveTextController: NSObject, ImageAnalysisOverlayViewDelegate {
         overlay.preferredInteractionTypes = .textSelection
         overlay.isSupplementaryInterfaceHidden = true
         overlay.selectableItemsHighlighted = false
-        overlay.setAccessibilityLabel("Text in the image")
+        overlay.setAccessibilityLabel(localized("Text in the image"))
         host.isHidden = true
     }
 

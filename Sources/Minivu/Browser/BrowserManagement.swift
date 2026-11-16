@@ -76,7 +76,7 @@ extension BrowserWindowController {
             guard let window else { return }
             let alert = NSAlert()
             alert.messageText = problem
-            alert.informativeText = "Please choose a different name."
+            alert.informativeText = localized("Please choose a different name.")
             alert.beginSheetModal(for: window) { [weak self] _ in
                 MainActor.assumeIsolated { self?.grid.beginRename(url, proposedName: name) }
             }
@@ -90,7 +90,7 @@ extension BrowserWindowController {
     func performRename(_ url: URL, to name: String) {
         let renamed = url.deletingLastPathComponent().appendingPathComponent(name)
         let oldName = url.lastPathComponent
-        let done = undoRegistration("Rename") { $0.performRename(renamed, to: oldName) }
+        let done = undoRegistration(localized(.init("Rename", comment: "Verb: rename the selected file"))) { $0.performRename(renamed, to: oldName) }
         Task {
             // A save still queued would put the file back under its old name.
             await FileWriteQueue.shared.waitForWrites(to: [url])
@@ -134,7 +134,8 @@ extension BrowserWindowController {
             }
             switch result {
             case .success(let url):
-                undoRegistrar("New Folder")(true, { $0.trashItems([url], actionName: "New Folder") })
+                let name = localized("New Folder")
+                undoRegistrar(name)(true, { $0.trashItems([url], actionName: name) })
                 pendingRename = url
                 model.reload(thenSelect: [url])
             case .failure(let error):
@@ -168,8 +169,14 @@ extension BrowserWindowController {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = move ? "Move" : "Copy"
-        panel.message = "Choose a folder to \(move ? "move" : "copy") \(FileTransfer.itemsText(files.count)) to."
+        let count = files.count
+        panel.prompt = move
+            ? localized(.init("transfer.button.move", defaultValue: "Move",
+                              comment: "Verb: button that moves the files into the chosen folder"))
+            : localized(.init("transfer.button.copy", defaultValue: "Copy",
+                              comment: "Verb: button that copies the files into the chosen folder"))
+        panel.message = move ? localized("Choose a folder to move \(count) items to.")
+            : localized("Choose a folder to copy \(count) items to.")
         panel.directoryURL = RecentDestinations.shared.folders.first ?? model.folder
         panel.beginSheetModal(for: window) { [weak self] response in
             MainActor.assumeIsolated {
@@ -237,7 +244,8 @@ extension BrowserWindowController {
 
     /// "Move 3 Items", "Copy 1 Item": the Undo and Redo titles.
     nonisolated static func transferActionName(count: Int, isMove: Bool) -> String {
-        "\(isMove ? "Move" : "Copy") \(count == 1 ? "1 Item" : "\(count.formatted()) Items")"
+        isMove ? localized(.init("Move \(count) Items", comment: "Undo action name: files moved to another folder"))
+            : localized(.init("Copy \(count) Items", comment: "Undo action name: files copied to another folder"))
     }
 
     /// Thumbnails and textures of every path a transfer touched: a replaced
@@ -304,7 +312,7 @@ extension BrowserWindowController {
             showTransferred(arrived: (isMove ? undone.map(\.from) : []) + restored.map(\.from),
                             left: undone.map(\.to), thenSelect: nil)
             if undone.count < pairs.count || restored.count < trashed.count {
-                present(message: "Some items couldn’t be put back.")
+                present(message: localized("Some items couldn’t be put back."))
             }
         }
     }
@@ -332,7 +340,7 @@ extension BrowserWindowController {
             done(!redone.isEmpty)
             if isMove { model.followMoves(redone.map { ($0.from, $0.to) }) }
             showTransferred(arrived: redone.map(\.to), left: isMove ? redone.map(\.from) : [], thenSelect: nil)
-            if redone.count < pairs.count { present(message: "Some items couldn’t be moved or copied again.") }
+            if redone.count < pairs.count { present(message: localized("Some items couldn’t be moved or copied again.")) }
         }
     }
 

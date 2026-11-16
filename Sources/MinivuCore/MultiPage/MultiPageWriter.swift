@@ -18,10 +18,10 @@ public enum MultiPageFormat: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .tiff: "Multi-Page TIFF"
+        case .tiff: localized(.init("Multi-Page TIFF", comment: "File format: a TIFF file with several pages"))
         case .pdf: "PDF"
-        case .gif: "Animated GIF"
-        case .heics: "Animated HEIC"
+        case .gif: localized(.init("Animated GIF", comment: "File format"))
+        case .heics: localized(.init("Animated HEIC", comment: "File format"))
         }
     }
 
@@ -80,9 +80,9 @@ public enum PDFPageSize: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .image: "Same as Each Image"
+        case .image: localized(.init("Same as Each Image", comment: "PDF page size: each page the size of its image"))
         case .a4: "A4"
-        case .letter: "US Letter"
+        case .letter: localized(.init("US Letter", comment: "Paper size"))
         }
     }
 
@@ -185,17 +185,19 @@ public struct MultiPageSettings: Codable, Hashable, Sendable {
     public var problem: String? {
         if format.isAnimation {
             if !(frameDelay.isFinite && frameDelay >= Self.shortestFrameDelay && frameDelay <= 60) {
-                return "The frame delay must be between 0.02 and 60 seconds."
+                return localized(.init("The frame delay must be between \(Self.shortestFrameDelay.formatted()) and \(60.formatted()) seconds.",
+                                       comment: "The shortest delay (0.02) and the longest (60), as numbers"))
             }
             if format.keepsLoopCount, loopCount < 0 || loopCount > 65535 {
-                return "The number of loops must be between 0 and 65,535."
+                return localized(.init("The number of loops must be between \(0.formatted()) and \(65535.formatted()).",
+                                       comment: "The fewest loops (0) and the most (65,535), as numbers"))
             }
             if let frameSize, !(16...Self.largestFrameSize).contains(frameSize) {
-                return "The frame size must be between 16 and \(Self.largestFrameSize.formatted()) pixels."
+                return localized("The frame size must be between 16 and \(Self.largestFrameSize) px.")
             }
         }
         if format == .pdf, pdfPageSize != .image, !(pdfMargin.isFinite && pdfMargin >= 0 && pdfMargin <= 144) {
-            return "The margin must be between 0 and 144 points."
+            return localized("The margin must be between 0 and 144 points.")
         }
         return nil
     }

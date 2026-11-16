@@ -19,35 +19,66 @@ final class ViewerControlBar: NSView {
     static let nextPageAction = Selector.nextPage
     static let togglePlaybackAction = Selector.togglePlayback
 
-    private let previousButton = ViewerControlBar.button("chevron.left", "Previous Image (←)", .previousImage)
-    private let nextButton = ViewerControlBar.button("chevron.right", "Next Image (→)", .nextImage)
+    /// The tooltips that change with the state, looked up once: `update`
+    /// runs on every zoom step of a pinch.
+    private enum Tip {
+        static let pause = localized(.init("Pause (P)", comment: "Tooltip: keep the key in brackets"))
+        static let play = localized(.init("Play (P)", comment: "Tooltip: keep the key in brackets"))
+        static let window = localized(.init("Show in a Window (Return)", comment: "Tooltip: keep the key in brackets"))
+        static let fullScreen = localized(.init("Full Screen (Return)", comment: "Tooltip: keep the key in brackets"))
+        static let showInfo = localized("Show Info")
+        static let hideInfo = localized("Hide Info")
+        static let showTools = localized("Show Edit Tools")
+        static let hideTools = localized("Hide Edit Tools")
+    }
+
+    private let previousButton = ViewerControlBar.button(
+        "chevron.left", localized(.init("Previous Image (←)", comment: "Tooltip: keep the key in brackets")),
+        .previousImage)
+    private let nextButton = ViewerControlBar.button(
+        "chevron.right", localized(.init("Next Image (→)", comment: "Tooltip: keep the key in brackets")),
+        .nextImage)
     // Up and down for pages, as Preview's toolbar has them, so they don't
     // read as another pair of image arrows.
-    private let previousPageButton = ViewerControlBar.button("chevron.up", "Previous Page (⌥←)",
-                                                             ViewerControlBar.previousPageAction)
-    private let nextPageButton = ViewerControlBar.button("chevron.down", "Next Page (⌥→)",
-                                                         ViewerControlBar.nextPageAction)
+    private let previousPageButton = ViewerControlBar.button(
+        "chevron.up", localized(.init("Previous Page (⌥←)", comment: "Tooltip: keep the key in brackets")),
+        ViewerControlBar.previousPageAction)
+    private let nextPageButton = ViewerControlBar.button(
+        "chevron.down", localized(.init("Next Page (⌥→)", comment: "Tooltip: keep the key in brackets")),
+        ViewerControlBar.nextPageAction)
     private let pageLabel = NSTextField(labelWithString: "")
-    private let playbackButton = ViewerControlBar.button("pause.circle", "Pause (P)",
-                                                         ViewerControlBar.togglePlaybackAction)
+    private let playbackButton = ViewerControlBar.button(
+        "pause.circle", Tip.pause,
+        ViewerControlBar.togglePlaybackAction)
     /// Shown only for documents with pages and for animations. Each carries
     /// its own divider, so a hidden group leaves no double line behind.
     private lazy var pageGroup = Self.optionalGroup([previousPageButton, pageLabel, nextPageButton])
     private lazy var playbackGroup = Self.optionalGroup([playbackButton])
-    private let fitButton = ViewerControlBar.button("arrow.down.right.and.arrow.up.left", "Fit to Window (*)",
-                                                    .fitToWindow)
-    private let actualSizeButton = ViewerControlBar.button("1.magnifyingglass", "Actual Size (/)", .actualSize)
-    private let zoomOutButton = ViewerControlBar.button("minus.magnifyingglass", "Zoom Out (−)", .zoomOut)
-    private let zoomInButton = ViewerControlBar.button("plus.magnifyingglass", "Zoom In (+)", .zoomIn)
-    private let fullScreenButton = ViewerControlBar.button("display", "Full Screen (Return)", .toggleFullScreenViewer)
-    private let infoButton = ViewerControlBar.button("info.circle", "Show Info", ViewerControlBar.toggleInfoAction)
+    private let fitButton = ViewerControlBar.button(
+        "arrow.down.right.and.arrow.up.left",
+        localized(.init("Fit to Window (*)", comment: "Tooltip: keep the key in brackets")), .fitToWindow)
+    private let actualSizeButton = ViewerControlBar.button(
+        "1.magnifyingglass", localized(.init("Actual Size (/)", comment: "Tooltip: keep the key in brackets")),
+        .actualSize)
+    private let zoomOutButton = ViewerControlBar.button(
+        "minus.magnifyingglass", localized(.init("Zoom Out (−)", comment: "Tooltip: keep the key in brackets")),
+        .zoomOut)
+    private let zoomInButton = ViewerControlBar.button(
+        "plus.magnifyingglass", localized(.init("Zoom In (+)", comment: "Tooltip: keep the key in brackets")),
+        .zoomIn)
+    private let fullScreenButton = ViewerControlBar.button(
+        "display", Tip.fullScreen,
+        .toggleFullScreenViewer)
+    private let infoButton = ViewerControlBar.button("info.circle", Tip.showInfo, ViewerControlBar.toggleInfoAction)
     private let zoomLabel = NSTextField(labelWithString: "")
 
-    private let rotateLeftButton = ViewerControlBar.button("rotate.left", "Rotate Left", .rotateLeft)
-    private let rotateRightButton = ViewerControlBar.button("rotate.right", "Rotate Right", .rotateRight)
-    private let toolsButton = ViewerControlBar.button("slider.horizontal.3", "Show Edit Tools",
+    private let rotateLeftButton = ViewerControlBar.button("rotate.left", localized("Rotate Left"), .rotateLeft)
+    private let rotateRightButton = ViewerControlBar.button("rotate.right", localized("Rotate Right"), .rotateRight)
+    private let toolsButton = ViewerControlBar.button("slider.horizontal.3", Tip.showTools,
                                                       ViewerControlBar.toggleToolsAction)
-    private let slideshowButton = ViewerControlBar.button("play.fill", "Start Slideshow (⇧⌘F)", .startSlideshow)
+    private let slideshowButton = ViewerControlBar.button(
+        "play.fill", localized(.init("Start Slideshow (⇧⌘F)", comment: "Tooltip: keep the key in brackets")),
+        .startSlideshow)
     /// Groups that give way when the bar is too narrow (see `fitPlaceholders`).
     private lazy var placeholderGroups = [Self.group([rotateLeftButton, rotateRightButton]),
                                           Self.group([slideshowButton, toolsButton])]
@@ -134,7 +165,7 @@ final class ViewerControlBar: NSView {
         rotateRightButton.isEnabled = canEdit
         toolsButton.state = toolsShown ? .on : .off
         toolsButton.contentTintColor = toolsShown ? .controlAccentColor : nil
-        toolsButton.toolTip = toolsShown ? "Hide Edit Tools" : "Show Edit Tools"
+        toolsButton.toolTip = toolsShown ? Tip.hideTools : Tip.showTools
         previousButton.isEnabled = canGoPrevious
         nextButton.isEnabled = canGoNext
 
@@ -150,7 +181,7 @@ final class ViewerControlBar: NSView {
         if playbackGroup.isHidden != (isPlaying == nil) { playbackGroup.isHidden = isPlaying == nil }
         if let isPlaying {
             // The button shows what a press does.
-            let title = isPlaying ? "Pause (P)" : "Play (P)"
+            let title = isPlaying ? Tip.pause : Tip.play
             if playbackButton.toolTip != title {
                 playbackButton.image = Self.symbol(isPlaying ? "pause.circle" : "play.circle", title)
                 playbackButton.toolTip = title
@@ -164,7 +195,7 @@ final class ViewerControlBar: NSView {
         // A display and a window rather than arrows, which would look just
         // like the fit button's.
         let symbol = isFullScreen ? "macwindow" : "display"
-        let title = isFullScreen ? "Show in a Window (Return)" : "Full Screen (Return)"
+        let title = isFullScreen ? Tip.window : Tip.fullScreen
         if fullScreenButton.toolTip != title {
             fullScreenButton.image = Self.symbol(symbol, title)
             fullScreenButton.toolTip = title
@@ -172,7 +203,7 @@ final class ViewerControlBar: NSView {
         infoButton.state = infoShown ? .on : .off
         // The bezel only shows under the pointer, so the tint carries the state.
         infoButton.contentTintColor = infoShown ? .controlAccentColor : nil
-        infoButton.toolTip = infoShown ? "Hide Info" : "Show Info"
+        infoButton.toolTip = infoShown ? Tip.hideInfo : Tip.showInfo
     }
 
     // MARK: - Parts
@@ -199,9 +230,12 @@ final class ViewerControlBar: NSView {
 
     /// What VoiceOver says for a button: its tooltip without the key in
     /// brackets ("Next Image (→)" is "Next Image"), which is spoken as help.
+    /// Translations may use full-width brackets ("次のイメージ（→）").
     nonisolated static func spokenName(_ toolTip: String) -> String {
-        guard toolTip.hasSuffix(")"), let open = toolTip.range(of: " (", options: .backwards) else { return toolTip }
-        return String(toolTip[..<open.lowerBound])
+        guard toolTip.hasSuffix(")") || toolTip.hasSuffix("）"),
+              let open = toolTip.range(of: " (", options: .backwards) ?? toolTip.range(of: "（", options: .backwards)
+        else { return toolTip }
+        return String(toolTip[..<open.lowerBound]).trimmingCharacters(in: .whitespaces)
     }
 
     /// A divider and `views`, which show and hide together.

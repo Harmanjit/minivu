@@ -22,7 +22,8 @@ import MinivuRender
 
     /// "IMG_0001 Edits": the photo's name, without its extension.
     nonisolated static func suggestedName(for url: URL) -> String {
-        RenameNamer.split(url.lastPathComponent).base + " Edits"
+        localized(.init("\(RenameNamer.split(url.lastPathComponent).base) Edits",
+                        comment: "Suggested preset name: a photo's name, then Edits"))
     }
 
     /// The preset the name would replace, as the store has it now (a Batch
@@ -36,8 +37,8 @@ import MinivuRender
 
     /// What stands in the way of saving, or what saving will do.
     var status: String? {
-        if portable.isEmpty { return "None of these edits can be used on other photos, so there is nothing to save." }
-        if let existing { return "Replaces the edits of the preset “\(existing.name)”." }
+        if portable.isEmpty { return localized("None of these edits can be used on other photos, so there is nothing to save.") }
+        if let existing { return localized("Replaces the edits of the preset “\(existing.name)”.") }
         return nil
     }
 
@@ -133,7 +134,8 @@ struct EditsPresetView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             .accessibilityElement(children: .combine)
-                            .accessibilityLabel("\(step.title), left out: \(step.reason)")
+                            .accessibilityLabel(localized(.init("\(step.title), left out: \(step.reason)",
+                                                                comment: "VoiceOver: an edit, then why it can't be part of the preset")))
                         }
                     }
                 }

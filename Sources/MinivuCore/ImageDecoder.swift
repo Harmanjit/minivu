@@ -12,9 +12,9 @@ public enum DecodeError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .unreadable(let url): "\(url.lastPathComponent) could not be opened."
-        case .noImage(let url): "\(url.lastPathComponent) contains no image minivu can decode."
-        case .tooLarge(let url): "\(url.lastPathComponent) is too large to decode."
+        case .unreadable(let url): localized("\(url.lastPathComponent) could not be opened.")
+        case .noImage(let url): localized("\(url.lastPathComponent) contains no image minivu can decode.")
+        case .tooLarge(let url): localized("\(url.lastPathComponent) is too large to decode.")
         }
     }
 }

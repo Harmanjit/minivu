@@ -218,7 +218,8 @@ enum SlideshowVideoExport {
     /// "Trip Slideshow.mp4", after the pictures' folder.
     static func suggestedName(for images: [FolderEntry], container: SlideshowVideoContainer) -> String {
         let folder = images.first.map { FileManager.default.displayName(atPath: $0.url.deletingLastPathComponent().path) }
-        let base = folder.map { "\($0) Slideshow" } ?? "Slideshow"
+        let base = folder.map { localized(.init("\($0) Slideshow", comment: "Suggested video file name: the pictures' folder, then Slideshow")) }
+            ?? localized("Slideshow")
         return "\(base).\(container.fileExtension)"
     }
 

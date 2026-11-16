@@ -123,7 +123,7 @@ import SwiftUI
     }
 
     @Test func shortcutSectionFilter() {
-        let section = ShortcutSection(title: "Viewer", rows: [
+        let section = ShortcutSection(id: "viewer", title: "Viewer", rows: [
             ShortcutRow(title: "Next image", keys: "→"), ShortcutRow(title: "Zoom in", keys: "+"),
         ])
         #expect(section.filtered(by: "") == section)
@@ -170,7 +170,7 @@ import SwiftUI
     @Test func pageDoesNotTouchTheInstalledMenuBar() throws {
         MainMenu.install()
         _ = KeyboardShortcutsPage.sections()
-        let next = try #require(NSApp.mainMenu?.items.first { $0.title == "Go" }?.submenu?.items.first)
+        let next = try #require(NSApp.mainMenu?.submenu(.go)?.items.first)
         #expect(next.title == "Next Image" && next.keyEquivalent.isEmpty)
     }
 

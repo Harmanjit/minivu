@@ -1,0 +1,59 @@
+# Einstellungen
+
+Wähle **minivu > Einstellungen …** (**⌘,**). Jede Änderung wird sofort
+wirksam; es gibt nichts zu bestätigen.
+
+## Allgemein
+
+- **Design:** System, Hell, Grau oder Dunkel.
+- **Unsichtbare Dateien einblenden** im Browser.
+- **Am Ende des Ordners von vorne beginnen:** Nach dem letzten Bild kehrt
+  der Betrachter zum ersten zurück.
+- **Betrachter im Vollbildmodus öffnen** statt in einem Fenster.
+- **Vor dem Überschreiben des Originals fragen:** Aktiviere dies wieder,
+  wenn du festgelegt hast, beim Sichern nicht gefragt zu werden.
+
+## Betrachter
+
+- **Hintergrund:** Schwarz, Dunkelgrau, Grau oder Weiß hinter dem Bild.
+- **Kleine Bilder vergrößern, um sie einzupassen** in das Fenster oder den
+  Bildschirm.
+- **Verpixelter Zoom über 200 %** zeigt jedes Pixel als scharfes Quadrat.
+- **Mausrad:** vorheriges und nächstes Bild oder Zoomen.
+- **Vollbild-Betrachter öffnet auf** dem Display mit dem Browser oder einem
+  anderen Display, sodass du auf einem Bildschirm durchsuchen und auf dem
+  anderen betrachten kannst.
+- **HDR-Fotos in HDR anzeigen** auf Bildschirmen, die das können.
+- **RAW-Dateien:** die eingebettete Vorschau, die die Kamera gesichert hat
+  und die am schnellsten ist, oder die RAW-Daten rendern. minivu rendert die
+  RAW-Daten ohnehin, wenn die Vorschau für den Bildschirm oder den Zoom zu
+  klein ist.
+- **RAW-Dateien mit erweitertem Dynamikumfang rendern** zeigt RAW-Lichter in
+  HDR an, was pro Foto einen Moment dauert.
+
+## Lupe
+
+Zoom und Größe der Lupe, die erscheint, wenn du ein Bild gedrückt hältst,
+mit einer Vorschau.
+
+## Miniaturen
+
+- **Größe** der Miniaturen im Raster.
+- **Miniaturcache leeren** entfernt gesicherte Miniaturen; sie werden beim
+  nächsten Anzeigen eines Ordners aus den Dateien neu erstellt.
+
+## Diashow
+
+Die Anzeigedauer jedes Dias, die Reihenfolge, ob nach dem letzten Dia von
+vorne begonnen wird, Untertitel (Dateiname, Dateiname und Datum oder Kamera
+und Belichtung), der Übergang und seine Dauer mit einer Vorschau sowie die
+Musik: Titel oder Ordner, Mischen und Lautstärke. Eine Änderung der
+Lautstärke oder das Ein- und Ausschalten der Musik wirkt sich auch auf eine
+bereits laufende Diashow aus.
+
+## Editoren
+
+Die Programme, die unter **Werkzeuge > In externem Editor öffnen**
+aufgelistet sind. Füge Programme hinzu, ordne sie durch Ziehen neu an (das
+erste hat den Kurzbefehl **⌘E**) oder wähle aus Vorschlägen von auf deinem
+Mac installierten Bildbearbeitungsprogrammen.

@@ -144,8 +144,8 @@ private func display(_ id: UInt32, x: CGFloat, width: CGFloat = 800, height: CGF
 
     @Test func windowMenuMovesToTheNextDisplay() throws {
         _ = NSApplication.shared
-        let window = try #require(MainMenu.make().items.first { $0.title == "Window" }?.submenu)
-        let item = try #require(window.items.first { $0.title == "Move to Next Display" })
+        let window = try #require(MainMenu.make().submenu(.window))
+        let item = try #require(window.items.first { $0.action == .moveToNextDisplay })
         #expect(item.action == .moveToNextDisplay)
         #expect(item.keyEquivalent == MainMenu.Key.right)
         #expect(item.keyEquivalentModifierMask == [.control, .option, .command])

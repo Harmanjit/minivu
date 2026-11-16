@@ -58,42 +58,52 @@ import MinivuRender
         var errorDescription: String? {
             switch self {
             case .notAFileOnDisk(let name):
-                "“\(name)” isn’t a file in a folder on this Mac, so minivu can’t rename or rate it. "
-                    + "Pass files from Finder instead."
+                localized(.init("“\(name)” isn’t a file in a folder on this Mac, so minivu can’t rename or rate it. Pass files from Finder instead.",
+                                comment: "Shortcuts error; %@ is a file name"))
             case .notOnInternalStorage(let name):
-                "“\(name)” isn’t on this Mac’s internal storage, so minivu did nothing. minivu only works with "
-                    + "files on this Mac’s internal storage. Copy the photos from the external drive, memory card "
-                    + "or network share to a folder on this Mac first."
+                localized(.init("“\(name)” isn’t on this Mac’s internal storage, so minivu did nothing. minivu only works with files on this Mac’s internal storage. Copy the photos from the external drive, memory card or network share to a folder on this Mac first.",
+                                comment: "Shortcuts error; %@ is a file name"))
             case .unknownTokens(let tokens):
-                "The pattern has \(tokens.count == 1 ? "a token" : "tokens") minivu doesn’t know: "
-                    + tokens.joined(separator: ", ") + ". Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}."
+                // No count is shown, so "a token" or "tokens" is all that varies.
+                tokens.count == 1
+                    ? localized(.init("The pattern has a token minivu doesn’t know: \(tokens[0]). Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}.",
+                                      comment: "Shortcuts error; %@ is a rename pattern token such as {nmae}. Keep the {…} tokens as they are"))
+                    : localized(.init("The pattern has tokens minivu doesn’t know: \(tokens.formatted(.list(type: .and, width: .narrow))). Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}.",
+                                      comment: "Shortcuts error; %@ is a list of rename pattern tokens such as {nmae}. Keep the {…} tokens as they are"))
             case .renameProblems(let lines):
-                "Nothing was renamed:\n" + Self.list(lines)
+                localized("Nothing was renamed:") + "\n" + Self.list(lines)
             case .foldersNotWritable(let folders):
-                "Nothing was renamed. minivu can rename files only in folders it may change: Pictures and the "
-                    + "folders in its sidebar (File > Add Folder to Sidebar…). It may not change:\n" + Self.list(folders)
+                localized(.init("Nothing was renamed. minivu can rename files only in folders it may change: Pictures and the folders in its sidebar (File > Add Folder to Sidebar…). It may not change:",
+                                comment: "Shortcuts error, followed by a list of folders. File > Add Folder to Sidebar… is a menu command"))
+                    + "\n" + Self.list(folders)
             case .renameFailed(let lines):
-                "Some files couldn’t be renamed; the others were.\n" + Self.list(lines)
+                localized("Some files couldn’t be renamed; the others were.") + "\n" + Self.list(lines)
             case .filesNotWritable(let names):
-                "No label was set. minivu may not change "
-                    + (names.count == 1 ? "this file" : "these files")
-                    + " (a colour label is written into the file’s Finder tags):\n" + Self.list(names)
+                (names.count == 1
+                    ? localized(.init("No label was set. minivu may not change this file (a colour label is written into the file’s Finder tags):",
+                                     comment: "Shortcuts error, followed by file names. “may not” means “is not allowed to” (minivu has no permission to write there), not “might not”"))
+                    : localized(.init("No label was set. minivu may not change these files (a colour label is written into the file’s Finder tags):",
+                                     comment: "Shortcuts error, followed by file names. “may not” means “is not allowed to” (minivu has no permission to write there), not “might not”")))
+                    + "\n" + Self.list(names)
             case .labelFailed(let names):
-                "Some files couldn’t be labelled; the others were. Their Finder tags couldn’t be read or "
-                    + "written:\n" + Self.list(names)
+                localized("Some files couldn’t be labelled; the others were. Their Finder tags couldn’t be read or written:")
+                    + "\n" + Self.list(names)
             case .conversionFailed(let detail):
                 detail
             case .formatNotWritable(let format):
-                "This Mac can’t write \(format) files, so nothing was converted. Choose another format."
+                localized(.init("This Mac can’t write \(format) files, so nothing was converted. Choose another format.",
+                                comment: "Shortcuts error; %@ is a file format such as AVIF"))
             case .noImages:
-                "There were no images to work on."
+                localized("There were no images to work on.")
             }
         }
 
         private static func list(_ lines: [String]) -> String {
             let limit = 8
             var shown = Array(lines.prefix(limit))
-            if lines.count > limit { shown.append("…and \((lines.count - limit).formatted()) more.") }
+            if lines.count > limit {
+                shown.append(localized(.init("…and \(lines.count - limit) more.", comment: "Last line of a list of file names that was cut short")))
+            }
             return shown.joined(separator: "\n")
         }
     }
@@ -247,7 +257,11 @@ import MinivuRender
                                                                  : renameSources, pattern: pattern)
         }
         guard plan.unknownTokens.isEmpty else { throw Failure.unknownTokens(plan.unknownTokens) }
-        let problems = plan.items.compactMap { item in item.problem.map { "\(item.source.lastPathComponent): \($0.message)" } }
+        let problems = plan.items.compactMap { item in
+            item.problem.map {
+                localized(.init("\(item.source.lastPathComponent): \($0.message)", comment: "A file name, then what went wrong with it"))
+            }
+        }
         guard problems.isEmpty else { throw Failure.renameProblems(problems) }
         let requests = plan.changes.map { BatchRenamer.Request(url: $0.source, newName: $0.newName) }
         guard !requests.isEmpty else { return sources }
@@ -260,7 +274,7 @@ import MinivuRender
             BrowserModel.invalidateCaches(step.to)
         }
         guard outcome.failed.isEmpty else {
-            throw Failure.renameFailed(outcome.failed.map { "\($0.url.lastPathComponent): \($0.message)" })
+            throw Failure.renameFailed(outcome.failed.map { localized(.init("\($0.url.lastPathComponent): \($0.message)", comment: "A file name, then what went wrong with it")) })
         }
         // One step per request, from its original name to its final one.
         let renamed = Dictionary(outcome.renamed.map { ($0.from.standardizedFileURL.path, $0.to) }) { first, _ in first }

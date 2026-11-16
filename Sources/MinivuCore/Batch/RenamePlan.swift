@@ -100,9 +100,9 @@ public struct RenamePlan: Sendable {
         public var message: String {
             switch self {
             case .invalidName(let reason): reason
-            case .duplicate: "Another file would get the same name."
-            case .taken: "An item with this name already exists."
-            case .missing: "The file can’t be found."
+            case .duplicate: localized("Another file would get the same name.")
+            case .taken: localized("An item with this name already exists.")
+            case .missing: localized("The file can’t be found.")
             }
         }
     }

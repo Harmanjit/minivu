@@ -51,7 +51,7 @@ final class SlideshowTransitionPreviewView: NSView, SnapshotProviding {
         super.init(frame: frameRect)
         wantsLayer = true
         layerContentsRedrawPolicy = .never
-        toolTip = "Click to play"
+        toolTip = localized("Click to play")
         SlideshowPreviewPictures.load { [weak self] in self?.setNeedsRedraw() }
     }
 

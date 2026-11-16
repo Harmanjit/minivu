@@ -76,17 +76,17 @@ public enum BatchEdits {
     public static func reasonLeftOut(_ operation: EditOperation) -> String? {
         switch operation {
         case .resize:
-            "It is a size in pixels for this photo. Use Batch Convert’s Resize, which works from each photo’s own size."
+            localized("It is a size in pixels for this photo. Use Batch Convert’s Resize, which works from each photo’s own size.")
         case .canvasSize:
-            "It is a size in pixels, which would give every photo the same canvas."
+            localized("It is a size in pixels, which would give every photo the same canvas.")
         case .annotations:
-            "Text and shapes are placed on this photo’s content."
+            localized("Text and shapes are placed on this photo’s content.")
         case .retouch:
-            "Brush strokes are painted on this photo’s content."
+            localized("Brush strokes are painted on this photo’s content.")
         case .redEye:
-            "The spots are placed on the eyes in this photo."
+            localized("The spots are placed on the eyes in this photo.")
         case .removeBackground:
-            "The subject’s outline was found in this photo and fits no other."
+            localized("The subject’s outline was found in this photo and fits no other.")
         default:
             nil
         }
@@ -96,16 +96,18 @@ public enum BatchEdits {
     /// and the batch's list of edits; nil when it does the same everywhere.
     public static func note(for operation: EditOperation) -> String? {
         switch operation {
-        case .autoEnhance: "Measured again on each photo."
-        case .crop: "The same part of each photo, as a fraction of its size."
-        case .perspective: "The same corners on each photo, as fractions of its size."
-        case .rawDevelop: "RAW files only; other photos ignore it."
+        case .autoEnhance: localized("Measured again on each photo.")
+        case .crop: localized("The same part of each photo, as a fraction of its size.")
+        case .perspective: localized("The same corners on each photo, as fractions of its size.")
+        case .rawDevelop: localized("RAW files only; other photos ignore it.")
         default: nil
         }
     }
 
     /// Why a crop or perspective after a Canvas Size left out stays behind.
-    public static let afterCanvasSize = "It was placed on the canvas Canvas Size made, which stays behind, so on another photo it would land elsewhere."
+    public static var afterCanvasSize: String {
+        localized("It was placed on the canvas Canvas Size made, which stays behind, so on another photo it would land elsewhere.")
+    }
 
     /// Steps measured as fractions of the picture they are given.
     static func isPlacedOnTheFrame(_ operation: EditOperation) -> Bool {

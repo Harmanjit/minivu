@@ -8,7 +8,8 @@
 #   build/minivu.app/Contents/Info.plist
 #   build/minivu.app/Contents/MacOS/minivu
 #   build/minivu.app/Contents/Resources/minivu_MinivuRender.bundle   (shaders)
-#   build/minivu.app/Contents/Resources/minivu_Minivu.bundle         (help pages)
+#   build/minivu.app/Contents/Resources/minivu_Minivu.bundle         (help pages, strings)
+#   build/minivu.app/Contents/Resources/minivu_MinivuCore.bundle     (strings)
 #   build/minivu.app/Contents/Resources/AppIcon.icns                 (from Assets, made by make_icon.swift)
 #   build/minivu.app/Contents/Resources/Metadata.appintents          (Shortcuts actions)
 #
@@ -52,10 +53,20 @@ cp .build/release/minivu "$APP/Contents/MacOS/minivu"
 # Local symbols are for the debugger; without them the binary is half the
 # size (11.7 MB to 5.9 MB). Crash reports still name the global symbols.
 strip -x "$APP/Contents/MacOS/minivu"
-# Both resource bundles, found in Contents/Resources by Bundle.minivuRender
-# and Bundle.minivuHelp. Without the second, Help shows "Page Unavailable".
-cp -R .build/release/minivu_MinivuRender.bundle "$APP/Contents/Resources/"
-cp -R .build/release/minivu_Minivu.bundle "$APP/Contents/Resources/"
+# Every target's resource bundle, found in Contents/Resources by
+# Bundle.minivuRender, Bundle.minivuHelp and MinivuCore's Bundle.module (Swift
+# Build's accessor looks in Bundle.main.resourceURL first). Each holds its
+# target's compiled String Catalog (<lang>.lproj); without minivu_Minivu
+# Help shows "Page Unavailable", and without minivu_MinivuCore the app stops
+# at its first localized string.
+for target in MinivuCore MinivuRender Minivu; do
+  cp -R ".build/release/minivu_$target.bundle" "$APP/Contents/Resources/"
+done
+# SwiftUI's Text("…"), Button("…") and the like look their keys up in
+# Bundle.main, so the app target's compiled strings go there as well.
+for lproj in .build/release/minivu_Minivu.bundle/Contents/Resources/*.lproj; do
+  if [ -d "$lproj" ]; then cp -R "$lproj" "$APP/Contents/Resources/"; fi
+done
 cp Assets/AppIcon.icns "$APP/Contents/Resources/"
 
 # Shortcuts actions (App Intents). Shortcuts learns what an app offers from
@@ -136,12 +147,27 @@ else
   echo "Metal toolchain not installed: shaders compile at launch"
 fi
 
+# The languages minivu ships (docs/feature-notes/l10n.md). The main bundle
+# has .lproj folders only for the languages translated so far, so this list
+# is what lets it choose any of them. The resource bundles follow the main
+# bundle's choice (without the list they stay in English whatever the
+# user's language), and so do AppKit's own items (Services, the Window
+# menu's additions, standard panels).
+LOCALIZATIONS=""
+for lang in en de fr es it pt-BR nl pl ja zh-Hans ko; do
+  LOCALIZATIONS+=$'\n    '"<string>$lang</string>"
+done
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>               <string>minivu</string>
+  <key>CFBundleDevelopmentRegion</key>  <string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>${LOCALIZATIONS}
+  </array>
   <key>CFBundleDisplayName</key>        <string>minivu</string>
   <key>CFBundleIdentifier</key>         <string>com.minivu.app</string>
   <key>CFBundleVersion</key>            <string>${VERSION}</string>

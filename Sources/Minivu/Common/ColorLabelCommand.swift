@@ -16,9 +16,10 @@ import os
     /// The Label submenu, its items tagged with `ColorLabel` raw values.
     /// The menu bar's has the shortcuts; the grid's context menu doesn't.
     static func menu(withShortcuts: Bool) -> NSMenu {
-        let menu = NSMenu(title: "Label")
+        let menu = NSMenu(title: localized(.init("Label",
+                                                 comment: "Noun: submenu of colour labels (Finder's colour tags)")))
         for label in ColorLabel.allCases {
-            let item = NSMenuItem(title: label.name, action: .setColorLabel,
+            let item = NSMenuItem(title: label.localizedName, action: .setColorLabel,
                                   keyEquivalent: withShortcuts ? String(label.rawValue) : "")
             item.keyEquivalentModifierMask = withShortcuts ? [.command, .option] : []
             item.tag = label.rawValue
@@ -44,7 +45,7 @@ import os
             }
             return true
         }
-        image.accessibilityDescription = label.name
+        image.accessibilityDescription = label.localizedName
         return image
     }
 

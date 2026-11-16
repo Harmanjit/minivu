@@ -33,11 +33,15 @@ import UniformTypeIdentifiers
     }
 
     @Test func coordinatesInDegreesMinutesSeconds() {
-        #expect(MetadataReader.formatCoordinate(48.858222, ref: "N", positive: "N", negative: "S") == "48° 51′ 29.6″ N")
-        #expect(MetadataReader.formatCoordinate(33.8688, ref: "S", positive: "N", negative: "S") == "33° 52′ 7.7″ S")
-        #expect(MetadataReader.formatCoordinate(-122.4194, ref: nil, positive: "E", negative: "W") == "122° 25′ 9.8″ W")
+        let en = Locale(identifier: "en_US")
+        #expect(MetadataReader.formatCoordinate(48.858222, ref: "N", positive: "N", negative: "S", locale: en) == "48° 51′ 29.6″ N")
+        #expect(MetadataReader.formatCoordinate(33.8688, ref: "S", positive: "N", negative: "S", locale: en) == "33° 52′ 7.7″ S")
+        #expect(MetadataReader.formatCoordinate(-122.4194, ref: nil, positive: "E", negative: "W", locale: en) == "122° 25′ 9.8″ W")
         // 0.99999 degrees rounds up into a whole degree, not 60″.
-        #expect(MetadataReader.formatCoordinate(0.999999, ref: "E", positive: "E", negative: "W") == "1° 0′ 0.0″ E")
+        #expect(MetadataReader.formatCoordinate(0.999999, ref: "E", positive: "E", negative: "W", locale: en) == "1° 0′ 0.0″ E")
+        // The user's decimal mark.
+        #expect(MetadataReader.formatCoordinate(48.858222, ref: "N", positive: "N", negative: "S",
+                                                locale: Locale(identifier: "de_DE")) == "48° 51′ 29,6″ N")
     }
 
     @Test func cameraNamesAvoidRepeatingTheBrand() {

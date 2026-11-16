@@ -100,13 +100,12 @@ extension ViewerWindowController {
     static var askAboutExternalChange: (_ name: String, _ window: NSWindow,
                                         _ answer: @escaping (ExternalChangeChoice) -> Void) -> Void = { name, window, answer in
         let alert = NSAlert()
-        alert.messageText = "“\(name)” was changed by another application."
-        alert.informativeText = "Reload shows the version saved there and discards your edits. "
-            + "If you keep your edits, saving them asks for a name, so the other version isn’t replaced."
+        alert.messageText = localized("“\(name)” was changed by another application.")
+        alert.informativeText = localized("Reload shows the version saved there and discards your edits. If you keep your edits, saving them asks for a name, so the other version isn’t replaced.")
         // The default keeps what is on screen; nothing is lost either way
         // until the user chooses Reload.
-        alert.addButton(withTitle: "Keep My Edits")
-        let reload = alert.addButton(withTitle: "Reload")
+        alert.addButton(withTitle: localized("Keep My Edits"))
+        let reload = alert.addButton(withTitle: localized(.init("Reload", comment: "Button: reloads the file from disk, discarding edits")))
         reload.hasDestructiveAction = true
         alert.beginSheetModal(for: window) { response in
             answer(response == .alertSecondButtonReturn ? .reload : .keepEdits)

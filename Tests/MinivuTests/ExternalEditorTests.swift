@@ -116,7 +116,7 @@ final class FakeLauncher: ApplicationLaunching {
             store.add(editor("Preview", "com.apple.Preview", path: "/System/Applications/Preview.app"))
             store.add(editor("TextEdit", "com.apple.TextEdit", path: "/System/Applications/TextEdit.app"))
             let bar = MainMenu.make()
-            let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
+            let tools = try #require(bar.submenu(.tools))
             let holder = try #require(tools.items.first { $0.title == ExternalEditorsMenu.title })
             holder.submenu = ExternalEditorsMenu.make(store: store)
 

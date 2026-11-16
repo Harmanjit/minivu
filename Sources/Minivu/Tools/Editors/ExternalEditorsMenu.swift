@@ -4,7 +4,7 @@ import AppKit
 /// the list, sending `openInExternalEditor:`; the first with ⌘E), then a
 /// separator and Edit Editor List….
 enum ExternalEditorsMenu {
-    static let title = "Open in External Editor"
+    static let title = localized("Open in External Editor")
 
     /// The menus made so far, each rebuilt when its store changes.
     ///
@@ -49,7 +49,8 @@ enum ExternalEditorsMenu {
             items.append(item)
         }
         if !items.isEmpty { items.append(.separator()) }
-        items.append(NSMenuItem(title: "Edit Editor List…", action: .manageExternalEditors, keyEquivalent: ""))
+        items.append(NSMenuItem(title: localized("Edit Editor List…"), action: .manageExternalEditors,
+                                keyEquivalent: ""))
         return items
     }
 }

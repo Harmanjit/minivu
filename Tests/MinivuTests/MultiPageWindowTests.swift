@@ -294,7 +294,7 @@ extension AppWindowTests {
             await model.headerWork?.value
             model.settings.format = .gif
             model.settings.frameSize = 800
-            #expect(model.problem?.contains("3 frames of 800 × 600") == true && !model.canSave)
+            #expect(model.problem?.contains("frames: 3, frame size: 800 × 600") == true && !model.canSave)
             model.settings.frameSize = 400
             #expect(model.problem == nil && model.canSave)
             model.settings.frameDelay = 0

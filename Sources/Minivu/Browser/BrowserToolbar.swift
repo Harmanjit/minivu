@@ -84,21 +84,23 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
         switch identifier {
         case .browserNavigation: navigationItem()
         case .browserEnclosingFolder:
-            navigational(button(identifier, "Enclosing Folder", symbol: "arrow.up", action: .goToEnclosingFolder,
-                                tip: "Show the enclosing folder"))
+            navigational(button(identifier, localized(.init("Enclosing Folder", comment: "Go to the folder that holds this one")),
+                                symbol: "arrow.up", action: .goToEnclosingFolder, tip: localized("Show the enclosing folder")))
         case .browserSort: sortItem()
         case .browserFilter: filterItemMade()
         case .browserThumbnailSize: sizeItem()
         case .browserPreviewPane:
-            button(identifier, "Preview", symbol: "sidebar.right", action: .togglePreviewPane,
-                   tip: "Show or hide the preview pane")
+            button(identifier, localized(.init("Preview", comment: "Toolbar button: the browser's preview pane")),
+                   symbol: "sidebar.right", action: .togglePreviewPane, tip: localized("Show or hide the preview pane"))
         case .browserSearch: searchItemMade()
         case .browserCompare:
-            button(identifier, "Compare", symbol: "rectangle.split.2x2", action: .compareSelected,
-                   tip: "Compare 2 to 4 selected images (⌥⌘K)")
+            button(identifier, localized("Compare"),
+                   symbol: "rectangle.split.2x2", action: .compareSelected,
+                   tip: localized(.init("Compare 2 to 4 selected images (⌥⌘K)", comment: "Tooltip; keep the shortcut")))
         case .browserSlideshow:
-            button(identifier, "Slideshow", symbol: "play.rectangle", action: .startSlideshow,
-                   tip: "Start a slideshow of the selected images, or of the folder (⇧⌘F)")
+            button(identifier, localized("Slideshow"), symbol: "play.rectangle", action: .startSlideshow,
+                   tip: localized(.init("Start a slideshow of the selected images, or of the folder (⇧⌘F)",
+                                        comment: "Tooltip; keep the shortcut")))
         case .browserShare: shareItemMade()
         default: nil
         }
@@ -122,10 +124,11 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
     /// itself out when that is nothing.
     private func shareItemMade() -> NSToolbarItem {
         let item = NSSharingServicePickerToolbarItem(itemIdentifier: .browserShare)
-        item.label = "Share"
-        item.toolTip = "Share the selected images with AirDrop, Messages, Mail and more"
+        item.label = localized(.init("Share", comment: "Verb: toolbar button that shares the selected files"))
+        item.toolTip = localized(.init("Share the selected images with AirDrop, Messages, Mail and more",
+                                       comment: "AirDrop, Messages and Mail are Apple's names: use the names Apple uses in this language"))
         item.delegate = self
-        item.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Share")
+        item.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: item.label)
         return item
     }
 
@@ -147,10 +150,10 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
     /// called on, so a subclass's stored properties would write past the end
     /// of the object.
     private func navigationItem() -> NSToolbarItem {
-        let back = button(.init("minivu.browser.back"), "Back", symbol: "chevron.left", action: .goBack,
-                          tip: "See folders you viewed previously")
-        let forward = button(.init("minivu.browser.forward"), "Forward", symbol: "chevron.right", action: .goForward,
-                             tip: "See folders you viewed next")
+        let back = button(.init("minivu.browser.back"), localized(.init("Back", comment: "Go back to the previous folder")),
+                          symbol: "chevron.left", action: .goBack, tip: localized("See folders you viewed previously"))
+        let forward = button(.init("minivu.browser.forward"), localized(.init("Forward", comment: "Go forward to the next folder")),
+                             symbol: "chevron.right", action: .goForward, tip: localized("See folders you viewed next"))
         for item in [back, forward] {
             item.autovalidates = false
             item.isEnabled = false
@@ -159,7 +162,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
         forwardItem = forward
         let group = NSToolbarItemGroup(itemIdentifier: .browserNavigation)
         group.subitems = [back, forward]
-        group.label = "Back/Forward"
+        group.label = localized(.init("Back/Forward", comment: "Toolbar item: the Back and Forward buttons"))
         group.selectionMode = .momentary
         group.controlRepresentation = .expanded
         // Placed before the title, where Finder and Safari put them.
@@ -171,17 +174,17 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
     /// controller validates them and they show the same checkmarks.
     private func sortItem() -> NSToolbarItem {
         let item = NSMenuToolbarItem(itemIdentifier: .browserSort)
-        item.label = "Sort"
-        item.toolTip = "Sort by"
-        item.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: "Sort")
+        item.label = localized(.init("Sort", comment: "Verb: toolbar menu of the orders the files can be listed in"))
+        item.toolTip = localized(.init("Sort by", comment: "Tooltip of the Sort toolbar menu"))
+        item.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: item.label)
         item.showsIndicator = true
-        let menu = NSMenu(title: "Sort By")
+        let menu = NSMenu(title: localized(.init("Sort By", comment: "Submenu: the order the files are listed in")))
         for (index, key) in SortKey.allCases.enumerated() {
             menu.addItem(withTitle: key.menuTitle, action: .sortBy, keyEquivalent: "").tag = index
         }
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Ascending", action: .toggleSortDirection, keyEquivalent: "").tag = SortDirectionTag.ascending
-        menu.addItem(withTitle: "Descending", action: .toggleSortDirection, keyEquivalent: "").tag = SortDirectionTag.descending
+        menu.addItem(withTitle: localized(.init("Ascending", comment: "Sort direction")), action: .toggleSortDirection, keyEquivalent: "").tag = SortDirectionTag.ascending
+        menu.addItem(withTitle: localized(.init("Descending", comment: "Sort direction")), action: .toggleSortDirection, keyEquivalent: "").tag = SortDirectionTag.descending
         item.menu = menu
         return item
     }
@@ -190,8 +193,8 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
     /// any filter is on, so a half-empty grid explains itself.
     private func filterItemMade() -> NSToolbarItem {
         let item = NSMenuToolbarItem(itemIdentifier: .browserFilter)
-        item.label = "Filter"
-        item.toolTip = "Show only rated or tagged images"
+        item.label = Self.filterTitle
+        item.toolTip = localized("Show only rated or tagged images")
         // No chevron (as Mail's filter button): with one, the default
         // 1400-point window had no room left and the search field collapsed
         // to a button.
@@ -203,6 +206,8 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
         return item
     }
 
+    private static var filterTitle: String { localized(.init("Filter", comment: "Noun: submenu that shows only some images")) }
+
     static func filterSymbol(active: Bool) -> String {
         active ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
     }
@@ -212,7 +217,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
         guard state != filterState else { return }
         filterState = state
         guard let item = filterItem else { return }
-        item.image = NSImage(systemSymbolName: Self.filterSymbol(active: isActive), accessibilityDescription: "Filter")
+        item.image = NSImage(systemSymbolName: Self.filterSymbol(active: isActive), accessibilityDescription: Self.filterTitle)
         item.menu = Self.filterMenu(state, target: self)
     }
 
@@ -220,7 +225,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
     /// validates them and gives them their checkmarks; Finder tags (which the
     /// menu bar doesn't list) come here.
     static func filterMenu(_ state: FilterState, target: BrowserToolbar?) -> NSMenu {
-        let menu = NSMenu(title: "Filter")
+        let menu = NSMenu(title: filterTitle)
         menu.addItem(withTitle: RatingText.filterTitle(minimum: 0), action: .filterByRating, keyEquivalent: "").tag = 0
         menu.addItem(.separator())
         for minimum in 1...5 {
@@ -228,13 +233,13 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
                          keyEquivalent: "").tag = minimum
         }
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Tagged Only", action: .toggleTaggedFilter, keyEquivalent: "")
+        menu.addItem(withTitle: localized("Tagged Only"), action: .toggleTaggedFilter, keyEquivalent: "")
         menu.addItem(.separator())
         for type in [FileTypeFilter.photos, .videos] {
             menu.addItem(withTitle: type.menuTitle, action: .filterByFileType, keyEquivalent: "").tag = type.rawValue
         }
         menu.addItem(.separator())
-        menu.addItem(withTitle: "More Filters…", action: .showMoreFilters, keyEquivalent: "")
+        menu.addItem(withTitle: localized("More Filters…"), action: .showMoreFilters, keyEquivalent: "")
         var tags = state.finderTags
         // A tag filtered on stays listed, so it can be turned off in a
         // folder that doesn't use it.
@@ -243,7 +248,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
         }
         if !tags.isEmpty {
             menu.addItem(.separator())
-            menu.addItem(NSMenuItem.sectionHeader(title: "Finder Tags"))
+            menu.addItem(NSMenuItem.sectionHeader(title: localized(.init("Finder Tags", comment: "Section header: the tags Finder shows (colour tags)"))))
             for tag in tags {
                 let item = menu.addItem(withTitle: tag.name, action: #selector(finderTagChosen(_:)), keyEquivalent: "")
                 item.target = target
@@ -275,10 +280,10 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
 
     private func sizeItem() -> NSToolbarItem {
         let item = NSToolbarItem(itemIdentifier: .browserThumbnailSize)
-        item.label = "Thumbnail Size"
-        item.toolTip = "Thumbnail size"
+        item.label = localized("Thumbnail Size")
+        item.toolTip = localized(.init("Thumbnail size", comment: "Tooltip of the thumbnail size slider"))
         slider.controlSize = .small
-        slider.setAccessibilityLabel("Thumbnail Size")
+        slider.setAccessibilityLabel(item.label)
         slider.isContinuous = true
         slider.target = self
         slider.action = #selector(sliderMoved(_:))
@@ -299,7 +304,7 @@ final class BrowserToolbar: NSObject, NSToolbarDelegate, NSSharingServicePickerT
 
     private func searchItemMade() -> NSToolbarItem {
         let item = NSSearchToolbarItem(itemIdentifier: .browserSearch)
-        item.searchField.placeholderString = "Filter by Name"
+        item.searchField.placeholderString = localized(.init("Filter by Name", comment: "Search field placeholder: show only files whose name contains the text"))
         item.searchField.target = self
         item.searchField.action = #selector(searchChanged(_:))
         item.preferredWidthForSearchField = 180

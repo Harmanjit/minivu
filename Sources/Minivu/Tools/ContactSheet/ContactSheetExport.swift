@@ -180,8 +180,9 @@ enum ContactSheetExport {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Save Pages"
-        panel.message = "Choose a folder for the \(pageCount) pages of “\(base)”."
+        panel.prompt = localized("Save Pages")
+        panel.message = localized(.init("Choose a folder for the \(pageCount) pages of “\(base)”.",
+                                        comment: "The number of pages, then the contact sheet's name"))
         if let startFolder { panel.directoryURL = startFolder }
         panel.beginSheetModal(for: window) { response in
             guard response == .OK, let folder = panel.url else { return completion(nil) }
@@ -215,7 +216,7 @@ final class ContactSheetProgress {
 
     /// "Page 2 of 5" under the bar; nothing for a single page.
     nonisolated static func pageText(done: Int, of total: Int) -> String {
-        total > 1 ? "Page \(min(done + 1, total)) of \(total)" : ""
+        total > 1 ? localized("Page \(min(done + 1, total)) of \(total)") : ""
     }
 
     /// - Parameter describe: the line under the bar for (steps done, steps);
@@ -248,7 +249,7 @@ final class ContactSheetProgress {
         detail.textColor = .secondaryLabelColor
         detail.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         bar.style = .bar
-        let button = NSButton(title: "Cancel", target: self, action: #selector(cancelPressed))
+        let button = NSButton(title: localized("Cancel"), target: self, action: #selector(cancelPressed))
         button.keyEquivalent = "\u{1b}"
         let row = NSStackView(views: [detail, NSView(), button])
         row.orientation = .horizontal
@@ -269,7 +270,7 @@ final class ContactSheetProgress {
 
     @objc private func cancelPressed() {
         cancel.cancel()
-        detail.stringValue = "Canceling…"
+        detail.stringValue = localized("Canceling…")
     }
 
     func finish() {

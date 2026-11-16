@@ -11,10 +11,10 @@ nonisolated enum ContactSheetPageSize: String, Codable, CaseIterable, Identifiab
 
     var title: String {
         switch self {
-        case .a4: "A4 at 300 dpi"
-        case .letter: "US Letter at 300 dpi"
-        case .uhd4K: "4K Display"
-        case .custom: "Custom"
+        case .a4: localized(.init("A4 at 300 dpi", comment: "Contact sheet page size"))
+        case .letter: localized(.init("US Letter at 300 dpi", comment: "Contact sheet page size"))
+        case .uhd4K: localized(.init("4K Display", comment: "Contact sheet page size: the size of a 4K screen"))
+        case .custom: localized(.init("Custom", comment: "Contact sheet page size: width and height typed in"))
         }
     }
 
@@ -42,7 +42,10 @@ nonisolated enum ContactSheetPageSize: String, Codable, CaseIterable, Identifiab
 nonisolated enum ContactSheetOrientation: String, Codable, CaseIterable, Identifiable, Sendable {
     case portrait, landscape
     var id: String { rawValue }
-    var title: String { self == .portrait ? "Portrait" : "Landscape" }
+    var title: String {
+        self == .portrait ? localized(.init("Portrait", comment: "Page orientation"))
+                          : localized(.init("Landscape", comment: "Page orientation"))
+    }
 }
 
 /// What a contact sheet is saved as: a picture per page, or one PDF.
@@ -256,7 +259,8 @@ nonisolated enum ContactSheetNaming {
         name = name.trimmingCharacters(in: .whitespaces)
         // Room for " Contact Sheet 999.tif" within APFS's 255 bytes.
         while name.utf8.count > 200 { name.removeLast() }
-        return name.isEmpty ? "Contact Sheet" : "\(name) Contact Sheet"
+        return name.isEmpty ? localized("Contact Sheet")
+                            : localized(.init("\(name) Contact Sheet", comment: "Suggested file name: a folder's name or the header, then Contact Sheet"))
     }
 
     /// One name per page, "Trip 1.jpg", "Trip 2.jpg"…; when any of them is

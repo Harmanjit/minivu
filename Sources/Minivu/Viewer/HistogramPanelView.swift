@@ -15,7 +15,7 @@ nonisolated enum HistogramDisplayMode: String, CaseIterable, Identifiable, Senda
         case .red: "R"
         case .green: "G"
         case .blue: "B"
-        case .luminance: "Luminance"
+        case .luminance: localized("Luminance")
         }
     }
 
@@ -23,10 +23,10 @@ nonisolated enum HistogramDisplayMode: String, CaseIterable, Identifiable, Senda
     var spokenTitle: String {
         switch self {
         case .rgb: "RGB"
-        case .red: "Red"
-        case .green: "Green"
-        case .blue: "Blue"
-        case .luminance: "Luminance"
+        case .red: localized("Red")
+        case .green: localized("Green")
+        case .blue: localized("Blue")
+        case .luminance: localized("Luminance")
         }
     }
 
@@ -422,11 +422,15 @@ struct HistogramPanelView: View {
                 let count = Self.number(Int(data.bins(channel)[level]))
                 return channels.count > 1 ? "\(Self.letter(channel)) \(count)" : count
             }
-            return "Level \(level)   " + counts.joined(separator: "  ")
+            let countsText = counts.joined(separator: "  ")
+            return localized(.init("Level \(level)   \(countsText)",
+                                   comment: "Histogram readout: the level (0-255) under the pointer, then the pixel counts at it"))
         }
         let shadows = channels.map { data.shadowClipping($0) }.max() ?? 0
         let highlights = channels.map { data.highlightClipping($0) }.max() ?? 0
-        return "Shadows \(Self.percent(shadows))   Highlights \(Self.percent(highlights))"
+        let shadowText = Self.percent(shadows), highlightText = Self.percent(highlights)
+        return localized(.init("Shadows \(shadowText)   Highlights \(highlightText)",
+                               comment: "Histogram readout: the share of pixels clipped to black and to white"))
     }
 
     /// Lit in the colour of the clipped channels combined (red and green
@@ -445,7 +449,7 @@ struct HistogramPanelView: View {
         return Image(systemName: highlights ? "arrowtriangle.right.fill" : "arrowtriangle.left.fill")
             .font(.system(size: 9))
             .foregroundStyle(color)
-            .help(highlights ? "Highlight clipping" : "Shadow clipping")
+            .help(highlights ? localized("Highlight clipping") : localized("Shadow clipping"))
     }
 
     // MARK: Colour count
@@ -464,7 +468,7 @@ struct HistogramPanelView: View {
                 Text("Counting colors…").foregroundStyle(.secondary)
                 Spacer()
             case .counted(let count):
-                Text(count == 1 ? "1 color" : "\(Self.number(count)) colors")
+                Text(localized(.init("\(count) colors", comment: "Histogram: the number of unique colours in the image")))
                     .monospacedDigit()
                     .textSelection(.enabled)
                 Spacer()
@@ -512,8 +516,6 @@ struct HistogramPanelView: View {
     /// "0%", "0.4%", "12%".
     nonisolated static func percent(_ fraction: Double) -> String {
         let value = fraction * 100
-        if value == 0 { return "0%" }
-        if value < 10 { return String(format: "%.1f%%", value) }
-        return String(format: "%.0f%%", value)
+        return percentText(value, decimals: value > 0 && value < 10 ? 1 : 0)
     }
 }

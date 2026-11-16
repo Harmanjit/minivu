@@ -25,10 +25,10 @@ final class Preferences: ObservableObject {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .system: "System"
-            case .light: "Bright"
-            case .gray: "Gray"
-            case .dark: "Dark"
+            case .system: localized(.init("System", comment: "Theme: follow the system's appearance"))
+            case .light: localized(.init("Bright", comment: "Theme"))
+            case .gray: localized(.init("Gray", comment: "Theme"))
+            case .dark: localized(.init("Dark", comment: "Theme"))
             }
         }
     }
@@ -40,7 +40,10 @@ final class Preferences: ObservableObject {
         /// Zoom; hold Command to change image.
         case zoom
         var id: String { rawValue }
-        var title: String { self == .navigate ? "Previous / next image" : "Zoom in / out" }
+        var title: String {
+            self == .navigate ? localized(.init("Previous / next image", comment: "Choice of what the mouse wheel does"))
+                : localized(.init("Zoom in / out", comment: "Choice of what the mouse wheel does: zoom the image"))
+        }
     }
 
     /// The surround behind the image in the viewer.
@@ -49,10 +52,10 @@ final class Preferences: ObservableObject {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .black: "Black"
-            case .darkGray: "Dark gray"
-            case .gray: "Gray"
-            case .white: "White"
+            case .black: localized(.init("Black", comment: "Viewer background colour"))
+            case .darkGray: localized(.init("Dark gray", comment: "Viewer background colour"))
+            case .gray: localized(.init("viewer.background.gray", defaultValue: "Gray", comment: "Viewer background colour"))
+            case .white: localized(.init("White", comment: "Viewer background colour"))
             }
         }
         /// Linear-light grey level (what the canvas shader wants).

@@ -20,9 +20,9 @@ nonisolated enum CaptureError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .permissionDenied: "minivu isn’t allowed to record the screen."
-        case .displayNotFound: "The display is no longer connected."
-        case .notInHarness: "Screen capture is off in snapshot runs."
+        case .permissionDenied: localized("minivu isn’t allowed to record the screen.")
+        case .displayNotFound: localized("The display is no longer connected.")
+        case .notInHarness: localized("Screen capture is off in snapshot runs.")
         }
     }
 }

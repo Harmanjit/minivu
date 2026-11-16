@@ -14,6 +14,14 @@ import MinivuRender
 // and display names are read from that record, so they must stay literals:
 // a computed title would not reach Shortcuts at all.
 //
+// Localisation (G13): titles, descriptions and display names are
+// `LocalizedStringResource` literals, which the compiler extracts into the
+// Minivu catalog and Shortcuts looks up in the app's main bundle. Format
+// names (JPEG, HEIC…) are marked not to be translated in the catalog.
+// Parameter summaries and App Shortcut phrases are outside the compiler's
+// extraction (Xcode reads them from the App Intents metadata), so for now
+// they stay English.
+//
 // The intents run inside minivu's own sandboxed process (launched in the
 // background if it isn't running), so a shortcut can do nothing minivu
 // itself could not: it opens no connection, and it reads only the files the
@@ -198,7 +206,7 @@ struct SetRatingIntent: AppIntent {
     var rating: Int
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Rate \(\.$images) \(\.$rating) stars")
+        Summary("Set the rating of \(\.$images) to \(\.$rating)")
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {

@@ -50,10 +50,10 @@ nonisolated enum CaptionContent: String, Codable, CaseIterable, Identifiable, Se
 
     var title: String {
         switch self {
-        case .none: "None"
-        case .name: "Name"
-        case .nameAndDimensions: "Name and Dimensions"
-        case .nameAndDate: "Name and Date"
+        case .none: localized(.init("print.caption.none", defaultValue: "None", comment: "Captions under printed pictures: none"))
+        case .name: localized("Name")
+        case .nameAndDimensions: localized(.init("Name and Dimensions", comment: "Captions under pictures"))
+        case .nameAndDate: localized(.init("Name and Date", comment: "Captions under pictures"))
         }
     }
 
@@ -305,7 +305,7 @@ nonisolated enum LayoutRenderer {
                      in: rect, pageHeight: height, context: context)
         }
         if style.showsPageNumbers, let rect = layout.footerRect {
-            drawLine("Page \(page + 1) of \(max(pageCount, 1))", font: font(size: style.captionFontSize, bold: false),
+            drawLine(localized("Page \(page + 1) of \(max(pageCount, 1))"), font: font(size: style.captionFontSize, bold: false),
                      color: color, in: rect, pageHeight: height, context: context)
         }
     }

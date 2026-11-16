@@ -237,8 +237,9 @@ final class BrowserWindowController: NSWindowController, NSWindowDelegate {
         }
         grid.modelChanged(changes)
         if changes.contains(.entries) || changes.contains(.state) {
-            window?.subtitle = model.flatView && model.list == nil && !model.subtitle.isEmpty
-                ? "\(model.subtitle), with subfolders" : model.subtitle
+            let counts = model.subtitle
+            window?.subtitle = model.flatView && model.list == nil && !counts.isEmpty
+                ? localized(.init("\(counts), with subfolders", comment: "Window subtitle in the flat view: the counts, then this note")) : counts
         }
         if changes.contains(.entries) || changes.contains(.selection) {
             preview.show(previewContent())
@@ -440,7 +441,7 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         case .toggleHiddenFiles:
             menuItem.state = Preferences.shared.showHiddenFiles ? .on : .off
         case .togglePreviewPane:
-            menuItem.title = previewItem.isCollapsed ? "Show Preview Pane" : "Hide Preview Pane"
+            menuItem.title = previewItem.isCollapsed ? localized("Show Preview Pane") : localized("Hide Preview Pane")
         case .toggleFlatView:
             menuItem.state = model.flatView ? .on : .off
         case .showMoreFilters:

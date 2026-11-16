@@ -29,6 +29,21 @@ public enum ColorLabel: Int, CaseIterable, Sendable {
         }
     }
 
+    /// The name to show: `name` in the user's language. Never written to a
+    /// file or tag; that is `name`.
+    public var localizedName: String {
+        switch self {
+        case .none: localized(.init("None", comment: "Colour label: no label"))
+        case .red: localized(.init("Red", comment: "Colour label"))
+        case .orange: localized(.init("Orange", comment: "Colour label"))
+        case .yellow: localized(.init("Yellow", comment: "Colour label"))
+        case .green: localized(.init("Green", comment: "Colour label"))
+        case .blue: localized(.init("Blue", comment: "Colour label"))
+        case .purple: localized(.init("Purple", comment: "Colour label"))
+        case .gray: localized(.init("Gray", comment: "Colour label"))
+        }
+    }
+
     /// Finder's label number for the colour, as it stores it beside a tag's
     /// name: 1 gray, 2 green, 3 purple, 4 blue, 5 yellow, 6 red, 7 orange.
     public var finderColorIndex: Int {

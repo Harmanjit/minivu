@@ -28,9 +28,10 @@ extension ViewerWindowController {
     /// "Video, 1:05", once the length is read; "Video" until then.
     var videoHUDText: String {
         guard let entry = model.current, let read = videoInfo, read.url == entry.url, let info = read.info else {
-            return "Video"
+            return localized("Video")
         }
-        return "Video, " + VideoFrames.durationText(info.duration)
+        let duration = VideoFrames.durationText(info.duration)
+        return localized(.init("Video, \(duration)", comment: "A video and its length, such as 1:05"))
     }
 
     /// The navigation happened: any player stops and goes, and a video
@@ -202,7 +203,7 @@ final class VideoPlayback {
         view.videoGravity = .resizeAspect
         self.showsHDR = showsHDR
         applyDynamicRange()
-        view.setAccessibilityLabel("Video player")
+        view.setAccessibilityLabel(localized("Video player"))
 
         // KVO calls back on whichever thread changed the value: the handlers
         // are nonisolated and hop to the main actor.
@@ -300,14 +301,15 @@ final class VideoStageView: NSView {
 
     let playButton: NSButton = {
         let configuration = NSImage.SymbolConfiguration(pointSize: 30, weight: .regular)
-        let image = NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: "Play Video")?
+        let label = localized("Play Video")
+        let image = NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: label)?
             .withSymbolConfiguration(configuration)
         let button = NSButton(image: image ?? NSImage(), target: nil, action: nil)
         button.isBordered = false
         button.imageScaling = .scaleProportionallyUpOrDown
         button.contentTintColor = .white
-        button.setAccessibilityLabel("Play Video")
-        button.toolTip = "Play Video (Space)"
+        button.setAccessibilityLabel(label)
+        button.toolTip = localized(.init("Play Video (Space)", comment: "Tooltip: keep the key in brackets"))
         // Taking the keyboard would leave the viewer's keys with a button.
         button.refusesFirstResponder = true
         button.wantsLayer = true

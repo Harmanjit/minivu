@@ -107,7 +107,9 @@ final class ViewerHUD: NSVisualEffectView {
 
     /// "Edited  ·  Undo Crop", or just "Edited".
     nonisolated static func editedText(undoTitle: String) -> String {
-        undoTitle.isEmpty ? "Edited" : "Edited  ·  Undo \(undoTitle)"
+        undoTitle.isEmpty ? localized(.init("Edited", comment: "HUD: the image has unsaved edits"))
+            : localized(.init("Edited  ·  Undo \(undoTitle)",
+                              comment: "HUD: the image has unsaved edits; %@ names the last one, such as Crop"))
     }
 
     /// "3 / 120 · Page 2 of 10 · 6000 × 4000 · 25%", leaving out what
@@ -127,7 +129,7 @@ final class ViewerHUD: NSVisualEffectView {
     /// Whole percents, with one decimal below 10% so tiny zooms don't all
     /// read "3%".
     nonisolated static func zoomText(_ percent: Double) -> String {
-        percent < 9.95 ? String(format: "%.1f%%", percent) : "\(Int(percent.rounded()))%"
+        percent < 9.95 ? percentText(percent, decimals: 1) : percentText(percent.rounded())
     }
 
     // MARK: - Showing

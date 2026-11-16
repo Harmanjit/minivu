@@ -13,9 +13,11 @@ public enum ExportError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .cannotCreateDestination(let format): "This Mac can't write \(format.title) files."
-        case .encodingFailed(let format): "The image couldn't be encoded as \(format.title)."
-        case .cannotConvertPixels: "The image's pixels couldn't be converted for saving."
+        case .cannotCreateDestination(let format):
+            localized(.init("This Mac can't write \(format.title) files.", comment: "%@ is a format name such as JPEG"))
+        case .encodingFailed(let format):
+            localized(.init("The image couldn't be encoded as \(format.title).", comment: "%@ is a format name such as JPEG"))
+        case .cannotConvertPixels: localized("The image's pixels couldn't be converted for saving.")
         }
     }
 }

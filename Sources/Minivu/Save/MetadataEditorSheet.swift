@@ -69,10 +69,15 @@ struct MetadataEditorView: View {
 
             Form {
                 Section("Description") {
-                    textRow("Title", $model.title)
-                    textRow("Caption", $model.caption)
-                    textRow("Creator", $model.creator, prompt: "Names, separated by semicolons")
-                    textRow("Copyright", $model.copyright)
+                    textRow(localized(.init("Title", comment: "Metadata field: the image's title")), $model.title,
+                            keep: localized("Keep each file’s own title"), remove: localized("Remove the title from every file"))
+                    textRow(localized(.init("Caption", comment: "Metadata field: the image's description")), $model.caption,
+                            keep: localized("Keep each file’s own caption"), remove: localized("Remove the caption from every file"))
+                    textRow(localized(.init("Creator", comment: "Metadata field: who made the image")), $model.creator,
+                            prompt: localized("Names, separated by semicolons"),
+                            keep: localized("Keep each file’s own creator"), remove: localized("Remove the creator from every file"))
+                    textRow(localized(.init("Copyright", comment: "Metadata field: the copyright notice")), $model.copyright,
+                            keep: localized("Keep each file’s own copyright"), remove: localized("Remove the copyright from every file"))
                 }
                 keywordSection
                 dateSection
@@ -103,39 +108,51 @@ struct MetadataEditorView: View {
     }
 
     private var headerDetail: String {
-        var text = model.count == 1
-            ? "“\(model.subject)”, written without re-encoding the image."
-            : "\(model.subject). Fields that differ show as mixed; only fields you change are written."
+        let text = model.count == 1
+            ? localized(.init("“\(model.subject)”, written without re-encoding the image.", comment: "Metadata editor header; %@ is a file name"))
+            : localized(.init("\(model.subject). Fields that differ show as mixed; only fields you change are written.",
+                              comment: "Metadata editor header; %@ is a number of images, such as “12 images”"))
         let sidecars = model.sidecarCount
-        if sidecars > 0 {
-            let which = sidecars == model.count ? (model.count == 1 ? "This file" : "These files")
-                : sidecars == 1 ? "1 of them" : "\(sidecars.formatted()) of them"
-            text += " \(which) can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), "
-                + "so the metadata goes in an XMP sidecar beside \(sidecars == 1 ? "it" : "each")."
-        }
-        return text
+        guard sidecars > 0 else { return text }
+        let note = sidecars < model.count
+            ? localized(.init("\(sidecars) of them can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside each.",
+                              comment: "Metadata editor header, after the number of images being edited"))
+            : model.count == 1
+                ? localized("This file can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside it.")
+                : localized("These files can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside each.")
+        return localized(.init("\(text) \(note)", comment: "Two sentences, one after the other"))
     }
 
     private var locationDetail: String {
         let located = model.locatedCount
-        if located == 0 { return model.count == 1 ? "This image has no location." : "None of these images has a location." }
-        let which = model.count == 1 ? "This image has" : located == model.count ? "All of these images have"
-            : "\(located.formatted()) of these images have"
-        return "\(which) a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else."
+        if located == 0 {
+            return model.count == 1 ? localized("This image has no location.") : localized("None of these images has a location.")
+        }
+        if model.count == 1 {
+            return localized("This image has a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else.")
+        }
+        if located == model.count {
+            return localized("All of these images have a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else.")
+        }
+        return localized(.init("\(located) of these images have a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else.",
+                               comment: "Metadata editor, Location section"))
     }
 
     // MARK: Text
 
-    private func textRow(_ label: String, _ field: Binding<MetadataTextField>, prompt: String? = nil) -> some View {
+    /// `keep` and `remove` say what the button beside a mixed field does.
+    private func textRow(_ label: String, _ field: Binding<MetadataTextField>, prompt: String? = nil,
+                         keep: String, remove: String) -> some View {
         let value = field.wrappedValue
-        let placeholder = value.isCleared ? "Removed from every file" : value.isMixed ? "Mixed" : prompt ?? ""
+        let mixed = localized(.init("Mixed", comment: "A field whose value differs between the files being edited"))
+        let placeholder = value.isCleared ? localized("Removed from every file") : value.isMixed ? mixed : prompt ?? ""
         return LabeledContent(label) {
             HStack(spacing: 6) {
                 TextField(label, text: field.text, prompt: Text(placeholder))
                     .labelsHidden()
                     .disabled(value.isCleared)
                     .accessibilityLabel(label)
-                    .accessibilityValue(value.isMixed && value.text.isEmpty && !value.isCleared ? "Mixed" : value.text)
+                    .accessibilityValue(value.isMixed && value.text.isEmpty && !value.isCleared ? mixed : value.text)
                 if value.isMixed {
                     // A mixed field left empty keeps each file's value, so
                     // clearing every file's needs saying.
@@ -146,8 +163,8 @@ struct MetadataEditorView: View {
                         Image(systemName: value.isCleared ? "arrow.uturn.backward.circle" : "xmark.circle")
                     }
                     .buttonStyle(.borderless)
-                    .help(value.isCleared ? "Keep each file’s own \(label.lowercased())" : "Remove the \(label.lowercased()) from every file")
-                    .accessibilityLabel(value.isCleared ? "Keep each file’s \(label.lowercased())" : "Remove \(label.lowercased()) from every file")
+                    .help(value.isCleared ? keep : remove)
+                    .accessibilityLabel(value.isCleared ? keep : remove)
                 }
             }
         }
@@ -158,7 +175,7 @@ struct MetadataEditorView: View {
     private var keywordSection: some View {
         Section("Keywords") {
             if model.keywords.isEmpty, model.newKeywords.isEmpty {
-                Text(model.count == 1 ? "No keywords." : "None of these images has keywords.")
+                Text(model.count == 1 ? localized("No keywords.") : localized("None of these images has keywords."))
                     .foregroundStyle(.secondary)
             }
             ForEach(model.keywords) { keyword in
@@ -167,7 +184,8 @@ struct MetadataEditorView: View {
                         .strikethrough(keyword.isRemoved)
                         .foregroundStyle(keyword.isRemoved ? .secondary : .primary)
                     if keyword.count < model.count {
-                        Text(keyword.isAddedToAll ? "adding to all" : "\(keyword.count.formatted()) of \(model.count.formatted())")
+                        Text(keyword.isAddedToAll ? localized(.init("adding to all", comment: "Beside a keyword only some images have: it will be added to every image"))
+                             : localized(.init("\(keyword.count) of \(model.count)", comment: "A number out of a total")))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -177,28 +195,31 @@ struct MetadataEditorView: View {
                             Image(systemName: keyword.isAddedToAll ? "plus.circle.fill" : "plus.circle")
                         }
                         .buttonStyle(.borderless)
-                        .help(keyword.isAddedToAll ? "Don’t add it to the other images" : "Add to every image")
-                        .accessibilityLabel(keyword.isAddedToAll ? "Don’t add \(keyword.name) to every image"
-                                                                 : "Add \(keyword.name) to every image")
+                        .help(keyword.isAddedToAll ? localized("Don’t add it to the other images") : localized("Add to every image"))
+                        .accessibilityLabel(keyword.isAddedToAll
+                            ? localized(.init("Don’t add \(keyword.name) to every image", comment: "VoiceOver; %@ is a keyword"))
+                            : localized(.init("Add \(keyword.name) to every image", comment: "VoiceOver; %@ is a keyword")))
                     }
                     Button { model.toggleRemoved(keyword) } label: {
                         Image(systemName: keyword.isRemoved ? "arrow.uturn.backward.circle" : "minus.circle")
                     }
                     .buttonStyle(.borderless)
-                    .help(keyword.isRemoved ? "Keep this keyword" : "Remove from every image")
-                    .accessibilityLabel(keyword.isRemoved ? "Keep \(keyword.name)" : "Remove \(keyword.name) from every image")
+                    .help(keyword.isRemoved ? localized("Keep this keyword") : localized("Remove from every image"))
+                    .accessibilityLabel(keyword.isRemoved
+                        ? localized(.init("Keep \(keyword.name)", comment: "VoiceOver: undo removing a keyword; %@ is the keyword"))
+                        : localized(.init("Remove \(keyword.name) from every image", comment: "VoiceOver; %@ is a keyword")))
                 }
                 .accessibilityElement(children: .contain)
             }
             ForEach(model.newKeywords, id: \.self) { keyword in
                 HStack(spacing: 8) {
                     Text(keyword)
-                    Text("new").font(.caption).foregroundStyle(.secondary)
+                    Text(localized(.init("new", comment: "Beside a keyword that will be added to the images"))).font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button { model.removeNewKeyword(keyword) } label: { Image(systemName: "minus.circle") }
                         .buttonStyle(.borderless)
                         .help("Don’t add this keyword")
-                        .accessibilityLabel("Don’t add \(keyword)")
+                        .accessibilityLabel(localized(.init("Don’t add \(keyword)", comment: "VoiceOver; %@ is a keyword")))
                 }
                 .accessibilityElement(children: .contain)
             }
@@ -214,8 +235,8 @@ struct MetadataEditorView: View {
 
     private var dateSection: some View {
         Section("Date Taken") {
-            LabeledContent("Now", value: model.dateDescription)
-            Picker("Change", selection: $model.dateMode) {
+            LabeledContent(localized(.init("Now", comment: "Label of the date taken the images have now")), value: model.dateDescription)
+            Picker(localized(.init("Change", comment: "Noun: label of a choice of how to change the date taken")), selection: $model.dateMode) {
                 Text("Leave unchanged").tag(MetadataEditorModel.DateMode.unchanged)
                 Text("Shift by").tag(MetadataEditorModel.DateMode.shift)
                 Text("Set to").tag(MetadataEditorModel.DateMode.set)
@@ -231,10 +252,14 @@ struct MetadataEditorView: View {
                 .pickerStyle(.segmented)
                 LabeledContent("Amount") {
                     HStack(spacing: 6) {
-                        amount("days", $model.shiftDays, 0...36_500)
-                        amount("h", $model.shiftHours, 0...23)
-                        amount("min", $model.shiftMinutes, 0...59)
-                        amount("s", $model.shiftSeconds, 0...59)
+                        amount(localized(.init("days", comment: "Unit after a number of days")), localized("Days"),
+                               $model.shiftDays, 0...36_500, width: 56)
+                        amount(localized(.init("h", comment: "Abbreviation of hours, after a number")), localized("Hours"),
+                               $model.shiftHours, 0...23)
+                        amount(localized(.init("unit.minutes.short", defaultValue: "min", comment: "Abbreviation of minutes, after a number")), localized("Minutes"),
+                               $model.shiftMinutes, 0...59)
+                        amount(localized(.init("s", comment: "Abbreviation of seconds, after a number")), localized("Seconds"),
+                               $model.shiftSeconds, 0...59)
                     }
                 }
             case .set:
@@ -242,7 +267,7 @@ struct MetadataEditorView: View {
                     .environment(\.timeZone, TimeZone(secondsFromGMT: 0)!)
             }
             if let new = model.newDateDescription {
-                LabeledContent("New", value: new)
+                LabeledContent(localized(.init("New", comment: "Label of the date taken the images will have")), value: new)
             } else if model.dateMode == .shift, model.dateChange != nil {
                 Text("Each image’s own date taken moves by the same amount.")
                     .font(.callout)
@@ -251,26 +276,20 @@ struct MetadataEditorView: View {
         }
     }
 
-    private func amount(_ unit: String, _ value: Binding<Int>, _ range: ClosedRange<Int>) -> some View {
+    /// A number field and stepper; `unit` follows the number, `name` is
+    /// what VoiceOver calls it.
+    private func amount(_ unit: String, _ name: String, _ value: Binding<Int>, _ range: ClosedRange<Int>,
+                        width: CGFloat = 36) -> some View {
         HStack(spacing: 2) {
-            TextField(unit, value: value, format: .number.grouping(.never))
+            TextField(name, value: value, format: .number.grouping(.never))
                 .labelsHidden()
                 .multilineTextAlignment(.trailing)
-                .frame(width: unit == "days" ? 56 : 36)
-                .accessibilityLabel(unitName(unit))
-            Stepper(unitName(unit), value: value, in: range)
+                .frame(width: width)
+                .accessibilityLabel(name)
+            Stepper(name, value: value, in: range)
                 .labelsHidden()
-                .accessibilityLabel(unitName(unit))
+                .accessibilityLabel(name)
             Text(unit).foregroundStyle(.secondary)
-        }
-    }
-
-    private func unitName(_ unit: String) -> String {
-        switch unit {
-        case "h": "Hours"
-        case "min": "Minutes"
-        case "s": "Seconds"
-        default: "Days"
         }
     }
 }

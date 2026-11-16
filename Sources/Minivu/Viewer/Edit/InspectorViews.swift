@@ -121,8 +121,7 @@ struct AdjustmentSliderRow: View {
             ResettableSlider(value: slider.position(for: value), range: slider.positionRange,
                              onChange: { setValue(slider.value(forPosition: $0)) }, onReset: reset,
                              label: slider.title,
-                             valueText: String(format: "%.\(slider.decimals)f", value * slider.displayScale)
-                                 + slider.unit)
+                             valueText: unitText(value * slider.displayScale, decimals: slider.decimals, unit: slider.unit))
                 .help("Double-click to reset")
         }
     }
@@ -230,9 +229,9 @@ struct AdjustmentInspectorView: View {
     private func footnote(for sectionIndex: Int) -> String? {
         switch state.kind {
         case .colors where sectionIndex == state.sections.count - 1:
-            "Color and RGB changes apply as separate steps."
+            localized("Color and RGB changes apply as separate steps.")
         case .straighten:
-            "The corners are cropped away as the image turns."
+            localized("The corners are cropped away as the image turns.")
         default:
             nil
         }
@@ -272,7 +271,7 @@ struct CropInspectorView: View {
                     Text(verbatim: "\(Int(rect.minX)), \(Int(rect.minY))").monospacedDigit().foregroundStyle(.secondary)
                 }
             } footer: {
-                InspectorFootnote("Drag the handles or draw a new rectangle. Return crops.")
+                InspectorFootnote(localized("Drag the handles or draw a new rectangle. Return crops."))
             }
         }
     }
@@ -286,7 +285,8 @@ struct ImmediateAction: Identifiable {
     let title: String
     let symbol: String
     let action: Selector
-    var id: String { title }
+    /// The action, not the title, which another language might repeat.
+    var id: Selector { action }
 }
 
 struct ImmediateActionsInspectorView: View {

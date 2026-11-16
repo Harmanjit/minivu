@@ -75,38 +75,44 @@ nonisolated enum LosslessBatch {
 
     static func reason(for error: Error) -> String {
         switch error {
-        case LosslessTransform.Error.unreadable: "The file couldn’t be read."
-        case LosslessTransform.Error.copyFailed(let detail): "The file couldn’t be rewritten (\(detail))."
+        case LosslessTransform.Error.unreadable: localized("The file couldn’t be read.")
+        case LosslessTransform.Error.copyFailed(let detail):
+            localized(.init("The file couldn’t be rewritten (\(detail)).", comment: "%@ is a technical detail in English"))
         default: error.localizedDescription
-        }
-    }
-
-    /// The verb in messages: "rotated" or "flipped".
-    static func verb(_ kind: LosslessTransform.Kind) -> String {
-        switch kind {
-        case .rotateClockwise, .rotateCounterclockwise, .rotate180: "rotated"
-        case .flipHorizontal, .flipVertical: "flipped"
         }
     }
 
     /// The alert after a batch, or nil when every file was transformed.
     static func message(for outcome: Outcome, kind: LosslessTransform.Kind) -> (title: String, detail: String)? {
         guard !outcome.skipped.isEmpty || !outcome.failed.isEmpty else { return nil }
-        let verb = verb(kind)
+        let rotates = switch kind {
+        case .rotateClockwise, .rotateCounterclockwise, .rotate180: true
+        case .flipHorizontal, .flipVertical: false
+        }
         var lines: [String] = []
         if !outcome.skipped.isEmpty {
-            let count = outcome.skipped.count
-            let files = count == 1 ? "1 file" : "\(count.formatted()) files"
-            lines.append("\(files) can’t be \(verb) without re-encoding (\(typeList(outcome.skipped))).")
+            let count = outcome.skipped.count, types = typeList(outcome.skipped)
+            lines.append(rotates
+                ? localized(.init("\(count) files can’t be rotated without re-encoding (\(types)).", comment: "%@ lists file types"))
+                : localized(.init("\(count) files can’t be flipped without re-encoding (\(types)).", comment: "%@ lists file types")))
         }
-        if !outcome.failed.isEmpty {
-            let count = outcome.failed.count
-            let files = count == 1 ? "“\(outcome.failed[0].url.lastPathComponent)”" : "\(count.formatted()) files"
-            lines.append("\(files) couldn’t be \(verb): \(outcome.failed[0].reason)")
+        if let first = outcome.failed.first {
+            let count = outcome.failed.count, name = first.url.lastPathComponent, reason = first.reason
+            let line = switch (count == 1, rotates) {
+            case (true, true): localized(.init("“\(name)” couldn’t be rotated: \(reason)", comment: "A file name, then the reason"))
+            case (true, false): localized(.init("“\(name)” couldn’t be flipped: \(reason)", comment: "A file name, then the reason"))
+            case (false, true): localized(.init("\(count) files couldn’t be rotated: \(reason)", comment: "%@ is the first file's reason"))
+            case (false, false): localized(.init("\(count) files couldn’t be flipped: \(reason)", comment: "%@ is the first file's reason"))
+            }
+            lines.append(line)
         }
         let done = outcome.transformed.count
-        let title = done == 0 ? "No files were \(verb)."
-            : done == 1 ? "1 file was \(verb)." : "\(done.formatted()) files were \(verb)."
+        let title = switch (done == 0, rotates) {
+        case (true, true): localized("No files were rotated.")
+        case (true, false): localized("No files were flipped.")
+        case (false, true): localized("\(done) files were rotated.")
+        case (false, false): localized("\(done) files were flipped.")
+        }
         return (title, lines.joined(separator: "\n\n"))
     }
 
@@ -117,12 +123,12 @@ nonisolated enum LosslessBatch {
         var firstSeen: [String: Int] = [:]
         for (index, url) in urls.enumerated() {
             let name = ImageFormats.kind(of: url) == .raw ? "RAW" : url.pathExtension.uppercased()
-            let key = name.isEmpty ? "no extension" : name
+            let key = name.isEmpty ? localized(.init("no extension", comment: "In a list of file types: a file with no extension")) : name
             counts[key, default: 0] += 1
             if firstSeen[key] == nil { firstSeen[key] = index }
         }
         let names = counts.keys.sorted { counts[$0]! != counts[$1]! ? counts[$0]! > counts[$1]! : firstSeen[$0]! < firstSeen[$1]! }
-        return names.count > 3 ? names.prefix(3).joined(separator: ", ") + ", …" : names.joined(separator: ", ")
+        return listText(names, limit: 3)
     }
 }
 

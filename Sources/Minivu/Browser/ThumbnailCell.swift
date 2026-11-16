@@ -189,7 +189,8 @@ final class ThumbnailCellView: NSView {
     var folderName: String?
 
     override func accessibilityLabel() -> String? {
-        let name = folderName.map { "\(nameField.stringValue), in \($0)" } ?? nameField.stringValue
+        let file = nameField.stringValue
+        let name = folderName.map { localized(.init("\(file), in \($0)", comment: "VoiceOver: a file name, then the folder it is in")) } ?? file
         return Self.accessibilityText(name: name, isFolder: !isRatable, rating: stars.rating,
                                isTagged: !tagBadge.isHidden, finderTags: dots.tags.map(\.name),
                                dimensions: detailField.stringValue,
@@ -207,18 +208,21 @@ final class ThumbnailCellView: NSView {
                                               video: String? = nil) -> String {
         var parts = [name]
         if let video {
-            parts.append("video")
+            parts.append(localized(.init("video", comment: "VoiceOver, in a thumbnail's description: the file is a video")))
             if !video.isEmpty { parts.append(video) }
         }
         if isFolder {
-            parts.append("folder")
+            parts.append(localized(.init("folder", comment: "VoiceOver, in a thumbnail's description: the item is a folder")))
         } else {
-            if rating > 0 { parts.append(rating == 1 ? "1 star" : "\(min(rating, 5)) stars") }
-            if isTagged { parts.append("tagged") }
+            if rating > 0 { parts.append(localized(.init("\(min(rating, 5)) stars", comment: "VoiceOver, in a thumbnail's description: its star rating"))) }
+            if isTagged { parts.append(localized(.init("tagged", comment: "VoiceOver, in a thumbnail's description: it has minivu's tag (a mark, like a flag)"))) }
         }
-        if !finderTags.isEmpty { parts.append("Finder tags: " + finderTags.joined(separator: ", ")) }
+        if !finderTags.isEmpty {
+            let names = finderTags.formatted(.list(type: .and, width: .narrow))
+            parts.append(localized(.init("Finder tags: \(names)", comment: "VoiceOver: the file's Finder tags, by name")))
+        }
         if !dimensions.isEmpty { parts.append(dimensions) }
-        return parts.joined(separator: ", ")
+        return parts.formatted(.list(type: .and, width: .narrow))
     }
 
     /// The outline a selected cell gets with Increase Contrast, where a tinted

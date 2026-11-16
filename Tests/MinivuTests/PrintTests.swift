@@ -428,7 +428,7 @@ import MinivuCore
         #expect(store.settings.imagesPerPage == 4)
 
         let summary = accessory.localizedSummaryItems()
-        #expect(summary.first?[.itemName] == "Images per Page" && summary.first?[.itemDescription] == "4")
+        #expect(summary.first?[.itemName] == "Images per page" && summary.first?[.itemDescription] == "4")
         #expect(summary.count == 6)
         _ = accessory.view                                     // the form builds
     }
@@ -446,7 +446,7 @@ import MinivuCore
     @Test func lengthsFollowTheLocale() {
         #expect(PrintLength.text(points: 18, locale: Locale(identifier: "en_US")) == "0.25 in")
         #expect(PrintLength.text(points: 72, locale: Locale(identifier: "en_GB")) == "25.4 mm")
-        #expect(PrintLength.text(points: 0, locale: Locale(identifier: "fr_FR")) == "0 mm")
+        #expect(PrintLength.text(points: 0, locale: Locale(identifier: "fr_FR")) == "0\u{202F}mm")
     }
 
     @Test func providerCachesWithinItsBudget() {

@@ -1,7 +1,7 @@
 import Foundation
 import Metal
 
-public enum GPUError: Error, CustomStringConvertible {
+public enum GPUError: LocalizedError, CustomStringConvertible {
     case noDevice
     case noCommandQueue
     case shadersNotFound
@@ -16,6 +16,13 @@ public enum GPUError: Error, CustomStringConvertible {
         case .missingFunction(let name): "Metal function '\(name)' is missing from the shader library."
         case .allocationFailed(let what): "Could not allocate \(what)."
         }
+    }
+
+    /// Only a failed allocation can reach an alert; the rest stop the app at
+    /// launch. Its buffer's name stays in `description`, for logs.
+    public var errorDescription: String? {
+        if case .allocationFailed = self { return localized("There isn’t enough memory to render the image.") }
+        return description
     }
 }
 

@@ -179,8 +179,8 @@ struct CriteriaFormSections: View {
             TextField("Camera model", text: $model.camera, prompt: Text("Any camera"))
             TextField("Lens", text: $model.lens, prompt: Text("Any lens"))
             rangeRow("ISO", $model.isoMinimum, $model.isoMaximum)
-            rangeRow("Aperture (f/)", $model.apertureMinimum, $model.apertureMaximum)
-            rangeRow("Focal length (mm)", $model.focalMinimum, $model.focalMaximum)
+            rangeRow(localized(.init("Aperture (f/)", comment: "Search field: the lens aperture, as an f-number")), $model.apertureMinimum, $model.apertureMaximum)
+            rangeRow(localized("Focal length (mm)"), $model.focalMinimum, $model.focalMaximum)
         }
         Section("Description") {
             TextField("Keywords", text: $model.keywords, prompt: Text("All of these, comma separated"))
@@ -188,7 +188,7 @@ struct CriteriaFormSections: View {
                 Text("Any").tag(-1)
                 Text("No Label").tag(ColorLabel.none.rawValue)
                 ForEach(ColorLabel.allCases.filter { $0 != .none }, id: \.rawValue) { label in
-                    Text(label.name).tag(label.rawValue)
+                    Text(verbatim: label.localizedName).tag(label.rawValue)
                 }
             }
             Picker("Location", selection: $model.location) {
@@ -200,27 +200,28 @@ struct CriteriaFormSections: View {
         Section("Picture") {
             Picker("Orientation", selection: $model.shape) {
                 Text("Any").tag(ShapeFilter?.none)
-                ForEach(ShapeFilter.allCases, id: \.self) { Text($0.title).tag(ShapeFilter?.some($0)) }
+                ForEach(ShapeFilter.allCases, id: \.self) { Text(verbatim: $0.title).tag(ShapeFilter?.some($0)) }
             }
             HStack {
-                Text("At least")
-                TextField("Width", text: $model.minimumWidth, prompt: Text("width"))
+                Text("At least", comment: "Before the minimum width and height fields")
+                TextField("Width", text: $model.minimumWidth, prompt: Text("width", comment: "Placeholder: minimum width in pixels"))
                     .frame(width: 80).accessibilityLabel("Minimum width in pixels")
                 Text("×")
-                TextField("Height", text: $model.minimumHeight, prompt: Text("height"))
+                TextField("Height", text: $model.minimumHeight, prompt: Text("height", comment: "Placeholder: minimum height in pixels"))
                     .frame(width: 80).accessibilityLabel("Minimum height in pixels")
-                Text("pixels")
+                Text("pixels", comment: "After the minimum width and height fields")
             }
         }
     }
 
+    /// `title` is already localized ("ISO" stays as it is).
     private func rangeRow(_ title: String, _ minimum: Binding<String>, _ maximum: Binding<String>) -> some View {
         LabeledContent(title) {
             HStack {
-                TextField("Minimum", text: minimum, prompt: Text("min"))
+                TextField("Minimum", text: minimum, prompt: Text("min", comment: "Placeholder: lowest value of a range"))
                     .frame(width: 70).accessibilityLabel("\(title), minimum")
-                Text("to")
-                TextField("Maximum", text: maximum, prompt: Text("max"))
+                Text("to", comment: "Between the lowest and highest value of a range")
+                TextField("Maximum", text: maximum, prompt: Text("max", comment: "Placeholder: highest value of a range"))
                     .frame(width: 70).accessibilityLabel("\(title), maximum")
             }
         }
@@ -247,7 +248,7 @@ struct SearchFormView: View {
                     Toggle("Include subfolders", isOn: $model.includeSubfolders)
                     TextField("Name contains", text: $model.name, prompt: Text("Any name"))
                     Picker("Rating", selection: $model.minimumRating) {
-                        ForEach(0...5, id: \.self) { Text($0 == 0 ? "Any" : RatingText.filterTitle(minimum: $0)).tag($0) }
+                        ForEach(0...5, id: \.self) { Text(verbatim: $0 == 0 ? localized("Any") : RatingText.filterTitle(minimum: $0)).tag($0) }
                     }
                     Toggle("Tagged only", isOn: $model.taggedOnly)
                 }
@@ -256,7 +257,7 @@ struct SearchFormView: View {
             .formStyle(.grouped)
             Divider()
             HStack {
-                Button("Clear", action: clear)
+                Button(localized(.init("Clear", comment: "Button: empties every field of the form, so it finds or shows everything again")), action: clear)
                 Spacer()
                 Button("Cancel", role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
                 Button(confirmTitle, action: onConfirm).keyboardShortcut(.defaultAction)
@@ -287,10 +288,11 @@ struct FilterFormView: View {
                 .formStyle(.grouped)
             Divider()
             HStack {
-                Button("Clear") { model.clear() }
+                Button(localized(.init("Clear", comment: "Button: empties every field of the form, so it finds or shows everything again"))) { model.clear() }
                 Spacer()
                 Button("Cancel", role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
-                Button("Filter", action: onApply).keyboardShortcut(.defaultAction)
+                Button(localized(.init("search.filter.apply", defaultValue: "Filter", comment: "Verb: button that applies the filters")),
+                       action: onApply).keyboardShortcut(.defaultAction)
             }
             .padding(16)
         }

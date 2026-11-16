@@ -85,8 +85,8 @@ struct ExternalEditorsSettingsView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.treatsFilePackagesAsDirectories = false
-        panel.prompt = "Add"
-        panel.message = "Choose applications to open images in."
+        panel.prompt = localized(.init("Add", comment: "Open panel button: adds the chosen items"))
+        panel.message = localized("Choose applications to open images in.")
         let store = self.store
         let finish = { (response: NSApplication.ModalResponse) in
             guard response == .OK else { return }
@@ -123,17 +123,21 @@ private struct EditorRow: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.yellow)
                     .help("The application is no longer where it was added.")
+                    .accessibilityLabel("The application is no longer where it was added.")
             }
             Spacer()
             HStack(spacing: 2) {
                 Button { move(-1) } label: { Image(systemName: "chevron.up") }
                     .disabled(index == 0)
                     .help("Move Up")
+                    .accessibilityLabel("Move Up")
                 Button { move(1) } label: { Image(systemName: "chevron.down") }
                     .disabled(index == count - 1)
                     .help("Move Down")
+                    .accessibilityLabel("Move Down")
                 Button(role: .destructive) { remove() } label: { Image(systemName: "minus.circle") }
                     .help("Remove \(editor.name)")
+                    .accessibilityLabel("Remove \(editor.name)")
             }
             .buttonStyle(.borderless)
         }

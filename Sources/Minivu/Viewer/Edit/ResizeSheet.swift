@@ -8,7 +8,7 @@ nonisolated struct ResizeModel: Equatable, Sendable {
     enum Unit: String, CaseIterable, Identifiable, Sendable {
         case pixels, percent
         var id: String { rawValue }
-        var title: String { self == .pixels ? "Pixels" : "Percent" }
+        var title: String { self == .pixels ? localized("Pixels") : localized("Percent") }
     }
 
     /// Largest side accepted. Beyond this a single photo is hundreds of
@@ -70,7 +70,9 @@ nonisolated struct ResizeModel: Equatable, Sendable {
     /// "6000 × 4000 px · 24.0 MP".
     static func sizeText(width: Int, height: Int) -> String {
         let mp = Double(width) * Double(height) / 1_000_000
-        return "\(width) × \(height) px  ·  \(String(format: mp < 0.1 ? "%.2f" : "%.1f", mp)) MP"
+        let megapixels = mp.formatted(.number.precision(.fractionLength(mp < 0.1 ? 2 : 1)))
+        return localized(.init("\(width) × \(height) px  ·  \(megapixels) MP",
+                               comment: "Width × height in pixels, then megapixels such as 24.0"))
     }
 
     private static func clamp(_ value: Int) -> Int { min(max(value, 1), maximumSide) }
@@ -103,9 +105,9 @@ struct ResizeSheetView: View {
                         ForEach(ResizeModel.Unit.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    dimensionRow("Width", pixels: state.model.width, percent: state.model.widthPercent,
+                    dimensionRow(localized("Width"), pixels: state.model.width, percent: state.model.widthPercent,
                                  setPixels: { state.model.setWidth($0) }, setPercent: { state.model.setWidthPercent($0) })
-                    dimensionRow("Height", pixels: state.model.height, percent: state.model.heightPercent,
+                    dimensionRow(localized("Height"), pixels: state.model.height, percent: state.model.heightPercent,
                                  setPixels: { state.model.setHeight($0) }, setPercent: { state.model.setHeightPercent($0) })
                     Toggle("Keep aspect ratio", isOn: Binding(get: { state.model.keepsAspectRatio },
                                                               set: { state.model.setKeepsAspectRatio($0) }))
@@ -186,7 +188,7 @@ enum ResizeSheet {
         let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 380),
                              styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: true)
         sheet.isReleasedWhenClosed = false
-        sheet.title = "Resize"
+        sheet.title = localized("Resize")
         var finished = false
         // The sheet's view holds these buttons' actions, so they hold the
         // sheet and its parent weakly: a strong hold was a cycle that kept

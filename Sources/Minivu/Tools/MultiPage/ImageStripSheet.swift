@@ -37,7 +37,7 @@ import MinivuCore
 
     var title: String {
         let count = order.entries.count
-        return "Image Strip of \(count == 1 ? "1 Image" : "\(count.formatted()) Images")"
+        return localized(.init("Image Strip of \(count) Images", comment: "Sheet title"))
     }
 
     var layout: ImageStripLayout {
@@ -57,13 +57,13 @@ import MinivuCore
     /// Why the strip can't be made as set, or nil.
     var problem: String? {
         if settings.size < 16 || settings.size > ImageStripLayout.maximumSide {
-            return "The size must be between 16 and \(ImageStripLayout.maximumSide.formatted()) pixels."
+            return localized("The size must be between 16 and \(ImageStripLayout.maximumSide.formatted()) pixels.")
         }
         if settings.spacing < 0 || settings.spacing > 1000 || settings.margin < 0 || settings.margin > 1000 {
-            return "Spacing and margin must be between 0 and 1,000 pixels."
+            return localized("Spacing and margin must be between 0 and 1,000 pixels.")
         }
         if settings.arrangement == .grid, !(1...100).contains(settings.columns) {
-            return "The number of columns must be between 1 and 100."
+            return localized("The number of columns must be between 1 and 100.")
         }
         let deep = settings.options.format.supports16Bit && settings.options.sixteenBit
         return layout.problem(byteLimit: byteLimit, bytesPerPixel: deep ? 8 : 4)
@@ -75,12 +75,13 @@ import MinivuCore
     var sizeText: String {
         guard !sizes.isEmpty else { return "" }
         let layout = self.layout
-        return "\(layout.width.formatted()) × \(layout.height.formatted()) pixels"
+        return localized(.init("\(layout.width.formatted()) × \(layout.height.formatted()) pixels", comment: "Width × height"))
     }
 
     var suggestedName: String {
-        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? "Untitled"
-        return base + " Strip." + settings.options.format.fileExtension
+        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? localized(.init("Untitled", comment: "Name for a new file that has none"))
+        return localized(.init("\(base) Strip", comment: "Suggested file name: the first picture's name, then Strip"))
+            + "." + settings.options.format.fileExtension
     }
 
     func commit() -> ImageStripSettings {
@@ -178,6 +179,14 @@ struct ImageStripView: View {
         .frame(minWidth: 500, minHeight: 480)
     }
 
+    private var layoutNote: String {
+        switch model.settings.arrangement {
+        case .grid: localized("Each picture is fitted into its cell, centred. Cells take the pictures’ middle shape.")
+        case .horizontal: localized("Every picture is scaled to the same height.")
+        case .vertical: localized("Every picture is scaled to the same width.")
+        }
+    }
+
     @ViewBuilder private var layoutSection: some View {
         Section {
             Picker("Arrange", selection: $model.settings.arrangement) {
@@ -188,14 +197,14 @@ struct ImageStripView: View {
             }
             if model.settings.arrangement == .grid {
                 LabeledContent("Columns") {
-                    NumberField(label: "Columns", value: integer(\.columns), unit: "")
+                    NumberField(label: localized("Columns"), value: integer(\.columns), unit: "")
                 }
             }
             LabeledContent("Spacing") {
-                NumberField(label: "Spacing", value: integer(\.spacing), unit: "px")
+                NumberField(label: localized("Spacing"), value: integer(\.spacing), unit: "px")
             }
             LabeledContent("Margin") {
-                NumberField(label: "Margin", value: integer(\.margin), unit: "px")
+                NumberField(label: localized("Margin"), value: integer(\.margin), unit: "px")
             }
             LabeledContent("Background") {
                 HStack(spacing: 8) {
@@ -212,9 +221,7 @@ struct ImageStripView: View {
         } header: {
             Text("Layout")
         } footer: {
-            InspectorFootnote(model.settings.arrangement == .grid
-                ? "Each picture is fitted into its cell, centred. Cells take the pictures’ middle shape."
-                : "Every picture is scaled to the same \(model.settings.arrangement.sizeTitle.lowercased()).")
+            InspectorFootnote(layoutNote)
         }
     }
 
@@ -225,7 +232,7 @@ struct ImageStripView: View {
                 ForEach(ImageStripModel.formats, id: \.self) { Text($0.title).tag($0) }
             }
             if format.supportsQuality {
-                PercentSlider(label: "Quality", value: $model.settings.options.quality)
+                PercentSlider(label: localized("Quality"), value: $model.settings.options.quality)
             }
             if format.supportsColorProfile {
                 Picker("Color profile", selection: $model.settings.options.colorProfile) {
@@ -241,9 +248,9 @@ struct ImageStripView: View {
                 Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.settings.options.sixteenBit)
             }
         } header: {
-            Text("File")
+            Text(localized(.init("section.file", defaultValue: "File", comment: "Noun: the output file and its options (heading or label), not the File menu")))
         } footer: {
-            InspectorFootnote("The strip is saved as a new file and opens in the viewer, where it can be edited like any photo. HDR photos come out SDR: a strip keeps no gain map.")
+            InspectorFootnote(localized("The strip is saved as a new file and opens in the viewer, where it can be edited like any photo. HDR photos come out SDR: a strip keeps no gain map."))
         }
     }
 

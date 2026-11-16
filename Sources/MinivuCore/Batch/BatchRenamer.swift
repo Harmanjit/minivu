@@ -186,7 +186,7 @@ public enum BatchRenamer {
                     let back = folder.appendingPathComponent(name)
                     if (try? FileOperations.moveExclusively(from, to: back)) != nil {
                         moved(from, back)
-                        if name != request.url.lastPathComponent { message += " It is now named “\(name)”." }
+                        if name != request.url.lastPathComponent { message = localized(.init("\(message) It is now named “\(name)”.", comment: "%1$@ is an error message; the file got a numbered name")) }
                     }
                 } else {
                     release(key(from), from: i, holds: true)

@@ -19,7 +19,8 @@ struct LevelsInspectorView: View {
                     .frame(maxWidth: .infinity)
             }
             Section("Input") {
-                levelField("Black", value: state.current.inputBlack) { v in
+                levelField(localized(.init("levels.black", defaultValue: "Black", comment: "Levels: the black point")),
+                    value: state.current.inputBlack) { v in
                     state.edit { LevelsMath.setInputBlack(v, in: &$0) }
                 }
                 LabeledContent("Gamma") {
@@ -32,15 +33,18 @@ struct LevelsInspectorView: View {
                     .monospacedDigit()
                     .frame(width: 58)
                 }
-                levelField("White", value: state.current.inputWhite) { v in
+                levelField(localized(.init("levels.white", defaultValue: "White", comment: "Levels: the white point")),
+                    value: state.current.inputWhite) { v in
                     state.edit { LevelsMath.setInputWhite(v, in: &$0) }
                 }
             }
             Section("Output") {
-                levelField("Black", value: state.current.outputBlack) { v in
+                levelField(localized(.init("levels.black", defaultValue: "Black", comment: "Levels: the black point")),
+                    value: state.current.outputBlack) { v in
                     state.edit { LevelsMath.setOutput(black: v, in: &$0) }
                 }
-                levelField("White", value: state.current.outputWhite) { v in
+                levelField(localized(.init("levels.white", defaultValue: "White", comment: "Levels: the white point")),
+                    value: state.current.outputWhite) { v in
                     state.edit { LevelsMath.setOutput(white: v, in: &$0) }
                 }
             }

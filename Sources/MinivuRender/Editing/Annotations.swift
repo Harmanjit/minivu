@@ -31,13 +31,13 @@ public struct Annotation: Codable, Hashable, Sendable, Identifiable {
 
         public var title: String {
             switch self {
-            case .text: "Text"
-            case .line: "Line"
-            case .arrow: "Arrow"
-            case .highlight: "Highlight"
-            case .rectangle: "Rectangle"
-            case .oval: "Oval"
-            case .callout: "Callout"
+            case .text: localized("Text")
+            case .line: localized(.init("Line", comment: "Drawing shape"))
+            case .arrow: localized(.init("Arrow", comment: "Drawing shape"))
+            case .highlight: localized(.init("Highlight", comment: "Drawing shape: a translucent marker stroke"))
+            case .rectangle: localized(.init("Rectangle", comment: "Drawing shape"))
+            case .oval: localized(.init("Oval", comment: "Drawing shape"))
+            case .callout: localized(.init("Callout", comment: "Drawing shape: a speech bubble"))
             }
         }
     }
@@ -69,7 +69,16 @@ public struct Annotation: Codable, Hashable, Sendable, Identifiable {
             }
         }
 
-        public var title: String { rawValue.capitalized }
+        public var title: String {
+            switch self {
+            case .light: localized(.init("Light", comment: "Font weight"))
+            case .regular: localized(.init("Regular", comment: "Font weight"))
+            case .medium: localized(.init("font.weight.medium", defaultValue: "Medium", comment: "Font weight"))
+            case .semibold: localized(.init("Semibold", comment: "Font weight"))
+            case .bold: localized(.init("Bold", comment: "Font weight"))
+            case .heavy: localized(.init("Heavy", comment: "Font weight"))
+            }
+        }
     }
 
     /// The family name that means the system font (San Francisco), which has

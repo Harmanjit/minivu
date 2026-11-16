@@ -338,7 +338,8 @@ final class AnnotationOverlayView: NSView, NSMenuItemValidation, NSTextViewDeleg
         case .move(let start, let from, let moved):
             if !moved {
                 guard hypot(location.x - pressLocation.x, location.y - pressLocation.y) >= Self.dragThreshold else { return }
-                state.recordUndo("Move \(start.kind.title)")
+                let kind = start.kind.title
+                state.recordUndo(localized(.init("Move \(kind)", comment: "Undo step: %@ is the kind of object, such as Arrow")))
                 state.beginLive(start.id)
                 drag = .move(start: start, from: from, moved: true)
             }
@@ -349,7 +350,9 @@ final class AnnotationOverlayView: NSView, NSMenuItemValidation, NSTextViewDeleg
             state.replace(AnnotationGeometry.moved(start, by: delta, in: imageSize))
         case .handle(let handle, let start, let moved):
             if !moved {
-                state.recordUndo(handle == .rotate ? "Rotate \(start.kind.title)" : "Resize \(start.kind.title)")
+                let kind = start.kind.title
+                state.recordUndo(handle == .rotate ? localized(.init("Rotate \(kind)", comment: "Undo step: %@ is the kind of object, such as Arrow"))
+                                                   : localized(.init("Resize \(kind)", comment: "Undo step: %@ is the kind of object, such as Arrow")))
                 state.beginLive(start.id)
                 drag = .handle(handle, start: start, moved: true)
             }

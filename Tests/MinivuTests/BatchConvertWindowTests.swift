@@ -251,7 +251,7 @@ extension AppWindowTests {
             question = BrowserWindowController.replaceQuestion(replacements)
             #expect(question.message == "Replace 2 originals and 5 files?")
             #expect(question.detail == "The converted files take the originals’ names. "
-                + "“DSC_1.JPG”, “DSC_2.JPG”, “DSC_3.JPG” and 2 more aren’t among the images being converted, "
+                + "“DSC_1.JPG”, “DSC_2.JPG”, “DSC_3.JPG”, and 2 more aren’t among the images being converted, "
                 + "but converted files would take their names. "
                 + "Replaced files go to the Trash. Keep Both gives the converted files numbered names instead.")
         }

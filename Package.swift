@@ -7,6 +7,9 @@ import PackageDescription
 
 let package = Package(
     name: "minivu",
+    // English is the source language of every target's Localizable.xcstrings
+    // (docs/feature-notes/l10n.md).
+    defaultLocalization: "en",
     platforms: [.macOS(.v15)],
     products: [
         .executable(name: "minivu", targets: ["Minivu"]),

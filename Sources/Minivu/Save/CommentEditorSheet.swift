@@ -28,9 +28,11 @@ import MinivuCore
     /// comment is split across several, which minivu and FastStone read back
     /// as one, so that is noted rather than refused.
     nonisolated static func byteCountText(_ bytes: Int) -> String {
-        let count = bytes == 1 ? "1 byte" : "\(bytes.formatted()) bytes"
+        let count = localized(.init("\(bytes) bytes", comment: "Length of a JPEG comment"))
         let segments = (bytes + JPEGCommentLimits.segmentPayload - 1) / JPEGCommentLimits.segmentPayload
-        return segments > 1 ? "\(count) (stored in \(segments) segments)" : count
+        guard segments > 1 else { return count }
+        return localized(.init("\(count) (stored in \(segments) segments)",
+                               comment: "Length of a long JPEG comment; %1$@ is a byte count such as “70,000 bytes”, %2$lld the number of JPEG COM segments"))
     }
 
     /// Writes the comment in the background, replacing the file atomically
@@ -90,7 +92,7 @@ nonisolated enum JPEGCommentLimits {
                 SavePresenter.didWrite(model.url)
                 end(saved: true)
             } catch {
-                SaveAlert.show(error, title: "The comment couldn’t be saved.", on: window)
+                SaveAlert.show(error, title: localized("The comment couldn’t be saved."), on: window)
             }
         }
     }

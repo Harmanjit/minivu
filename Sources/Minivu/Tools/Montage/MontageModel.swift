@@ -144,9 +144,9 @@ struct MontageSettingsStore {
     /// "Montages use at most 200 photos: the first 200 of the 340 selected."
     var limitNote: String? {
         guard offeredCount > entries.count else { return nil }
-        let which = fromSelection ? "selected" : "shown"
-        return "A montage uses at most \(entries.count) photos: the first \(entries.count) of the "
-            + "\(offeredCount.formatted()) \(which)."
+        return fromSelection
+            ? localized("A montage uses at most \(entries.count) photos: the first \(entries.count) of the \(offeredCount) selected.")
+            : localized("A montage uses at most \(entries.count) photos: the first \(entries.count) of the \(offeredCount) shown.")
     }
 
     /// The displays a montage is made for.
@@ -259,7 +259,7 @@ struct MontageSettingsStore {
     /// Renders a montage for each target display and writes each into
     /// `folder`. Returns the files with the display each is for.
     func makeMontages(in folder: URL, date: Date) async throws -> [(url: URL, display: Display)] {
-        phase = .working("Loading photos…")
+        phase = .working(localized("Loading photos…"))
         defer { phase = .editing }
         await waitForThumbnails()
         try Task.checkCancellation()
@@ -269,7 +269,8 @@ struct MontageSettingsStore {
         var written: [(URL, Display)] = []
         do {
             for (number, display) in targets.enumerated() {
-                phase = .working(targets.count > 1 ? "Drawing montage \(number + 1) of \(targets.count)…" : "Drawing montage…")
+                phase = .working(targets.count > 1 ? localized("Drawing montage \(number + 1) of \(targets.count)…")
+                                                   : localized("Drawing montage…"))
                 let tiles = await BlockingWork.run(layoutJob(for: display))
                 let image = try await MontageRenderer.render(tiles: tiles, canvas: display.pixelSize, look: look,
                                                              files: files, aspectRatios: aspects)

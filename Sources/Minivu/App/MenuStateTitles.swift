@@ -8,19 +8,23 @@ import AppKit
 /// controller answers is disabled without being asked, so the Image menu
 /// puts the first titles back before each validation (`reset(_:)`).
 enum MenuStateTitles {
-    static func tag(isTagged: Bool) -> String { isTagged ? "Remove Tag" : "Tag" }
-    static func playback(isPlaying: Bool) -> String { isPlaying ? "Pause Animation" : "Play Animation" }
+    static func tag(isTagged: Bool) -> String {
+        isTagged ? localized(.init("Remove Tag", comment: "Menu command: remove minivu's tag (a mark, like a flag)"))
+            : localized(.init("Tag", comment: "Verb: menu command that tags the image (marks it, like a flag)"))
+    }
+    static func playback(isPlaying: Bool) -> String {
+        isPlaying ? localized("Pause Animation") : localized("Play Animation")
+    }
     /// The same item while the viewer shows a video (G18).
-    static func videoPlayback(isPlaying: Bool) -> String { isPlaying ? "Pause Video" : "Play Video" }
-    static func mute(isMuted: Bool) -> String { isMuted ? "Unmute Video" : "Mute Video" }
+    static func videoPlayback(isPlaying: Bool) -> String {
+        isPlaying ? localized("Pause Video") : localized("Play Video")
+    }
+    static func mute(isMuted: Bool) -> String { isMuted ? localized("Unmute Video") : localized("Mute Video") }
 
     /// Clear Rating, then Rate 1 Star to Rate 5 Stars.
     static func rating(_ stars: Int) -> String {
-        switch stars {
-        case ...0: "Clear Rating"
-        case 1: "Rate 1 Star"
-        default: "Rate \(min(stars, 5)) Stars"
-        }
+        stars <= 0 ? localized(.init("Clear Rating", comment: "Menu command: remove the image's star rating"))
+            : localized(.init("Rate \(min(stars, 5)) Stars", comment: "Menu command: give the image this many stars"))
     }
 
     /// The titles an item has when nothing has validated it.

@@ -47,7 +47,7 @@ import MinivuCore
 
     var title: String {
         let count = order.entries.count
-        return "Create Multi-Page File from \(count == 1 ? "1 Image" : "\(count.formatted()) Images")"
+        return localized(.init("Create Multi-Page File from \(count) Images", comment: "Sheet title"))
     }
 
     /// The pages the file will have.
@@ -58,7 +58,7 @@ import MinivuCore
     /// "12 pages", for a row whose file has more than one.
     func detail(for entry: FolderEntry) -> String? {
         guard let pages = headers[entry.url]?.pages, pages > 1 else { return nil }
-        return settings.format.isAnimation ? "\(pages.formatted()) frames" : "\(pages.formatted()) pages"
+        return settings.format.isAnimation ? localized(.init("\(pages) frames", comment: "Frames of an animation")) : localized("\(pages) pages")
     }
 
     /// Why the file can't be made as set, or nil: a setting out of range,
@@ -78,7 +78,7 @@ import MinivuCore
 
     /// "IMG_0001.tif": the first picture's name with the format's extension.
     var suggestedName: String {
-        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? "Untitled"
+        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? localized(.init("Untitled", comment: "Name for a new file that has none"))
         return base + "." + settings.format.fileExtension
     }
 
@@ -154,7 +154,7 @@ struct MultiPageView: View {
                 } header: {
                     Text("Pages")
                 } footer: {
-                    InspectorFootnote("Pages follow this order; the browser’s order to start with.")
+                    InspectorFootnote(localized("Pages follow this order; the browser’s order to start with."))
                 }
                 formatSection
             }
@@ -162,7 +162,7 @@ struct MultiPageView: View {
             Divider()
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.pageCount == 1 ? "1 page" : "\(model.pageCount.formatted()) pages")
+                    Text(localized("\(model.pageCount) pages"))
                         .font(.callout)
                     if let problem = model.problem {
                         Text(problem)
@@ -201,16 +201,17 @@ struct MultiPageView: View {
                 }
                 if model.settings.pdfPageSize != .image {
                     LabeledContent("Margin") {
-                        NumberField(label: "Margin", value: $model.settings.pdfMargin, unit: "pt")
+                        NumberField(label: localized("Margin"), value: $model.settings.pdfMargin, unit: "pt")
                     }
                 }
                 Toggle("Lossless (larger file)", isOn: $model.settings.pdfLossless)
                 if !model.settings.pdfLossless {
-                    PercentSlider(label: "Quality", value: $model.settings.pdfQuality)
+                    PercentSlider(label: localized("Quality"), value: $model.settings.pdfQuality)
                 }
             case .gif, .heics:
                 LabeledContent("Frame delay") {
-                    NumberField(label: "Frame delay", value: $model.settings.frameDelay, unit: "seconds",
+                    NumberField(label: localized("Frame delay"), value: $model.settings.frameDelay,
+                                unit: localized(.init("multipage.unit.seconds", defaultValue: "seconds", comment: "Unit after the frame delay field")),
                                 fractionDigits: 0...2)
                 }
                 if format.keepsLoopCount {
@@ -219,9 +220,11 @@ struct MultiPageView: View {
                             Toggle("Forever", isOn: Binding(get: { model.settings.loopCount == 0 },
                                                             set: { model.settings.loopCount = $0 ? 0 : 1 }))
                             if model.settings.loopCount != 0 {
-                                NumberField(label: "Times", value: Binding(get: { Double(model.settings.loopCount) },
-                                                                          set: { model.settings.loopCount = Int($0) }),
-                                            unit: "times")
+                                NumberField(label: localized(.init("Times", comment: "How many times an animation plays")),
+                                            value: Binding(get: { Double(model.settings.loopCount) },
+                                                           set: { model.settings.loopCount = Int($0) }),
+                                            unit: localized(.init("multipage.unit.times", defaultValue: "times",
+                                                                  comment: "Unit after the number of times an animation plays")))
                             }
                         }
                     }
@@ -231,14 +234,14 @@ struct MultiPageView: View {
                         Toggle("Same as the first image", isOn: Binding(get: { model.settings.frameSize == nil },
                                                                         set: { model.settings.frameSize = $0 ? nil : 800 }))
                         if let size = model.settings.frameSize {
-                            NumberField(label: "Long side", value: Binding(get: { Double(size) },
+                            NumberField(label: localized(.init("Long side", comment: "The frame's longest side, in pixels")), value: Binding(get: { Double(size) },
                                                                           set: { model.settings.frameSize = Int($0) }),
                                         unit: "px")
                         }
                     }
                 }
                 if format == .heics {
-                    PercentSlider(label: "Quality", value: $model.settings.quality)
+                    PercentSlider(label: localized("Quality"), value: $model.settings.quality)
                 }
             }
             if format != .tiff {
@@ -264,10 +267,10 @@ struct MultiPageView: View {
 
     private func footnote(_ format: MultiPageFormat) -> String {
         switch format {
-        case .tiff: "Each page keeps its size and colour profile. Metadata isn’t carried over, and HDR photos come out SDR."
-        case .pdf: "One picture per page. Metadata isn’t carried over."
-        case .gif: "Every frame is fitted into one size, centred. Frames of animations keep their own timing."
-        case .heics: "Every frame is fitted into one size, centred. Animated HEIC files play once, and the last frame shows as long as the one before it. HDR photos come out SDR."
+        case .tiff: localized("Each page keeps its size and colour profile. Metadata isn’t carried over, and HDR photos come out SDR.")
+        case .pdf: localized("One picture per page. Metadata isn’t carried over.")
+        case .gif: localized("Every frame is fitted into one size, centred. Frames of animations keep their own timing.")
+        case .heics: localized("Every frame is fitted into one size, centred. Animated HEIC files play once, and the last frame shows as long as the one before it. HDR photos come out SDR.")
         }
     }
 

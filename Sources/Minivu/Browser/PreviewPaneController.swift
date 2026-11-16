@@ -122,12 +122,12 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         marksStars.isInteractive = true
         marksStars.showsEmptyStars = true
         marksStars.onRate = { [weak self] stars in self?.onRate?(stars) }
-        marksStars.toolTip = "Rating"
+        marksStars.toolTip = localized(.init("Rating", comment: "Noun: star rating"))
         tagButton.isBordered = false
         tagButton.imagePosition = .imageOnly
         tagButton.target = self
         tagButton.action = #selector(tagClicked(_:))
-        tagButton.toolTip = "Tag"
+        tagButton.toolTip = localized(.init("Tag", comment: "Verb: menu command that tags the image (marks it, like a flag)"))
         tagButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
         let spacer = NSView()
         spacer.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -254,7 +254,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         guard shownTagged != marks.isTagged else { return }
         shownTagged = marks.isTagged
         let symbol = marks.isTagged ? "checkmark.circle.fill" : "checkmark.circle"
-        tagButton.image = NSImage(systemSymbolName: symbol, accessibilityDescription: marks.isTagged ? "Tagged" : "Not Tagged")
+        tagButton.image = NSImage(systemSymbolName: symbol, accessibilityDescription: marks.isTagged ? TagBadge.taggedText : TagBadge.notTaggedText)
         tagButton.contentTintColor = marks.isTagged ? .controlAccentColor : .secondaryLabelColor
     }
 
@@ -275,18 +275,18 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         switch content ?? .none {
         case .none:
             cancelLoads()
-            showPlaceholder((nil, "No Selection", ""))
+            showPlaceholder((nil, localized("No Selection"), ""))
             // One "No Selection" for the pane, not one per half.
             setInfoVisible(false)
         case .folder(let entry):
             cancelLoads()
-            showPlaceholder((NSWorkspace.shared.icon(for: .folder), entry.name, "Folder"))
+            showPlaceholder((NSWorkspace.shared.icon(for: .folder), entry.name, localized(.init("Folder", comment: "Noun: the kind of item selected"))))
             setInfoVisible(true)
             info.rootView = InfoPanelView(url: entry.url, modified: entry.modified)
         case .multiple(let count, let bytes):
             cancelLoads()
             let icon = NSImage(named: NSImage.multipleDocumentsName) ?? NSWorkspace.shared.icon(for: .image)
-            showPlaceholder((icon, "\(count.formatted()) items selected",
+            showPlaceholder((icon, localized(.init("\(count) items selected", comment: "Preview pane")),
                              bytes > 0 ? bytes.formatted(.byteCount(style: .file)) : ""))
             setInfoVisible(false)
         case .image(let entry, let neighbours):
@@ -305,14 +305,15 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
         videoBadge.isHidden = entry.kind != .video
         guard entry.kind == .video else { return }
         videoBadge.duration = nil
-        videoBadge.setAccessibilityLabel("Video")
+        videoBadge.setAccessibilityLabel(localized(.init("Video", comment: "Noun: the file is a video")))
         let url = entry.url
         videoInfoTask = Task { [weak self] in
             let info = await BlockingWork.run { VideoFrames.info(for: url) }
             guard !Task.isCancelled, let self, case .image(let shown, _) = self.content, shown.url == url,
                   let info else { return }
             self.videoBadge.duration = info.duration
-            self.videoBadge.setAccessibilityLabel("Video, " + VideoFrames.durationText(info.duration))
+            let length = VideoFrames.durationText(info.duration)
+            self.videoBadge.setAccessibilityLabel(localized(.init("Video, \(length)", comment: "A video and its length, such as 1:05")))
         }
     }
 
