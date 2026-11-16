@@ -121,6 +121,41 @@ extension AppWindowTests {
             #expect(Set(controller.model.selection.map(\.lastPathComponent)) == ["doc-2.png", "doc-3.png"])
         }
 
+        /// The tools of pictures leave a video out of their sheets even when
+        /// it is chosen with the pictures (G18): only the menu check did.
+        @Test func pictureToolsLeaveTheVideoOut() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            _ = try document(t, "a.tif")
+            try t.jpeg("b.jpg", width: 60, height: 40)
+            try t.file("c.mov")
+            let controller = await browser(t)
+            defer { controller.window?.close() }
+            controller.model.selectAll()
+            let window = try #require(controller.window)
+
+            controller.extractPages(nil)
+            let extract = try #require(sheets.shown.last?.contentView as? NSHostingView<BatchConvertView>)
+            #expect(extract.rootView.model.title == "Extract Pages from 2 Files")
+            extract.rootView.onCancel()
+
+            controller.createMultiPageFile(nil)
+            let multi = try #require(sheets.shown.last?.contentView as? NSHostingView<MultiPageView>)
+            #expect(multi.rootView.model.order.urls.map(\.lastPathComponent) == ["a.tif", "b.jpg"])
+            multi.rootView.onCancel()
+
+            controller.makeImageStrip(nil)
+            let strip = try #require(sheets.shown.last?.contentView as? NSHostingView<ImageStripView>)
+            #expect(strip.rootView.model.order.urls.map(\.lastPathComponent) == ["a.tif", "b.jpg"])
+            strip.rootView.onCancel()
+
+            #expect(sheets.shown.isEmpty)
+            controller.createWebGallery(nil)
+            let gallery = try #require(WebGalleryController.controller(for: window))
+            defer { gallery.close() }
+            #expect(gallery.model.images.map(\.url.lastPathComponent) == ["a.tif", "b.jpg"])
+        }
+
         /// Batch Convert's every-page option: one file per page for JPEG,
         /// one multi-page file for TIFF; the sheet starts at the first page.
         @Test func batchConvertWritesEveryPage() async throws {

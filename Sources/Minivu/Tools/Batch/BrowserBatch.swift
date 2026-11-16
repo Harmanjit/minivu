@@ -291,7 +291,9 @@ extension BrowserWindowController {
     /// images' multi-page files, or a range, as separate files.
     @objc func extractPages(_ sender: Any?) {
         guard let window = canStartBatch() else { return NSSound.beep() }
-        let entries = toolImages
+        // Videos are left out, as Batch Convert leaves them (G18).
+        let entries = toolStills
+        guard !entries.isEmpty else { return NSSound.beep() }
         let model = BatchConvertModel(entries: entries, mode: .extractPages, store: BatchTools.store)
         let sheet = BatchConvertSheet(model: model)
         sheet.begin(on: window) { [weak self] settings in

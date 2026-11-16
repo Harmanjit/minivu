@@ -354,6 +354,28 @@ extension AppWindowTests {
             #expect(SlideshowVideoController.controller(for: window) === dialog)
         }
 
+        /// The viewer's export leaves videos out, as its Start Slideshow
+        /// does; shown on a video, the export starts at the next picture.
+        @Test func viewerCommandLeavesVideosOut() async throws {
+            _ = NSApplication.shared
+            let scratch = try ScratchFolder()
+            let pictures = try SlideshowVideoExportTests.pictures(in: scratch.url)
+            let clip = scratch.url.appendingPathComponent("b2.mov")
+            try Data([0]).write(to: clip)
+            let video = try #require(FolderEntry(url: clip))
+            let entries = [pictures[0], pictures[1], video, pictures[2]]
+            ViewerWindowController.show(images: entries, index: 2, fullScreen: false) { _ in }
+            defer { ViewerWindowController.show(images: [], index: 0, fullScreen: false) { _ in } }
+            let viewer = try #require(ViewerWindowController.current)
+            let window = try #require(viewer.window)
+
+            viewer.exportSlideshowVideo(nil)
+            let dialog = try #require(SlideshowVideoController.controller(for: window))
+            defer { dialog.close() }
+            #expect(dialog.model.images.map(\.url) == pictures.map(\.url))
+            #expect(dialog.model.start == 2)
+        }
+
         private func waitUntil(_ condition: () -> Bool) async throws {
             let deadline = ContinuousClock.now + TestTiming.limit(milliseconds: 2000)
             while !condition() {
