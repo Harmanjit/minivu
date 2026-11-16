@@ -50,13 +50,13 @@ nonisolated enum AdjustmentKind: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .lighting: "Lighting"
-        case .colors: "Colors"
-        case .sharpen: "Sharpen"
-        case .blur: "Blur"
-        case .straighten: "Straighten"
-        case .noiseReduction: "Noise Reduction"
-        case .vignette: "Vignette"
+        case .lighting: localized("Lighting")
+        case .colors: localized("Colors")
+        case .sharpen: localized("Sharpen")
+        case .blur: localized("Blur")
+        case .straighten: localized("Straighten")
+        case .noiseReduction: localized("Noise Reduction")
+        case .vignette: localized("Vignette")
         }
     }
 
@@ -69,44 +69,46 @@ nonisolated enum AdjustmentKind: String, CaseIterable, Sendable {
         switch self {
         case .lighting:
             [AdjustmentSection(title: nil, sliders: [
-                Self.amount("Brightness"), Self.amount("Contrast"),
-                AdjustmentSlider(title: "Gamma", range: 0.2...5, defaultValue: 1, decimals: 2, logarithmic: true),
-                Self.amount("Shadows"), Self.amount("Highlights"),
+                Self.amount(localized("Brightness")), Self.amount(localized("Contrast")),
+                AdjustmentSlider(title: localized("Gamma"), range: 0.2...5, defaultValue: 1, decimals: 2, logarithmic: true),
+                Self.amount(localized("Shadows")), Self.amount(localized("Highlights")),
             ]) { v in .lighting(brightness: v[0], contrast: v[1], gamma: v[2], shadows: v[3], highlights: v[4]) }]
         case .colors:
             [
-                AdjustmentSection(title: "Color", sliders: [
-                    AdjustmentSlider(title: "Hue", range: -180...180, defaultValue: 0, unit: "°"),
-                    Self.amount("Saturation"), Self.amount("Lightness"),
-                    Self.amount("Temperature"), Self.amount("Tint"),
+                AdjustmentSection(title: localized("Color"), sliders: [
+                    AdjustmentSlider(title: localized("Hue"), range: -180...180, defaultValue: 0, unit: "°"),
+                    Self.amount(localized("Saturation")), Self.amount(localized("Lightness")),
+                    Self.amount(localized("Temperature")), Self.amount(localized("Tint")),
                 ]) { v in .colors(hue: v[0], saturation: v[1], lightness: v[2], temperature: v[3], tint: v[4]) },
                 AdjustmentSection(title: "RGB", sliders: [
-                    Self.amount("Red"), Self.amount("Green"), Self.amount("Blue"),
+                    Self.amount(localized("Red")), Self.amount(localized("Green")), Self.amount(localized("Blue")),
                 ]) { v in .rgbAdjust(red: v[0], green: v[1], blue: v[2]) },
             ]
         case .sharpen:
             [AdjustmentSection(title: nil, sliders: [
-                AdjustmentSlider(title: "Amount", range: 0...5, defaultValue: 1, decimals: 2),
-                AdjustmentSlider(title: "Radius", range: 0.5...20, defaultValue: 1.5, decimals: 1, unit: " px"),
+                AdjustmentSlider(title: localized("Amount"), range: 0...5, defaultValue: 1, decimals: 2),
+                AdjustmentSlider(title: localized("Radius"), range: 0.5...20, defaultValue: 1.5, decimals: 1, unit: " px"),
             ]) { v in .sharpen(amount: v[0], radius: v[1]) }]
         case .blur:
             [AdjustmentSection(title: nil, sliders: [
-                AdjustmentSlider(title: "Radius", range: 0.5...100, defaultValue: 2, decimals: 1, unit: " px"),
+                AdjustmentSlider(title: localized("Radius"), range: 0.5...100, defaultValue: 2, decimals: 1, unit: " px"),
             ]) { v in .blur(radius: v[0]) }]
         case .straighten:
             [AdjustmentSection(title: nil, sliders: [
-                AdjustmentSlider(title: "Angle", range: -45...45, defaultValue: 0, decimals: 1, unit: "°"),
+                AdjustmentSlider(title: localized("Angle"), range: -45...45, defaultValue: 0, decimals: 1, unit: "°"),
             ]) { v in .rotate(degrees: v[0], autoCrop: true) }]
         case .noiseReduction:
             [AdjustmentSection(title: nil, sliders: [
-                AdjustmentSlider(title: "Level", range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
-                AdjustmentSlider(title: "Sharpness", range: 0...2, defaultValue: 0.4, decimals: 2),
+                AdjustmentSlider(title: localized(.init("Level", comment: "Noun: how strongly noise is removed")),
+                    range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
+                AdjustmentSlider(title: localized("Sharpness"), range: 0...2, defaultValue: 0.4, decimals: 2),
             ]) { v in .noiseReduction(level: v[0], sharpness: v[1]) }]
         case .vignette:
             [AdjustmentSection(title: nil, sliders: [
-                AdjustmentSlider(title: "Amount", range: -1...1, defaultValue: 0.5, displayScale: 100),
-                AdjustmentSlider(title: "Radius", range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
-                AdjustmentSlider(title: "Feather", range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
+                AdjustmentSlider(title: localized("Amount"), range: -1...1, defaultValue: 0.5, displayScale: 100),
+                AdjustmentSlider(title: localized("Radius"), range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
+                AdjustmentSlider(title: localized(.init("Feather", comment: "Noun: how soft the vignette's edge is")),
+                    range: 0...1, defaultValue: 0.5, displayScale: 100, unit: "%"),
             ]) { v in .vignette(amount: v[0], radius: v[1], feather: v[2]) }]
         }
     }

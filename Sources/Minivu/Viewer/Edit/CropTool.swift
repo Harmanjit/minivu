@@ -11,8 +11,8 @@ nonisolated enum CropAspect: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .free: "Free"
-        case .original: "Original"
+        case .free: localized(.init("Free", comment: "Crop aspect ratio: any shape"))
+        case .original: localized(.init("Original", comment: "Crop aspect ratio: the image's own"))
         case .square: "1:1"
         case .fourThree: "4:3"
         case .threeTwo: "3:2"
@@ -215,7 +215,7 @@ nonisolated struct CropSelection: Equatable, Sendable {
         portrait = imageSize.height > imageSize.width
     }
 
-    var title: String { "Crop" }
+    var title: String { localized(.init("Crop", comment: "Verb: crop the image")) }
     var hasPendingChanges: Bool { selection.pixelRect != selection.bounds }
 
     func setPreset(_ preset: CropAspect) {

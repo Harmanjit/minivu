@@ -25,7 +25,7 @@ struct CurvesInspectorView: View {
                     }
                 }
             } footer: {
-                InspectorFootnote("Click to add a point. Drag a point off the grid or double-click it to remove it.")
+                InspectorFootnote(localized("Click to add a point. Drag a point off the grid or double-click it to remove it."))
             }
         }
     }

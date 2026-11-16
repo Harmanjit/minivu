@@ -13,9 +13,9 @@ nonisolated enum ToneChannel: Int, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .rgb: "RGB"
-        case .red: "Red"
-        case .green: "Green"
-        case .blue: "Blue"
+        case .red: localized("Red")
+        case .green: localized("Green")
+        case .blue: localized("Blue")
         }
     }
 }
@@ -125,7 +125,7 @@ extension ToneCurves {
         self.document = document
     }
 
-    var title: String { "Curves" }
+    var title: String { localized("Curves") }
     var hasPendingChanges: Bool { document.preview != nil }
 
     var points: [CurvePoint] { curves[channel] }
@@ -234,7 +234,7 @@ extension Levels {
         self.document = document
     }
 
-    var title: String { "Levels" }
+    var title: String { localized(.init("Levels", comment: "Adjustment: black point, white point and gamma")) }
     var hasPendingChanges: Bool { document.preview != nil }
 
     var current: LevelsChannel { levels[channel] }

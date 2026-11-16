@@ -32,7 +32,7 @@ import MinivuRender
         self.document = document
     }
 
-    var title: String { "Remove Background" }
+    var title: String { localized("Remove Background") }
     var hasPendingChanges: Bool { document.preview != nil }
     var isTransparent: Bool { fill.alpha == 0 }
 
@@ -119,7 +119,7 @@ struct RemoveBackgroundInspectorView: View {
                 }
             } footer: {
                 if state.search == .none {
-                    InspectorFootnote("This works best on a photo with a clear subject, such as a person, a pet or an object, standing out from its background.")
+                    InspectorFootnote(localized("This works best on a photo with a clear subject, such as a person, a pet or an object, standing out from its background."))
                 }
             }
             Section {
@@ -130,7 +130,7 @@ struct RemoveBackgroundInspectorView: View {
             } header: {
                 Text("Background")
             } footer: {
-                InspectorFootnote("PNG, TIFF and HEIC keep the transparency; saving as JPEG fills it with Save As’s background colour.")
+                InspectorFootnote(localized("PNG, TIFF and HEIC keep the transparency; saving as JPEG fills it with Save As’s background colour."))
             }
             .disabled(state.search != .found)
         }

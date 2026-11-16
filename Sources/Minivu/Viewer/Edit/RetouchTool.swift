@@ -86,7 +86,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         brushSize = Self.defaultBrushSize(for: imageSize)
     }
 
-    var title: String { mode == .clone ? "Clone Stamp" : "Healing Brush" }
+    var title: String { mode == .clone ? localized("Clone Stamp") : localized("Healing Brush") }
     var hasPendingChanges: Bool { !strokes.isEmpty }
 
     // MARK: - Brush
@@ -191,8 +191,11 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         onChange?()
     }
 
-    var undoStepTitle: String? { strokes.isEmpty ? nil : "Stroke" }
-    var redoStepTitle: String? { redoStack.isEmpty ? nil : "Stroke" }
+    var undoStepTitle: String? { strokes.isEmpty ? nil : Self.strokeStepName }
+    var redoStepTitle: String? { redoStack.isEmpty ? nil : Self.strokeStepName }
+    private static var strokeStepName: String {
+        localized(.init("retouch.stroke", defaultValue: "Stroke", comment: "Undo step: one brush stroke"))
+    }
     func undoStep() -> Bool { undoStroke() }
     func redoStep() -> Bool { redoStroke() }
 
@@ -315,7 +318,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         self.imageSize = imageSize
     }
 
-    var title: String { "Red-Eye Removal" }
+    var title: String { localized("Red-Eye Removal") }
     var hasPendingChanges: Bool { !spots.isEmpty }
 
     var shortSide: Double { max(1, Double(min(imageSize.width, imageSize.height))) }
@@ -350,7 +353,7 @@ nonisolated enum RetouchSource: Equatable, Sendable {
         changed()
     }
 
-    var undoStepTitle: String? { spots.isEmpty ? nil : "Red-Eye Circle" }
+    var undoStepTitle: String? { spots.isEmpty ? nil : localized(.init("Red-Eye Circle", comment: "Undo step: a circle marking a red pupil")) }
     var redoStepTitle: String? { nil }
     func undoStep() -> Bool { removeLastSpot() }
     func redoStep() -> Bool { false }

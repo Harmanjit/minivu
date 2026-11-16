@@ -10,13 +10,13 @@ nonisolated enum EffectKind: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .dropShadow: "Drop Shadow"
-        case .frame: "Frame"
-        case .bumpMap: "Bump Map"
-        case .sketch: "Sketch"
-        case .oilPaint: "Oil Painting"
-        case .lens: "Lens"
-        case .watermark: "Watermark"
+        case .dropShadow: localized("Drop Shadow")
+        case .frame: localized(.init("Frame", comment: "Effect: a picture frame (border) around the image, not a video frame"))
+        case .bumpMap: localized("Bump Map")
+        case .sketch: localized(.init("Sketch", comment: "Effect: pencil drawing"))
+        case .oilPaint: localized("Oil Painting")
+        case .lens: localized(.init("effect.lens", defaultValue: "Lens", comment: "Effect: magnifying-lens distortion"))
+        case .watermark: localized("Watermark")
         }
     }
 }
@@ -167,23 +167,23 @@ struct DropShadowInspectorView: View {
     var body: some View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
-                state.slider(\.offsetX, "Offset X", range: DropShadow.offsetRange, displayScale: 100, decimals: 1, unit: "%")
-                state.slider(\.offsetY, "Offset Y", range: DropShadow.offsetRange, displayScale: 100, decimals: 1, unit: "%")
-                state.slider(\.blur, "Blur", range: DropShadow.blurRange, displayScale: 100, decimals: 1, unit: "%")
-                state.slider(\.opacity, "Opacity", range: 0...1, displayScale: 100, unit: "%")
+                state.slider(\.offsetX, localized("Offset X"), range: DropShadow.offsetRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.offsetY, localized("Offset Y"), range: DropShadow.offsetRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.blur, localized("Blur"), range: DropShadow.blurRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.opacity, localized("Opacity"), range: 0...1, displayScale: 100, unit: "%")
                 ColorPicker("Color", selection: state.colorBinding(\.color), supportsOpacity: false)
             } header: {
                 Text("Shadow")
             }
             Section {
-                state.slider(\.margin, "Margin", range: DropShadow.marginRange, displayScale: 100, decimals: 1, unit: "%")
-                state.slider(\.cornerRadius, "Corner radius", range: DropShadow.cornerRadiusRange, displayScale: 100,
+                state.slider(\.margin, localized("Margin"), range: DropShadow.marginRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.cornerRadius, localized("Corner radius"), range: DropShadow.cornerRadiusRange, displayScale: 100,
                              decimals: 1, unit: "%")
                 ColorPicker("Background", selection: state.colorBinding(\.background), supportsOpacity: true)
             } header: {
                 Text("Canvas")
             } footer: {
-                InspectorFootnote("Sizes are percentages of the photo’s short side. A transparent background is kept by PNG, TIFF and HEIC.")
+                InspectorFootnote(localized("Sizes are percentages of the photo’s short side. A transparent background is kept by PNG, TIFF and HEIC."))
             }
         }
     }
@@ -199,7 +199,7 @@ struct FrameInspectorView: View {
                 Picker("Style", selection: state.binding(\.kind)) {
                     ForEach(FrameStyle.Kind.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                state.slider(\.width, "Width", range: FrameStyle.widthRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.width, localized("Width"), range: FrameStyle.widthRange, displayScale: 100, decimals: 1, unit: "%")
                 ColorPicker(state.payload.kind == .matte ? "Mat" : "Color", selection: state.colorBinding(\.color),
                             supportsOpacity: false)
             } footer: {
@@ -210,7 +210,8 @@ struct FrameInspectorView: View {
             if state.payload.kind == .matte {
                 Section {
                     ColorPicker("Outer band", selection: state.colorBinding(\.accentColor), supportsOpacity: false)
-                    state.slider(\.lineWidth, "Keyline", range: FrameStyle.lineWidthRange, displayScale: 100,
+                    state.slider(\.lineWidth, localized(.init("Keyline", comment: "Frame effect: a thin line between the photo and the mat")),
+                        range: FrameStyle.lineWidthRange, displayScale: 100,
                                  decimals: 1, unit: "%")
                     ColorPicker("Keyline color", selection: state.colorBinding(\.lineColor), supportsOpacity: false)
                 } header: {
@@ -224,8 +225,8 @@ struct FrameInspectorView: View {
 
     private var footnote: String {
         switch state.payload.kind {
-        case .polaroid: "The bottom is three and a half times as deep. Widths are percentages of the photo’s short side."
-        default: "Widths are percentages of the photo’s short side."
+        case .polaroid: localized("The bottom is three and a half times as deep. Widths are percentages of the photo’s short side.")
+        default: localized("Widths are percentages of the photo’s short side.")
         }
     }
 }
@@ -237,15 +238,16 @@ struct BumpMapInspectorView: View {
     var body: some View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
-                state.slider(\.strength, "Strength", range: BumpMap.strengthRange, decimals: 2)
-                state.slider(\.step, "Relief size", range: BumpMap.stepRange, decimals: 1, unit: " px")
-                state.slider(\.blend, "Color", range: 0...1, displayScale: 100, unit: "%")
+                state.slider(\.strength, localized("Strength"), range: BumpMap.strengthRange, decimals: 2)
+                state.slider(\.step, localized("Relief size"), range: BumpMap.stepRange, decimals: 1, unit: " px")
+                state.slider(\.blend, localized("Color"), range: 0...1, displayScale: 100, unit: "%")
             } footer: {
-                InspectorFootnote("At 0% color the relief shows alone, in gray.")
+                InspectorFootnote(localized("At 0% color the relief shows alone, in gray."))
             }
             Section {
-                state.slider(\.angle, "Angle", range: 0...360, unit: "°")
-                state.slider(\.elevation, "Elevation", range: BumpMap.elevationRange, unit: "°")
+                state.slider(\.angle, localized("Angle"), range: 0...360, unit: "°")
+                state.slider(\.elevation, localized(.init("Elevation", comment: "Angle of the light above the image")),
+                    range: BumpMap.elevationRange, unit: "°")
             } header: {
                 Text("Light")
             }
@@ -263,10 +265,10 @@ struct SketchInspectorView: View {
                 Picker("Style", selection: state.binding(\.style)) {
                     ForEach(Sketch.Style.allCases, id: \.self) { Text($0.title).tag($0) }
                 }
-                state.slider(\.strength, "Strength", range: Sketch.strengthRange, displayScale: 100, unit: "%")
-                state.slider(\.radius, "Line width", range: Sketch.radiusRange, decimals: 1, unit: " px")
+                state.slider(\.strength, localized("Strength"), range: Sketch.strengthRange, displayScale: 100, unit: "%")
+                state.slider(\.radius, localized("Line width"), range: Sketch.radiusRange, decimals: 1, unit: " px")
             } footer: {
-                InspectorFootnote("Wider lines pick up softer edges.")
+                InspectorFootnote(localized("Wider lines pick up softer edges."))
             }
         }
     }
@@ -279,10 +281,12 @@ struct OilPaintInspectorView: View {
     var body: some View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
-                state.slider(\.radius, "Brush size", range: OilPaint.radiusRange, decimals: 1, unit: " px")
-                state.slider(\.levelsValue, "Levels", range: Double(OilPaint.levelsRange.lowerBound)...Double(OilPaint.levelsRange.upperBound))
+                state.slider(\.radius, localized("Brush size"), range: OilPaint.radiusRange, decimals: 1, unit: " px")
+                state.slider(\.levelsValue, localized(.init("effects.oilpaint.levels", defaultValue: "Levels",
+                                                                comment: "Oil painting: how many steps of colour the paint uses")),
+                             range: Double(OilPaint.levelsRange.lowerBound)...Double(OilPaint.levelsRange.upperBound))
             } footer: {
-                InspectorFootnote("Brush size is in pixels of the full image; zoom to 100% to judge it. Fewer levels paint flatter patches.")
+                InspectorFootnote(localized("Brush size is in pixels of the full image; zoom to 100% to judge it. Fewer levels paint flatter patches."))
             }
         }
     }
@@ -295,12 +299,12 @@ struct LensInspectorView: View {
     var body: some View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
-                state.slider(\.magnification, "Magnification", range: LensEffect.magnificationRange, decimals: 2,
+                state.slider(\.magnification, localized("Magnification"), range: LensEffect.magnificationRange, decimals: 2,
                              unit: "×", logarithmic: true)
-                state.slider(\.radius, "Radius", range: LensEffect.radiusRange, displayScale: 100, unit: "%")
+                state.slider(\.radius, localized("Radius"), range: LensEffect.radiusRange, displayScale: 100, unit: "%")
                 Toggle("Glass rim", isOn: state.binding(\.ring))
             } footer: {
-                InspectorFootnote("Drag inside the circle to move the lens, or its edge to resize it. Below 1× the lens pinches.")
+                InspectorFootnote(localized("Drag inside the circle to move the lens, or its edge to resize it. Below 1× the lens pinches."))
             }
         }
     }
