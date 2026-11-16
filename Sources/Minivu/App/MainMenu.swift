@@ -306,6 +306,7 @@ enum MainMenu {
 
     private static func goMenu(_ viewKeys: DisplayOnlyShortcuts) -> NSMenu {
         let menu = NSMenu(title: localized(.init("Go", comment: "Menu bar menu: moving between images and folders")))
+        menu.identifier = .go
         menu.delegate = viewKeys
         viewKeys.add(menu.add("Next Image", .nextImage), key: Key.right)
         viewKeys.add(menu.add("Previous Image", .previousImage), key: Key.left)
@@ -333,6 +334,7 @@ enum MainMenu {
     /// have none.
     private static func toolsMenu() -> NSMenu {
         let menu = NSMenu(title: localized(.init("Tools", comment: "Menu bar menu")))
+        menu.identifier = .tools
         menu.add("Start Slideshow", .startSlideshow, "f", [.command, .shift])
         menu.add("Export Slideshow Video…", .exportSlideshowVideo)
         menu.addItem(.separator())
@@ -470,8 +472,23 @@ extension SortKey {
 
 extension NSUserInterfaceItemIdentifier {
     static let services = NSUserInterfaceItemIdentifier("minivu.menu.services")
+    static let go = NSUserInterfaceItemIdentifier("minivu.menu.go")
+    static let tools = NSUserInterfaceItemIdentifier("minivu.menu.tools")
     static let window = NSUserInterfaceItemIdentifier("minivu.menu.window")
     static let help = NSUserInterfaceItemIdentifier("minivu.menu.help")
+}
+
+extension NSMenu {
+    /// The submenu (at any depth) with this identifier: menus are found by
+    /// identifier, never by their localized titles.
+    func submenu(_ id: NSUserInterfaceItemIdentifier) -> NSMenu? {
+        for item in items {
+            guard let sub = item.submenu else { continue }
+            if sub.identifier == id { return sub }
+            if let found = sub.submenu(id) { return found }
+        }
+        return nil
+    }
 }
 
 private extension NSMenu {
@@ -498,15 +515,5 @@ private extension NSMenu {
     /// Adds an item for `submenu`, titled as the submenu is.
     func add(submenu: NSMenu) {
         add(title: submenu.title, nil).submenu = submenu
-    }
-
-    /// The submenu (at any depth) with this identifier.
-    func submenu(_ id: NSUserInterfaceItemIdentifier) -> NSMenu? {
-        for item in items {
-            guard let sub = item.submenu else { continue }
-            if sub.identifier == id { return sub }
-            if let found = sub.submenu(id) { return found }
-        }
-        return nil
     }
 }
