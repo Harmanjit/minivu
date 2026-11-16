@@ -29,12 +29,12 @@ nonisolated func unitText(_ value: Double, decimals: Int, unit: String) -> Strin
     }
 }
 
-/// Names as a list in the user's language ("A, B, and C"), at most `limit` of
-/// them and then how many more.
+/// Names as a list in the interface language ("A, B, and C"), at most
+/// `limit` of them and then how many more.
 nonisolated func listText(_ names: [String], limit: Int = .max) -> String {
     var shown = Array(names.prefix(limit))
     if names.count > limit {
         shown.append(localized(.init("\(names.count - limit) more", comment: "End of a list of names: how many more")))
     }
-    return shown.formatted(.list(type: .and))
+    return shown.formatted(.list(type: .and).locale(Bundle.minivuHelp.interfaceLocale))
 }

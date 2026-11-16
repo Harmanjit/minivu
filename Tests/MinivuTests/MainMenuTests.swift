@@ -25,6 +25,7 @@ import MinivuCore
 
     @Test func topLevelOrder() {
         #expect(bar.items.map(\.title) == ["minivu", "File", "Edit", "View", "Image", "Go", "Tools", "Window", "Help"])
+        #expect(bar.items.map(\.submenu?.identifier) == [.app, .file, .edit, .view, .image, .go, .tools, .window, .help])
     }
 
     /// Two items with the same shortcut would make one of them unreachable.
@@ -66,7 +67,7 @@ import MinivuCore
     }
 
     @Test func editingItems() throws {
-        let image = try #require(bar.items.first { $0.title == "Image" }?.submenu)
+        let image = try #require(bar.submenu(.image))
         let titles = image.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Fit to Window", "Actual Size", "Zoom In", "Zoom Out", "-",
                            "Rotate Left", "Rotate Right", "Flip Horizontal", "Flip Vertical", "-",
@@ -75,28 +76,28 @@ import MinivuCore
                            "Edit Comment…", "Edit Metadata…", "-",
                            "Play Animation", "Mute Video", "-", "Rating", "Tag", "Label", "-",
                            "Compare Selected", "Histogram", "Count Colors"])
-        let adjust = try #require(image.items.first { $0.title == "Adjust" }?.submenu)
+        let adjust = try #require(image.submenu(.adjust))
         #expect(adjust.items.compactMap(\.action) == [.adjustRaw, .adjustLighting, .adjustColors, .adjustCurves,
                                                       .adjustLevels,
                                                       .autoEnhance, .sharpenImage, .blurImage, .reduceNoise])
         // Copy Subject follows Copy and Copy Text, with no key of its own.
-        let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
+        let edit = try #require(bar.submenu(.edit))
         let copy = try #require(edit.items.firstIndex { $0.action == #selector(NSText.copy(_:)) })
         #expect(edit.items[copy + 2].action == .copySubject && edit.items[copy + 2].keyEquivalent.isEmpty)
         // A video's frame (G18): Copy Frame after them, Save Frame As after
         // Save As, neither with a key.
         #expect(edit.items[copy + 3].action == .copyFrame && edit.items[copy + 3].keyEquivalent.isEmpty)
-        let effects = try #require(image.items.first { $0.title == "Effects" }?.submenu)
+        let effects = try #require(image.submenu(.effects))
         #expect(effects.items.compactMap(\.action) == [.applyGrayscale, .applySepia, .applyNegative, .addDropShadow,
                                                        .addFrame, .applyBumpMap, .applySketch, .applyOilPaint, .applyLens,
                                                        .addVignette])
-        let retouch = try #require(image.items.first { $0.title == "Retouch" }?.submenu)
+        let retouch = try #require(image.submenu(.retouch))
         #expect(retouch.items.compactMap(\.action) == [.cloneStamp, .healingBrush, .removeRedEye])
         // ⌘I, free everywhere else (the viewer's bare I ignores Command).
         let metadata = try item("Edit Metadata…")
         #expect(metadata.action == .editMetadata && metadata.keyEquivalent == "i"
             && metadata.keyEquivalentModifierMask == .command)
-        let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
+        let file = try #require(bar.submenu(.file))
         #expect(file.items.compactMap(\.action).filter { [.saveImage, .saveImageAs, .saveFrameAs, .revertToSaved].contains($0) }
             == [.saveImage, .saveImageAs, .saveFrameAs, .revertToSaved])
         #expect(try item("Save Frame As…").keyEquivalent.isEmpty)
@@ -184,21 +185,21 @@ import MinivuCore
     /// File gains New Folder, Rename and the Copy To and Move To submenus
     /// (recent folders, then Choose Folder…); View gains Filter.
     @Test func managementItems() throws {
-        let file = try #require(bar.items.first { $0.title == "File" }?.submenu)
+        let file = try #require(bar.submenu(.file))
         let titles = file.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Open Folder…", "Add Folder to Sidebar…", "New Folder", "-", "Open in Viewer", "Close Window",
                            "Save", "Save As…", "Save Frame As…", "Revert to Saved", "Save Edits as Preset…", "-", "Rename",
                            "Copy To", "Move To", "-",
                            "New Collection…", "Add to Collection", "Remove from Collection", "Save as Smart Folder…", "-",
                            "Reveal in Finder", "Share…", "Move to Trash", "-", "Page Setup…", "Print…"])
-        let copyTo = try #require(file.items.first { $0.title == "Copy To" }?.submenu)
-        let moveTo = try #require(file.items.first { $0.title == "Move To" }?.submenu)
+        let copyTo = try #require(file.submenu(.copyTo))
+        let moveTo = try #require(file.submenu(.moveTo))
         #expect(copyTo.items.last?.title == "Choose Folder…" && copyTo.items.last?.action == .copyToFolder)
         #expect(moveTo.items.last?.title == "Choose Folder…" && moveTo.items.last?.action == .moveToFolder)
         #expect(copyTo.delegate is RecentDestinationsMenu, "the recent folders are filled in when it opens")
 
-        let view = try #require(bar.items.first { $0.title == "View" }?.submenu)
-        let filter = try #require(view.items.first { $0.title == "Filter" }?.submenu)
+        let view = try #require(bar.submenu(.view))
+        let filter = try #require(view.submenu(.filter))
         #expect(filter.items.map { $0.isSeparatorItem ? "-" : $0.title }
             == ["Show All", "-", "★ or More", "★★ or More", "★★★ or More", "★★★★ or More", "★★★★★", "-", "Tagged Only",
                 "-", "Photos Only", "Videos Only", "-", "More Filters…"])
@@ -237,7 +238,7 @@ import MinivuCore
 
     /// Tools (Phase 7): the commands, their shortcuts, and the submenus.
     @Test func toolsItems() throws {
-        let tools = try #require(bar.items.first { $0.title == "Tools" }?.submenu)
+        let tools = try #require(bar.submenu(.tools))
         let titles = tools.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles == ["Start Slideshow", "Export Slideshow Video…", "-", "Batch Convert…", "Batch Rename…",
                            "Extract Pages…", "Find Duplicates…", "-",
@@ -256,7 +257,7 @@ import MinivuCore
         #expect(rename.keyEquivalent == MainMenu.Key.f2 && rename.keyEquivalentModifierMask == [.shift])
         let duplicates = try item("Find Duplicates…")
         #expect(duplicates.action == .findDuplicates && duplicates.keyEquivalent.isEmpty)
-        let capture = try #require(tools.items.first { $0.title == "Capture" }?.submenu)
+        let capture = try #require(tools.submenu(.capture))
         #expect(capture.items.compactMap(\.action) == [.captureScreen, .captureWindow, .captureSelection])
         let editors = try #require(tools.items.last?.submenu)
         #expect(editors.items.last?.action == .manageExternalEditors)
@@ -302,7 +303,7 @@ import MinivuCore
     /// Live Text setting in View, Share… beside Reveal in Finder with no
     /// shortcut, as in Finder.
     @Test func liveTextAndShareItems() throws {
-        let edit = try #require(bar.items.first { $0.title == "Edit" }?.submenu)
+        let edit = try #require(bar.submenu(.edit))
         let titles = edit.items.map { $0.isSeparatorItem ? "-" : $0.title }
         #expect(titles.firstIndex(of: "Copy Text") == titles.firstIndex(of: "Copy").map { $0 + 1 })
         let copyText = try item("Copy Text")
@@ -311,10 +312,10 @@ import MinivuCore
 
         let liveText = try item("Live Text")
         #expect(liveText.action == #selector(AppDelegate.toggleLiveText(_:)) && liveText.keyEquivalent.isEmpty)
-        #expect(liveText.menu?.title == "View")
+        #expect(liveText.menu?.identifier == .view)
 
         let share = try item("Share…")
-        #expect(share.action == .shareFiles && share.keyEquivalent.isEmpty && share.menu?.title == "File")
+        #expect(share.action == .shareFiles && share.keyEquivalent.isEmpty && share.menu?.identifier == .file)
         #expect(GridCollectionView.itemMenu().items.contains { $0.action == .shareFiles })
     }
 
@@ -326,9 +327,9 @@ import MinivuCore
 
     @Test func specialMenusAreFound() {
         MainMenu.install()
-        #expect(NSApp.servicesMenu?.title == "Services")
-        #expect(NSApp.windowsMenu?.title == "Window")
-        #expect(NSApp.helpMenu?.title == "Help")
+        #expect(NSApp.servicesMenu?.identifier == .services)
+        #expect(NSApp.windowsMenu?.identifier == .window)
+        #expect(NSApp.helpMenu?.identifier == .help)
     }
 
     /// The arrows are shown in the Go menu but must never be taken from the
@@ -353,7 +354,7 @@ import MinivuCore
         let play = try item("Play Animation")
         #expect(nextPage.action == .nextPage && previousPage.action == .previousPage)
         #expect(play.action == .togglePlayback)
-        #expect(nextPage.menu?.title == "Go" && play.menu?.title == "Image")
+        #expect(nextPage.menu?.identifier == .go && play.menu?.identifier == .image)
         for item in [nextPage, previousPage, play] {
             #expect(item.keyEquivalent.isEmpty)
         }

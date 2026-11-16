@@ -43,8 +43,12 @@ extension Bundle {
     }
 
     /// The bundle's language with the user's region, rebuilt only when the
-    /// user's locale changes.
-    private nonisolated var interfaceLocale: Locale {
+    /// user's locale changes: the locale `localizedText` uses. Format numbers
+    /// and lists that sit inside localized text with it, so they follow the
+    /// interface language (an English list joined with "and" in English
+    /// text) rather than the user's first preferred language, which the app
+    /// may not have.
+    public nonisolated var interfaceLocale: Locale {
         let current = Locale.current
         let region = current.identifier
         if let cached = interfaceLocales.withLock({ $0[bundleURL] }), cached.region == region { return cached.locale }
@@ -60,7 +64,14 @@ private nonisolated let interfaceLocales = Mutex<[URL: (region: String, locale: 
 
 /// What a key is, found once per key: the English itself (a literal, maybe
 /// interpolated), or a key of its own, with or without arguments.
-private enum KeyKind { case english, key, keyWithArguments }
+///
+/// The cache is keyed by the key alone, so one key must always come with the
+/// same kind of default value. `localized(.init("status.images", defaultValue:
+/// "\(count) images"))` in one place and `defaultValue: "No images"` in
+/// another would make the second (or the first) look the string up with the
+/// wrong arguments. A debug build checks every cached lookup against a fresh
+/// one and stops on such a clash; give the second use a key of its own.
+enum KeyKind: Sendable, Equatable { case english, key, keyWithArguments }
 private nonisolated let keyKinds = Mutex<[String: KeyKind]>([:])
 
 extension LocalizedStringResource {
@@ -70,22 +81,40 @@ extension LocalizedStringResource {
     /// arguments, so that round trip runs only for a key with arguments,
     /// and the first time a key is seen.
     nonisolated var keyedValue: String.LocalizationValue? {
-        switch keyKinds.withLock({ $0[key] }) {
+        if let cached = keyKinds.withLock({ $0[key] }) {
+            #if DEBUG
+            let fresh = keyedValueKind.kind
+            assert(fresh == cached, "The localized key “\(key)” is used both as \(cached) and as \(fresh); "
+                   + "give one of them a key of its own (docs/feature-notes/l10n.md, Keys)")
+            #endif
+            switch cached {
+            case .english: return nil
+            case .key: return String.LocalizationValue(key)
+            case .keyWithArguments: break
+            }
+        }
+        let (kind, json) = keyedValueKind
+        keyKinds.withLock { $0[key] = kind }
+        switch kind {
         case .english: return nil
         case .key: return String.LocalizationValue(key)
-        case .keyWithArguments, nil: break
+        case .keyWithArguments:
+            guard var json else { return nil }
+            json["key"] = key
+            return try? JSONDecoder().decode(String.LocalizationValue.self,
+                                             from: JSONSerialization.data(withJSONObject: json))
         }
+    }
+
+    /// The key's kind, worked out from the default value (not cached), and
+    /// the default value's Codable form when it was needed.
+    nonisolated var keyedValueKind: (kind: KeyKind, json: [String: Any]?) {
         guard defaultValue != String.LocalizationValue(key),
-              var json = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(defaultValue))) as? [String: Any],
+              let json = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(defaultValue))) as? [String: Any],
               json["key"] as? String != key else {
-            keyKinds.withLock { $0[key] = .english }
-            return nil
+            return (.english, nil)
         }
         let hasArguments = (json["arguments"] as? [Any])?.isEmpty == false
-        keyKinds.withLock { $0[key] = hasArguments ? .keyWithArguments : .key }
-        guard hasArguments else { return String.LocalizationValue(key) }
-        json["key"] = key
-        return try? JSONDecoder().decode(String.LocalizationValue.self,
-                                         from: JSONSerialization.data(withJSONObject: json))
+        return (hasArguments ? .keyWithArguments : .key, json)
     }
 }

@@ -408,9 +408,11 @@ public enum MetadataReader {
     /// Degrees, minutes and seconds with a hemisphere: 48.858222 N ->
     /// "48° 51′ 29.6″ N". ImageIO gives positive numbers plus a reference
     /// letter; a negative number flips the hemisphere too. The seconds take
-    /// `locale`'s decimal mark ("29,6″" in German).
+    /// `locale`'s decimal mark ("29,6″" in German); without one, the
+    /// interface locale's, as the rest of the localized text.
     static func formatCoordinate(_ value: Double, ref: String?, positive: String, negative: String,
-                                 locale: Locale = .autoupdatingCurrent) -> String {
+                                 locale: Locale? = nil) -> String {
+        let locale = locale ?? Bundle.module.interfaceLocale
         var hemisphere = ref?.uppercased() == negative ? negative : positive
         if value < 0 { hemisphere = hemisphere == positive ? negative : positive }
         // Work in tenths of a second so rounding carries into minutes and
