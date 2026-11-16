@@ -18,9 +18,11 @@ nonisolated struct FolderSnapshot: Sendable {
     ///   - marks: ratings by file name, for sorting by rating.
     ///   - customOrder: the catalog's arrangement, for Custom Order.
     ///   - keysByPath: entries from several folders (`keysByPath`). Custom
-    ///     Order is a folder's own, so such a list shows it by name.
+    ///     Order is a folder's own, so such a list shows it by name...
+    ///   - keepsListOrder: ...unless the images come in an order of their
+    ///     own (a collection's, as they were added), which Custom Order shows.
     init(contents: FolderContents, order: FileSortOrder, marks: [String: Catalog.Marks] = [:],
-         customOrder: [String] = [], keysByPath: Bool = false) {
+         customOrder: [String] = [], keysByPath: Bool = false, keepsListOrder: Bool = false) {
         folder = contents.folder
         self.keysByPath = keysByPath
         let images: [FolderEntry]
@@ -29,6 +31,9 @@ nonisolated struct FolderSnapshot: Sendable {
         case .rating:
             images = MarksOrdering.byRating(contents.images, marks: marks, ascending: order.ascending,
                                             key: { Self.key(of: $0, byPath: keysByPath) })
+            folderOrder = FileSortOrder()
+        case .custom where keysByPath && keepsListOrder:
+            images = order.ascending ? contents.images : contents.images.reversed()
             folderOrder = FileSortOrder()
         case .custom where keysByPath:
             images = FolderListing.sorted(contents.images, by: FileSortOrder(key: .name, ascending: order.ascending))
@@ -645,6 +650,7 @@ nonisolated struct FolderSnapshot: Sendable {
         isListing = true
         let generation = self.generation
         let list = self.list, root = self.folder, hidden = showHiddenFiles, order = sortOrder
+        let keepsListOrder = if case .collection? = list?.kind { true } else { false }
         let treeLister = self.treeLister, listLoader = self.listLoader, catalog = self.catalog
         let fileMarksCache = self.fileMarksCache
         let previous = snapshot?.keysByPath == true ? snapshot?.entries ?? [] : []
@@ -667,7 +673,7 @@ nonisolated struct FolderSnapshot: Sendable {
                         lastShown = .now
                         let partial = Perf.measure("flat.partialSort") {
                             FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
-                                           order: order, keysByPath: true)
+                                           order: order, keysByPath: true, keepsListOrder: keepsListOrder)
                         }
                         DispatchQueue.main.async {
                             MainActor.assumeIsolated { self?.showPartial(partial, generation: generation) }
@@ -690,7 +696,7 @@ nonisolated struct FolderSnapshot: Sendable {
                     let marks = Self.shownMarks(rows: rows, files: own?.marks ?? [:])
                     let snapshot = Perf.measure("folder.sort") {
                         FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
-                                       order: order, marks: marks, keysByPath: true)
+                                       order: order, marks: marks, keysByPath: true, keepsListOrder: keepsListOrder)
                     }
                     let tags = needsFinderTags ? Self.finderTagsByKey(snapshot.entries, byPath: true) : nil
                     return Listing(snapshot: snapshot, changed: Self.changedFiles(old: previous, new: snapshot.entries),
@@ -738,7 +744,10 @@ nonisolated struct FolderSnapshot: Sendable {
     /// A new order for the same listing. If a listing is still being read it
     /// simply starts again with the new order.
     private func resort() {
-        guard let snapshot, state == .loaded, !isListing else {
+        // A collection's own order lives only in the catalog: read it again
+        // (one query) rather than resorting what is shown.
+        let isCollection = if case .collection? = list?.kind { true } else { false }
+        guard let snapshot, state == .loaded, !isListing, !isCollection else {
             reload()
             return
         }

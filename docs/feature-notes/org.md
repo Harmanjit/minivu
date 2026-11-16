@@ -199,8 +199,9 @@ then headers only for files still in the running.
   collection, then New Collection…. Images can also be dragged onto a
   collection's row in the sidebar (they join it; nothing moves).
 - Collections appear under **Collections** in the sidebar (stack symbol);
-  clicking one shows its images in the order they were added, as a list
-  like search results.
+  clicking one shows its images as a list like search results; View > Sort
+  By > Custom Order shows them in the order they were added (reversed when
+  descending).
 - **File > Remove from Collection** (and the right-click menu) while a
   collection is shown takes the selected images out of it, never out of
   their folders.
