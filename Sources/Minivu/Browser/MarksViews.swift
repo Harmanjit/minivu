@@ -50,7 +50,7 @@ final class StarRatingView: NSView {
     override var isFlipped: Bool { true }
 
     override func accessibilityValue() -> Any? { rating }
-    override func accessibilityLabel() -> String? { "Rating" }
+    override func accessibilityLabel() -> String? { localized(.init("Rating", comment: "Noun: star rating")) }
     override func accessibilityMinValue() -> Any? { 0 }
     override func accessibilityMaxValue() -> Any? { 5 }
 
@@ -183,16 +183,25 @@ final class TagDotsView: NSView {
     }
 
     override func accessibilityLabel() -> String? {
-        tags.isEmpty ? nil : "Tags: " + tags.map(\.name).joined(separator: ", ")
+        guard !tags.isEmpty else { return nil }
+        let names = tags.map(\.name).joined(separator: ", ")
+        return localized(.init("Finder tags: \(names)", comment: "VoiceOver: the file's Finder tags, by name"))
     }
 }
 
 /// The "tagged" mark: a checkmark in an accent-coloured circle.
 enum TagBadge {
+    static var taggedText: String {
+        localized(.init("Tagged", comment: "VoiceOver: the image has minivu's tag (a mark, like a flag)"))
+    }
+    static var notTaggedText: String {
+        localized(.init("Not Tagged", comment: "VoiceOver: the image doesn't have minivu's tag (a mark, like a flag)"))
+    }
+
     static func image(pointSize: CGFloat) -> NSImage? {
         let configuration = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
             .applying(NSImage.SymbolConfiguration(paletteColors: [.white, .controlAccentColor]))
-        return NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "Tagged")?
+        return NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: taggedText)?
             .withSymbolConfiguration(configuration)
     }
 
@@ -200,7 +209,7 @@ enum TagBadge {
         let view = NSImageView()
         view.image = image(pointSize: pointSize)
         view.imageScaling = .scaleNone
-        view.setAccessibilityLabel("Tagged")
+        view.setAccessibilityLabel(taggedText)
         // A soft shadow keeps the white check legible on a bright photo.
         view.shadow = {
             let shadow = NSShadow()

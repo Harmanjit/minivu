@@ -1305,15 +1305,14 @@ nonisolated struct FolderSnapshot: Sendable {
     static func message(for error: Error) -> String {
         switch error {
         case FolderListingError.notAllowed:
-            "minivu only works with folders on this Mac’s internal storage."
+            localized("minivu only works with folders on this Mac’s internal storage.")
         case FolderListingError.notPermitted(let url):
             // Most often Go > Enclosing Folder past the folder the user
             // opened, or a Back to one whose access has since gone.
-            "minivu doesn’t have permission to open “\(url.lastPathComponent)”. To give it access, "
-                + "choose File > Open Folder… and select the folder."
+            localized(.init("minivu doesn’t have permission to open “\(url.lastPathComponent)”. To give it access, choose File > Open Folder… and select the folder.",
+                            comment: "File > Open Folder… is the menu command: use its translated names"))
         case FolderListingError.unreadable(let url, _):
-            "“\(url.lastPathComponent)” can’t be opened. It may have been moved or deleted, "
-                + "or minivu may not have permission to read it."
+            localized("“\(url.lastPathComponent)” can’t be opened. It may have been moved or deleted, or minivu may not have permission to read it.")
         default:
             error.localizedDescription
         }
@@ -1613,10 +1612,10 @@ nonisolated struct FolderSnapshot: Sendable {
         var parts: [String] = []
         let stills = images - videos
         if stills > 0 || (videos == 0 && folders == 0) {
-            parts.append(stills == 1 ? "1 image" : "\(stills.formatted()) images")
+            parts.append(localized(.init("\(stills) images", comment: "Status bar and window subtitle")))
         }
-        if videos > 0 { parts.append(videos == 1 ? "1 video" : "\(videos.formatted()) videos") }
-        if folders > 0 { parts.append(folders == 1 ? "1 folder" : "\(folders.formatted()) folders") }
+        if videos > 0 { parts.append(localized(.init("\(videos) videos", comment: "Status bar and window subtitle"))) }
+        if folders > 0 { parts.append(localized(.init("\(folders) folders", comment: "Status bar and window subtitle"))) }
         return parts.joined(separator: ", ")
     }
 
@@ -1625,8 +1624,9 @@ nonisolated struct FolderSnapshot: Sendable {
     nonisolated static func selectionText(selected: Int, total: Int, bytes: Int64, images: Int, videos: Int = 0,
                                           folders: Int) -> String {
         guard selected > 0 else { return countText(images: images, videos: videos, folders: folders) }
-        let count = "\(selected.formatted()) of \(total.formatted()) selected"
-        return bytes > 0 ? "\(count) — \(bytes.formatted(.byteCount(style: .file)))" : count
+        guard bytes > 0 else { return localized(.init("\(selected) of \(total) selected", comment: "Status bar")) }
+        let size = bytes.formatted(.byteCount(style: .file))
+        return localized(.init("\(selected) of \(total) selected — \(size)", comment: "Status bar; %@ is the selected files' total size"))
     }
 
     /// Status bar: the selection, or "12 of 340 shown" while a search or a
@@ -1635,7 +1635,7 @@ nonisolated struct FolderSnapshot: Sendable {
     /// A tree or list (G3) says while it is still being read, and when a
     /// walk limit stopped it, so a short list is never taken for all there is.
     var statusText: String {
-        guard state == .loaded else { return state == .loading && showsManyFolders ? "Searching…" : "" }
+        guard state == .loaded else { return state == .loading && showsManyFolders ? localized(.init("Searching…", comment: "Status bar")) : "" }
         let text: String
         if selection.isEmpty, isFiltering {
             text = Self.shownText(shown: entries.count, total: totalCount)
@@ -1644,13 +1644,15 @@ nonisolated struct FolderSnapshot: Sendable {
                                       images: imageCount, videos: videoCount, folders: folderCount)
         }
         guard showsManyFolders else { return text }
-        if isListing { return text + " — searching…" }
+        if isListing { return localized(.init("\(text) — searching…", comment: "Status bar: the counts so far, while a search runs")) }
         return isTruncated ? text + Self.truncatedNote : text
     }
 
     /// After the status of a tree or list that a walk limit stopped
     /// (`TreeEnumerator.Limits`: 12 levels, 20,000 images, 5,000 folders).
-    nonisolated static let truncatedNote = " — limit reached, not every image is shown"
+    nonisolated static var truncatedNote: String {
+        localized(.init(" — limit reached, not every image is shown", comment: "Appended to the status bar text: keep the leading space and dash"))
+    }
 
     /// A search or a marks or metadata filter is narrowing the folder.
     var isFiltering: Bool {
@@ -1658,7 +1660,7 @@ nonisolated struct FolderSnapshot: Sendable {
     }
 
     nonisolated static func shownText(shown: Int, total: Int) -> String {
-        "\(shown.formatted()) of \(total.formatted()) shown"
+        localized(.init("\(shown) of \(total) shown", comment: "Status bar while a filter hides some images"))
     }
 
     nonisolated static func samePath(_ a: URL, _ b: URL) -> Bool {
