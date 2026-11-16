@@ -79,7 +79,9 @@ import UniformTypeIdentifiers
     /// share one), so the converted file is named after it too.
     nonisolated private static func copy(_ file: IntentFile, into folder: URL) throws -> URL {
         let given = (file.filename as NSString).lastPathComponent
-        var name = given.isEmpty || given.hasPrefix(".") ? "Image" : given
+        var name = given.isEmpty || given.hasPrefix(".")
+            ? localized(.init("automation.file.untitled", defaultValue: "Image", comment: "File name for an image a shortcut passed without one"))
+            : given
         if (name as NSString).pathExtension.isEmpty, let ext = file.type?.preferredFilenameExtension {
             name += "." + ext
         }
