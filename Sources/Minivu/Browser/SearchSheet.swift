@@ -257,7 +257,7 @@ struct SearchFormView: View {
             .formStyle(.grouped)
             Divider()
             HStack {
-                Button("Clear", action: clear)
+                Button(localized(.init("Clear", comment: "Button: empties every field of the form, so it finds or shows everything again")), action: clear)
                 Spacer()
                 Button("Cancel", role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
                 Button(confirmTitle, action: onConfirm).keyboardShortcut(.defaultAction)
@@ -288,7 +288,7 @@ struct FilterFormView: View {
                 .formStyle(.grouped)
             Divider()
             HStack {
-                Button("Clear") { model.clear() }
+                Button(localized(.init("Clear", comment: "Button: empties every field of the form, so it finds or shows everything again"))) { model.clear() }
                 Spacer()
                 Button("Cancel", role: .cancel, action: onCancel).keyboardShortcut(.cancelAction)
                 Button(localized(.init("search.filter.apply", defaultValue: "Filter", comment: "Verb: button that applies the filters")),

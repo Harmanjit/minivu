@@ -132,7 +132,7 @@ struct WebGalleryView: View {
                     Toggle("Remove location", isOn: $model.settings.removesLocation)
                         .disabled(!model.settings.keepsMetadata)
                 } header: {
-                    Text("File")
+                    Text(localized(.init("section.file", defaultValue: "File", comment: "Noun: the output file and its options (heading or label), not the File menu")))
                 } footer: {
                     Text("\(model.formatNote) Pictures are written in sRGB; HDR photos are shown as on a standard display.",
                          comment: "%@ is a whole sentence about the chosen format; this second sentence follows it")

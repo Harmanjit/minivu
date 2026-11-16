@@ -7972,7 +7972,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Original"
+            "value" : "Captura"
           }
         },
         "fr" : {
@@ -7984,37 +7984,37 @@
         "it" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Originale"
+            "value" : "Scatto"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "オリジナル"
+            "value" : "撮影日時"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "원본"
+            "value" : "촬영"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Origineel"
+            "value" : "Opname"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Oryginał"
+            "value" : "Wykonanie"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Original"
+            "value" : "Captura"
           }
         },
         "zh-Hans" : {

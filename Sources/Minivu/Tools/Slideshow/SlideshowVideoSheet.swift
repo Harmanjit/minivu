@@ -99,7 +99,7 @@ struct SlideshowVideoView: View {
                         ForEach(SlideshowVideoQuality.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    Picker("File", selection: $model.settings.container) {
+                    Picker(localized(.init("section.file", defaultValue: "File", comment: "Noun: the output file and its options (heading or label), not the File menu")), selection: $model.settings.container) {
                         ForEach(SlideshowVideoContainer.allCases) { Text($0.title).tag($0) }
                     }
                 }

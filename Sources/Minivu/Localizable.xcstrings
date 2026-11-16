@@ -22917,12 +22917,12 @@
       }
     },
     "Clear" : {
-      "comment" : "TEST manual comment",
+      "comment" : "Button: empties every field of the form, so it finds or shows everything again",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Entfernen"
+            "value" : "Zurücksetzen"
           }
         },
         "es" : {
@@ -55572,6 +55572,7 @@
       }
     },
     "No label was set. minivu may not change these files (a colour label is written into the file’s Finder tags):" : {
+      "comment" : "Shortcuts error, followed by file names. “may not” means “is not allowed to” (minivu has no permission to write there), not “might not”",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -55588,7 +55589,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Aucune étiquette n’a été définie. minivu n’est peut-être pas autorisé à modifier ces fichiers (une étiquette de couleur est écrite dans les tags du Finder du fichier) :"
+            "value" : "Aucune étiquette n’a été définie. minivu n’est pas autorisé à modifier ces fichiers (une étiquette de couleur est écrite dans les tags du Finder du fichier) :"
           }
         },
         "it" : {
@@ -55600,7 +55601,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ラベルは設定されませんでした。minivuはこれらのファイルを変更できない可能性があります（カラーラベルはファイルのFinderタグに書き込まれます）："
+            "value" : "ラベルは設定されませんでした。minivuにはこれらのファイルを変更する権限がありません（カラーラベルはファイルのFinderタグに書き込まれます）："
           }
         },
         "ko" : {
@@ -55630,12 +55631,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "未设定颜色标签。minivu 可能无权更改以下文件（颜色标签会写入文件的“访达”标签中）："
+            "value" : "未设定颜色标签。minivu 无权更改以下文件（颜色标签会写入文件的“访达”标签中）："
           }
         }
       }
     },
     "No label was set. minivu may not change this file (a colour label is written into the file’s Finder tags):" : {
+      "comment" : "Shortcuts error, followed by file names. “may not” means “is not allowed to” (minivu has no permission to write there), not “might not”",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -55652,7 +55654,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Aucune étiquette n’a été définie. minivu n’est peut-être pas autorisé à modifier ce fichier (une étiquette de couleur est écrite dans les tags du Finder du fichier) :"
+            "value" : "Aucune étiquette n’a été définie. minivu n’est pas autorisé à modifier ce fichier (une étiquette de couleur est écrite dans les tags du Finder du fichier) :"
           }
         },
         "it" : {
@@ -55664,7 +55666,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ラベルは設定されませんでした。minivuはこのファイルを変更できない可能性があります（カラーラベルはファイルのFinderタグに書き込まれます）："
+            "value" : "ラベルは設定されませんでした。minivuにはこのファイルを変更する権限がありません（カラーラベルはファイルのFinderタグに書き込まれます）："
           }
         },
         "ko" : {
@@ -55694,7 +55696,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "未设定颜色标签。minivu 可能无权更改此文件（颜色标签会写入文件的“访达”标签中）："
+            "value" : "未设定颜色标签。minivu 无权更改此文件（颜色标签会写入文件的“访达”标签中）："
           }
         }
       }
@@ -62025,7 +62027,7 @@
       }
     },
     "Pictures" : {
-      "comment" : "The user's Pictures folder: use the name Finder shows",
+      "comment" : "Heading: the pictures of a contact sheet or web gallery",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -71256,7 +71258,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Volver a la versión guardada"
+            "value" : "Volver"
           }
         },
         "fr" : {
@@ -72356,7 +72358,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Enregistrer les modifications comme préréglage…"
+            "value" : "Enregistrer comme préréglage…"
           }
         },
         "it" : {
@@ -72380,7 +72382,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Bewaar bewerkingen als voorinstelling…"
+            "value" : "Bewaar als voorinstelling…"
           }
         },
         "pl" : {
@@ -97255,6 +97257,78 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "过滤"
+          }
+        }
+      }
+    },
+    "section.file" : {
+      "comment" : "Noun: the output file and its options (heading or label), not the File menu",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Datei"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "File"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Archivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Fichier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "File"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ファイル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "파일"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bestand"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Plik"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Arquivo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "文件"
           }
         }
       }

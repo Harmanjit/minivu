@@ -217,7 +217,7 @@ struct ContactSheetView: View {
                 }
                 .disabled(model.settings.format == .pdf)
             } header: {
-                Text("File")
+                Text(localized(.init("section.file", defaultValue: "File", comment: "Noun: the output file and its options (heading or label), not the File menu")))
             } footer: {
                 Text(model.settings.format == .pdf
                      ? localized("One PDF with every page; pictures are embedded at the size of their cells.")

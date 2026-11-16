@@ -248,7 +248,7 @@ struct ImageStripView: View {
                 Toggle("\(format.deepBitDepth ?? 16) bits per channel", isOn: $model.settings.options.sixteenBit)
             }
         } header: {
-            Text("File")
+            Text(localized(.init("section.file", defaultValue: "File", comment: "Noun: the output file and its options (heading or label), not the File menu")))
         } footer: {
             InspectorFootnote(localized("The strip is saved as a new file and opens in the viewer, where it can be edited like any photo. HDR photos come out SDR: a strip keeps no gain map."))
         }

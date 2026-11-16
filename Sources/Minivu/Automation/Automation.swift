@@ -80,8 +80,10 @@ import MinivuRender
                 localized("Some files couldn’t be renamed; the others were.") + "\n" + Self.list(lines)
             case .filesNotWritable(let names):
                 (names.count == 1
-                    ? localized("No label was set. minivu may not change this file (a colour label is written into the file’s Finder tags):")
-                    : localized("No label was set. minivu may not change these files (a colour label is written into the file’s Finder tags):"))
+                    ? localized(.init("No label was set. minivu may not change this file (a colour label is written into the file’s Finder tags):",
+                                     comment: "Shortcuts error, followed by file names. “may not” means “is not allowed to” (minivu has no permission to write there), not “might not”"))
+                    : localized(.init("No label was set. minivu may not change these files (a colour label is written into the file’s Finder tags):",
+                                     comment: "Shortcuts error, followed by file names. “may not” means “is not allowed to” (minivu has no permission to write there), not “might not”")))
                     + "\n" + Self.list(names)
             case .labelFailed(let names):
                 localized("Some files couldn’t be labelled; the others were. Their Finder tags couldn’t be read or written:")
