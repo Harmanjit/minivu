@@ -28,7 +28,10 @@ reviewer should check first against Apple's own Punjabi strings are marked
   spelled-out units are Punjabi too (ਪਿਕਸਲ, ਪੌਇੰਟ).
 - Key names stay as printed on the keyboard, in Latin: Return, Esc, Space,
   Tab, Home, End, Page Up/Page Down, Shift, Option ("Option-ਕਲਿੱਕ"); glyphs
-  ⌘ ⇧ ⌥ ⌫ → ← kept. Arrow keys: "ਤੀਰ ਕੁੰਜੀਆਂ".
+  ⌘ ⇧ ⌥ ⌫ → ← kept. Arrow keys: "ਤੀਰ ਕੁੰਜੀਆਂ". Keeping them Latin is
+  deliberate (as in ko), so those strings match English. A key name takes
+  masculine verbs, in the UI and the help ("Return ਕ੍ਰੌਪ ਕਰਦਾ ਹੈ", "Esc ਰੱਦ
+  ਕਰਦਾ ਹੈ").
 - Plurals: CLDR pa has `one` (n = 0..1) and `other`. Because `one` covers 0,
   every `one` form keeps the number. Many nouns don't change (ਚਿੱਤਰ, ਫ਼ੋਲਡਰ,
   ਸਟਾਰ, ਬਾਈਟ); feminine nouns take -ਆਂ (ਫ਼ਾਈਲ/ਫ਼ਾਈਲਾਂ, ਤਸਵੀਰ/ਤਸਵੀਰਾਂ,
@@ -72,6 +75,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Trash | ਰੱਦੀ (check) |
 | Move to Trash | ਰੱਦੀ ਵਿੱਚ ਭੇਜੋ |
 | Put back (from Trash) | ਵਾਪਸ ਰੱਖੋ |
+| Mark Suggested (Find Duplicates) | ਸੁਝਾਅ ਅਨੁਸਾਰ ਨਿਸ਼ਾਨ ਲਾਓ (marks all but the file suggested to keep) |
 | Reveal in Finder | Finder ਵਿੱਚ ਦਿਖਾਓ |
 | Share… | ਸਾਂਝਾ ਕਰੋ… |
 | Print… / Page Setup… | ਪ੍ਰਿੰਟ ਕਰੋ… / ਪੰਨਾ ਸੈੱਟਅੱਪ… |

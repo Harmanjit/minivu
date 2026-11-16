@@ -24,7 +24,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 - Nukta is written for loan sounds: फ़ाइल, फ़ोल्डर, फ़ोटो, ज़ूम, फ़ुल स्क्रीन.
 - Key names stay as printed on the Mac keyboard, in Latin: Return, Esc,
   Space, Tab, Home, End, Page Up/Down, Shift, Option; glyphs ⌘ ⇧ ⌥ ⌫ → ←
-  kept. Gestures are Hindi/loan: क्लिक, ड्रैग, पिंच, स्क्रॉल, दबाकर रखें.
+  kept. This is deliberate (as in ko), so those strings match English. Gestures are Hindi/loan: क्लिक, ड्रैग, पिंच, स्क्रॉल, दबाकर रखें.
 - Plurals: CLDR `one` (i = 0 or n = 1) and `other`. Because `one` also
   covers 0, every `one` form keeps the number. Nouns: फ़ाइल → फ़ाइलें,
   तस्वीर → तस्वीरें, आँख → आँखें; इमेज, फ़ोटो, फ़ोल्डर, आइटम, पेज, वीडियो,
@@ -47,6 +47,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Tools | टूल्स |
 | Window | विंडो |
 | Help | सहायता |
+| Getting Started (help topic) | शुरुआत (a noun, as the other topic titles) |
 | Settings… | सेटिंग्ज़… |
 | About minivu / Quit minivu / Hide minivu | minivu के बारे में / minivu बंद करें / minivu छुपाएँ |
 | Hide Others / Bring All to Front | अन्य छुपाएँ / सभी को सामने लाएँ |
@@ -130,6 +131,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | rename pattern / token / counter | पैटर्न / टोकन / काउंटर |
 | letter case | अक्षरों का केस |
 | preset | प्रीसेट |
+| Save Edits as Preset… | संपादन प्रीसेट के रूप में सहेजें… |
 | edits | संपादन |
 | slideshow / slide / transition | स्लाइडशो / स्लाइड / ट्रांज़िशन |
 | captions | कैप्शन |
@@ -175,7 +177,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | subject / Copy Subject / Remove Background | सब्जेक्ट / सब्जेक्ट कॉपी करें / बैकग्राउंड हटाएँ |
 | Mixed (differing values) | मिश्रित |
 | Edit Metadata… | मेटाडेटा संपादित करें… |
-| Keep Both / Replace / Skip | दोनों रखें / बदलें / छोड़ें (alert titles add the object: ““%@” को नई फ़ाइल से बदलें?”) |
+| Keep Both / Replace / Skip | दोनों रखें / बदलें / छोड़ें (alert titles add the object: ““%@” को नई फ़ाइल से बदलें?”; “Replace %@ and %@?” takes oblique pieces “%lld मूल फ़ाइलों”/“%lld फ़ाइलों” before को) |
 | save over the original | मूल फ़ाइल के ऊपर सहेजें (मूल = original only) |
 | Enclosing Folder | पैरेंट फ़ोल्डर |
 | format / encode | फ़ॉर्मैट / एन्कोड |

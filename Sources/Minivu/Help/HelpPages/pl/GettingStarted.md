@@ -62,6 +62,7 @@ Menu minivu i ta pomoc są w języku Twojego Maca. Aby używać innego języka
 tylko w minivu, dodaj minivu w sekcji Aplikacje w **Ustawienia systemowe >
 Ogólne > Język i region**. minivu jest dostępne w językach: angielskim,
 niemieckim, francuskim, hiszpańskim, włoskim, portugalskim (Brazylia),
-niderlandzkim, polskim, japońskim, chińskim (uproszczonym), koreańskim, hindi, pendżabskim, bengalskim, gudżarati i tamilskim.
-Tłumaczenia zostały wykonane maszynowo i nie zostały jeszcze sprawdzone przez
-rodzimych użytkowników języka.
+niderlandzkim, polskim, japońskim, chińskim (uproszczonym), koreańskim,
+hindi, pendżabskim, bengalskim, gudżarati i tamilskim. Tłumaczenia zostały
+wykonane maszynowo i nie zostały jeszcze sprawdzone przez rodzimych
+użytkowników języka.

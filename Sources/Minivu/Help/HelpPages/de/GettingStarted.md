@@ -67,5 +67,7 @@ Die Menüs von minivu und diese Hilfe erscheinen in der Sprache deines Mac.
 Um nur für minivu eine andere Sprache zu verwenden, füge minivu unter
 „Apps“ in **Systemeinstellungen > Allgemein > Sprache & Region** hinzu.
 minivu gibt es auf Englisch, Deutsch, Französisch, Spanisch, Italienisch,
-Portugiesisch (Brasilien), Niederländisch, Polnisch, Japanisch, Chinesisch (vereinfacht), Koreanisch, Hindi, Punjabi, Bengalisch, Gujarati und Tamil. Die Übersetzungen wurden maschinell erstellt
-und noch nicht von Muttersprachlern geprüft.
+Portugiesisch (Brasilien), Niederländisch, Polnisch, Japanisch, Chinesisch
+(vereinfacht), Koreanisch, Hindi, Punjabi, Bengalisch, Gujarati und Tamil.
+Die Übersetzungen wurden maschinell erstellt und noch nicht von
+Muttersprachlern geprüft.

@@ -3051,7 +3051,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "நிழல்"
+            "value" : "விழும் நிழல்"
           }
         },
         "zh-Hans" : {
@@ -3223,7 +3223,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਖਿਤਿਜੀ ਉਲਟਾਓ"
+            "value" : "ਖਿਤਿਜੀ ਉਲਟਾਉਣਾ"
           }
         },
         "pl" : {
@@ -3318,7 +3318,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਲੰਬਕਾਰੀ ਉਲਟਾਓ"
+            "value" : "ਲੰਬਕਾਰੀ ਉਲਟਾਉਣਾ"
           }
         },
         "pl" : {
@@ -3413,7 +3413,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਫ਼ਰੇਮ"
+            "value" : "ਚੌਖਟਾ"
           }
         },
         "pl" : {
@@ -4923,7 +4923,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "यह मूल फ़ाइल को बदल देगा।"
+            "value" : "यह मूल फ़ाइल की जगह ले लेगा।"
           }
         },
         "it" : {
@@ -7516,7 +7516,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਬੈਕਗ੍ਰਾਊਂਡ ਹਟਾਓ"
+            "value" : "ਬੈਕਗ੍ਰਾਊਂਡ ਹਟਾਉਣਾ"
           }
         },
         "pl" : {
@@ -7611,7 +7611,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਆਕਾਰ ਬਦਲੋ"
+            "value" : "ਆਕਾਰ ਬਦਲਣਾ"
           }
         },
         "pl" : {
@@ -7801,7 +7801,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਘੁਮਾਓ"
+            "value" : "ਘੁਮਾਉਣਾ"
           }
         },
         "pl" : {
@@ -7896,7 +7896,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "180° ਘੁਮਾਓ"
+            "value" : "180° ਘੁਮਾਉਣਾ"
           }
         },
         "pl" : {
@@ -7991,7 +7991,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਖੱਬੇ ਘੁਮਾਓ"
+            "value" : "ਖੱਬੇ ਘੁਮਾਉਣਾ"
           }
         },
         "pl" : {
@@ -8086,7 +8086,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਸੱਜੇ ਘੁਮਾਓ"
+            "value" : "ਸੱਜੇ ਘੁਮਾਉਣਾ"
           }
         },
         "pl" : {
