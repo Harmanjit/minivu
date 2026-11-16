@@ -598,6 +598,7 @@ public enum MetadataReader {
         }
 
         init?(url: URL) {
+            Perf.count("file.open")
             guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
                   CGImageSourceGetCount(source) > 0,
                   let props = CGImageSourceCopyPropertiesAtIndex(source, ImageDecoder.primaryIndex(source), nil)

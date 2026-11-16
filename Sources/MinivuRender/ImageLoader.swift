@@ -453,7 +453,9 @@ public struct DisplaySettings: Sendable, Equatable {
             // waiting for it. The wait blocks a GCD thread, which grows
             // threads for that, until the decode ends.
             job.escalated = true
-            DispatchQueue.global(qos: .userInitiated).async { work.item.wait() }
+            DispatchQueue.global(qos: .userInitiated).async {
+                Perf.measure("loader.escalationWait") { work.item.wait() }
+            }
         }
     }
 
@@ -527,6 +529,10 @@ public struct DisplaySettings: Sendable, Equatable {
     /// conversion and a GPU copy) can be skipped.
     nonisolated private static func decodeAndUpload(url: URL, target: CGSize?, page: Int, settings: DisplaySettings,
                                                     stage: Job.Stage, stop: StopFlag) throws -> ImageTexture {
+        // A screen-sized load (a flip or a prefetch) and a full-resolution
+        // one (zoom to 100%) are told apart in a trace.
+        let loading = Perf.begin(target == nil ? "loader.fullResolution" : "loader.screen")
+        defer { loading.end() }
         func checkStop() throws {
             if stop.isSet { throw CancellationError() }
         }

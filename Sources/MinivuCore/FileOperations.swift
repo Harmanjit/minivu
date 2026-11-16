@@ -226,11 +226,11 @@ public enum FileOperations {
 
             do {
                 if move {
-                    try moveExclusively(url, to: destination)
-                    catalog.fileMoved(from: url, to: destination)
+                    try Perf.measure("transfer.moveFile") { try moveExclusively(url, to: destination) }
+                    Perf.measure("transfer.catalog") { catalog.fileMoved(from: url, to: destination) }
                 } else {
-                    try copyExclusively(url, to: destination)
-                    catalog.fileCopied(from: url, to: destination)
+                    try Perf.measure("transfer.copyFile") { try copyExclusively(url, to: destination) }
+                    Perf.measure("transfer.catalog") { catalog.fileCopied(from: url, to: destination) }
                 }
                 result.completed.append(Transfer(from: url, to: destination, replaced: replaced))
             } catch {

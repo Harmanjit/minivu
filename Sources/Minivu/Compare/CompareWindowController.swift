@@ -22,11 +22,13 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         guard var model = CompareModel(entries: entries, allImages: allImages) else { return }
         model.arrangement = storedArrangement
         if let controller = current {
+            controller.beginOpening()
             controller.retarget(model)
             return
         }
         let controller = CompareWindowController(model: model)
         current = controller
+        controller.beginOpening()
         controller.present()
     }
 
@@ -56,6 +58,8 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
     private var trashing: Set<URL> = []
     private var catalogObserver: NSObjectProtocol?
     private var displaySettingsObserver: NSObjectProtocol?
+    /// From Compare's command to every pane's image on its canvas.
+    private var opening: Perf.Interval?
     private(set) var isClosing = false
 
     private init(model: CompareModel) {
@@ -148,6 +152,8 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         }
         layoutPanes()
         updateChrome()
+        // Every image was already on its canvas (the same ones again).
+        endOpeningIfLoaded()
     }
 
     private func makePane() -> CompareImagePane {
@@ -158,6 +164,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         pane.onRate = { [weak self] pane, rating in self?.rate(pane, rating) }
         pane.onToggleTag = { [weak self] pane in self?.toggleTag(of: pane) }
         pane.onTrash = { [weak self] pane in self?.trash(pane) }
+        pane.onLoaded = { [weak self] _ in self?.endOpeningIfLoaded() }
         container.addSubview(pane)
         return pane
     }
@@ -221,6 +228,17 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         let source = others.first { $0.isFocused } ?? others.first
         guard let view = source?.relativeView(), !view.isFit else { return }
         pane.apply(view)
+    }
+
+    private func beginOpening() {
+        opening?.end()
+        opening = Perf.begin("compare.open")
+    }
+
+    private func endOpeningIfLoaded() {
+        guard let opening, panes.count == model.panes.count, panes.allSatisfy(\.hasLoadedImage) else { return }
+        opening.end()
+        self.opening = nil
     }
 
     @objc func toggleSync(_ sender: Any?) {
@@ -459,6 +477,8 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
     func windowWillClose(_ notification: Notification) {
         guard !isClosing else { return }
         isClosing = true
+        opening?.end()
+        opening = nil
         if let catalogObserver { NotificationCenter.default.removeObserver(catalogObserver) }
         if let displaySettingsObserver { NotificationCenter.default.removeObserver(displaySettingsObserver) }
         for pane in panes { pane.stopAndRemove() }

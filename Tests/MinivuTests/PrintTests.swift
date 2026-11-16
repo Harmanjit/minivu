@@ -114,6 +114,7 @@ import MinivuCore
         #expect(range == NSRange(location: 1, length: 1))
     }
 
+    #if DEBUG
     /// A page's decodes fan out with `concurrentPerform`, where the
     /// cooperative-pool check can't see the caller, so `drawPage` checks
     /// before it fans out: drawn from a task on the pool, it is reported.
@@ -134,6 +135,7 @@ import MinivuCore
         #expect(onPool)
         #expect(log.names == ["LayoutRenderer.drawPage"])
     }
+    #endif
 
     @Test func drawsARenderedImageIntoItsCell() throws {
         let red = LayoutItem(image: Self.solid(1, 0, 0), name: "Edited.jpg", modified: Date())

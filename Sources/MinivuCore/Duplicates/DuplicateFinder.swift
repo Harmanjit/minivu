@@ -86,7 +86,7 @@ public enum DuplicateFinder {
         let candidates = Dictionary(grouping: files, by: \.fileSize).values.filter { $0.count > 1 }.flatMap { $0 }
         guard !candidates.isEmpty else { return [] }
         let identities = FileIdentity.read(candidates.map(\.url))
-        let cached = cache?.fingerprints(for: Array(identities.values)) ?? [:]
+        let cached = Perf.measure("duplicates.cachedLookup") { cache?.fingerprints(for: Array(identities.values)) ?? [:] }
         var hashes: [URL: Data] = [:]
         var pending: [(identity: FileIdentity, sha256: Data)] = []
         progress(Progress(phase: .comparing, done: 0, total: candidates.count))
@@ -95,7 +95,9 @@ public enum DuplicateFinder {
             let identity = identities[entry.url]
             if let identity, let hash = cached[identity]?.sha256 {
                 hashes[entry.url] = hash
-            } else if let hash = try? ContentHash.sha256(of: entry.url, chunkSize: chunkSize, isCancelled: isCancelled) {
+            } else if let hash = try? Perf.measure("duplicates.hash", {
+                try ContentHash.sha256(of: entry.url, chunkSize: chunkSize, isCancelled: isCancelled)
+            }) {
                 hashes[entry.url] = hash
                 if let identity { pending.append((identity, hash)) }
                 if pending.count >= 100 {
@@ -135,7 +137,7 @@ public enum DuplicateFinder {
         guard !images.isEmpty else { return [:] }
         let revision = FeaturePrint.currentRevision
         let identities = FileIdentity.read(images.map(\.url))
-        let cached = store?.fingerprints(for: Array(identities.values)) ?? [:]
+        let cached = Perf.measure("duplicates.cachedLookup") { store?.fingerprints(for: Array(identities.values)) ?? [:] }
         let collector = PrintCollector(store: store)
         var missing: [FolderEntry] = []
         for entry in images {
@@ -151,7 +153,7 @@ public enum DuplicateFinder {
         DispatchQueue.concurrentPerform(iterations: max(1, min(workers, missing.count))) { _ in
             while !isCancelled(), let index = next.take(below: missing.count) {
                 let entry = missing[index]
-                let print = make(entry, store)
+                let print = Perf.measure("duplicates.print") { make(entry, store) }
                 let done = collector.add(print, for: entry.url, identity: identities[entry.url])
                 progress(Progress(phase: .analysing, done: alreadyDone + done, total: images.count))
             }

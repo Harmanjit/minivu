@@ -198,6 +198,7 @@ public final class SQLiteDatabase: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         let depth = transactionDepth
         let savepoint = "minivu_savepoint_\(depth)"
+        if depth == 0 { Perf.count("sqlite.transaction") }
         try execute(depth == 0 ? "BEGIN IMMEDIATE" : "SAVEPOINT \(savepoint)")
         transactionDepth += 1
         defer { transactionDepth -= 1 }

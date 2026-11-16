@@ -83,6 +83,7 @@ import MinivuTestWatchdog
         }
     }
 
+    #if DEBUG
     /// The check the app's audit relies on: Vision called straight from
     /// a task is on a cooperative thread and is logged; the same call
     /// through `BlockingWork` is not.
@@ -135,6 +136,7 @@ import MinivuTestWatchdog
         }
         #expect(routed.names.isEmpty, "\(routed.names)")
     }
+    #endif
 }
 
 /// A value shared with the threads of a fan-out.

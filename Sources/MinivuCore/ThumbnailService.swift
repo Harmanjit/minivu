@@ -282,6 +282,10 @@ public final class ThumbnailService: @unchecked Sendable {
     /// Memory, then disk, then decode. A decoded thumbnail is written to
     /// both caches: display-ready in memory, compactly encoded on disk.
     private func produce(_ job: Job) -> CGImage? {
+        Perf.measure("thumb.produce") { produceUnmeasured(job) }
+    }
+
+    private func produceUnmeasured(_ job: Job) -> CGImage? {
         lock.lock()
         let entry = job.entry
         let path = entry.url.path
@@ -294,27 +298,36 @@ public final class ThumbnailService: @unchecked Sendable {
         let imageKey = memoryKey(key, colorGeneration: colorGeneration)
         if let image = memory.object(forKey: imageKey) { return image }
 
-        if !diskIsStale, let stored = store?.image(for: entry.url, modified: entry.modified,
-                                                   fileSize: entry.fileSize, tier: job.key.tier) {
-            let image = Self.displayReady(stored, in: space)
+        if !diskIsStale, let stored = Perf.measure("thumb.storeRead", {
+            store?.image(for: entry.url, modified: entry.modified, fileSize: entry.fileSize, tier: job.key.tier)
+        }) {
+            let image = Perf.measure("thumb.displayReady") { Self.displayReady(stored, in: space) }
             cacheInMemory(image, forKey: imageKey, colorGeneration: colorGeneration)
             return image
         }
-        guard let decoded = ImageDecoder.thumbnail(for: entry.url, maxPixelSize: job.key.tier) else {
+        guard let decoded = Perf.measure("thumb.decode", {
+            ImageDecoder.thumbnail(for: entry.url, maxPixelSize: job.key.tier)
+        }) else {
             lock.withLock { _ = failures.insert(key) }
             return nil
         }
-        let image = Self.displayReady(decoded, in: space)
+        let image = Perf.measure("thumb.displayReady") { Self.displayReady(decoded, in: space) }
         cacheInMemory(image, forKey: imageKey, colorGeneration: colorGeneration)
 
         // Encoded from the decode, not the display copy: an opaque photo
         // stays a JPEG rather than becoming a PNG for its alpha channel.
-        if let store, let data = ThumbnailStore.encode(decoded) {
+        if let store, let data = Perf.measure("thumb.encode", { ThumbnailStore.encode(decoded) }) {
+            // The wait for the other workers' writes apart from the write
+            // itself, so contention and SQLite's cost each have a number.
+            let waiting = Perf.begin("thumb.diskLockWait")
             diskLock.withLock {
+                waiting.end()
                 // Invalidated while decoding: this picture may be of the old file.
                 guard lock.withLock({ generations[path] ?? 0 }) == generation else { return }
-                store.store(encoded: data, for: entry.url, modified: entry.modified, fileSize: entry.fileSize,
-                            tier: job.key.tier)
+                Perf.measure("thumb.storeWrite") {
+                    store.store(encoded: data, for: entry.url, modified: entry.modified, fileSize: entry.fileSize,
+                                tier: job.key.tier)
+                }
             }
         }
         return image

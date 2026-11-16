@@ -273,6 +273,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// query each, so on the main thread. A section with none is left out
     /// rather than shown empty. Internal so tests can call it.
     func reloadLibrary() {
+        let reading = Perf.begin("sidebar.reloadLibrary")
+        defer { reading.end() }
         let smart = catalog.smartFolders().map { folder -> SidebarNode in
             let node = SidebarNode(kind: .smartFolder, title: folder.name, url: nil, symbolName: "gearshape")
             node.libraryID = folder.id

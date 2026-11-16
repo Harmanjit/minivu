@@ -91,7 +91,7 @@ public final class Catalog: @unchecked Sendable {
     ///
     /// However it turns out, `storage` records it, so that a catalog the
     /// user did not ask for is not passed off as their own.
-    public static let shared: Catalog = {
+    public static let shared: Catalog = Perf.measure("catalog.open") { () -> Catalog in
         if usesPrivateCatalog(ProcessInfo.processInfo) { return Catalog.inMemory() }
         do { return try Catalog(url: Catalog.defaultURL) } catch {
             log.error("Catalog unavailable, using a temporary one: \(String(describing: error), privacy: .public)")
@@ -102,11 +102,11 @@ public final class Catalog: @unchecked Sendable {
             // and this reason is read back to the user in an alert.
             return Catalog.temporary(reason: (error as? SQLiteError)?.message ?? error.localizedDescription)
         }
-    }()
+    }
 
     /// XCTest runs in `xctest`, Swift Testing under SwiftPM in
     /// `swiftpm-testing-helper`; Xcode sets XCTestConfigurationFilePath.
-    static func usesPrivateCatalog(_ process: ProcessInfo) -> Bool {
+    public static func usesPrivateCatalog(_ process: ProcessInfo) -> Bool {
         let environment = process.environment
         return environment["MINIVU_CATALOG"] == "memory"
             || environment["MINIVU_SNAPSHOT"] != nil
@@ -338,6 +338,8 @@ public final class Catalog: @unchecked Sendable {
     /// scan the table instead (78 ms against 3 ms on 5,000 files).
     public func marks(for urls: [URL]) -> [URL: Marks] {
         guard !urls.isEmpty else { return [:] }
+        let reading = Perf.begin("catalog.marks")
+        defer { reading.end() }
         let keys = Self.keys(for: urls)
         let rows: [SQLiteRow]
         do {
@@ -669,6 +671,8 @@ public final class Catalog: @unchecked Sendable {
     @discardableResult
     public func heal(folder: URL) -> [URL] {
         guard !isHealingPaused else { return [] }
+        let healing = Perf.begin("catalog.heal")
+        defer { healing.end() }
         let folderKey = Self.folderKey(folder)
         var listed: [String: ListedItem] = [:]
         do {
@@ -1022,6 +1026,7 @@ public final class Catalog: @unchecked Sendable {
     }
 
     private func post(_ urls: [URL]) {
+        Perf.count("catalog.didChange")
         DispatchQueue.main.async { NotificationCenter.default.post(name: Self.didChange, object: urls) }
     }
 }

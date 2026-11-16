@@ -71,6 +71,7 @@ nonisolated enum SavePolicy {
     /// The colour space of the primary image as stored, read from the header
     /// without decoding pixels (ImageIO creates the image lazily).
     static func sourceColorSpace(of url: URL) -> CGColorSpace? {
+        Perf.count("file.open")
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0,
               let image = CGImageSourceCreateImageAtIndex(source, CGImageSourceGetPrimaryImageIndex(source),
@@ -98,6 +99,7 @@ nonisolated enum SavePolicy {
     /// Whether the file's primary image has a gain map (Apple's, or ISO
     /// 21496-1 as Ultra HDR and newer iPhones write). Reads the header.
     static func hasGainMap(_ url: URL) -> Bool {
+        Perf.count("file.open")
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
               CGImageSourceGetCount(source) > 0 else { return false }
         let index = CGImageSourceGetPrimaryImageIndex(source)

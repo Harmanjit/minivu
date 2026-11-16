@@ -52,6 +52,11 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     private var laidOutWidth: CGFloat = 0
     private var leadWasVisible = false
     private var subscriptions: Set<AnyCancellable> = []
+    /// From a listing's entries arriving to every visible cell showing its
+    /// thumbnail (docs/feature-notes/perf.md); nil when the screen is full.
+    private var screenFill: Perf.Interval?
+    /// The launch milestone is marked once, for the first screen filled.
+    private static var hasFilledFirstScreen = false
 
     private(set) var thumbnailLayout = ThumbnailLayout(side: Preferences.shared.thumbnailSize)
 
@@ -182,6 +187,11 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
         if changes.contains(.entries) {
             cancelPrefetches()
             collectionView.reloadData()
+            if screenFill == nil, model.state == .loaded, !model.entries.isEmpty {
+                screenFill = Perf.begin("grid.fillScreen")
+                // After the reload's layout, for cells whose thumbnails were cached.
+                DispatchQueue.main.async { [weak self] in MainActor.assumeIsolated { self?.checkScreenFilled() } }
+            }
             if changes.contains(.folder) { scrollToTop() }
             // The file being renamed went away (deleted or renamed in Finder).
             if let editor = renameEditor, model.entry(for: editor.url) == nil { editor.cancel() }
@@ -315,8 +325,23 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
             nameFolder(of: cell, entry)
             cell.onRate = { [weak self] url, stars in self?.model.setRating(stars, for: [url]) }
             cell.thumbnailView.isRenaming = renameEditor?.url == entry.url
+            cell.onThumbnailSettled = { [weak self] in self?.checkScreenFilled() }
         }
         return item
+    }
+
+    /// Ends the screen-fill interval once every visible cell has its
+    /// thumbnail. Only runs while one is open, so browsing costs nothing.
+    private func checkScreenFilled() {
+        guard let screenFill else { return }
+        let visible = collectionView.visibleItems()
+        guard !visible.isEmpty, visible.allSatisfy({ ($0 as? ThumbnailCell)?.isThumbnailSettled ?? true }) else { return }
+        screenFill.end()
+        self.screenFill = nil
+        if !Self.hasFilledFirstScreen {
+            Self.hasFilledFirstScreen = true
+            Perf.milestone("launch.firstScreenful")
+        }
     }
 
     func collectionView(_ collectionView: NSCollectionView, willDisplay item: NSCollectionViewItem,

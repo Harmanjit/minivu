@@ -378,6 +378,11 @@ final class ThumbnailCell: NSCollectionViewItem {
     /// Pixel size asked of the thumbnail service for what's showing now.
     private var shownPixelSize = 0
     private var wantedPixelSize = 0
+    /// The thumbnail asked for has arrived (or the file has none, or the
+    /// cell shows a folder), for the grid's time to fill a screen.
+    private(set) var isThumbnailSettled = false
+    /// Called when the thumbnail asked for arrives.
+    var onThumbnailSettled: (() -> Void)?
     /// Bumped on every configure, so a completion meant for this cell's
     /// previous entry is ignored even if it was already on its way.
     private var generation = 0
@@ -435,6 +440,7 @@ final class ThumbnailCell: NSCollectionViewItem {
 
         if entry.isDirectory {
             cancelLoading()
+            isThumbnailSettled = true
             cellView.setImage(Self.folderIcon, isIcon: true)
             cellView.detailField.stringValue = ""
             cellView.setVideo(false, duration: nil)
@@ -444,6 +450,7 @@ final class ThumbnailCell: NSCollectionViewItem {
             cancelLoading()
             generation += 1
             shownPixelSize = 0
+            isThumbnailSettled = false
             // A smaller cached tier is better than a blank while the right
             // one loads (after the size slider moved, say).
             cellView.setImage(AppServices.thumbnails.cachedImage(for: entry, pixelSize: 1), isIcon: false)
@@ -462,12 +469,14 @@ final class ThumbnailCell: NSCollectionViewItem {
             if let image = AppServices.thumbnails.cachedImage(for: entry, pixelSize: wantedPixelSize) {
                 cellView.setImage(image, isIcon: false)
                 shownPixelSize = tier
+                isThumbnailSettled = true
                 loadPixelSizeIfNeeded()
             } else {
                 let generation = self.generation
                 thumbnailRequest = AppServices.thumbnails.request(entry, pixelSize: wantedPixelSize) { [weak self] image in
                     guard let self, self.generation == generation else { return }
                     self.thumbnailRequest = nil
+                    self.isThumbnailSettled = true
                     if let image {
                         self.cellView.setImage(image, isIcon: false)
                         self.shownPixelSize = tier
@@ -475,6 +484,7 @@ final class ThumbnailCell: NSCollectionViewItem {
                         if tier < ThumbnailService.tier(forPixelSize: self.wantedPixelSize) { self.loadIfNeeded() }
                     }
                     self.loadPixelSizeIfNeeded()
+                    self.onThumbnailSettled?()
                 }
             }
         } else if cellView.hasImage {
@@ -514,6 +524,7 @@ final class ThumbnailCell: NSCollectionViewItem {
         generation += 1
         entry = nil
         shownPixelSize = 0
+        isThumbnailSettled = false
         cellView.setImage(nil, isIcon: false)
         cellView.detailField.stringValue = ""
         cellView.setVideo(false, duration: nil)

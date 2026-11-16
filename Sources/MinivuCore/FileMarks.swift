@@ -174,6 +174,7 @@ public enum MarksXMP {
         let method = MetadataWriter.method(for: url)
         guard method != .unsupported else { return nil }
         var rating: Int?, pick: Int?
+        Perf.count("file.open")
         if let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
            CGImageSourceGetCount(source) > 0 {
             let metadata = CGImageSourceCopyMetadataAtIndex(source, CGImageSourceGetPrimaryImageIndex(source), nil)

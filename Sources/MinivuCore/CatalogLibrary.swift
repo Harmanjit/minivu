@@ -94,7 +94,7 @@ extension Catalog {
     /// off the main thread. Entries left out of the result were cancelled.
     public func loadFilterMetadata(for entries: [FolderEntry], isCancelled: () -> Bool = { false },
                                    reader: (URL) -> FilterMetadata = FilterMetadata.read(from:)) -> [URL: FilterMetadata] {
-        var result = filterMetadata(for: entries)
+        var result = Perf.measure("filter.metadataCached") { filterMetadata(for: entries) }
         let missing = entries.filter { result[$0.url] == nil }
         var start = 0
         while start < missing.count, !isCancelled() {
@@ -102,9 +102,9 @@ extension Catalog {
             var read: [(entry: FolderEntry, metadata: FilterMetadata)] = []
             for entry in chunk {
                 if isCancelled() { break }
-                read.append((entry, reader(entry.url)))
+                read.append((entry, Perf.measure("filter.metadataRead") { reader(entry.url) }))
             }
-            storeFilterMetadata(read)
+            Perf.measure("filter.metadataStore") { storeFilterMetadata(read) }
             for item in read { result[item.entry.url] = item.metadata }
             start += Self.metadataChunk
         }

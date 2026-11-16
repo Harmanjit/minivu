@@ -11,7 +11,55 @@ enum AppServices {
     /// Largest the on-disk thumbnail cache may grow before old entries go.
     nonisolated static let thumbnailCacheLimit = 1_000_000_000
 
-    nonisolated static let thumbnailStore: ThumbnailStore? = try? ThumbnailStore(url: ThumbnailStore.defaultURL)
+    nonisolated static let thumbnailStore: ThumbnailStore? = {
+        let url = thumbnailStoreURL()
+        if url != ThumbnailStore.defaultURL {
+            removeTemporaryStores(in: url.deletingLastPathComponent())
+            atexit { AppServices.removeTemporaryStore(ofProcess: getpid()) }
+        }
+        return try? ThumbnailStore(url: url)
+    }()
+
+    /// The user's thumbnail cache, except where the catalog is a private one
+    /// (test runs, snapshot runs, MINIVU_CATALOG=memory): those get a cache
+    /// of their own in the temporary folder, so a test or a benchmark that
+    /// thumbnails thousands of files leaves the user's cache alone and
+    /// starts from an empty one every run.
+    nonisolated static func thumbnailStoreURL(process: ProcessInfo = .processInfo) -> URL {
+        guard Catalog.usesPrivateCatalog(process) else { return ThumbnailStore.defaultURL }
+        return temporaryStoreURL(ofProcess: process.processIdentifier)
+    }
+
+    nonisolated static let temporaryStorePrefix = "minivu-thumbnails-"
+
+    nonisolated static func temporaryStoreURL(ofProcess pid: Int32,
+                                              in folder: URL = FileManager.default.temporaryDirectory) -> URL {
+        folder.appendingPathComponent("\(temporaryStorePrefix)\(pid).sqlite")
+    }
+
+    /// A private cache goes when its process exits normally. One whose
+    /// process crashed or was stopped is removed by the next process that
+    /// makes one: a benchmark run starts dozens of processes, and the
+    /// caches of a few thousand thumbnails are tens of megabytes each.
+    nonisolated static func removeTemporaryStore(ofProcess pid: Int32,
+                                                 in folder: URL = FileManager.default.temporaryDirectory) {
+        let path = temporaryStoreURL(ofProcess: pid, in: folder).path
+        for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
+    }
+
+    /// Removes the private caches in `folder` of processes no longer
+    /// running (`isRunning`, which tests replace).
+    nonisolated static func removeTemporaryStores(in folder: URL,
+                                                  isRunning: (Int32) -> Bool = { kill($0, 0) == 0 || errno == EPERM }) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        let pids = Set(names.compactMap { name -> Int32? in
+            guard name.hasPrefix(temporaryStorePrefix) else { return nil }
+            let rest = name.dropFirst(temporaryStorePrefix.count)
+            guard let dot = rest.firstIndex(of: ".") else { return nil }
+            return Int32(rest[..<dot])
+        })
+        for pid in pids where pid != getpid() && !isRunning(pid) { removeTemporaryStore(ofProcess: pid, in: folder) }
+    }
 
     static let thumbnails = ThumbnailService(store: thumbnailStore)
 

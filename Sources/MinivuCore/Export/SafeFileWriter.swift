@@ -132,6 +132,8 @@ public enum SafeFileWriter {
     /// batch convert, and APFS's copy-on-write metadata already keeps the
     /// old or the new file whole.
     static func synchronize(_ url: URL) throws {
+        let syncing = Perf.begin("write.fsync")
+        defer { syncing.end() }
         let fd = open(url.path, O_RDONLY)
         guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         defer { close(fd) }

@@ -31,7 +31,7 @@ final class CollectionsMenu: NSObject, NSMenuDelegate {
     /// One small catalog query, on the main thread as the menu opens.
     func fill(_ menu: NSMenu) {
         menu.removeAllItems()
-        let collections = catalog.collections()
+        let collections = Perf.measure("organise.collectionsMenu") { catalog.collections() }
         for collection in collections {
             let item = NSMenuItem(title: collection.name, action: .addToCollection, keyEquivalent: "")
             item.representedObject = NSNumber(value: collection.id)

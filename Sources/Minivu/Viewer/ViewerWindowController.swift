@@ -125,6 +125,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     /// A sharper texture for the image on screen (zoomed in, or a window
     /// grown past its texture).
     private var sharpenHandle: LoadHandle?
+    /// From a move to another image or page to its texture on the canvas
+    /// (docs/feature-notes/perf.md). A move before it arrived ends it early.
+    private var flipInterval: Perf.Interval?
     private var placeholderWork: DispatchWorkItem?
     private var cursorWork: DispatchWorkItem?
     /// When the pointer last moved, in system uptime.
@@ -568,9 +571,12 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         liveText.cancelPending()
         let fitSize = canvasFitSize
         let entry = shown.entry
+        flipInterval?.end()
+        flipInterval = Perf.begin("viewer.flip")
         if let texture = AppServices.images.cache.bestTexture(url: entry.url, modified: entry.modified,
                                                               page: shown.page, fitting: fitSize) {
             display(texture, of: shown, preserveView: reloading && keepsView(for: texture, of: shown))
+            endFlip()
         } else {
             schedulePlaceholder(for: shown)
             loadHandle = AppServices.images.load(entry, page: shown.page, fitting: fitSize) { [weak self] result in
@@ -603,8 +609,14 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.placeholderDelay, execute: work)
     }
 
+    private func endFlip() {
+        flipInterval?.end()
+        flipInterval = nil
+    }
+
     private func loadFinished(_ result: Result<ImageTexture, Error>, shown: Shown) {
         guard current == shown, !isClosing else { return }
+        defer { endFlip() }
         // An edited render is on screen; the file's own pixels would undo it.
         guard editSession?.hasDisplayedEdit != true else { return }
         let entry = shown.entry
@@ -725,7 +737,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard Self.mayHavePagesOrFrames(entry) else { return }
         let url = entry.url
         infoTask = Task { [weak self] in
-            let info = await BlockingWork.run { ImageDecoder.info(for: url) }
+            let info = await BlockingWork.run { Perf.measure("viewer.structureRead") { ImageDecoder.info(for: url) } }
             guard !Task.isCancelled, let self, !self.isClosing, self.model.current == entry else { return }
             self.structureRead = entry
             guard let info else {
@@ -855,7 +867,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         guard entry.kind == .raster || entry.kind == .raw else { return }
         let url = entry.url
         summaryTask = Task { [weak self] in
-            let summary = await BlockingWork.run { MetadataReader.summary(for: url) }
+            let summary = await BlockingWork.run { Perf.measure("viewer.exposureRead") { MetadataReader.summary(for: url) } }
             guard !Task.isCancelled, let self, self.model.current?.url == url else { return }
             self.exposure = (url, summary.exposure)
             self.updateChrome()
@@ -1245,7 +1257,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func readFileMarks(of entry: FolderEntry) {
         guard FileMarksCache.shared.needsRead(entry.url, in: Catalog.shared) else { return }
         Task { [weak self] in
-            let marks = await BlockingWork.run(qos: .utility) { FileMarksCache.shared.marks(for: entry.url) }
+            let marks = await BlockingWork.run(qos: .utility) {
+                Perf.measure("viewer.fileMarksRead") { FileMarksCache.shared.marks(for: entry.url) }
+            }
             guard let self, marks != nil, !self.isClosing, self.model.current?.url == entry.url,
                   self.pendingMarkWrites == 0 else { return }
             self.shownMarks = nil
@@ -1410,6 +1424,9 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     var canvasTexture: ImageTexture? { canvas.image }
     /// The canvas itself, so tests can press on it.
     var canvasView: ImageCanvasView { canvas }
+    /// A move to another image or page is still waiting for its texture
+    /// (a placeholder may be standing in), for the benchmarks.
+    var isLoadingPage: Bool { flipInterval != nil }
 
     /// Esc, ⌘W, the close button or a double-click: stop all work, put the
     /// menu bar back, and tell the browser which image to select.

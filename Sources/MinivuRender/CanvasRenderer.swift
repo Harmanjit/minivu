@@ -173,8 +173,13 @@ public final class CanvasRenderer {
     /// scheduled the frame and then presents inside the current Core
     /// Animation transaction, so the new pixels appear together with the new
     /// window size instead of a stretched old frame.
-    public func draw(_ frame: CanvasFrame, to drawable: CAMetalDrawable, presentsWithTransaction: Bool) {
+    ///
+    /// `completed`, when given, is called on a Metal thread once the GPU
+    /// has finished the frame (the benchmarks' end of a flip).
+    public func draw(_ frame: CanvasFrame, to drawable: CAMetalDrawable, presentsWithTransaction: Bool,
+                     completed: (@Sendable () -> Void)? = nil) {
         guard let commands = encode(frame, into: drawable.texture) else { return }
+        if let completed { commands.addCompletedHandler { _ in completed() } }
         if presentsWithTransaction {
             commands.commit()
             commands.waitUntilScheduled()

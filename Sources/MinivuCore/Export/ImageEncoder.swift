@@ -134,7 +134,7 @@ public enum ImageEncoder {
         }
         // A gain map's base is ImageIO's own SDR rendition in Display P3;
         // converting the HDR pixels first would clip what the map keeps.
-        let pixels = gainMap ? image : try prepare(image, options: options)
+        let pixels = gainMap ? image : try Perf.measure("encode.prepare") { try prepare(image, options: options) }
         let space = gainMap ? CGColorSpace(name: CGColorSpace.displayP3)!
                             : pixels.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!
 
@@ -174,7 +174,9 @@ public enum ImageEncoder {
         } else {
             CGImageDestinationAddImage(destination, pixels, properties as CFDictionary)
         }
-        guard CGImageDestinationFinalize(destination) else { throw ExportError.encodingFailed(format) }
+        guard Perf.measure("encode.finalize", { CGImageDestinationFinalize(destination) }) else {
+            throw ExportError.encodingFailed(format)
+        }
     }
 
     /// The highest quality ImageIO accepts for `format`. Measured on macOS
