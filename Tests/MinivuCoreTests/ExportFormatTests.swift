@@ -4,7 +4,7 @@ import CoreGraphics
 import ImageIO
 @testable import MinivuCore
 
-@Suite struct ExportFormatTests {
+@Suite(.offCooperativePool) struct ExportFormatTests {
     @Test func everyFormatHasAnImageIOEncoderAndRoundTrips() throws {
         let writable = Set(CGImageDestinationCopyTypeIdentifiers() as! [String])
         let image = TestImages.gradient(width: 64, height: 48)

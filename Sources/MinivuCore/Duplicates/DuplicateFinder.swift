@@ -128,6 +128,9 @@ public enum DuplicateFinder {
                                      progress: @Sendable (Progress) -> Void = { _ in },
                                      make: @Sendable (FolderEntry, ThumbnailStore?) -> FeaturePrint? = FeaturePrint.make(for:thumbnails:))
         -> [URL: FeaturePrint] {
+        // Here, not only in `FeaturePrint.make`: inside the fan-out below
+        // the check can't tell a cooperative caller from a GCD worker.
+        BlockingWork.expectOffCooperativePool("DuplicateFinder.featurePrints(for:)")
         let images = unique(entries).filter { !$0.isDirectory }
         guard !images.isEmpty else { return [:] }
         let revision = FeaturePrint.currentRevision

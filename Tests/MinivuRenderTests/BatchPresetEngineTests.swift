@@ -11,7 +11,7 @@ import UniformTypeIdentifiers
 /// (`BatchEdits`), the order Batch Convert applies edits, resize and
 /// watermark in, Auto Enhance measured on each image, HDR kept as a gain map,
 /// and the memory budget checked before anything is decoded.
-@Suite struct BatchPresetEngineTests {
+@Suite(.offCooperativePool) struct BatchPresetEngineTests {
     let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
 
     @MainActor func converter(limit: Int? = nil) -> BatchConverter {

@@ -1,6 +1,7 @@
 import Foundation
 import CoreGraphics
 import Vision
+import MinivuCore
 
 /// The four corners of what should be a rectangle (a building's face, a
 /// document, a painting shot from an angle), which perspective correction
@@ -138,6 +139,7 @@ public enum PerspectiveDetector {
     /// coordinates, or nil when nothing four-sided stands out. Synchronous:
     /// call it off the main thread.
     public static func detect(in image: CGImage) -> PerspectiveQuad? {
+        BlockingWork.expectOffCooperativePool("PerspectiveDetector.detect(in:)")
         let request = VNDetectRectanglesRequest()
         request.maximumObservations = 1
         // Any proportions, any size above a fifth of the picture, and

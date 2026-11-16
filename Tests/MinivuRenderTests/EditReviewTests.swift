@@ -14,7 +14,7 @@ import Metal
 ///
 /// Not on the main actor: only the document calls hop there, so the pixel
 /// work in between doesn't hold up other suites' main-actor timing tests.
-@Suite(.serialized) struct EditReviewTests {
+@Suite(.serialized, .offCooperativePool) struct EditReviewTests {
     typealias F = EditFixtures
     let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
 

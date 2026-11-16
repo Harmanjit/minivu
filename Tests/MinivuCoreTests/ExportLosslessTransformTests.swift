@@ -6,7 +6,7 @@ import CoreImage
 import UniformTypeIdentifiers
 @testable import MinivuCore
 
-@Suite struct ExportLosslessTransformTests {
+@Suite(.offCooperativePool) struct ExportLosslessTransformTests {
     typealias F = ExportFixtures
     typealias Kind = LosslessTransform.Kind
 

@@ -28,6 +28,7 @@ public enum RedEyeDetector {
     /// coordinates; radii are fractions of its short side. Synchronous and a
     /// few tens of milliseconds: call it off the main thread.
     public static func detect(in image: CGImage) -> [RedEyeSpot] {
+        BlockingWork.expectOffCooperativePool("RedEyeDetector.detect(in:)")
         let request = VNDetectFaceLandmarksRequest()
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         do {

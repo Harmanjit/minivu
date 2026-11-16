@@ -7,7 +7,7 @@ import CoreGraphics
 /// The canvas's texture read back as the picture Live Text recognises:
 /// upright, no larger than it needs to be, and with HDR highlights tone
 /// mapped rather than clipped.
-@Suite struct LiveTextImageTests {
+@Suite(.offCooperativePool) struct LiveTextImageTests {
     /// The pixel at `x`, `y` (top-left origin) as 8-bit red, green, blue.
     func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (Int, Int, Int) {
         let context = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8,

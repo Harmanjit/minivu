@@ -164,6 +164,7 @@ public enum SubjectDetector {
     /// none (a landscape, a texture) or can't run (a Mac without the model).
     /// Synchronous, a few hundred milliseconds: call it off the main thread.
     public static func mask(in image: CGImage) -> SubjectMask? {
+        BlockingWork.expectOffCooperativePool("SubjectDetector.mask(in:)")
         let request = VNGenerateForegroundInstanceMaskRequest()
         let handler = VNImageRequestHandler(cgImage: image, options: [:])
         do {

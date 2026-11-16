@@ -5,7 +5,7 @@ import ImageIO
 import UniformTypeIdentifiers
 @testable import MinivuCore
 
-@Suite struct ExportEncoderTests {
+@Suite(.offCooperativePool) struct ExportEncoderTests {
     typealias F = ExportFixtures
 
     func options(_ format: ExportFormat, _ change: (inout ExportOptions) -> Void = { _ in }) -> ExportOptions {

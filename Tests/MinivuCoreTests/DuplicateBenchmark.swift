@@ -5,7 +5,7 @@ import Foundation
 /// Timings behind the duplicate finder's limits (G5; docs/feature-notes/org.md).
 /// Runs only when MINIVU_BENCH_DIR is set (any folder of photos), e.g.
 ///     MINIVU_BENCH_DIR=~/latent/TestAssets swift test --filter DuplicateBenchmark
-@Suite(.serialized) struct DuplicateBenchmark {
+@Suite(.serialized, .offCooperativePool) struct DuplicateBenchmark {
     static let folder = ProcessInfo.processInfo.environment["MINIVU_BENCH_DIR"].map { URL(fileURLWithPath: $0) }
 
     static func ms(_ d: Duration) -> Double { Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) / 1e15 }

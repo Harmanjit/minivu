@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 /// G17's engine: the streaming TIFF writer, the page reader, the
 /// multi-page writer and builder (TIFF, PDF, GIF, animated HEIC), image
 /// strips and the `{page}` name token.
-@Suite struct MultiPageTests {
+@Suite(.offCooperativePool) struct MultiPageTests {
     static let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
 
     static func solid(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, width: Int, height: Int,

@@ -9,7 +9,7 @@ import QuartzCore
 
 /// HDR end to end: generated gain-map and PQ files -> decode -> upload ->
 /// canvas at several display headrooms -> pixels.
-@Suite(.serialized) struct HDRPipelineTests {
+@Suite(.serialized, .offCooperativePool) struct HDRPipelineTests {
     /// Middle row of a rendered or uploaded texture, largest channel per pixel.
     func rowPeaks(_ texture: MTLTexture) -> [Float] {
         (0..<texture.width).map { x in

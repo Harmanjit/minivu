@@ -8,7 +8,7 @@ import UniformTypeIdentifiers
 /// G14: AVIF as a Save As, Batch Convert and Shortcuts format, where ImageIO
 /// can write it. Quality, metadata and Remove location as for HEIC; 10 bits a
 /// channel from a 16-bit image; HDR kept as an ISO gain map.
-@Suite(.enabled(if: ExportFormat.avif.isWritable, "ImageIO on this Mac has no AVIF encoder"))
+@Suite(.enabled(if: ExportFormat.avif.isWritable, "ImageIO on this Mac has no AVIF encoder"), .offCooperativePool)
 struct ExportAVIFTests {
     typealias F = ExportFixtures
 
