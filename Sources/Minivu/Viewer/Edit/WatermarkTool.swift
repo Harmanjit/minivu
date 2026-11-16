@@ -78,7 +78,7 @@ struct WatermarkInspectorView: View {
                     ColorPicker("Color", selection: state.colorBinding(\.color), supportsOpacity: false)
                 } else {
                     LabeledContent("Picture") {
-                        Text(state.payload.imageName ?? "None")
+                        Text(state.payload.imageName ?? localized(.init("watermark.picture.none", defaultValue: "None", comment: "No picture chosen")))
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .foregroundStyle(state.payload.imageBookmark == nil ? .secondary : .primary)
@@ -87,26 +87,27 @@ struct WatermarkInspectorView: View {
                 }
             } footer: {
                 if state.payload.kind == .image {
-                    InspectorFootnote("PNG or HEIC pictures with transparency work best. minivu remembers the file, so a saved watermark finds it again; if it moves, choose it again.")
+                    InspectorFootnote(localized("PNG or HEIC pictures with transparency work best. minivu remembers the file, so a saved watermark finds it again; if it moves, choose it again."))
                 }
             }
             Section {
-                state.slider(\.size, "Size", range: Watermark.sizeRange, displayScale: 100, decimals: 1, unit: "%")
-                state.slider(\.opacity, "Opacity", range: 0...1, displayScale: 100, unit: "%")
+                state.slider(\.size, localized(.init("edit.size", defaultValue: "Size", comment: "Label: the size of a brush, text or watermark")),
+                    range: Watermark.sizeRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.opacity, localized("Opacity"), range: 0...1, displayScale: 100, unit: "%")
                 LabeledContent("Position") {
-                    AnchorGrid(selection: state.payload.position, label: "Position") { anchor in
+                    AnchorGrid(selection: state.payload.position, label: localized("Position")) { anchor in
                         state.update { $0.position = anchor }
                     }
                 }
-                state.slider(\.margin, "Margin", range: Watermark.marginRange, displayScale: 100, decimals: 1, unit: "%")
+                state.slider(\.margin, localized("Margin"), range: Watermark.marginRange, displayScale: 100, decimals: 1, unit: "%")
                 Toggle("Tile across the photo", isOn: state.binding(\.tiled))
                 if state.payload.tiled {
-                    state.slider(\.spacing, "Spacing", range: Watermark.spacingRange, decimals: 1, unit: "×")
+                    state.slider(\.spacing, localized("Spacing"), range: Watermark.spacingRange, decimals: 1, unit: "×")
                 }
             } header: {
                 Text("Placement")
             } footer: {
-                InspectorFootnote("Size and margin are percentages of the photo’s short side, so the watermark covers the same share of any photo. Spacing is in watermark heights.")
+                InspectorFootnote(localized("Size and margin are percentages of the photo’s short side, so the watermark covers the same share of any photo. Spacing is in watermark heights."))
             }
         }
     }

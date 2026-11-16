@@ -630,7 +630,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
             guard !(error is CancellationError) else { return }
             displayed = shown
             canvas.setImage(nil, preserveView: false)
-            errorLabel.stringValue = "minivu can’t display “\(entry.name)”."
+            errorLabel.stringValue = localized(.init("minivu can’t display “\(entry.name)”.", comment: "%@ is a file name"))
             errorLabel.isHidden = false
             updateChrome()
         }
@@ -888,7 +888,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
         let zoom = shown ? canvas.zoomPercent : nil
         var part = model.pageHUDText
         if let player, !player.isPlaying, player.frameCount > 0 {
-            part = "Frame \(player.currentFrame + 1) / \(player.frameCount)"
+            part = localized(.init("Frame \(player.currentFrame + 1) / \(player.frameCount)",
+                                   comment: "HUD: the animation frame showing, of how many (not a picture frame)"))
         }
         if isShowingVideo { part = videoHUDText }
         let document = editSession?.document
@@ -1186,7 +1187,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate, NSMenu
     private func presentTrashError(_ error: Error, for entry: FolderEntry) {
         guard let window, !isClosing else { return }
         let alert = NSAlert()
-        alert.messageText = "“\(entry.name)” couldn’t be moved to the Trash."
+        alert.messageText = localized(.init("“\(entry.name)” couldn’t be moved to the Trash.", comment: "%@ is a file name"))
         alert.informativeText = error.localizedDescription
         alert.beginSheetModal(for: window)
     }

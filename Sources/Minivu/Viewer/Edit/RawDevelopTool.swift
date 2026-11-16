@@ -35,7 +35,7 @@ import MinivuRender
         document.preview = .rawDevelop(settings)
     }
 
-    var title: String { "RAW Adjustments" }
+    var title: String { localized("RAW Adjustments") }
     var hasPendingChanges: Bool { settings != initial }
     /// The camera's settings, every one given.
     var asShot: RawDevelop { RawDevelop().filled(from: defaults) }
@@ -100,30 +100,31 @@ struct RawDevelopInspectorView: View {
     var body: some View {
         ToolInspector(title: state.title, actions: actions) {
             Section {
-                state.slider(\.exposure, "Exposure", range: RawDevelop.exposureRange, decimals: 2, unit: " EV")
-                state.slider(\.boost, "Boost", range: 0...1, displayScale: 100, unit: "%")
+                state.slider(\.exposure, localized("Exposure"), range: RawDevelop.exposureRange, decimals: 2, unit: " EV")
+                state.slider(\.boost, localized(.init("Boost", comment: "RAW: how much of the camera's contrast curve is applied")),
+                    range: 0...1, displayScale: 100, unit: "%")
                 if state.defaults.supportsHighlightRecovery {
                     Toggle("Recover highlights", isOn: state.recoversHighlights)
                 }
             } footer: {
-                InspectorFootnote("Boost is how much of the RAW engine’s contrast curve is applied; lower is flatter.")
+                InspectorFootnote(localized("Boost is how much of the RAW engine’s contrast curve is applied; lower is flatter."))
             }
             Section {
-                state.slider(\.temperature, "Temperature", range: RawDevelop.temperatureRange, unit: " K",
+                state.slider(\.temperature, localized("Temperature"), range: RawDevelop.temperatureRange, unit: " K",
                              logarithmic: true)
-                state.slider(\.tint, "Tint", range: RawDevelop.tintRange)
+                state.slider(\.tint, localized("Tint"), range: RawDevelop.tintRange)
             } header: {
                 Text("White Balance")
             } footer: {
-                InspectorFootnote("Starts at the white balance the camera recorded. Higher temperatures make the picture warmer; positive tint adds magenta.")
+                InspectorFootnote(localized("Starts at the white balance the camera recorded. Higher temperatures make the picture warmer; positive tint adds magenta."))
             }
             if state.defaults.supportsLuminanceNoiseReduction || state.defaults.supportsColorNoiseReduction {
                 Section {
                     if state.defaults.supportsLuminanceNoiseReduction {
-                        state.slider(\.luminanceNoiseReduction, "Luminance Noise", range: 0...1, displayScale: 100, unit: "%")
+                        state.slider(\.luminanceNoiseReduction, localized("Luminance Noise"), range: 0...1, displayScale: 100, unit: "%")
                     }
                     if state.defaults.supportsColorNoiseReduction {
-                        state.slider(\.colorNoiseReduction, "Color Noise", range: 0...1, displayScale: 100, unit: "%")
+                        state.slider(\.colorNoiseReduction, localized("Color Noise"), range: 0...1, displayScale: 100, unit: "%")
                     }
                 } header: {
                     Text("Noise Reduction")
@@ -131,7 +132,7 @@ struct RawDevelopInspectorView: View {
             }
             Section {
             } footer: {
-                InspectorFootnote("These settings change how Apple’s RAW engine develops the file, before every other edit, so they can be changed again at any time. Reset returns to the camera’s settings.")
+                InspectorFootnote(localized("These settings change how Apple’s RAW engine develops the file, before every other edit, so they can be changed again at any time. Reset returns to the camera’s settings."))
             }
         }
     }

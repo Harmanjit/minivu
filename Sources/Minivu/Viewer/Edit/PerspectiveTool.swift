@@ -46,7 +46,9 @@ nonisolated enum PerspectiveGeometry {
         return CGPoint(x: top.x + (bottom.x - top.x) * v, y: top.y + (bottom.y - top.y) * v)
     }
 
-    static let cornerTitles = ["Top left", "Top right", "Bottom right", "Bottom left"]
+    static var cornerTitles: [String] {
+        [localized("Top left"), localized("Top right"), localized("Bottom right"), localized("Bottom left")]
+    }
 }
 
 /// The perspective tool's state: the four corners over the image as it is
@@ -73,7 +75,7 @@ nonisolated enum PerspectiveGeometry {
         self.document = document
     }
 
-    var title: String { "Perspective" }
+    var title: String { localized("Perspective") }
     var operation: EditOperation { .perspective(quad) }
     var hasPendingChanges: Bool { !operation.isIdentity }
 
@@ -167,8 +169,8 @@ final class PerspectiveOverlayView: NSView {
         state.onChange = { [weak self] in self?.stateChanged() }
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel("Perspective corners")
-        setAccessibilityHelp("Drag each corner onto a corner of something that should be rectangular, or set them in the tools panel.")
+        setAccessibilityLabel(localized("Perspective corners"))
+        setAccessibilityHelp(localized("Drag each corner onto a corner of something that should be rectangular, or set them in the tools panel."))
     }
 
     @available(*, unavailable)
@@ -341,17 +343,17 @@ struct PerspectiveInspectorView: View {
             } header: {
                 Text("Corners")
             } footer: {
-                InspectorFootnote("Across and down, as percentages of the image. Drag the corners on the canvas onto the corners of something that should be rectangular.")
+                InspectorFootnote(localized("Across and down, as percentages of the image. Drag the corners on the canvas onto the corners of something that should be rectangular."))
             }
         }
     }
 
     private var detectionText: String {
         switch state.detection {
-        case .idle: "Auto looks for the most prominent rectangle: a document, a screen, a window or a building’s face."
-        case .running: "Looking for a rectangle…"
-        case .found: "The corners are on the rectangle found. Adjust them if needed."
-        case .none: "No rectangle stood out. Drag the corners instead."
+        case .idle: localized("Auto looks for the most prominent rectangle: a document, a screen, a window or a building’s face.")
+        case .running: localized("Looking for a rectangle…")
+        case .found: localized("The corners are on the rectangle found. Adjust them if needed.")
+        case .none: localized("No rectangle stood out. Drag the corners instead.")
         }
     }
 
@@ -360,10 +362,12 @@ struct PerspectiveInspectorView: View {
         let point = state.quad.corners[index]
         return LabeledContent(title) {
             HStack(spacing: 4) {
-                percentField("\(title), across", value: point.x) { x in
+                percentField(localized(.init("\(title), across", comment: "VoiceOver: %@ is a corner, such as Top left; across is its x position")),
+                    value: point.x) { x in
                     state.setCorner(index, to: CGPoint(x: x, y: state.quad.corners[index].y))
                 }
-                percentField("\(title), down", value: point.y) { y in
+                percentField(localized(.init("\(title), down", comment: "VoiceOver: %@ is a corner, such as Top left; down is its y position")),
+                    value: point.y) { y in
                     state.setCorner(index, to: CGPoint(x: state.quad.corners[index].x, y: y))
                 }
             }

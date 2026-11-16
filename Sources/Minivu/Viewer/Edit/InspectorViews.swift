@@ -230,9 +230,9 @@ struct AdjustmentInspectorView: View {
     private func footnote(for sectionIndex: Int) -> String? {
         switch state.kind {
         case .colors where sectionIndex == state.sections.count - 1:
-            "Color and RGB changes apply as separate steps."
+            localized("Color and RGB changes apply as separate steps.")
         case .straighten:
-            "The corners are cropped away as the image turns."
+            localized("The corners are cropped away as the image turns.")
         default:
             nil
         }
@@ -272,7 +272,7 @@ struct CropInspectorView: View {
                     Text(verbatim: "\(Int(rect.minX)), \(Int(rect.minY))").monospacedDigit().foregroundStyle(.secondary)
                 }
             } footer: {
-                InspectorFootnote("Drag the handles or draw a new rectangle. Return crops.")
+                InspectorFootnote(localized("Drag the handles or draw a new rectangle. Return crops."))
             }
         }
     }

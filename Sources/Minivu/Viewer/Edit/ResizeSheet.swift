@@ -8,7 +8,7 @@ nonisolated struct ResizeModel: Equatable, Sendable {
     enum Unit: String, CaseIterable, Identifiable, Sendable {
         case pixels, percent
         var id: String { rawValue }
-        var title: String { self == .pixels ? "Pixels" : "Percent" }
+        var title: String { self == .pixels ? localized("Pixels") : localized("Percent") }
     }
 
     /// Largest side accepted. Beyond this a single photo is hundreds of
@@ -103,9 +103,9 @@ struct ResizeSheetView: View {
                         ForEach(ResizeModel.Unit.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                    dimensionRow("Width", pixels: state.model.width, percent: state.model.widthPercent,
+                    dimensionRow(localized("Width"), pixels: state.model.width, percent: state.model.widthPercent,
                                  setPixels: { state.model.setWidth($0) }, setPercent: { state.model.setWidthPercent($0) })
-                    dimensionRow("Height", pixels: state.model.height, percent: state.model.heightPercent,
+                    dimensionRow(localized("Height"), pixels: state.model.height, percent: state.model.heightPercent,
                                  setPixels: { state.model.setHeight($0) }, setPercent: { state.model.setHeightPercent($0) })
                     Toggle("Keep aspect ratio", isOn: Binding(get: { state.model.keepsAspectRatio },
                                                               set: { state.model.setKeepsAspectRatio($0) }))
@@ -186,7 +186,7 @@ enum ResizeSheet {
         let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 380),
                              styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: true)
         sheet.isReleasedWhenClosed = false
-        sheet.title = "Resize"
+        sheet.title = localized("Resize")
         var finished = false
         // The sheet's view holds these buttons' actions, so they hold the
         // sheet and its parent weakly: a strong hold was a cycle that kept

@@ -209,11 +209,11 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     static var askAboutUnsavedEdits: (_ name: String, _ window: NSWindow,
                                       _ answer: @escaping (UnsavedEditsChoice) -> Void) -> Void = { name, window, answer in
         let alert = NSAlert()
-        alert.messageText = "Do you want to save the changes made to “\(name)”?"
-        alert.informativeText = "Your changes will be lost if you don’t save them."
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        let dontSave = alert.addButton(withTitle: "Don’t Save")
+        alert.messageText = localized(.init("Do you want to save the changes made to “\(name)”?", comment: "%@ is a file name"))
+        alert.informativeText = localized("Your changes will be lost if you don’t save them.")
+        alert.addButton(withTitle: localized("Save"))
+        alert.addButton(withTitle: localized("Cancel"))
+        let dontSave = alert.addButton(withTitle: localized("Don’t Save"))
         dontSave.keyEquivalent = "d"
         dontSave.keyEquivalentModifierMask = .command
         dontSave.hasDestructiveAction = true
@@ -430,10 +430,11 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     @objc func revertToSaved(_ sender: Any?) {
         guard let session = editSession, session.document.isDirty, let window, window.attachedSheet == nil else { return }
         let alert = NSAlert()
-        alert.messageText = "Do you want to revert “\(session.document.entry.name)” to the saved version?"
-        alert.informativeText = "Your current changes will be lost."
-        alert.addButton(withTitle: "Revert")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = localized(.init("Do you want to revert “\(session.document.entry.name)” to the saved version?",
+                                            comment: "%@ is a file name"))
+        alert.informativeText = localized("Your current changes will be lost.")
+        alert.addButton(withTitle: localized(.init("Revert", comment: "Verb: alert button that goes back to the saved file")))
+        alert.addButton(withTitle: localized("Cancel"))
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertFirstButtonReturn, let self, self.editSession === session else { return }
             self.endEditSession(reloading: true)
@@ -505,29 +506,32 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     }
 
     @objc func showRotateFlipTool(_ sender: Any?) {
-        if case .immediate(let title)? = activeTool, title == "Rotate & Flip" { return }
+        if case .immediate(let title)? = activeTool, title == localized("Rotate & Flip") { return }
         guard beginOpeningTool(replacing: true) != nil else { return }
         let actions = [
-            ImmediateAction(title: "Rotate Left", symbol: "rotate.left", action: .rotateLeft),
-            ImmediateAction(title: "Rotate Right", symbol: "rotate.right", action: .rotateRight),
-            ImmediateAction(title: "Flip Horizontal", symbol: "arrow.left.and.right.righttriangle.left.righttriangle.right",
+            ImmediateAction(title: localized("Rotate Left"), symbol: "rotate.left", action: .rotateLeft),
+            ImmediateAction(title: localized("Rotate Right"), symbol: "rotate.right", action: .rotateRight),
+            ImmediateAction(title: localized("Flip Horizontal"), symbol: "arrow.left.and.right.righttriangle.left.righttriangle.right",
                             action: .flipHorizontal),
-            ImmediateAction(title: "Flip Vertical", symbol: "arrow.up.and.down.righttriangle.up.righttriangle.down",
+            ImmediateAction(title: localized("Flip Vertical"), symbol: "arrow.up.and.down.righttriangle.up.righttriangle.down",
                             action: .flipVertical),
-            ImmediateAction(title: "Straighten…", symbol: "level", action: .straightenImage),
+            ImmediateAction(title: localized("Straighten…"), symbol: "level", action: .straightenImage),
         ]
-        presentImmediate(title: "Rotate & Flip", actions: actions, footer: "Each turn or flip is one step to undo.")
+        presentImmediate(title: localized("Rotate & Flip"), actions: actions,
+                         footer: localized("Each turn or flip is one step to undo."))
     }
 
     @objc func showColorEffectsTool(_ sender: Any?) {
-        if case .immediate(let title)? = activeTool, title == "Color Effects" { return }
+        if case .immediate(let title)? = activeTool, title == localized("Color Effects") { return }
         guard beginOpeningTool(replacing: true) != nil else { return }
         let actions = [
-            ImmediateAction(title: "Grayscale", symbol: "circle.lefthalf.filled", action: .applyGrayscale),
-            ImmediateAction(title: "Sepia", symbol: "camera.filters", action: .applySepia),
-            ImmediateAction(title: "Negative", symbol: "plusminus.circle", action: .applyNegative),
+            ImmediateAction(title: localized("Grayscale"), symbol: "circle.lefthalf.filled", action: .applyGrayscale),
+            ImmediateAction(title: localized("Sepia"), symbol: "camera.filters", action: .applySepia),
+            ImmediateAction(title: localized(.init("Negative", comment: "Effect: invert the colours")),
+                symbol: "plusminus.circle", action: .applyNegative),
         ]
-        presentImmediate(title: "Color Effects", actions: actions, footer: "Effects apply to the whole image at once.")
+        presentImmediate(title: localized("Color Effects"), actions: actions,
+                         footer: localized("Effects apply to the whole image at once."))
     }
 
     /// The control bar's edit button: pins the tools panel open, or closes it
