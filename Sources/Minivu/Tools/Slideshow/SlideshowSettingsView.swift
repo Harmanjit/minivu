@@ -16,8 +16,8 @@ struct SlideshowSettingsView: View {
                     HStack {
                         Slider(value: wholeSeconds($store.settings.interval), in: SlideshowSettings.intervalRange)
                             .accessibilityLabel("Show each slide for")
-                            .accessibilityValue("\(Int(store.settings.interval)) seconds")
-                        SlideshowValueLabel(text: "\(Int(store.settings.interval)) s")
+                            .accessibilityValue(localized("\(Int(store.settings.interval)) seconds"))
+                        SlideshowValueLabel(text: localized(.init("\(Int(store.settings.interval)) s", comment: "A number of seconds, abbreviated")))
                     }
                 }
                 Picker("Order", selection: $store.settings.order) {
@@ -47,8 +47,8 @@ struct SlideshowSettingsView: View {
                         Slider(value: tenths($store.settings.transitionDuration),
                                in: SlideshowSettings.transitionDurationRange)
                             .accessibilityLabel("Duration")
-                            .accessibilityValue(String(format: "%.1f seconds", store.settings.transitionDuration))
-                        SlideshowValueLabel(text: String(format: "%.1f s", store.settings.transitionDuration))
+                            .accessibilityValue(localized(.init("\(tenthsText) seconds", comment: "A number of seconds with one decimal, such as 0.5")))
+                        SlideshowValueLabel(text: localized(.init("\(tenthsText) s", comment: "A number of seconds with one decimal, abbreviated")))
                     }
                 }
                 VStack(spacing: 4) {
@@ -121,8 +121,8 @@ struct SlideshowSettingsView: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
         panel.allowedContentTypes = SlideshowPlaylistResolver.audioTypes
-        panel.prompt = "Add"
-        panel.message = "Choose songs, or folders of songs, to play during slideshows."
+        panel.prompt = localized(.init("Add", comment: "Open panel button: adds the chosen items"))
+        panel.message = localized("Choose songs, or folders of songs, to play during slideshows.")
         let store = store
         let finish: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK else { return }
@@ -140,6 +140,11 @@ struct SlideshowSettingsView: View {
 
     private func wholeSeconds(_ value: Binding<Double>) -> Binding<Double> {
         Binding(get: { value.wrappedValue }, set: { value.wrappedValue = $0.rounded() })
+    }
+
+    /// The transition's duration, such as "0.5".
+    private var tenthsText: String {
+        store.settings.transitionDuration.formatted(.number.precision(.fractionLength(1)))
     }
 
     private func tenths(_ value: Binding<Double>) -> Binding<Double> {
