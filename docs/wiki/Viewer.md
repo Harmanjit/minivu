@@ -1,6 +1,8 @@
 # Viewer
 
-Double-click a thumbnail, press Return, or choose **File > Open in Viewer** (⌘↓) to open an image in the viewer. It steps through the images the browser shows, in the browser's order and with its filter. Press Esc, press ⌘W or double-click the image to go back; the browser then selects the image you were looking at.
+Double-click a thumbnail, press Return, or choose **File > Open in Viewer** (⌘↓) to open an image in the viewer. It steps through the images the browser shows, in the browser's order and with its filter. In the flat view, search results, a smart folder or a collection, that is the whole list. Press Esc, press ⌘W or double-click the image to go back; the browser then selects the image you were looking at.
+
+Videos open in the viewer too, and play there; see [Videos](#videos).
 
 There is one viewer at a time. Opening another image from the browser while it is open reuses it.
 
@@ -85,7 +87,7 @@ Scrolling while you hold changes the loupe's zoom in steps of 1.25×, from 1.5×
 | Home, End | First or last image |
 | Page Down, Page Up | Next or previous page of a document, then the next or previous image |
 
-While the image is larger than the view, the arrow keys pan it instead (see above); Space, ⌫, Home, End and the paging keys still move through the folder.
+While the image is larger than the view, the arrow keys pan it instead (see above); Space, ⌫, Home, End and the paging keys still move through the folder. On a video, Space plays and pauses it instead; the arrow keys still move on.
 
 The **Go** menu has **Next Image**, **Previous Image**, **First Image** and **Last Image**. A click on the filmstrip jumps to that image.
 
@@ -95,17 +97,20 @@ At either end of the folder the overlay flashes its position instead of doing no
 
 ### Stars, tags and files
 
-- **0** to **5** rate the image shown (0 clears), and **T** or **`** tags or untags it. **Image > Rating** (⌃0 to ⌃5) and **Image > Tag** (⌘T, shown as **Remove Tag** when the image is tagged) do the same. Stars and tags are kept in minivu's catalog; see [Browser](Browser).
+- **0** to **5** rate the image shown (0 clears), and **T** or **`** tags or untags it. **Image > Rating** (⌃0 to ⌃5) and **Image > Tag** (⌘T, shown as **Remove Tag** when the image is tagged) do the same. Stars and tags are kept in minivu's catalog. A file you haven't rated in minivu shows the rating it carries itself, such as one set in Lightroom; see [Browser](Browser#ratings-from-other-apps).
+- **Image > Label** sets the image's colour label, from **None** (⌥⌘0) to **Gray** (⌥⌘7). The label is the file's Finder colour tag. The viewer doesn't draw it; the browser shows it as a coloured dot. See [Browser](Browser#colour-labels-and-finder-tags).
+- **Image > Edit Metadata…** (⌘I) edits the title, caption, creator, copyright, keywords and date taken of the image shown, and can remove its location. If the image has unsaved edits, minivu asks about them first. See [Editing](Editing).
 - **File > Move to Trash** (⌘⌫) moves the image to the Trash and shows the next one, or the previous one if it was the last; the viewer closes when none are left. The ⌫ key on its own goes to the previous image and never deletes anything.
 - **File > Reveal in Finder** (⌥⌘R) shows the file in Finder.
-- **Tools > Start Slideshow** (⇧⌘F) plays the viewer's images from the one shown; see [Tools](Tools).
+- **File > Share…** offers the file to the system's share sheet (AirDrop, Messages, Mail and others). If the image has unsaved edits, minivu says so first: the file is shared as it was last saved, without the edits, so save first to share them. **Share Saved File** goes on, **Cancel** stops.
+- **Tools > Start Slideshow** (⇧⌘F) plays the viewer's images from the one shown, skipping videos; see [Tools](Tools).
 
 ## The overlay
 
 A small overlay in the top-left corner shows:
 
 - the file name, and the stars and tag when the image has either;
-- the position, page, pixel size and zoom, for example "3 / 120 · Page 2 of 10 · 6000 × 4000 · 25%";
+- the position, page, pixel size and zoom, for example "3 / 120 · Page 2 of 10 · 6000 × 4000 · 25%"; for a video, "Video, 1:05" takes the place of the page;
 - for photos, the exposure: "1/250 s  f/2.8  ISO 400  35 mm", leaving out what the file doesn't record;
 - "Edited · Undo Crop" in orange while the image has unsaved edits.
 
@@ -128,11 +133,11 @@ Panels build their controls the first time they open, and the filmstrip, histogr
 
 ### Filmstrip
 
-Thumbnails of the viewer's images, with the one on screen highlighted. Click one to jump to it; a mouse wheel scrolls the strip sideways. The thumbnails come from the same cache as the browser's, so a folder you have already browsed shows its strip at once.
+Thumbnails of the viewer's images, with the one on screen highlighted. Click one to jump to it; a mouse wheel scrolls the strip sideways. The thumbnails come from the same cache as the browser's, so a folder you have already browsed shows its strip at once. A video's thumbnail has no play badge in the strip.
 
 ### Edit tools
 
-The tools in four groups: **Adjust** (Resize, Crop, Rotate & Flip, Straighten, Lighting, Colors, Curves, Levels, Sharpen, Blur), **Effects** (Color Effects, Drop Shadow, Frame, Bump Map, Sketch, Oil Painting, Lens), **Draw** (Text and Shapes) and **Retouch** (Clone Stamp, Healing Brush, Red-Eye Removal). Opening a tool replaces the list with its settings and keeps the panel open; Return applies it and Esc closes it. The tools are disabled until the image has loaded, and for animations. [Editing](Editing) describes each one.
+The tools in four groups: **Adjust** (Resize, Canvas Size, Crop, Rotate & Flip, Straighten, Perspective, RAW Adjustments, Auto Enhance, Lighting, Colors, Curves, Levels, Sharpen, Blur, Noise Reduction), **Effects** (Color Effects, Drop Shadow, Frame, Bump Map, Sketch, Oil Painting, Lens, Vignette), **Draw** (Text and Shapes, Watermark) and **Retouch** (Clone Stamp, Healing Brush, Red-Eye Removal, Remove Background). RAW Adjustments works on camera RAW files only. Opening a tool replaces the list with its settings and keeps the panel open; Return applies it and Esc closes it. The tools are disabled until the image has loaded, and for animations and videos. [Editing](Editing) describes each one.
 
 ### Histogram and information
 
@@ -142,11 +147,15 @@ It measures what is on screen, including an edit in progress, from a reduced cop
 
 **Unique colors** has a **Count** button. The count is of the file as saved, not of unsaved edits, and is remembered for the file, until it changes, while minivu is running.
 
-Below it, the file information: **File**, **Image**, **Camera**, **Exposure**, **Dates**, **GPS** and **Description**, whichever the file has. Values can be selected and copied. They are read in the background, so moving through a folder with the panel open doesn't wait for the disk.
+For a video the histogram is empty, and **Image > Histogram** and **Count Colors** are greyed out.
+
+Below it, the file information: **File**, **Image**, **Camera**, **Exposure**, **Dates**, **GPS** and **Description**, whichever the file has. Values can be selected and copied. They are read in the background, so moving through a folder with the panel open doesn't wait for the disk. When the description comes from an XMP sidecar (a separate ".xmp" file beside the photo, used for RAW files and formats minivu can't rewrite), a **Sidecar** row names it. A video has a **Video** section in place of Image; see [Videos](#videos).
+
+Last comes **Keywords**, for a file whose metadata minivu can write. Each keyword has an x button that removes it from the file. Type new keywords in the **Add keywords** field, separated by commas, and press Return to add them. A keyword the file already has in another letter case isn't added twice. PDF, SVG and video files show no keyword editor. If the image has unsaved edits, minivu asks about them before it writes.
 
 ### Control bar
 
-From left to right: **Previous Image** and **Next Image**; for documents, previous and next page with "2 / 10" between them; for animations, **Play** or **Pause**; **Fit to Window** and **Actual Size**; **Zoom Out**, the zoom, **Zoom In**; **Rotate Left** and **Rotate Right**; **Start Slideshow** and **Show Edit Tools**; **Show Info** and the full-screen button. In a narrow window the rotate, slideshow and tools buttons give way first; the menus still have them.
+From left to right: **Previous Image** and **Next Image**; for documents, previous and next page with "2 / 10" between them; for animations and videos, **Play** or **Pause**; **Fit to Window** and **Actual Size**; **Zoom Out**, the zoom, **Zoom In**; **Rotate Left** and **Rotate Right**; **Start Slideshow** and **Show Edit Tools**; **Show Info** and the full-screen button. In a narrow window the rotate, slideshow and tools buttons give way first; the menus still have them.
 
 ## Documents
 
@@ -168,6 +177,55 @@ Animated GIF, PNG (APNG), WebP and HEIC image sequences play on their own, with 
 - The animation stops its clock while its window can't be seen: minimised, hidden, covered, or on another Space.
 - Frames are decoded at the size the animation is shown when fitted; zoom in and the next frames decode larger, zoom back to fit and they go back.
 - Animations are always shown in SDR, and can't be edited.
+
+## Videos
+
+A video opens like a photo. Its first frame appears at once, with a large play button in the middle. Nothing plays until you ask.
+
+| Do this | To |
+|---|---|
+| Space, **P**, the play button or the control bar's button | Play or pause |
+| **Image > Play Video** or **Pause Video** | Play or pause (the Play Animation item, renamed while a video is shown) |
+| **M**, or **Image > Mute Video** / **Unmute Video** | Mute or unmute |
+| → ↓ ← ↑, ⌫, Page Down, Page Up, Home, End | Move to another item, as for photos |
+| Return, or **View > Enter Full Screen** (⌃⌘F) | Switch between a window and full screen; the video keeps playing |
+| Esc, ⌘W | Close the viewer |
+
+Once a video plays, macOS's own player controls appear over it: play and pause, a scrubber to move through the clip, the time, and volume and mute. Pausing leaves the video where it is; playing again at the end starts from the beginning. Mute carries over to the next video while minivu is running, as in QuickTime Player.
+
+- Moving to another item, or closing the viewer, stops the video. A video playing in a viewer that becomes hidden, minimised or covered pauses, and doesn't start again on its own.
+- The keyboard stays with the viewer, so the arrow keys always move between items rather than step through frames.
+- Clicks on a playing video go to the player, which shows or hides its controls. Double-clicking a playing video doesn't close the viewer; double-clicking the first frame, before it plays, does.
+- With **Display HDR photos in HDR** on (**Settings > Viewer**), an HDR video's first frame shows in HDR, like an HDR photo, and playback is HDR on screens that can show it. With the setting off, the first frame is tone mapped to SDR, and so is playback on macOS 26 and later; on earlier versions macOS decides.
+- The overlay shows "Video, 1:05" where a document shows its page.
+- The info panel's **Video** section gives the dimensions, duration, frame rate, codec, data rate, audio and HDR, and says "Playable: No" when macOS can't play the file. **Camera**, **Dates** and **GPS** come from the movie's own metadata, as an iPhone or a camera writes it. All of these are shown only.
+
+minivu shows and plays videos; it doesn't edit, trim or convert them. While a video is shown, these are greyed out: every edit tool, rotate and flip, Save, Save As and Revert, Copy (⌘C), Copy Text and Copy Subject, zooming, the histogram and Count Colors, Print, Set as Desktop Picture, Edit Comment and Edit Metadata. Rating, tagging, labelling, Move to Trash, Reveal in Finder and Share work as for photos.
+
+### Copy and save a frame
+
+- **Edit > Copy Frame** puts the frame on screen on the clipboard as a picture, at the video's own size: a 4K clip gives a 3840 × 2160 picture whatever the window's size.
+- **File > Save Frame As…** saves the same frame through the Save As panel, with its formats and quality. It pauses a playing video first, so it saves what you see. The name starts as the video's name and the time, as in "clip frame 0.12".
+
+The frame on screen is where the player stands, playing or paused, or the first frame before anything has played. It is always standard range (SDR, not HDR), and carries none of the movie's metadata. Neither command has a shortcut, and both are greyed out for photos.
+
+## Live Text
+
+You can select text in a picture, as in Preview. Move the pointer over the picture; a moment later the pointer becomes an I-beam over any text, and you can drag over it to select it. Right-click selected text for Copy, Look Up and Services.
+
+- **⌘C** copies the selected text when there is some, and the picture when there isn't.
+- **Edit > Copy Text** (⇧⌘C) copies all the text found in the picture. A picture with no text beeps.
+- **View > Live Text** turns the feature on or off; it is on by default and remembered. Off, nothing is analysed and Copy Text is greyed out.
+
+The text is read from what is shown, at most 4096 pixels on its long side, so small text in a large photo can become selectable after you zoom in. Nothing is read while you flip through a folder with the keyboard: the picture is analysed only when the pointer moves over it, or when you choose Copy Text. Recognition runs on the Mac. minivu doesn't ask for Visual Look Up, which would contact Apple's servers, and links such as phone numbers and addresses aren't underlined.
+
+Live Text isn't offered while an edit tool is open, while an animation plays, or for a video. On text, a drag selects rather than pans, and a press and hold selects rather than shows the magnifier; to pan a picture full of text, use the arrow keys, a trackpad or the wheel, or turn Live Text off. Live Text isn't in the browser's preview pane or the compare window.
+
+## Copying the picture
+
+- **Edit > Copy** (⌘C) copies the picture on screen, edits and all, so it pastes into Mail or Pages as you see it. Selected Live Text is copied instead, when there is some.
+- **Edit > Copy Subject** cuts the main subject out of the picture on screen, found by macOS on the Mac, and puts it on the clipboard, cropped to the subject, with a transparent background. The image itself doesn't change. It beeps when no subject is found. To remove the background in the image itself, use **Image > Remove Background…**; see [Editing](Editing).
+- **Edit > Copy Frame** copies a video's frame; see [Videos](#videos).
 
 ## Colour
 
@@ -208,7 +266,7 @@ A RAW render is heavy: for a 24 MP photo, about 0.8 GB of memory for a screen-si
 
 ## Formats
 
-Everything is decoded by Apple's frameworks: ImageIO for images and RAW previews, Apple's RAW engine (through Core Image) for RAW renders, Core Graphics for PDF and AppKit for SVG. The browser lists files with these extensions, in any letter case:
+Everything is decoded by Apple's frameworks: ImageIO for images and RAW previews, Apple's RAW engine (through Core Image) for RAW renders, Core Graphics for PDF, AppKit for SVG, and AVFoundation for videos, which AVKit plays. The browser lists files with these extensions, in any letter case:
 
 | Format | Extensions |
 |---|---|
@@ -229,14 +287,15 @@ Everything is decoded by Apple's frameworks: ImageIO for images and RAW previews
 | Camera RAW | as listed above |
 | PDF | .pdf |
 | SVG | .svg |
+| Video | .mov .qt .mp4 .mpg4 .m4v .3gp .3gpp .3g2 .3gp2 .mts .m2ts .mpg .mpeg .dv, where macOS says it can open the type |
 
-An icon file shows its largest size, and a HEIC collection its primary picture. A file macOS can't decode shows "minivu can’t display “name”." in place of the image, and the keys still move on to the next.
+An icon file shows its largest size, and a HEIC collection its primary picture. A file macOS can't decode shows "minivu can’t display “name”." in place of the image, and the keys still move on to the next. A listed video macOS can't decode shows no thumbnail and the same message.
 
 ## Compare
 
-Select two to four images in the browser and choose **Image > Compare Selected** (⌥⌘K), or click **Compare** in the browser's toolbar. The Compare window shows them side by side: two or three in a row, and four in a row or a 2 × 2 grid, set with **Layout** in its toolbar (**Grid** by default, and remembered). There is one Compare window; comparing again replaces its images.
+Select two to four images in the browser and choose **Image > Compare Selected** (⌥⌘K), or click **Compare** in the browser's toolbar. Find Duplicates' **Compare** button opens the window too; see [Tools](Tools). The Compare window shows them side by side: two or three in a row, and four in a row or a 2 × 2 grid, set with **Layout** in its toolbar (**Grid** by default, and remembered). There is one Compare window; comparing again replaces its images.
 
-Each pane has its number, the file name (its path in the tooltip), pixel size, file size and exposure (or, without one, the camera or the format) at the top, and stars, a tag button, a Trash button and the zoom at the bottom. Click a star to rate, and the current star again to clear. The focused pane is outlined.
+Each pane has its number, the file name (its path in the tooltip), pixel size, file size and exposure (or, without one, the camera or the format; for a video, "Video, 0:12") at the top, and stars, a tag button, a Trash button and the zoom at the bottom. Click a star to rate, and the current star again to clear. The focused pane is outlined.
 
 Each pane is the same canvas as the viewer: click for fit or actual size, press and hold for the magnifier, drag to pan, and HDR shows as it does there. The wheel over a pane does what **Mouse wheel** is set to, for that pane.
 
@@ -254,7 +313,8 @@ Each pane is the same canvas as the viewer: click for fit or actual size, press 
 | Esc | Close the window |
 
 - ← and → step through the browser's images in its order, skipping images already in another pane, and wrap round if **Wrap around at end of folder** is on.
-- The **Image** menu's zoom, rating and tag commands, **Go > Next Image** and **Previous Image**, and **File > Reveal in Finder** and **Move to Trash** act on the focused pane; with Sync on, zoom carries to the others.
+- The **Image** menu's zoom, rating, tag and **Label** commands, **Go > Next Image** and **Previous Image**, and **File > Reveal in Finder** and **Move to Trash** act on the focused pane; with Sync on, zoom carries to the others.
 - Move to Trash asks nothing, as in Finder. The pane then shows the next image in the folder that isn't already shown, or the previous one at the end; with none left the pane goes, and the window closes with its last pane.
-- Stars and tags set here show in the browser and the viewer straight away.
+- Stars, tags and labels set here show in the browser and the viewer straight away.
+- A video is compared by its first frame, which zooms like a photo. Compare never plays a video and has no frame commands.
 - Full screen in the Compare window is macOS full screen, in a Space of its own, unlike the viewer's.
