@@ -1,7 +1,8 @@
 # Ajustes
 
 Escolha **minivu > Ajustes…** (**⌘,**). Cada alteração entra em vigor
-imediatamente; não há nada para confirmar.
+imediatamente; não há nada para confirmar. **Visualizar > Tema** e
+**Visualizar > Texto ao Vivo** também são ajustes, e o minivu os lembra.
 
 ## Geral
 
@@ -12,6 +13,12 @@ imediatamente; não há nada para confirmar.
 - **Abrir o visualizador em tela cheia**, em vez de em uma janela.
 - **Perguntar antes de salvar por cima do original:** ative isto novamente se
   você escolheu não ser consultado ao salvar.
+- **Gravar classificações nos arquivos (XMP):** as estrelas, a sinalização e
+  as etiquetas de cor também são gravadas em cada foto, para que o Lightroom,
+  o Bridge e outros apps as vejam. Os arquivos RAW, e os formatos que o minivu
+  não consegue regravar, recebem em vez disso um arquivo auxiliar XMP ao lado
+  deles. Começa desativado; quando você o ativa, só as alterações feitas
+  depois são gravadas.
 
 ## Visualizador
 
@@ -27,7 +34,8 @@ imediatamente; não há nada para confirmar.
   de qualquer forma quando a pré-visualização é pequena demais para a tela ou
   o zoom.
 - **Renderizar arquivos RAW com faixa dinâmica estendida** mostra os realces
-  RAW em HDR, o que leva um instante por foto.
+  RAW em HDR, o que leva um instante por foto. **Imagem > Ajustar > Ajustes
+  RAW…** também segue esta opção.
 
 ## Lupa
 
@@ -48,7 +56,8 @@ O tempo de exibição de cada slide, a ordem, se deve recomeçar depois do
 e exposição), a transição e a duração dela com uma pré-visualização, e a
 música: músicas ou pastas, embaralhar e volume. Alterar o volume, ou ativar ou
 desativar a música, vale também para uma apresentação que já está em
-andamento.
+andamento. **Ferramentas > Exportar Vídeo da Apresentação…** usa os mesmos
+ajustes, exceto o volume.
 
 ## Editores
 

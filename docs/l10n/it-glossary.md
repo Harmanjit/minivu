@@ -63,6 +63,10 @@ madrelingua.
 | AirDrop, Messages, Mail | AirDrop, Messaggi, Mail |
 | desktop picture | sfondo della scrivania |
 | Keyboard Shortcuts | Abbreviazioni da tastiera |
+| Shortcuts (app) | Comandi rapidi ("l’app Comandi rapidi"; a shortcut = un comando rapido) |
+| Language & Region | Lingua e zona (Impostazioni di Sistema > Generali) |
+| clipboard | Appunti ("negli Appunti") |
+| Preview (app) | Anteprima |
 
 ## Termini di minivu
 
@@ -126,6 +130,25 @@ madrelingua.
 | display | monitor | screen = schermo |
 | internal storage | archiviazione interna | |
 | Capture / Entire Screen | Cattura / Schermo intero | |
+| flat view | vista appiattita | "Vista > Vista appiattita" |
+| Find… (across folders) | Trova… | |
+| More Filters… | Altri filtri… | |
+| perspective | prospettiva | Auto = Automatico |
+| canvas size | dimensioni tela | |
+| auto enhance | miglioramento automatico | |
+| RAW adjustments | regolazioni RAW | boost = potenziamento |
+| vignette | vignettatura | radius = raggio, feather = sfumatura |
+| remove background / subject | rimuovi sfondo / soggetto | "Copia soggetto" |
+| tile (watermark) | affianca | "Affianca sull’intera foto" |
+| Mixed (differing values) | Misto | |
+| creator (metadata) | autore | |
+| fingerprint (duplicates) | impronta | |
+| similarity | somiglianza | bursts = raffiche |
+| frame rate / data rate | frequenza dei fotogrammi / velocità dati | |
+| scrubber (video) | barra di scorrimento | |
+| mute | disattiva l’audio | |
+| standard dynamic range | gamma dinamica standard | |
+| extract pages / multi-page file | estrai pagine / file multipagina | |
 | Keep Both / Replace / Skip | Mantieni entrambi / Sostituisci / Salta | |
 
 ## Non tradotti

@@ -40,7 +40,10 @@ Beweeg de aanwijzer naar een rand van de viewer om een paneel te tonen:
 
 - **Boven:** de filmstrook van de map.
 - **Links:** het bewerkings- en effectgereedschap.
-- **Rechts:** bestandsinformatie, cameragegevens en het histogram.
+- **Rechts:** bestandsinformatie, cameragegevens, trefwoorden en het
+  histogram. **Afbeelding > Histogram** (**⇧⌘H**) opent het met het
+  toetsenbord, en **Afbeelding > Tel kleuren** telt daar de kleuren in de
+  afbeelding.
 - **Onder:** bediening voor zoom, navigatie en diavoorstelling.
 
 De kleine overlay in de hoek toont de naam, de positie in de map, de grootte
@@ -51,7 +54,11 @@ zichtbaar te houden.
 
 Druk op **0** tot en met **5** om de getoonde afbeelding te waarderen, en op
 **T** of **`** om deze te markeren of de markering te verwijderen. De overlay
-toont beide.
+toont beide. **Afbeelding > Label** (**⌥⌘0** tot en met **⌥⌘7**) stelt het
+kleurlabel ervan in.
+
+Klik in het infopaneel op de x bij een trefwoord om het te verwijderen, of
+typ nieuwe trefwoorden, gescheiden door komma’s, en druk op Return.
 
 ## Documenten en animaties
 
@@ -61,6 +68,44 @@ toont beide.
   volgende of vorige afbeelding.
 - Geanimeerde GIF’s en PNG’s spelen vanzelf af. Druk op **P** om te pauzeren
   en af te spelen.
+
+## Selecteer en kopieer tekst
+
+minivu vindt tekst in de afbeelding met Livetekst, zoals Voorvertoning dat
+doet. Beweeg de aanwijzer over de afbeelding en sleep dan over de tekst om
+deze te selecteren.
+
+- **⌘C** kopieert de geselecteerde tekst. Als er geen tekst is geselecteerd,
+  kopieert het de afbeelding zoals je die ziet, inclusief bewerkingen.
+- **Wijzig > Kopieer tekst** (**⇧⌘C**) kopieert alle tekst in de afbeelding.
+- **Wijzig > Kopieer onderwerp** kopieert het hoofdonderwerp van de
+  afbeelding, zonder de achtergrond.
+- Op tekst selecteer je met slepen in plaats van te verschuiven. Om te
+  verschuiven gebruik je de pijltoetsen of een trackpad, of schakel je
+  **Weergave > Livetekst** uit.
+
+## Deel
+
+**Archief > Deel…** verstuurt de getoonde afbeelding via AirDrop, Berichten,
+Mail en de andere manieren die je Mac biedt.
+
+## Video’s
+
+Een video opent zoals een foto en toont het eerste frame met een
+afspeelknop.
+
+- De **spatiebalk** of **P** speelt de video af en pauzeert deze, en **M**
+  dempt het geluid. De pijltoetsen gaan nog steeds naar het volgende of
+  vorige onderdeel.
+- Tijdens het afspelen tonen de eigen regelaars van de speler de tijd, een
+  schuifbalk en het volume.
+- **Wijzig > Kopieer frame** kopieert het frame op het scherm als afbeelding,
+  en **Archief > Bewaar frame als…** bewaart het als afbeeldingsbestand. Het
+  frame heeft geen HDR en geen metagegevens.
+- Het infopaneel toont de duur, de framesnelheid, de codec en de
+  datasnelheid van de video, en de camera, de datum en de locatie als de
+  video die heeft.
+- Bewerken, zoom, Livetekst en afdrukken zijn uitgeschakeld voor video’s.
 
 ## Kleur en HDR
 
@@ -89,10 +134,12 @@ afbeelding zoomt of verschuift, bewegen de andere mee (met Synchroniseer in de
 knoppenbalk schakel je dat uit). Klik op een paneel, of druk op **⌘1** tot en
 met **⌘4**, om het te kiezen: de pijltoetsen wisselen dan de afbeelding
 ervan, **0** tot en met **5** waarderen deze, **T** markeert deze en
-**Delete** verplaatst deze naar de prullenmand.
+**Delete** verplaatst deze naar de prullenmand. Een video wordt vergeleken
+op basis van het eerste frame.
 
 ## Formaten
 
 minivu opent JPEG, PNG, GIF, HEIC en HEIF, AVIF, WebP, JPEG XL, JPEG 2000,
 TIFF, BMP, TGA, ICO, Photoshop (samengevoegd), de camera-RAW-formaten die
-macOS ondersteunt, PDF en SVG.
+macOS ondersteunt, PDF en SVG. Het speelt de video’s af die macOS afspeelt,
+zoals MOV, MP4, M4V, 3GP, MTS en MPEG.

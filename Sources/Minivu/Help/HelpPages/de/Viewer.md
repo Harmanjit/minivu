@@ -42,7 +42,9 @@ einzublenden:
 
 - **Oben:** der Filmstreifen des Ordners.
 - **Links:** die Bearbeitungs- und Effektwerkzeuge.
-- **Rechts:** Dateiinformationen, Kameradetails und das Histogramm.
+- **Rechts:** Dateiinformationen, Kameradetails, Schlagwörter und das
+  Histogramm. **Bild > Histogramm** (**⇧⌘H**) öffnet es über die Tastatur,
+  und **Bild > Farben zählen** zählt dort die Farben im Bild.
 - **Unten:** Steuerelemente für Zoom, Navigation und Diashow.
 
 Das kleine Overlay in der Ecke zeigt Name, Position im Ordner, Größe und
@@ -53,7 +55,12 @@ um es eingeblendet zu lassen.
 
 Drücke **0** bis **5**, um das angezeigte Bild zu bewerten, und **T** oder
 **`**, um es zu kennzeichnen oder die Kennzeichnung zu entfernen. Das
-Overlay zeigt beides an.
+Overlay zeigt beides an. **Bild > Farbetikett** (**⌥⌘0** bis **⌥⌘7**)
+legt sein Farbetikett fest.
+
+Klicke im Infobereich auf das x an einem Schlagwort, um es zu entfernen,
+oder tippe neue Schlagwörter ein, durch Kommas getrennt, und drücke den
+Zeilenschalter.
 
 ## Dokumente und Animationen
 
@@ -63,6 +70,43 @@ Overlay zeigt beides an.
   nächsten oder vorherigen Bild.
 - Animierte GIFs und PNGs werden automatisch abgespielt. Drücke **P**, um
   sie anzuhalten und abzuspielen.
+
+## Text auswählen und kopieren
+
+minivu findet Text im Bild mit Live Text, wie die Vorschau. Bewege den
+Zeiger über das Bild und ziehe dann über den Text, um ihn auszuwählen.
+
+- **⌘C** kopiert den ausgewählten Text. Ist kein Text ausgewählt, kopiert
+  es das Bild so, wie du es siehst, samt Bearbeitungen.
+- **Bearbeiten > Text kopieren** (**⇧⌘C**) kopiert den gesamten Text im
+  Bild.
+- **Bearbeiten > Motiv kopieren** kopiert das Hauptmotiv des Bilds ohne
+  seinen Hintergrund.
+- Auf Text wählt Ziehen aus, statt zu schwenken. Zum Schwenken verwende
+  die Pfeiltasten oder ein Trackpad, oder deaktiviere **Darstellung > Live
+  Text**.
+
+## Teilen
+
+**Ablage > Teilen …** sendet das angezeigte Bild per AirDrop, Nachrichten,
+Mail und auf den anderen Wegen, die dein Mac anbietet.
+
+## Videos
+
+Ein Video öffnet sich wie ein Foto und zeigt seinen ersten Frame mit einer
+Abspieltaste.
+
+- Die **Leertaste** oder **P** spielt es ab und hält es an, und **M**
+  schaltet es stumm. Die Pfeiltasten wechseln weiterhin zum nächsten oder
+  vorherigen Objekt.
+- Während es abgespielt wird, zeigen die eigenen Steuerelemente des
+  Players die Zeit, eine Zeitleiste und die Lautstärke an.
+- **Bearbeiten > Frame kopieren** kopiert den Frame auf dem Bildschirm als
+  Bild, und **Ablage > Frame sichern unter …** sichert ihn als Bilddatei.
+  Der Frame hat kein HDR und keine Metadaten.
+- Der Infobereich zeigt Dauer, Bildrate, Codec und Datenrate des Videos
+  sowie Kamera, Datum und Ort, sofern das Video sie enthält.
+- Bearbeiten, Zoomen, Live Text und Drucken sind bei Videos deaktiviert.
 
 ## Farbe und HDR
 
@@ -93,10 +137,12 @@ zoomst oder schwenkst, bewegen sich die anderen mit (die Taste „Synchron“ in
 der Symbolleiste schaltet das aus). Klicke auf einen Bereich oder drücke
 **⌘1** bis **⌘4**, um ihn auszuwählen: Die Pfeiltasten wechseln dann sein
 Bild, **0** bis **5** bewerten es, **T** kennzeichnet es und die
-**Rückschritttaste** legt es in den Papierkorb.
+**Rückschritttaste** legt es in den Papierkorb. Ein Video wird anhand
+seines ersten Frames verglichen.
 
 ## Formate
 
 minivu öffnet JPEG, PNG, GIF, HEIC und HEIF, AVIF, WebP, JPEG XL, JPEG 2000,
 TIFF, BMP, TGA, ICO, Photoshop (reduziert), die von macOS unterstützten
-Kamera-RAW-Formate, PDF und SVG.
+Kamera-RAW-Formate, PDF und SVG. Es spielt die Videos ab, die macOS
+abspielt, etwa MOV, MP4, M4V, 3GP, MTS und MPEG.

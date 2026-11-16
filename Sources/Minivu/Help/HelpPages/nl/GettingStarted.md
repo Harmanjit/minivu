@@ -1,9 +1,9 @@
 # Aan de slag
 
 minivu is een snelle browser, viewer en editor voor afbeeldingen op je Mac.
-Het toont een map met foto’s als miniaturen, opent elke foto schermvullend met
-nauwkeurige kleuren en echte HDR, en bewerkt zonder het origineel te wijzigen
-totdat je bewaart.
+Het toont een map met foto’s en video’s als miniaturen, opent elk ervan
+schermvullend met nauwkeurige kleuren en echte HDR, en bewerkt zonder het
+origineel te wijzigen totdat je bewaart.
 
 ## Open een map
 
@@ -26,7 +26,8 @@ totdat je bewaart.
 Klik dubbel op een miniatuur, of selecteer deze en druk op Return, om de foto
 in de [viewer](help:Viewer) te openen. Met de pijltoetsen en de spatiebalk ga
 je door de map, en met Esc ga je terug naar de browser. Return schakelt de
-viewer tussen een venster en schermvullende weergave.
+viewer tussen een venster en schermvullende weergave. Een video wordt
+afgespeeld als je op de spatiebalk drukt.
 
 ## Kies de beste
 
@@ -35,6 +36,10 @@ op **0** om ze te wissen. Druk op de accent-grave-toets (**`**) om de foto’s
 die je wilt behouden te markeren. Gebruik daarna het filtermenu in de
 knoppenbalk om alleen die foto’s te tonen. Zie
 [Browser](help:Browser).
+
+Om door veel mappen tegelijk te kijken, kies je **Wijzig > Zoek…** (**⌘F**),
+of **Weergave > Platte weergave** (**⌥⌘F**) om een map en al haar submappen
+samen te zien.
 
 ## Bewerk en bewaar
 
@@ -50,3 +55,13 @@ kiest. Zie [Bewerken](help:Editing).
 - [Toetscombinaties](help:KeyboardShortcuts) toont elke toetscombinatie,
   altijd in overeenstemming met de menu’s.
 - minivu maakt nooit verbinding met het internet. Zie [Privacy](help:Privacy).
+
+## Taal
+
+De menu’s van minivu en deze help zijn in de taal van je Mac. Om alleen voor
+minivu een andere taal te gebruiken, voeg je minivu toe onder Apps in
+**Systeeminstellingen > Algemeen > Taal en regio**. minivu is beschikbaar in
+het Engels, Duits, Frans, Spaans, Italiaans, Portugees (Brazilië),
+Nederlands, Pools, Japans, Chinees (vereenvoudigd) en Koreaans. De
+vertalingen zijn machinaal gemaakt en nog niet door moedertaalsprekers
+gecontroleerd.

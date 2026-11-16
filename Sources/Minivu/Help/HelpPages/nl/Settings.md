@@ -1,7 +1,8 @@
 # Instellingen
 
 Kies **minivu > Instellingen…** (**⌘,**). Elke wijziging wordt meteen van
-kracht; er hoeft niets te worden bevestigd.
+kracht; er hoeft niets te worden bevestigd. **Weergave > Thema** en
+**Weergave > Livetekst** zijn ook instellingen, en minivu onthoudt ze.
 
 ## Algemeen
 
@@ -12,6 +13,12 @@ kracht; er hoeft niets te worden bevestigd.
 - **Open viewer schermvullend**, in plaats van in een venster.
 - **Vraag voordat het origineel wordt overschreven:** schakel dit weer in als
   je had gekozen om bij het bewaren niets meer te laten vragen.
+- **Schrijf waarderingen in bestanden (XMP):** sterren, de markering en
+  kleurlabels worden ook in elke foto geschreven, zodat Lightroom, Bridge en
+  andere apps ze zien. RAW-bestanden, en formaten die minivu niet kan
+  herschrijven, krijgen in plaats daarvan een XMP-sidecarbestand ernaast.
+  Staat in het begin uit; als je deze optie inschakelt, worden alleen latere
+  wijzigingen geschreven.
 
 ## Viewer
 
@@ -29,7 +36,8 @@ kracht; er hoeft niets te worden bevestigd.
   RAW-gegevens toch als de voorvertoning te klein is voor het scherm of de
   zoom.
 - **Render RAW-bestanden met uitgebreid dynamisch bereik** toont de hoge
-  lichten van RAW-bestanden in HDR, wat per foto even duurt.
+  lichten van RAW-bestanden in HDR, wat per foto even duurt. **Afbeelding >
+  Pas aan > RAW-aanpassingen…** volgt deze instelling ook.
 
 ## Vergrootglas
 
@@ -49,7 +57,8 @@ laatste dia opnieuw begint, bijschriften (bestandsnaam, bestandsnaam en datum,
 of camera en belichting), de overgang en de duur ervan met een voorvertoning,
 en de muziek: nummers of mappen, willekeurige volgorde en volume. Het wijzigen
 van het volume, of het in- of uitschakelen van muziek, geldt ook voor een
-voorstelling die al wordt afgespeeld.
+voorstelling die al wordt afgespeeld. **Gereedschap > Exporteer
+diavoorstellingsvideo…** gebruikt dezelfde instellingen, behalve het volume.
 
 ## Editors
 

@@ -39,8 +39,10 @@ Sposta il puntatore su un bordo del visore per mostrare un pannello:
 
 - **In alto:** la pellicola della cartella.
 - **A sinistra:** gli strumenti di modifica e gli effetti.
-- **A destra:** le informazioni sul file, i dettagli della fotocamera e
-  l’istogramma.
+- **A destra:** le informazioni sul file, i dettagli della fotocamera, le
+  parole chiave e l’istogramma. **Immagine > Istogramma** (**⇧⌘H**) lo apre
+  dalla tastiera e **Immagine > Conta colori** conta lì i colori
+  dell’immagine.
 - **In basso:** i controlli per zoom, navigazione e presentazione.
 
 La piccola sovrimpressione nell’angolo mostra il nome, la posizione nella
@@ -51,6 +53,12 @@ Premi **I** per mantenerla visibile.
 
 Premi da **0** a **5** per valutare l’immagine visualizzata, e **T** o **`**
 per aggiungere o rimuovere il tag. La sovrimpressione mostra entrambi.
+**Immagine > Etichetta** (da **⌥⌘0** a **⌥⌘7**) ne imposta l’etichetta
+colore.
+
+Nel pannello delle informazioni, fai clic sulla x di una parola chiave per
+rimuoverla, oppure digita nuove parole chiave, separate da virgole, e premi
+A capo.
 
 ## Documenti e animazioni
 
@@ -60,6 +68,44 @@ per aggiungere o rimuovere il tag. La sovrimpressione mostra entrambi.
   all’immagine successiva o precedente.
 - Le GIF e i PNG animati vengono riprodotti automaticamente. Premi **P** per
   mettere in pausa e riprendere.
+
+## Selezionare e copiare il testo
+
+minivu trova il testo nell’immagine con Testo live, come fa Anteprima.
+Sposta il puntatore sull’immagine, quindi trascina sul testo per
+selezionarlo.
+
+- **⌘C** copia il testo selezionato. Se non è selezionato alcun testo,
+  copia l’immagine così come la vedi, modifiche comprese.
+- **Modifica > Copia testo** (**⇧⌘C**) copia tutto il testo dell’immagine.
+- **Modifica > Copia soggetto** copia il soggetto principale dell’immagine,
+  senza lo sfondo.
+- Sul testo, trascinando si seleziona anziché spostare l’immagine. Per
+  spostarla, usa i tasti freccia o un trackpad, oppure disattiva **Vista >
+  Testo live**.
+
+## Condividere
+
+**Archivio > Condividi…** invia l’immagine visualizzata con AirDrop,
+Messaggi, Mail e gli altri metodi offerti dal tuo Mac.
+
+## Video
+
+Un video si apre come una foto, mostrando il primo fotogramma con un
+pulsante di riproduzione.
+
+- **Spazio** o **P** lo riproduce e lo mette in pausa, e **M** ne disattiva
+  l’audio. I tasti freccia passano comunque all’elemento successivo o
+  precedente.
+- Durante la riproduzione, i controlli del player mostrano il tempo, una
+  barra di scorrimento e il volume.
+- **Modifica > Copia fotogramma** copia come immagine il fotogramma sullo
+  schermo e **Archivio > Salva fotogramma come…** lo salva come file
+  immagine. Il fotogramma non ha HDR né metadati.
+- Il pannello delle informazioni mostra durata, frequenza dei fotogrammi,
+  codec e velocità dati del video, e la fotocamera, la data e la posizione
+  quando il video li contiene.
+- Modifica, zoom, Testo live e stampa non sono disponibili per i video.
 
 ## Colore e HDR
 
@@ -88,10 +134,12 @@ spostando una si spostano anche le altre (Sincronizza nella barra degli
 strumenti disattiva questo comportamento). Fai clic su un pannello, o premi
 da **⌘1** a **⌘4**, per sceglierlo: i tasti freccia cambiano quindi la sua
 immagine, da **0** a **5** la valutano, **T** aggiunge il tag ed **Elimina**
-la sposta nel Cestino.
+la sposta nel Cestino. Un video viene confrontato in base al suo primo
+fotogramma.
 
 ## Formati
 
 minivu apre JPEG, PNG, GIF, HEIC e HEIF, AVIF, WebP, JPEG XL, JPEG 2000,
 TIFF, BMP, TGA, ICO, Photoshop (unito), i formati RAW delle fotocamere
-supportati da macOS, PDF e SVG.
+supportati da macOS, PDF e SVG. Riproduce i video che macOS riproduce,
+come MOV, MP4, M4V, 3GP, MTS e MPEG.

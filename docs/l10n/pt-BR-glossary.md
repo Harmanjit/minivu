@@ -97,6 +97,39 @@ Convenções seguidas (estilo do macOS em português do Brasil):
 | Reduce Motion | Reduzir Movimento | |
 | AirDrop, Messages, Mail | AirDrop, Mensagens, Mail | |
 | fps | qps | |
+| Flat View | Visualização Plana | Menu Visualizar |
+| More Filters… | Mais Filtros… | |
+| Show All (filter) | Mostrar Todas | |
+| Select Tagged / Invert Selection | Selecionar Sinalizadas / Inverter Seleção | |
+| clipboard | área de transferência | |
+| Copy / Paste | Copiar / Colar | |
+| Mixed (metadata field) | Misto | |
+| location (GPS) / Remove location | localização / Remover localização | |
+| Canvas Size… | Tamanho da Tela de Pintura… | |
+| Perspective… / Auto | Perspectiva… / Automático | |
+| RAW Adjustments… | Ajustes RAW… | |
+| Auto Enhance | Realce Automático | |
+| Noise Reduction… | Redução de Ruído… | |
+| Vignette… / Radius / Feather | Vinheta… / Raio / Suavização | |
+| Remove Background… / Copy Subject | Remover Fundo… / Copiar Motivo | |
+| Copy Text | Copiar Texto | |
+| Copy Frame / Save Frame As… | Copiar Quadro / Salvar Quadro Como… | |
+| Save Edits as Preset… | Salvar Edições como Predefinição… | |
+| Export Slideshow Video… | Exportar Vídeo da Apresentação… | |
+| frame rate / data rate | taxa de quadros / taxa de dados | |
+| (video) length | duração | |
+| mute | silenciar | |
+| scrubber | barra de navegação | Player de vídeo |
+| standard dynamic range (SDR) | faixa dinâmica padrão | |
+| Extract Pages… | Extrair Páginas… | |
+| Create Multi-Page File… | Criar Arquivo de Várias Páginas… | |
+| Image Strip… | Tira de Imagens… | |
+| Identical Files / Similar Images | Arquivos Idênticos / Imagens Semelhantes | Buscar Duplicatas |
+| burst (photos) | sequência de disparos | |
+| fingerprint (image hash) | impressão digital | |
+| Create Web Gallery… | Criar Galeria Web… | |
+| Shortcuts (app) / shortcut | Atalhos / atalho | App da Apple |
+| Language & Region | Idioma e Região | Ajustes do Sistema > Geral |
 
 Menus da barra: minivu, Arquivo, Editar, Imagem, Ferramentas, Ir, Visualizar,
 Janela, Ajuda.

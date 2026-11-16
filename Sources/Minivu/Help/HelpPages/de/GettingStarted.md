@@ -1,9 +1,9 @@
 # Erste Schritte
 
 minivu ist ein schneller Bildbrowser, Betrachter und Editor für deinen Mac.
-Es zeigt einen Ordner mit Fotos als Miniaturen an, öffnet jedes davon im
-Vollbildmodus mit präzisen Farben und echtem HDR und bearbeitet Bilder, ohne
-das Original zu verändern, bis du sicherst.
+Es zeigt einen Ordner mit Fotos und Videos als Miniaturen an, öffnet jedes
+davon im Vollbildmodus mit präzisen Farben und echtem HDR und bearbeitet
+Bilder, ohne das Original zu verändern, bis du sicherst.
 
 ## Einen Ordner öffnen
 
@@ -30,7 +30,8 @@ Doppelklicke auf eine Miniatur oder wähle sie aus und drücke den
 Zeilenschalter, um sie im [Betrachter](help:Viewer) zu öffnen. Mit den
 Pfeiltasten und der Leertaste bewegst du dich durch den Ordner, und mit Esc
 kehrst du zum Browser zurück. Der Zeilenschalter wechselt den Betrachter
-zwischen Fenster und Vollbild.
+zwischen Fenster und Vollbild. Ein Video wird abgespielt, wenn du die
+Leertaste drückst.
 
 ## Die besten auswählen
 
@@ -39,6 +40,10 @@ Drücke **1** bis **5**, um den ausgewählten Fotos Sterne zu geben, oder
 Fotos zu kennzeichnen, die du behalten möchtest. Verwende dann das Menü
 „Filter“ in der Symbolleiste, um nur diese anzuzeigen. Siehe
 [Browser](help:Browser).
+
+Um viele Ordner auf einmal zu durchsehen, wähle **Bearbeiten > Suchen …**
+(**⌘F**) oder **Darstellung > Flache Ansicht** (**⌥⌘F**), um einen Ordner
+und alle seine Unterordner zusammen zu sehen.
 
 ## Bearbeiten und sichern
 
@@ -55,3 +60,13 @@ wählst. Siehe [Bearbeiten](help:Editing).
   auf, immer auf dem aktuellen Stand der Menüs.
 - minivu stellt nie eine Verbindung zum Internet her. Siehe
   [Datenschutz](help:Privacy).
+
+## Sprache
+
+Die Menüs von minivu und diese Hilfe erscheinen in der Sprache deines Mac.
+Um nur für minivu eine andere Sprache zu verwenden, füge minivu unter
+„Apps“ in **Systemeinstellungen > Allgemein > Sprache & Region** hinzu.
+minivu gibt es auf Englisch, Deutsch, Französisch, Spanisch, Italienisch,
+Portugiesisch (Brasilien), Niederländisch, Polnisch, Japanisch, Chinesisch
+(vereinfacht) und Koreanisch. Die Übersetzungen wurden maschinell erstellt
+und noch nicht von Muttersprachlern geprüft.

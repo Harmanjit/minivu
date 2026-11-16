@@ -39,7 +39,9 @@ Mova o ponteiro até uma borda do visualizador para revelar um painel:
 
 - **Em cima:** a tira de filme da pasta.
 - **À esquerda:** as ferramentas de edição e de efeitos.
-- **À direita:** informações do arquivo, detalhes da câmera e o histograma.
+- **À direita:** informações do arquivo, detalhes da câmera, palavras-chave e
+  o histograma. **Imagem > Histograma** (**⇧⌘H**) o abre pelo teclado, e
+  **Imagem > Contar Cores** conta as cores da imagem ali.
 - **Embaixo:** controles de zoom, navegação e apresentação de slides.
 
 A pequena sobreposição no canto mostra o nome, a posição na pasta, o tamanho
@@ -50,6 +52,10 @@ mantê-la visível.
 
 Pressione **0** a **5** para classificar a imagem exibida, e **T** ou **`**
 para sinalizá-la ou remover a sinalização. A sobreposição mostra ambas.
+**Imagem > Etiqueta** (**⌥⌘0** a **⌥⌘7**) define a etiqueta de cor dela.
+
+No painel de informações, clique no x de uma palavra-chave para removê-la, ou
+digite novas palavras-chave, separadas por vírgulas, e pressione Return.
 
 ## Documentos e animações
 
@@ -59,6 +65,42 @@ para sinalizá-la ou remover a sinalização. A sobreposição mostra ambas.
   ou à anterior.
 - GIFs e PNGs animados são reproduzidos sozinhos. Pressione **P** para pausar
   e reproduzir.
+
+## Selecionar e copiar texto
+
+O minivu encontra texto na imagem com o Texto ao Vivo, como a
+Pré-Visualização faz. Mova o ponteiro sobre a imagem e arraste sobre o texto
+para selecioná-lo.
+
+- **⌘C** copia o texto selecionado. Sem texto selecionado, copia a imagem
+  como você a vê, com as edições.
+- **Editar > Copiar Texto** (**⇧⌘C**) copia todo o texto da imagem.
+- **Editar > Copiar Motivo** copia o motivo principal da imagem, sem o fundo.
+- Sobre um texto, arrastar seleciona em vez de deslocar. Para deslocar, use
+  as teclas de seta ou um trackpad, ou desative **Visualizar > Texto ao
+  Vivo**.
+
+## Compartilhar
+
+**Arquivo > Compartilhar…** envia a imagem exibida por AirDrop, Mensagens,
+Mail e pelas outras formas que o seu Mac oferece.
+
+## Vídeos
+
+Um vídeo abre como uma foto, mostrando o primeiro quadro com um botão de
+reprodução.
+
+- **Espaço** ou **P** o reproduz e pausa, e **M** silencia o som. As teclas de
+  seta continuam passando para o próximo item ou para o anterior.
+- Durante a reprodução, os próprios controles do player mostram o tempo, uma
+  barra de navegação e o volume.
+- **Editar > Copiar Quadro** copia o quadro na tela como uma imagem, e
+  **Arquivo > Salvar Quadro Como…** o salva como um arquivo de imagem. O
+  quadro não tem HDR nem metadados.
+- O painel de informações mostra a duração do vídeo, a taxa de quadros, o
+  codec, a taxa de dados e a câmera, a data e a localização, quando o vídeo
+  as tem.
+- Edição, zoom, Texto ao Vivo e impressão ficam desativados para vídeos.
 
 ## Cor e HDR
 
@@ -87,9 +129,11 @@ delas move as outras junto (o botão Sincronizar da barra de ferramentas
 desativa isso). Clique em um painel, ou pressione **⌘1** a **⌘4**, para
 escolhê-lo: as teclas de seta passam a trocar a imagem dele, **0** a **5** a
 classificam, **T** a sinaliza e **Delete** a move para o Lixo.
+Um vídeo é comparado pelo primeiro quadro.
 
 ## Formatos
 
 O minivu abre JPEG, PNG, GIF, HEIC e HEIF, AVIF, WebP, JPEG XL, JPEG 2000,
 TIFF, BMP, TGA, ICO, Photoshop (achatado), os formatos RAW de câmera que o
-macOS suporta, PDF e SVG.
+macOS suporta, PDF e SVG. Ele reproduz os vídeos que o macOS reproduz, como
+MOV, MP4, M4V, 3GP, MTS e MPEG.

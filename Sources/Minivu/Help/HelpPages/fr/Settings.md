@@ -1,7 +1,9 @@
 # Réglages
 
 Choisissez **minivu > Réglages…** (**⌘,**). Chaque modification prend effet
-immédiatement ; il n’y a rien à confirmer.
+immédiatement ; il n’y a rien à confirmer. **Présentation > Thème** et
+**Présentation > Texte en direct** sont aussi des réglages, et minivu les
+mémorise.
 
 ## Général
 
@@ -12,6 +14,12 @@ immédiatement ; il n’y a rien à confirmer.
 - **Ouvrir la visionneuse en plein écran**, plutôt que dans une fenêtre.
 - **Demander avant d’enregistrer sur l’original :** réactivez cette option
   si vous avez choisi de ne plus être interrogé lors de l’enregistrement.
+- **Écrire les notes dans les fichiers (XMP) :** les étoiles, la marque et
+  les étiquettes de couleur sont aussi écrites dans chaque photo, afin que
+  Lightroom, Bridge et d’autres apps les voient. Les fichiers RAW, et les
+  formats que minivu ne peut pas réécrire, reçoivent plutôt un fichier
+  annexe XMP placé à côté. Désactivé au départ ; lorsque vous l’activez,
+  seules les modifications ultérieures sont écrites.
 
 ## Visionneuse
 
@@ -31,7 +39,8 @@ immédiatement ; il n’y a rien à confirmer.
   l’écran ou le zoom.
 - **Effectuer le rendu des fichiers RAW avec une plage dynamique étendue**
   affiche les hautes lumières des fichiers RAW en HDR, ce qui prend un
-  moment par photo.
+  moment par photo. **Image > Ajuster > Réglages RAW…** suit aussi ce
+  réglage.
 
 ## Loupe
 
@@ -53,6 +62,8 @@ fichier et date, ou appareil photo et exposition), la transition et sa
 durée avec un aperçu, ainsi que la musique : morceaux ou dossiers, lecture
 aléatoire et volume. La modification du volume, ou l’activation ou la
 désactivation de la musique, s’applique à un diaporama déjà en cours.
+**Outils > Exporter la vidéo du diaporama…** utilise les mêmes réglages,
+sauf le volume.
 
 ## Éditeurs
 

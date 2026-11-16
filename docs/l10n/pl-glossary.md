@@ -52,6 +52,11 @@ All Polish strings are machine translations (state `needs_review`) and need a na
 | Live Text | Tekst na żywo |
 | AirDrop, Messages, Mail | AirDrop, Wiadomości, Mail |
 | Menus File, Edit, Image, View, Go, Tools, Window, Help | Plik, Edycja, Obraz, Widok, Idź, Narzędzia, Okno, Pomoc |
+| Language & Region (System Settings > General) / Applications | Język i region (Ustawienia systemowe > Ogólne) / Aplikacje |
+| Shortcuts (app) / action (in Shortcuts) | Skróty (aplikacja Skróty) / czynność |
+| Preview (Apple app) | Podgląd |
+| clipboard | schowek |
+| Spotlight, Vision framework | Spotlight, framework Vision |
 
 ## minivu terms
 
@@ -113,6 +118,25 @@ All Polish strings are machine translations (state `needs_review`) and need a na
 | photo | zdjęcie |
 | appearance theme | motyw (Systemowy, Jasny, Szary, Ciemny) |
 | Custom Order | Własna kolejność |
+| Flat View | Widok płaski |
+| More Filters… / Show All | Więcej filtrów… / Pokaż wszystkie |
+| Find… (across folders) | Znajdź… |
+| metadata / Edit Metadata… | metadane / Edytuj metadane… |
+| location / Remove location | lokalizacja / Usuń lokalizację |
+| Mixed (differing values) | Mieszane |
+| Canvas Size… | Rozmiar płótna… |
+| Perspective… | Perspektywa… |
+| RAW Adjustments… | Korekty RAW… |
+| Auto Enhance | Automatyczne ulepszanie |
+| noise reduction | redukcja szumu |
+| vignette / radius / feather | winieta / promień / wtapianie |
+| Remove Background / Copy Subject | Usuń tło / Kopiuj obiekt |
+| video (noun, indeclinable) | wideo |
+| identical files / similar images / similarity | identyczne pliki / podobne obrazy / podobieństwo |
+| fingerprint (duplicate detection) | odcisk |
+| Export Slideshow Video… | Eksportuj wideo z pokazem slajdów… |
+| frame rate / codec / data rate | liczba klatek na sekundę / kodek / szybkość transmisji danych |
+| Keep HDR | Zachowaj HDR |
 
 ## Left untranslated
 

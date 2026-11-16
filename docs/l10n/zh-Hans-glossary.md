@@ -132,6 +132,33 @@ File 文件 · Edit 编辑 · View 显示 · Go 前往 · Image 图像 · Tools 
 | embedded preview | 内嵌预览 | |
 | internal storage | 内置储存 | |
 | watermark | 水印 | |
+| Show All (filter) | 全部显示 | |
+| More Filters… | 更多过滤条件… | |
+| Photos Only / Videos Only | 仅照片 / 仅视频 | |
+| Select Tagged / Invert Selection | 选择已标记项 / 反向选择 | |
+| Write ratings into files (XMP) | 将评分写入文件（XMP） | |
+| Description / Title / Copyright | 描述 / 标题 / 版权 | 编辑元数据面板 |
+| Date Taken / shift (date) | 拍摄日期 / 偏移 | |
+| Remove location | 移除位置 | |
+| Mixed (field value) | 混合 | |
+| Identical Files / Similar Images / Similarity | 相同的文件 / 相似的图像 / 相似度 | 查找重复项 |
+| Mark Suggested | 勾选建议项 | |
+| Copy Text / Copy Subject / Copy Frame | 拷贝文本 / 拷贝主体 / 拷贝帧 | |
+| Save Frame As… | 将帧存储为… | |
+| Count Colors | 统计颜色 | |
+| Save Edits as Preset… | 将编辑存储为预设… | |
+| Export Slideshow Video… | 导出幻灯片视频… | |
+| Keep HDR | 保留 HDR | |
+| First page only / Every page | 仅第一页 / 每一页 | |
+| Tile across the photo | 平铺整张照片 | |
+| subject (of a photo) | 主体 | 移除背景、拷贝主体 |
+| video / frame / frame rate / codec / resolution | 视频 / 帧 / 帧速率 / 编解码器 / 分辨率 | |
+| scrubber (video) | 进度条 | |
+| mute | 静音 | |
+| sheet (dialog) | 表单 | |
+| Shortcuts (app) / shortcut / action | “快捷指令” App / 快捷指令 / 操作 | 不要与键盘快捷键混淆 |
+| Language & Region | 语言与地区 | 系统设置 › 通用 › 语言与地区 |
+| Vision framework | Vision 框架 | |
 
 ## 编辑与效果
 

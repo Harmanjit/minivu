@@ -7,6 +7,14 @@ uprawnienia do sieci, więc macOS w ogóle nie pozwala mu nawiązać połączeni
 Nie ma konta, analityki, raportowania awarii ani sprawdzania uaktualnień, a
 ta pomoc jest częścią aplikacji.
 
+Tekst na żywo, Usuń tło, Kopiuj obiekt, wykrywanie czerwonych oczu, Auto w
+narzędziu Perspektywa oraz Podobne obrazy w Znajdź duplikaty korzystają z
+frameworku Vision firmy Apple, na Twoim Macu. Nic nie jest nigdzie wysyłane.
+
+**Plik > Udostępnij…** przekazuje pliki wybranej usłudze udostępniania, na
+przykład AirDrop lub Mail, która następnie je wysyła. Samo minivu nie
+nawiązuje żadnego połączenia.
+
 ## Co minivu widzi
 
 Sandbox ogranicza minivu do:
@@ -17,6 +25,8 @@ Sandbox ogranicza minivu do:
 - folderów z jego paska bocznego i ostatnich folderów poleceń Kopiuj do i
   Przenieś do, które zapamiętuje za pomocą zakładek możliwych do użycia
   tylko na tym Macu i w tej aplikacji;
+- obrazu wybranego na znak wodny, który zapamiętuje za pomocą zakładki
+  tylko do odczytu;
 - własnego kontenera, `~/Library/Containers/com.minivu.app`.
 
 Działa tylko z wewnętrznym dyskiem Maca, a nie z kartami pamięci, dyskami
@@ -26,26 +36,48 @@ zewnętrznymi czy zasobami sieciowymi.
 
 W swoim kontenerze, wyłącznie na Twoim Macu:
 
-- **Katalog** ocen w gwiazdkach, oznaczeń i własnych kolejności.
-- **Bufor miniatur**, który opróżnia polecenie **Ustawienia > Miniatury >
-  Wyczyść bufor miniatur**.
+- **Katalog** ocen w gwiazdkach, oznaczeń, własnych kolejności, kolekcji,
+  folderów inteligentnych oraz informacji o zdjęciach odczytanych na potrzeby
+  filtrów i wyszukiwań.
+- **Bufor miniatur**, razem z odciskami tworzonymi przez Znajdź duplikaty,
+  który opróżnia polecenie **Ustawienia > Miniatury > Wyczyść bufor
+  miniatur**.
 - **Ustawienia**, w tym foldery z paska bocznego, ostatnie foldery, muzykę
-  do pokazów slajdów i edytory zewnętrzne.
+  do pokazów slajdów, edytory zewnętrzne i presety.
+
+Wyszukiwania odczytują tylko foldery, które minivu może widzieć, na Twoim
+Macu. minivu nie korzysta ze Spotlight.
 
 ## Co minivu zmienia w plikach
 
 Tylko to, o co poprosisz:
 
 - **Zachowaj** zapisuje w miejsce oryginału po zapytaniu. **Zachowaj jako**,
-  Konwersja wsadowa, Arkusz stykowy i Tapeta z kolażu tworzą nowe pliki.
+  Konwersja wsadowa, Wyodrębnij strony, Utwórz plik wielostronicowy, Pasek
+  obrazów, Arkusz stykowy, Tapeta z kolażu, Eksportuj wideo z pokazem
+  slajdów i Utwórz galerię internetową tworzą nowe pliki.
 - Obracanie i odbijanie w przeglądarce zmienia znacznik orientacji pliku
   JPEG, a Edytuj komentarz zmienia jego komentarz.
+- **Edytuj metadane** zapisuje zmienione informacje w pliku lub w pliku
+  dodatkowym XMP obok niego.
+- **Obraz > Etykieta** ustawia kolorowy tag Findera pliku. Gwiazdki i
+  oznaczenia są zapisywane w plikach tylko wtedy, gdy włączysz opcję
+  **Zapisuj oceny w plikach (XMP)** w Ustawieniach.
+- Czynność minivu w aplikacji Skróty może konwertować, zmieniać rozmiar,
+  zmieniać nazwy, oceniać lub nadawać etykiety plikom, które minivu może
+  zmieniać.
 - Zmień nazwę, Przenieś, Kopiuj, Nowy folder i Wsadowa zmiana nazw zmieniają
   nazwy i foldery, a te zmiany można cofnąć.
 - **Przenieś do kosza** oraz zastąpienie pliku o tej samej nazwie umieszczają
   rzeczy w koszu. minivu nie usuwa Twoich plików.
 - Pliki są najpierw zapisywane w całości, a dopiero potem umieszczane na
   miejscu, więc przerwane zachowywanie nigdy nie pozostawia połowy pliku.
+
+**Lokalizacja.** Zachowaj jako, Konwersja wsadowa, Utwórz galerię
+internetową i czynności w aplikacji Skróty pomijają pozycję GPS i nazwy
+miejsc, chyba że wyłączysz opcję **Usuń lokalizację**. Zachowaj zachowuje
+wszystko, łącznie z lokalizacją. Lokalizacja wideo jest pokazywana, ale
+nigdy nie jest usuwana.
 
 minivu zapisuje także w folderach **Obrazki/minivu Captures** (zrzuty
 ekranu) i **Obrazki/minivu Wallpapers** (kolaże oraz kopie utworzone przez
@@ -58,6 +90,3 @@ najnowszych).
   lub Zaznaczenie. Możesz je wyłączyć w Ustawienia systemowe > Prywatność i
   ochrona.
 - **Drukowanie**, za pomocą standardowego panelu drukowania.
-
-Wykrywanie czerwonych oczu znajduje twarze za pomocą frameworku Vision firmy
-Apple, na Twoim Macu.

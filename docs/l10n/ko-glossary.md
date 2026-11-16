@@ -97,3 +97,34 @@ close `**` between punctuation and a Hangul particle.
 | tone mapped | 톤 매핑 | |
 | sidecar | 사이드카 | |
 | frame (effect) / frame (video) | 액자 / 프레임 | |
+| video | 비디오 | |
+| flat view | 평면 보기 | |
+| More Filters… | 추가 필터… | |
+| Find… (across folders) | 찾기… | |
+| Invert Selection | 선택 영역 반전 | |
+| clipboard | 클립보드 | |
+| XMP | XMP | Write ratings into files (XMP): 파일에 등급 기록(XMP) |
+| location / GPS position / place names | 위치 / GPS 위치 / 장소 이름 | Remove location: 위치 제거 |
+| Mixed (metadata field) | 혼합 | |
+| canvas size | 캔버스 크기 | anchor: 기준점 |
+| perspective | 원근 | |
+| RAW Adjustments | RAW 조절 | |
+| Auto Enhance | 자동 향상 | |
+| noise reduction | 노이즈 감소 | |
+| vignette | 비네트 | radius 반경, feather 페더 |
+| remove background | 배경 제거 | |
+| subject (of a photo) | 피사체 | Copy Subject: 피사체 복사하기 |
+| tile (watermark) | 바둑판식으로 배열 | |
+| export slideshow video | 슬라이드쇼 비디오 내보내기 | |
+| frame rate / codec / resolution | 프레임률 / 코덱 / 해상도 | |
+| scrubber | 스크러버 | |
+| extract pages | 페이지 추출 | |
+| multi-page file | 다중 페이지 파일 | |
+| image strip | 이미지 스트립 | |
+| identical files / similar images | 동일한 파일 / 유사한 이미지 | Similarity: 유사도 |
+| Mark Suggested | 추천 항목 표시 | |
+| fingerprint (duplicate detection) | 지문 데이터 | |
+| web gallery | 웹 갤러리 | |
+| Shortcuts (app) / shortcut / action | 단축어 앱 / 단축어 / 동작 | Apple ko |
+| Language & Region | 언어 및 지역 | System Settings > General |
+| Messages / Mail / AirDrop | 메시지 / Mail / AirDrop | Apple ko |

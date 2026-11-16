@@ -1,7 +1,7 @@
 # Per iniziare
 
 minivu è un browser, visore ed editor di immagini veloce per il tuo Mac.
-Mostra una cartella di foto come miniature, apre qualsiasi foto a tutto
+Mostra una cartella di foto e video come miniature, apre qualsiasi foto a tutto
 schermo con colori accurati e vero HDR, e la modifica senza alterare
 l’originale finché non salvi.
 
@@ -27,7 +27,8 @@ l’originale finché non salvi.
 Fai doppio clic su una miniatura, oppure selezionala e premi A capo, per
 aprirla nel [visore](help:Viewer). I tasti freccia e Spazio permettono di
 scorrere la cartella ed Esc ti riporta al browser. A capo passa il visore
-dalla finestra alla modalità a tutto schermo e viceversa.
+dalla finestra alla modalità a tutto schermo e viceversa. Un video viene
+riprodotto quando premi Spazio.
 
 ## Scegliere le migliori
 
@@ -36,6 +37,10 @@ Premi da **1** a **5** per assegnare stelle alle foto selezionate, oppure
 aggiungere il tag alle foto che vuoi tenere. Quindi usa il menu Filtro nella
 barra degli strumenti per mostrare solo quelle. Consulta
 [Browser](help:Browser).
+
+Per sfogliare molte cartelle contemporaneamente, scegli **Modifica > Trova…**
+(**⌘F**), oppure **Vista > Vista appiattita** (**⌥⌘F**) per vedere insieme
+una cartella e tutte le sue sottocartelle.
 
 ## Modificare e salvare
 
@@ -51,3 +56,13 @@ sul disco finché non scegli **Archivio > Salva** o **Salva come…**. Consulta
 - [Abbreviazioni da tastiera](help:KeyboardShortcuts) elenca tutte le
   abbreviazioni, sempre aggiornate con i menu.
 - minivu non si connette mai a Internet. Consulta [Privacy](help:Privacy).
+
+## Lingua
+
+I menu di minivu e questo aiuto sono nella lingua del tuo Mac. Per usare
+un’altra lingua solo per minivu, aggiungi minivu sotto Applicazioni in
+**Impostazioni di Sistema > Generali > Lingua e zona**. minivu è disponibile
+in inglese, tedesco, francese, spagnolo, italiano, portoghese (Brasile),
+olandese, polacco, giapponese, cinese (semplificato) e coreano. Le traduzioni
+sono state create automaticamente e non sono ancora state verificate da
+madrelingua.
