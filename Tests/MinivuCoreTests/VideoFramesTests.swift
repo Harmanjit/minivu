@@ -59,6 +59,28 @@ import CoreGraphics
         #expect(!info.isAnimated)
     }
 
+    /// Find Duplicates' Similar mode leaves a video out, so a Live Photo's
+    /// MOV never pairs with its HEIC by its poster frame; identical-file
+    /// groups still size a video, so Highest Resolution doesn't rank it 0 px.
+    @Test func duplicatesLeaveVideosOutOfSimilarAndSizeThem() async throws {
+        let clip = try await TestVideos.make(at: folder.url.appendingPathComponent("IMG_1.mov"), width: 320, height: 192)
+        let still = SyntheticScenes.write(SyntheticScenes.scene(seed: 1, width: 160, height: 96),
+                                          to: folder.url.appendingPathComponent("IMG_1.jpg"))
+        let entries = try [clip, still].map { try #require(FolderEntry(url: $0)) }
+        let made = Tally()
+        let prints = await BlockingWork.run {
+            DuplicateFinder.featurePrints(for: entries, store: nil, workers: 1, make: { entry, thumbnails in
+                made.add()
+                return FeaturePrint.make(for: entry, thumbnails: thumbnails)
+            })
+        }
+        #expect(made.count == 1 && prints[clip] == nil && prints[still] != nil)
+
+        let sizes = await BlockingWork.run { DuplicateFinder.pixelSizes(of: entries) }
+        #expect(sizes[clip] == CGSize(width: 320, height: 192))
+        #expect(KeepRule.highestResolution.keeper(of: entries, pixelSizes: sizes)?.url == clip)
+    }
+
     @Test func aFileThatIsNoMovieReadsAsNothing() async throws {
         let fake = try folder.file("broken.mov", bytes: 512)
         #expect(await BlockingWork.run { VideoFrames.info(for: fake) } == nil)
