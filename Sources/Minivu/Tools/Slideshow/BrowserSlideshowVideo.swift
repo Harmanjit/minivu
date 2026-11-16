@@ -11,7 +11,7 @@ extension BrowserWindowController {
         guard !images.isEmpty else { return }
         let controller = SlideshowVideoController(images: images, start: start,
                                                   screen: SlideshowVideoController.screenPixels(of: window),
-                                                  startFolder: model.folder)
+                                                  startFolder: toolStartFolder)
         controller.begin(on: window)
     }
 }

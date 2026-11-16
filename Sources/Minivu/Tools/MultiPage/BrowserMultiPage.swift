@@ -145,14 +145,15 @@ extension BrowserWindowController {
     // MARK: - Shared
 
     private func chooseMultiPageDestination(name: String, type: UTType) async -> URL? {
-        if let choose = MultiPageTools.chooseDestination { return await choose(name, type, model.folder) }
+        let startFolder = toolStartFolder
+        if let choose = MultiPageTools.chooseDestination { return await choose(name, type, startFolder) }
         guard let window else { return nil }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [type]
         panel.nameFieldStringValue = name
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        if let folder = model.folder { panel.directoryURL = folder }
+        if let startFolder { panel.directoryURL = startFolder }
         let response = await withCheckedContinuation { done in
             panel.beginSheetModal(for: window) { done.resume(returning: $0) }
         }

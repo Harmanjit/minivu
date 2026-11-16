@@ -8,9 +8,8 @@ extension BrowserWindowController {
         guard let window, window.attachedSheet == nil else { return }
         let images = toolStills
         guard !images.isEmpty else { return }
-        let folderName = model.folder.map { FileManager.default.displayName(atPath: $0.path) }
-        let controller = ContactSheetController(items: images.map { LayoutItem(entry: $0) }, folderName: folderName,
-                                                startFolder: model.folder)
+        let controller = ContactSheetController(items: images.map { LayoutItem(entry: $0) }, folderName: toolTitle,
+                                                startFolder: toolStartFolder)
         controller.begin(on: window)
     }
 

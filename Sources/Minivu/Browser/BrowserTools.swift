@@ -59,6 +59,19 @@ extension BrowserWindowController {
         model.leadEntry.flatMap { $0.isDirectory ? nil : $0 }
     }
 
+    /// Where an output tool's panel starts: the folder shown or, while a
+    /// list is shown, the folder of the lead (or first) image, as the
+    /// viewer's tools start in the current image's folder.
+    var toolStartFolder: URL? {
+        model.folder ?? (toolLeadImage ?? toolImages.first)?.url.deletingLastPathComponent()
+    }
+
+    /// What an output tool is titled after: the folder shown, or the list's
+    /// title (a collection's name, a smart folder's).
+    var toolTitle: String? {
+        model.folder.map { FileManager.default.displayName(atPath: $0.path) } ?? model.list?.title
+    }
+
     /// Validation for the Tools commands; nil for any other action. Cheap,
     /// because menus validate often: counts, never a walk of the folder.
     ///

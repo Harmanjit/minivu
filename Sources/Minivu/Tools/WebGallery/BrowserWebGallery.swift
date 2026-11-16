@@ -9,8 +9,7 @@ extension BrowserWindowController {
         guard let window, window.attachedSheet == nil else { return }
         let images = toolStills
         guard !images.isEmpty else { return }
-        let title = model.folder.map { FileManager.default.displayName(atPath: $0.path) } ?? "Gallery"
-        let controller = WebGalleryController(images: images, title: title, startFolder: model.folder)
+        let controller = WebGalleryController(images: images, title: toolTitle ?? "Gallery", startFolder: toolStartFolder)
         controller.begin(on: window)
     }
 }
