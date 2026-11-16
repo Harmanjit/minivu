@@ -23,8 +23,12 @@ nonisolated enum GridDropPlan: Equatable {
     ///     rather than into the gap before it.
     ///   - isImageInFolder: whether a name is an image of the folder, hidden
     ///     by a filter or not.
+    ///   - isListedFromBelow: whether a file is one the flat view lists from
+    ///     a folder below: the grid's own drag of it moves nothing up.
     static func decide(files: [URL], folder: URL, entries: [FolderEntry], index: Int, on: Bool, customOrder: Bool,
-                       isImageInFolder: (String) -> Bool) -> GridDropPlan? {
+                       isImageInFolder: (String) -> Bool,
+                       isListedFromBelow: (URL) -> Bool = { _ in false }) -> GridDropPlan? {
+        let files = files.filter { !isListedFromBelow($0) }
         guard !files.isEmpty else { return nil }
         if on, entries.indices.contains(index), entries[index].isDirectory {
             let target = entries[index].url
@@ -75,7 +79,11 @@ extension GridViewController {
         return GridDropPlan.decide(files: Self.fileURLs(from: info.draggingPasteboard), folder: folder,
                                    entries: model.entries, index: index, on: on,
                                    customOrder: model.sortOrder.key == .custom,
-                                   isImageInFolder: { [model] in model.containsImage(named: $0) })
+                                   isImageInFolder: { [model] in model.containsImage(named: $0) },
+                                   isListedFromBelow: { [model] url in
+                                       model.showsManyFolders && model.entry(for: url) != nil
+                                           && !BrowserModel.samePath(url.deletingLastPathComponent(), folder)
+                                   })
     }
 
     /// Copy or move by Finder's rules, the volume answer kept for the drag.
