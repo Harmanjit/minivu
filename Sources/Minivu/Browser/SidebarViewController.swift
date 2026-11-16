@@ -156,10 +156,10 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     let outlineView = NSOutlineView()
     private let scrollView = NSScrollView()
     private let addButton = NSButton()
-    private let header = SidebarNode(kind: .header, title: "Favorites", url: nil, symbolName: "", children: [])
-    private let smartFoldersHeader = SidebarNode(kind: .header, title: "Smart Folders", url: nil, symbolName: "",
+    private let header = SidebarNode(kind: .header, title: localized(.init("Favorites", comment: "Sidebar section header, as in Finder's sidebar")), url: nil, symbolName: "", children: [])
+    private let smartFoldersHeader = SidebarNode(kind: .header, title: localized(.init("Smart Folders", comment: "Sidebar section header")), url: nil, symbolName: "",
                                                  children: [])
-    private let collectionsHeader = SidebarNode(kind: .header, title: "Collections", url: nil, symbolName: "",
+    private let collectionsHeader = SidebarNode(kind: .header, title: localized(.init("Collections", comment: "Sidebar section header")), url: nil, symbolName: "",
                                                 children: [])
     /// The top level: Favorites, then the library's sections that have rows.
     private var roots: [SidebarNode] = []
@@ -227,8 +227,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         scrollView.autohidesScrollers = true
         scrollView.drawsBackground = false
 
-        addButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: "Add Folder")
-        addButton.title = "Add Folder"
+        addButton.title = localized(.init("Add Folder", comment: "Button under the sidebar: adds a folder to Favorites"))
+        addButton.image = NSImage(systemSymbolName: "plus", accessibilityDescription: addButton.title)
         addButton.imagePosition = .imageLeading
         addButton.imageHugsTitle = true
         addButton.isBordered = false
@@ -237,7 +237,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         addButton.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
         addButton.target = nil
         addButton.action = .addFolderToSidebar
-        addButton.toolTip = "Add a folder to the sidebar"
+        addButton.toolTip = localized("Add a folder to the sidebar")
 
         let container = NSView()
         for view in [scrollView, addButton] as [NSView] {
@@ -323,7 +323,7 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// Internal so tests can rebuild the rows as a favourites change does.
     func reloadFavorites() {
         header.children?.forEach { $0.detach() }
-        let pictures = SidebarNode(kind: .favorite, title: "Pictures", url: picturesFolder,
+        let pictures = SidebarNode(kind: .favorite, title: localized(.init("Pictures", comment: "The user's Pictures folder: use the name Finder shows")), url: picturesFolder,
                                    symbolName: Self.picturesSymbol)
         let others = favoriteFolders()
             .filter { !BrowserModel.samePath($0, picturesFolder) }
@@ -748,8 +748,8 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         cell.imageView?.image = NSImage(systemSymbolName: node.symbolName, accessibilityDescription: nil)
         cell.toolTip = node.url?.path
         switch node.kind {
-        case .smartFolder: cell.setAccessibilityLabel("\(node.title), smart folder")
-        case .collection: cell.setAccessibilityLabel("\(node.title), collection")
+        case .smartFolder: cell.setAccessibilityLabel(localized(.init("\(node.title), smart folder", comment: "VoiceOver: a sidebar row")))
+        case .collection: cell.setAccessibilityLabel(localized(.init("\(node.title), collection", comment: "VoiceOver: a sidebar row")))
         default: cell.setAccessibilityLabel(nil)
         }
         return cell
@@ -807,18 +807,19 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
         menu.removeAllItems()
         if let node = outlineView.item(atRow: outlineView.clickedRow) as? SidebarNode, let list = node.list {
             if node.kind == .smartFolder, let id = node.libraryID {
-                addLibraryItem("Edit Search…", .editSearch(smartFolder: id), to: menu)
+                addLibraryItem(localized("Edit Search…"), .editSearch(smartFolder: id), to: menu)
             }
-            addLibraryItem("Rename…", .rename(list), to: menu)
-            addLibraryItem(node.kind == .smartFolder ? "Delete Smart Folder…" : "Delete Collection…", .delete(list), to: menu)
+            addLibraryItem(localized(.init("Rename…", comment: "Verb: rename the collection or smart folder")), .rename(list), to: menu)
+            addLibraryItem(node.kind == .smartFolder ? localized("Delete Smart Folder…") : localized("Delete Collection…"),
+                           .delete(list), to: menu)
             return
         }
         guard let node = outlineView.item(atRow: outlineView.clickedRow) as? SidebarNode, let url = node.url else { return }
-        let reveal = menu.addItem(withTitle: "Reveal in Finder", action: #selector(revealClicked(_:)), keyEquivalent: "")
+        let reveal = menu.addItem(withTitle: localized("Reveal in Finder"), action: #selector(revealClicked(_:)), keyEquivalent: "")
         reveal.target = self
         reveal.representedObject = url
         if node.kind == .favorite, !node.isPictures {
-            let remove = menu.addItem(withTitle: "Remove from Sidebar", action: #selector(removeClicked(_:)),
+            let remove = menu.addItem(withTitle: localized("Remove from Sidebar"), action: #selector(removeClicked(_:)),
                                       keyEquivalent: "")
             remove.target = self
             remove.representedObject = url

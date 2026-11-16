@@ -68,7 +68,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         let window = CompareWindow(contentRect: NSRect(x: 0, y: 0, width: 1400, height: 900),
                                    styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                    backing: .buffered, defer: false)
-        window.title = "Compare"
+        window.title = localized(.init("compare.window.title", defaultValue: "Compare", comment: "Noun: title of the window that shows images side by side"))
         window.minSize = NSSize(width: 640, height: 420)
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.toolbarStyle = .unified
@@ -206,7 +206,8 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
 
     private func updateChrome() {
         guard let window else { return }
-        let subtitle = "\(model.panes.count) images"
+        let count = model.panes.count
+        let subtitle = localized(.init("\(count) images", comment: "Status bar and window subtitle"))
         if window.subtitle != subtitle { window.subtitle = subtitle }
         syncControl.setSelected(isSynced, forSegment: 0)
         arrangementControl.isEnabled = model.panes.count == 4
@@ -308,7 +309,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
                 self.trashing.remove(entry.url)
                 if let window = self.window, !self.isClosing {
                     let alert = NSAlert()
-                    alert.messageText = "“\(entry.name)” couldn’t be moved to the Trash."
+                    alert.messageText = localized("“\(entry.name)” couldn’t be moved to the Trash.")
                     alert.informativeText = error.localizedDescription
                     alert.beginSheetModal(for: window, completionHandler: nil)
                 }
@@ -438,12 +439,12 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
         switch itemIdentifier {
         case Self.syncItem:
             item.view = syncControl
-            item.label = "Sync Zoom"
-            item.toolTip = "Zoom and pan all images together"
+            item.label = localized(.init("Sync Zoom", comment: "Toolbar item: zoom and pan the compared images together"))
+            item.toolTip = localized("Zoom and pan all images together")
         case Self.arrangementItem:
             item.view = arrangementControl
-            item.label = "Layout"
-            item.toolTip = "Four images in a row or a 2 × 2 grid"
+            item.label = localized("Layout")
+            item.toolTip = localized("Four images in a row or a 2 × 2 grid")
         default:
             return nil
         }
@@ -455,17 +456,17 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
     private func buildToolbarControls() {
         syncControl.segmentCount = 1
         syncControl.trackingMode = .selectAny
-        syncControl.setLabel("Sync", forSegment: 0)
+        syncControl.setLabel(localized(.init("Sync", comment: "Toggle button: zoom and pan the compared images together")), forSegment: 0)
         syncControl.setImage(NSImage(systemSymbolName: "link", accessibilityDescription: nil), forSegment: 0)
         syncControl.target = self
         syncControl.action = #selector(toggleSync(_:))
 
         arrangementControl.segmentCount = 2
         arrangementControl.trackingMode = .selectOne
-        arrangementControl.setLabel("Row", forSegment: 0)
+        arrangementControl.setLabel(localized(.init("Row", comment: "Layout: the compared images side by side in one row")), forSegment: 0)
         arrangementControl.setImage(NSImage(systemSymbolName: "rectangle.split.3x1", accessibilityDescription: nil),
                                     forSegment: 0)
-        arrangementControl.setLabel("Grid", forSegment: 1)
+        arrangementControl.setLabel(localized(.init("Grid", comment: "Layout: the compared images in a 2 × 2 grid")), forSegment: 1)
         arrangementControl.setImage(NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: nil),
                                     forSegment: 1)
         arrangementControl.target = self

@@ -1,0 +1,88 @@
+{
+  "Minivu": {
+    "%lld files can’t be flipped without re-encoding (%@).": {
+      "one": "%lld file can’t be flipped without re-encoding (%@).",
+      "other": "%lld files can’t be flipped without re-encoding (%@)."
+    },
+    "%lld files can’t be rotated without re-encoding (%@).": {
+      "one": "%lld file can’t be rotated without re-encoding (%@).",
+      "other": "%lld files can’t be rotated without re-encoding (%@)."
+    },
+    "%lld files couldn’t be flipped: %@": {
+      "one": "%lld file couldn’t be flipped: %@",
+      "other": "%lld files couldn’t be flipped: %@"
+    },
+    "%lld files couldn’t be rotated: %@": {
+      "one": "%lld file couldn’t be rotated: %@",
+      "other": "%lld files couldn’t be rotated: %@"
+    },
+    "%lld files were flipped.": {
+      "one": "%lld file was flipped.",
+      "other": "%lld files were flipped."
+    },
+    "%lld files were rotated.": {
+      "one": "%lld file was rotated.",
+      "other": "%lld files were rotated."
+    },
+    "%lld folders": {
+      "one": "%lld folder",
+      "other": "%lld folders"
+    },
+    "%lld images": {
+      "one": "%lld image",
+      "other": "%lld images"
+    },
+    "%lld items couldn’t be copied.": {
+      "one": "%lld item couldn’t be copied.",
+      "other": "%lld items couldn’t be copied."
+    },
+    "%lld items couldn’t be moved.": {
+      "one": "%lld item couldn’t be moved.",
+      "other": "%lld items couldn’t be moved."
+    },
+    "%lld items selected": {
+      "one": "%lld item selected",
+      "other": "%lld items selected"
+    },
+    "%lld stars": {
+      "one": "%lld star",
+      "other": "%lld stars"
+    },
+    "%lld videos": {
+      "one": "%lld video",
+      "other": "%lld videos"
+    },
+    "Choose a folder to copy %lld items to.": {
+      "one": "Choose a folder to copy %lld item to.",
+      "other": "Choose a folder to copy %lld items to."
+    },
+    "Choose a folder to move %lld items to.": {
+      "one": "Choose a folder to move %lld item to.",
+      "other": "Choose a folder to move %lld items to."
+    },
+    "Copy %lld Items": {
+      "one": "Copy %lld Item",
+      "other": "Copy %lld Items"
+    },
+    "Copying %lld items to “%@”": {
+      "one": "Copying %lld item to “%@”",
+      "other": "Copying %lld items to “%@”"
+    },
+    "Move %lld Items": {
+      "one": "Move %lld Item",
+      "other": "Move %lld Items"
+    },
+    "Moving %lld items to “%@”": {
+      "one": "Moving %lld item to “%@”",
+      "other": "Moving %lld items to “%@”"
+    },
+    "Rate %lld stars": {
+      "one": "Rate %lld star",
+      "other": "Rate %lld stars"
+    },
+    "Rate %lld stars (click again to clear)": {
+      "one": "Rate %lld star (click again to clear)",
+      "other": "Rate %lld stars (click again to clear)"
+    }
+  }
+}

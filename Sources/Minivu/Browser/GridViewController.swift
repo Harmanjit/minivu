@@ -278,7 +278,8 @@ final class GridViewController: NSViewController, NSCollectionViewDataSource, NS
     private func updateMessage() {
         let message: String? = switch model.state {
         case .failed(let text): text
-        case .loaded where model.entries.isEmpty: model.isFiltering ? "No Matches" : "No Images"
+        case .loaded where model.entries.isEmpty: model.isFiltering
+            ? localized(.init("No Matches", comment: "Empty grid: a filter hides every image")) : localized(.init("No Images", comment: "Empty grid: the folder has no images"))
         default: nil
         }
         messageField.stringValue = message ?? ""
@@ -594,7 +595,7 @@ final class GridCollectionView: NSCollectionView {
         guard indexPath != nil else {
             // On the background: what Finder offers there.
             let menu = NSMenu()
-            menu.addItem(withTitle: "New Folder", action: .newFolder, keyEquivalent: "")
+            menu.addItem(withTitle: localized("New Folder"), action: .newFolder, keyEquivalent: "")
             return menu
         }
         return Self.itemMenu()
@@ -605,37 +606,34 @@ final class GridCollectionView: NSCollectionView {
     /// anything else they can't apply to, and Tag reads Remove Tag.
     static func itemMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(withTitle: "Open in Viewer", action: .openInViewer, keyEquivalent: "")
+        func add(_ title: LocalizedStringResource, _ action: Selector?) { menu.addItem(withTitle: localized(title), action: action, keyEquivalent: "") }
+        func add(submenu: NSMenu) { menu.addItem(withTitle: submenu.title, action: nil, keyEquivalent: "").submenu = submenu }
+        add(.init("Open in Viewer", comment: "Open the selected image in the viewer window"), .openInViewer)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Rename", action: .renameItem, keyEquivalent: "")
-        let copyTo = menu.addItem(withTitle: "Copy To", action: nil, keyEquivalent: "")
-        copyTo.submenu = RecentDestinationsMenu.make(title: "Copy To", action: .copyToFolder)
-        let moveTo = menu.addItem(withTitle: "Move To", action: nil, keyEquivalent: "")
-        moveTo.submenu = RecentDestinationsMenu.make(title: "Move To", action: .moveToFolder)
+        add(.init("Rename", comment: "Verb: rename the selected file"), .renameItem)
+        add(submenu: RecentDestinationsMenu.make(title: RecentDestinationsMenu.copyTitle, action: .copyToFolder))
+        add(submenu: RecentDestinationsMenu.make(title: RecentDestinationsMenu.moveTitle, action: .moveToFolder))
         menu.addItem(.separator())
         menu.addItem(withTitle: MenuStateTitles.tag(isTagged: false), action: .toggleTag, keyEquivalent: "")
-        let rating = menu.addItem(withTitle: "Rating", action: nil, keyEquivalent: "")
-        rating.submenu = ratingMenu()
-        let label = menu.addItem(withTitle: "Label", action: nil, keyEquivalent: "")
-        label.submenu = ColorLabelCommand.menu(withShortcuts: false)
-        let collections = menu.addItem(withTitle: "Add to Collection", action: nil, keyEquivalent: "")
-        collections.submenu = CollectionsMenu.make()
-        menu.addItem(withTitle: "Remove from Collection", action: .removeFromCollection, keyEquivalent: "")
+        add(submenu: ratingMenu())
+        add(submenu: ColorLabelCommand.menu(withShortcuts: false))
+        add(submenu: CollectionsMenu.make())
+        add("Remove from Collection", .removeFromCollection)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Rotate Left", action: .rotateLeft, keyEquivalent: "")
-        menu.addItem(withTitle: "Rotate Right", action: .rotateRight, keyEquivalent: "")
-        menu.addItem(withTitle: "Edit Comment…", action: .editComment, keyEquivalent: "")
-        menu.addItem(withTitle: "Edit Metadata…", action: .editMetadata, keyEquivalent: "")
+        add("Rotate Left", .rotateLeft)
+        add("Rotate Right", .rotateRight)
+        add(.init("Edit Comment…", comment: "Edit the image's comment (JPEG/EXIF comment)"), .editComment)
+        add("Edit Metadata…", .editMetadata)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Reveal in Finder", action: .revealInFinder, keyEquivalent: "")
-        menu.addItem(withTitle: "Share…", action: .shareFiles, keyEquivalent: "")
-        menu.addItem(withTitle: "Move to Trash", action: .moveToTrash, keyEquivalent: "")
+        add("Reveal in Finder", .revealInFinder)
+        add(.init("Share…", comment: "Verb: share the selected files"), .shareFiles)
+        add("Move to Trash", .moveToTrash)
         return menu
     }
 
     /// Clear Rating and Rate 1 Star to Rate 5 Stars, tagged with the rating.
     static func ratingMenu() -> NSMenu {
-        let menu = NSMenu(title: "Rating")
+        let menu = NSMenu(title: localized(.init("Rating", comment: "Noun: star rating")))
         for stars in 0...5 {
             menu.addItem(withTitle: MenuStateTitles.rating(stars), action: .setRating, keyEquivalent: "").tag = stars
         }

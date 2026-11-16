@@ -46,8 +46,8 @@ nonisolated struct VirtualList: Equatable, Sendable {
 
         var errorDescription: String? {
             switch self {
-            case .smartFolderGone: "This smart folder has been deleted."
-            case .collectionGone: "This collection has been deleted."
+            case .smartFolderGone: localized("This smart folder has been deleted.")
+            case .collectionGone: localized("This collection has been deleted.")
             }
         }
     }
