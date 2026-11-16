@@ -99,7 +99,7 @@ nonisolated enum DesktopPicturePolicy {
         case unreadable(String)
         var errorDescription: String? {
             switch self {
-            case .unreadable(let name): "“\(name)” couldn’t be read."
+            case .unreadable(let name): localized("“\(name)” couldn’t be read.")
             }
         }
     }
@@ -123,7 +123,7 @@ nonisolated enum DesktopPicturePolicy {
 
     private static func explain(_ error: Error, name: String, on window: NSWindow?) {
         let alert = NSAlert()
-        alert.messageText = "“\(name)” couldn’t be set as the desktop picture."
+        alert.messageText = localized("“\(name)” couldn’t be set as the desktop picture.")
         alert.informativeText = error.localizedDescription
         if let window, window.isVisible { alert.beginSheetModal(for: window) } else { alert.runModal() }
     }

@@ -98,8 +98,8 @@ struct DuplicatesView: View {
                 Text("Looser")
             }
             .frame(maxWidth: 360)
-            .accessibilityValue("\(model.threshold.formatted(.number.precision(.fractionLength(2)))), "
-                + "\(model.groups.count) groups")
+            .accessibilityValue(localized(.init("\(model.groups.count) groups, similarity \(model.threshold.formatted(.number.precision(.fractionLength(2))))",
+                                                comment: "VoiceOver: how many groups of duplicates, then the similarity threshold, such as 0.35")))
             Text(model.threshold.formatted(.number.precision(.fractionLength(2))))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -108,12 +108,13 @@ struct DuplicatesView: View {
     }
 
     static func describe(_ progress: DuplicateFinder.Progress?) -> String {
-        guard let progress else { return "Listing images…" }
-        let count = "\(progress.done.formatted()) of \(progress.total.formatted())"
+        guard let progress else { return localized("Listing images…") }
         return switch progress.phase {
-        case .comparing: "Comparing files of the same size… \(count)"
-        case .analysing: "Analysing images… \(count)"
-        case .grouping: "Comparing images with each other…"
+        case .comparing: localized(.init("Comparing files of the same size… \(progress.done) of \(progress.total)",
+                                         comment: "Progress: files compared so far, of how many"))
+        case .analysing: localized(.init("Analysing images… \(progress.done) of \(progress.total)",
+                                         comment: "Progress: images analysed so far, of how many"))
+        case .grouping: localized("Comparing images with each other…")
         }
     }
 
@@ -126,8 +127,8 @@ struct DuplicatesView: View {
             Text("Looking…")
                 .foregroundStyle(.secondary)
         case .finished:
-            Text(model.scanned == 1 ? "No duplicates: 1 image was compared."
-                 : "No duplicates among \(model.scanned.formatted()) images.")
+            Text(localized(.init("duplicates.none-found", defaultValue: "No duplicates among \(model.scanned) images.",
+                                 comment: "Find Duplicates found nothing: how many images were compared")))
                 .foregroundStyle(.secondary)
         }
     }
@@ -153,9 +154,10 @@ struct DuplicatesView: View {
 
     private func header(for group: DuplicateGroup) -> String {
         if model.resultMode == .exact, let size = group.files.first?.fileSize {
-            return "\(group.files.count) identical files, \(size.formatted(.byteCount(style: .file))) each"
+            return localized(.init("\(group.files.count) identical files, \(size.formatted(.byteCount(style: .file))) each",
+                                   comment: "A group of duplicates: how many, then the size of each, such as 2.4 MB"))
         }
-        return "\(group.files.count) similar images"
+        return localized("\(group.files.count) similar images")
     }
 
     // MARK: - Commands
@@ -170,8 +172,8 @@ struct DuplicatesView: View {
             .fixedSize()
             .help("Which file of each group is suggested to keep")
             Button("Mark Suggested") { model.markSuggested() }
-                .help(model.isWaitingForSizes ? "Waiting for the images' dimensions"
-                      : "Marks every file but the one suggested to keep in each group")
+                .help(model.isWaitingForSizes ? localized("Waiting for the images' dimensions")
+                      : localized("Marks every file but the one suggested to keep in each group"))
                 .disabled(model.groups.isEmpty || model.isWaitingForSizes)
             Button("Clear Marks") { model.clearMarks() }
                 .disabled(model.marked.isEmpty)
@@ -195,7 +197,7 @@ struct DuplicatesView: View {
         let files = model.markedFiles
         guard !files.isEmpty else { return "" }
         let bytes = files.reduce(Int64(0)) { $0 + $1.fileSize }.formatted(.byteCount(style: .file))
-        return files.count == 1 ? "1 marked, \(bytes)" : "\(files.count.formatted()) marked, \(bytes)"
+        return localized(.init("\(files.count) marked, \(bytes)", comment: "How many files are marked for the Trash, then their total size"))
     }
 }
 
@@ -227,7 +229,7 @@ private struct DuplicateRow: View {
                 HStack(spacing: 6) {
                     Text(file.name).lineLimit(1).truncationMode(.middle)
                     if isKeeper {
-                        Text("Keep")
+                        Text("Keep", comment: "Badge on the file suggested to keep")
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
@@ -263,10 +265,13 @@ private struct DuplicateRow: View {
 
     private var accessibilityText: String {
         var parts = [file.name, file.fileSize.formatted(.byteCount(style: .file))]
-        if let size = model.pixelSizes[file.url] { parts.append("\(Int(size.width)) by \(Int(size.height))") }
+        if let size = model.pixelSizes[file.url] {
+            parts.append(localized(.init("\(String(Int(size.width))) by \(String(Int(size.height)))", comment: "VoiceOver: width by height in pixels")))
+        }
         parts.append(file.modified.formatted(date: .abbreviated, time: .shortened))
-        parts.append("in \(FileManager.default.displayName(atPath: file.url.deletingLastPathComponent().path))")
-        if isKeeper { parts.append("suggested to keep") }
+        parts.append(localized(.init("in \(FileManager.default.displayName(atPath: file.url.deletingLastPathComponent().path))",
+                                     comment: "VoiceOver: the folder a file is in")))
+        if isKeeper { parts.append(localized(.init("suggested to keep", comment: "VoiceOver: the file suggested to keep in a group of duplicates"))) }
         return parts.joined(separator: ", ")
     }
 }

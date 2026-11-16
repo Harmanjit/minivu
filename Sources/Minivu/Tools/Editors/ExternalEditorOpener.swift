@@ -45,6 +45,8 @@ final class WorkspaceLauncher: ApplicationLaunching {
         var message: String
         var detail: String
         var confirmTitle: String
+        /// False for a notice, which has only its confirm button.
+        var offersCancel = true
     }
 
     /// Opens `urls` in the editor at `index`. `unsavedEditsIn` names the
@@ -56,14 +58,17 @@ final class WorkspaceLauncher: ApplicationLaunching {
 
         var questions: [Question] = []
         if urls.count > Self.confirmationThreshold {
-            questions.append(Question(message: "Open \(urls.count.formatted()) images in \(editor.name)?",
-                                      detail: "Each image opens in \(editor.name) on its own.",
-                                      confirmTitle: "Open"))
+            questions.append(Question(message: localized(.init("Open \(urls.count) images in \(editor.name)?",
+                                                               comment: "The number of images, then an application's name")),
+                                      detail: localized(.init("Each image opens in \(editor.name) on its own.",
+                                                              comment: "%@ is an application's name")),
+                                      confirmTitle: localized(.init("Open", comment: "Button: opens the images in the editor"))))
         }
         if let name {
-            questions.append(Question(message: "“\(name)” has edits that aren’t saved.",
-                                      detail: "\(editor.name) opens the file as it was last saved, without the edits made here.",
-                                      confirmTitle: "Open Saved File"))
+            questions.append(Question(message: localized("“\(name)” has edits that aren’t saved."),
+                                      detail: localized(.init("\(editor.name) opens the file as it was last saved, without the edits made here.",
+                                                              comment: "%@ is an application's name")),
+                                      confirmTitle: localized("Open Saved File")))
         }
         ask(questions, window: window) { [weak self] in
             self?.launch(urls, in: editor, window: window)
@@ -80,9 +85,9 @@ final class WorkspaceLauncher: ApplicationLaunching {
 
     private func launch(_ urls: [URL], in editor: ExternalEditor, window: NSWindow?) {
         guard let (application, isScoped) = ExternalEditorsStore.applicationURL(for: editor) else {
-            let question = Question(message: "“\(editor.name)” can’t be found.",
-                                    detail: "It may have been moved or deleted. Add it again in Settings > Editors.",
-                                    confirmTitle: "Edit Editor List…")
+            let question = Question(message: localized(.init("“\(editor.name)” can’t be found.", comment: "%@ is an application's name")),
+                                    detail: localized("It may have been moved or deleted. Add it again in Settings > Editors."),
+                                    confirmTitle: localized("Edit Editor List…"))
             confirm(question, window) { [weak self] yes in if yes { self?.showEditorSettings() } }
             return
         }
@@ -91,8 +96,9 @@ final class WorkspaceLauncher: ApplicationLaunching {
         launcher.open(urls, withApplicationAt: application) { [weak self] error in
             if scoped { application.stopAccessingSecurityScopedResource() }
             guard let error, let self else { return }
-            self.confirm(Question(message: "\(editor.name) couldn’t open the images.",
-                                  detail: error.localizedDescription, confirmTitle: "OK"), window) { _ in }
+            self.confirm(Question(message: localized(.init("\(editor.name) couldn’t open the images.", comment: "%@ is an application's name")),
+                                  detail: error.localizedDescription, confirmTitle: localized("OK"), offersCancel: false),
+                         window) { _ in }
         }
     }
 
@@ -101,7 +107,7 @@ final class WorkspaceLauncher: ApplicationLaunching {
         alert.messageText = question.message
         alert.informativeText = question.detail
         alert.addButton(withTitle: question.confirmTitle)
-        if question.confirmTitle != "OK" { alert.addButton(withTitle: "Cancel") }
+        if question.offersCancel { alert.addButton(withTitle: localized("Cancel")) }
         if let window, window.isVisible, window.attachedSheet == nil {
             alert.beginSheetModal(for: window) { answer($0 == .alertFirstButtonReturn) }
         } else {

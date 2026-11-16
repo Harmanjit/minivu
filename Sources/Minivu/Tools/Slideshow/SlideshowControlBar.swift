@@ -14,12 +14,15 @@ final class SlideshowControlBar: NSVisualEffectView {
 
     var onCommand: ((Command) -> Void)?
 
-    private lazy var previousButton = button("backward.fill", "Previous (←)", .previous)
-    private lazy var playPauseButton = button("pause.fill", "Pause (Space)", .playPause)
-    private lazy var nextButton = button("forward.fill", "Next (→)", .next)
-    private lazy var muteButton = button("speaker.wave.2.fill", "Mute Music", .mute)
-    private lazy var settingsButton = button("gearshape", "Slideshow Settings", .settings)
-    private lazy var closeButton = button("xmark", "End Slideshow (Esc)", .close)
+    private lazy var previousButton = button("backward.fill", localized(.init("Previous (←)", comment: "Slideshow button tooltip; keep the key in parentheses at the end, after a space")), .previous)
+    private lazy var playPauseButton = button("pause.fill", Self.pauseTitle, .playPause)
+    private lazy var nextButton = button("forward.fill", localized(.init("Next (→)", comment: "Slideshow button tooltip; keep the key in parentheses at the end, after a space")), .next)
+    private lazy var muteButton = button("speaker.wave.2.fill", Self.muteTitle, .mute)
+    private lazy var settingsButton = button("gearshape", localized("Slideshow Settings"), .settings)
+    private lazy var closeButton = button("xmark", localized(.init("End Slideshow (Esc)", comment: "Slideshow button tooltip; keep the key in parentheses at the end, after a space")), .close)
+
+    private static var pauseTitle: String { localized(.init("Pause (Space)", comment: "Slideshow button tooltip; keep the key in parentheses at the end, after a space")) }
+    private static var muteTitle: String { localized(.init("Mute Music", comment: "Slideshow button tooltip")) }
     private lazy var musicGroup = NSStackView(views: [Self.divider(), muteButton])
 
     init() {
@@ -64,13 +67,13 @@ final class SlideshowControlBar: NSVisualEffectView {
     /// - Parameters:
     ///   - hasMusic: the show plays music, so the mute button applies.
     func update(isPaused: Bool, hasMusic: Bool, isMuted: Bool) {
-        let playTitle = isPaused ? "Play (Space)" : "Pause (Space)"
+        let playTitle = isPaused ? localized(.init("Play (Space)", comment: "Slideshow button tooltip; keep the key in parentheses at the end, after a space")) : Self.pauseTitle
         if playPauseButton.toolTip != playTitle {
             playPauseButton.image = Self.symbol(isPaused ? "play.fill" : "pause.fill", playTitle)
             playPauseButton.toolTip = playTitle
         }
         if musicGroup.isHidden == hasMusic { musicGroup.isHidden = !hasMusic }
-        let muteTitle = isMuted ? "Play Music" : "Mute Music"
+        let muteTitle = isMuted ? localized(.init("Play Music", comment: "Slideshow button tooltip")) : Self.muteTitle
         if muteButton.toolTip != muteTitle {
             muteButton.image = Self.symbol(isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill", muteTitle)
             muteButton.toolTip = muteTitle

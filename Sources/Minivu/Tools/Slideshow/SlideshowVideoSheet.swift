@@ -33,30 +33,38 @@ import MinivuRender
 
     /// "12 pictures · 1:05 · 1920 × 1080".
     func summary(slideshow: SlideshowSettings) -> String {
-        let pictures = images.count == 1 ? "1 picture" : "\(images.count) pictures"
         let seconds = SlideshowVideoPlanner.duration(count: images.count, settings: slideshow,
                                                      frameRate: settings.frameRate)
         let length = Duration.seconds(seconds.rounded(.up)).formatted(.time(pattern: .minuteSecond))
-        return "\(pictures) · \(length) · \(format.width) × \(format.height)"
+        return localized(.init("\(images.count) pictures · \(length) · \(String(format.width)) × \(String(format.height))",
+                               comment: "Slideshow video: number of pictures, length (1:05), then width × height in pixels"))
     }
 
     /// What the video plays with, from Settings > Slideshow, one line each.
     static func slideshowLines(_ slideshow: SlideshowSettings) -> [String] {
         let transition: String
+        let interval = Int(slideshow.interval)
+        let duration = slideshow.transitionDuration.formatted(.number.precision(.fractionLength(1)))
         switch slideshow.transition {
-        case .random: transition = "Random transitions"
-        case .fixed(let kind): transition = "\(kind.title) transitions"
+        case .random:
+            transition = localized(.init("Each slide for \(interval) s, Random transitions of \(duration) s",
+                                         comment: "Slideshow video: seconds per slide, then the transitions' length in seconds"))
+        case .fixed(let kind):
+            transition = localized(.init("Each slide for \(interval) s, \(kind.title) transitions of \(duration) s",
+                                         comment: "Slideshow video: seconds per slide, a transition such as Push, then its length in seconds"))
         }
         let music: String
         if slideshow.playsMusic {
             let count = slideshow.playlist.count
-            music = "Music: \(count == 1 ? slideshow.playlist[0].name : "\(count) items")"
+            music = count == 1 ? localized(.init("Music: \(slideshow.playlist[0].name)", comment: "%@ is a song or folder name"))
+                : localized(.init("Music: \(count) items", comment: "Songs or folders of songs"))
         } else {
-            music = "No music"
+            music = localized("No music")
         }
         return [
-            "Each slide for \(Int(slideshow.interval)) s, " + String(format: "%@ of %.1f s", transition, slideshow.transitionDuration),
-            "\(slideshow.order.title), captions: \(slideshow.caption.title.lowercased())",
+            transition,
+            localized(.init("\(slideshow.order.title), captions: \(slideshow.caption.inlineTitle)",
+                            comment: "Slideshow video: the order (In order, Shuffled), then the captions")),
             music,
         ]
     }
@@ -132,7 +140,8 @@ struct SlideshowVideoView: View {
 
     private var screenTitle: String {
         let size = SlideshowVideoResolution.screen.pixelSize(screen: model.screen)
-        return "Screen size (\(Int(size.width)) × \(Int(size.height)))"
+        return localized(.init("Screen size (\(String(Int(size.width))) × \(String(Int(size.height))))",
+                               comment: "Video resolution: width × height in pixels"))
     }
 }
 
@@ -178,7 +187,7 @@ final class SlideshowVideoController {
         let panel = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 520), styleMask: [.titled],
                              backing: .buffered, defer: true)
         panel.isReleasedWhenClosed = false
-        panel.title = "Export Slideshow Video"
+        panel.title = localized("Export Slideshow Video")
         let view = SlideshowVideoView(model: model, slideshow: model.slideshowStore,
                                       onSlideshowSettings: { (NSApp.delegate as? AppDelegate)?.showSettings(pane: .slideshow) },
                                       onCancel: { [weak self] in self?.close() },
@@ -220,9 +229,9 @@ final class SlideshowVideoController {
     private func run(to destination: URL, on window: NSWindow) {
         let images = model.images, start = model.start, video = model.settings, screen = model.screen
         let slideshow = model.slideshowStore.settings
-        let progress = ContactSheetProgress(on: window, title: "Exporting “\(destination.lastPathComponent)”…",
+        let progress = ContactSheetProgress(on: window, title: localized(.init("Exporting “\(destination.lastPathComponent)”…", comment: "%@ is a file name")),
                                             pageCount: 100, delay: .milliseconds(300),
-                                            describe: { done, _ in "\(done)%" })
+                                            describe: { done, _ in localized(.init("\(done)%", comment: "A percentage")) })
         self.progress = progress
         work = Task { [weak window] in
             do {
@@ -236,7 +245,7 @@ final class SlideshowVideoController {
                 progress.finish()
             } catch {
                 progress.finish()
-                SaveAlert.show(error, title: "The slideshow video couldn’t be exported.", on: window)
+                SaveAlert.show(error, title: localized("The slideshow video couldn’t be exported."), on: window)
             }
             self.progress = nil
         }

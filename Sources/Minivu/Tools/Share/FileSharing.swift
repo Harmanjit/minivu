@@ -45,10 +45,9 @@ final class SharingServicePresenter: SharePresenting {
 
     /// The question asked before sharing an image with unsaved edits.
     static func unsavedEditsQuestion(name: String) -> ExternalEditorOpener.Question {
-        ExternalEditorOpener.Question(message: "“\(name)” has edits that aren’t saved.",
-                                      detail: "The file is shared as it was last saved, without the edits made here. "
-                                          + "To share the edits, save them first.",
-                                      confirmTitle: "Share Saved File")
+        ExternalEditorOpener.Question(message: localized("“\(name)” has edits that aren’t saved."),
+                                      detail: localized("The file is shared as it was last saved, without the edits made here. To share the edits, save them first."),
+                                      confirmTitle: localized("Share Saved File"))
     }
 
     /// Shares `urls` from a popover pointing at `rect` in `view`.

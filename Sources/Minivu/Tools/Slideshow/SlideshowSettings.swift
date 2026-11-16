@@ -38,7 +38,10 @@ nonisolated struct SlideshowSettings: Codable, Equatable, Sendable {
     enum Order: String, Codable, CaseIterable, Identifiable, Sendable {
         case inOrder, shuffle
         var id: String { rawValue }
-        var title: String { self == .inOrder ? "In order" : "Shuffled" }
+        var title: String {
+            self == .inOrder ? localized(.init("In order", comment: "Slideshow order: the browser's order"))
+                             : localized(.init("Shuffled", comment: "Slideshow order: random"))
+        }
     }
 
     enum Caption: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -46,10 +49,24 @@ nonisolated struct SlideshowSettings: Codable, Equatable, Sendable {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .none: "None"
-            case .name: "File name"
-            case .nameAndDate: "File name and date"
-            case .exif: "Camera and exposure"
+            case .none: localized(.init("slideshow.caption.none", defaultValue: "None", comment: "Slideshow captions: no caption"))
+            case .name: localized(.init("File name", comment: "Slideshow captions"))
+            case .nameAndDate: localized(.init("File name and date", comment: "Slideshow captions"))
+            case .exif: localized(.init("Camera and exposure", comment: "Slideshow captions"))
+            }
+        }
+
+        /// The title within a sentence: "In order, captions: file name".
+        var inlineTitle: String {
+            switch self {
+            case .none: localized(.init("slideshow.caption.none.inline", defaultValue: "none",
+                                        comment: "Within “In order, captions: none”"))
+            case .name: localized(.init("slideshow.caption.name.inline", defaultValue: "file name",
+                                        comment: "Within “In order, captions: file name”"))
+            case .nameAndDate: localized(.init("slideshow.caption.name-and-date.inline", defaultValue: "file name and date",
+                                               comment: "Within “In order, captions: file name and date”"))
+            case .exif: localized(.init("slideshow.caption.exif.inline", defaultValue: "camera and exposure",
+                                        comment: "Within “In order, captions: camera and exposure”"))
             }
         }
     }

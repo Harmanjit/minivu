@@ -26,7 +26,7 @@ enum PrintPresenter {
 
     /// The window title of a print: the one picture's name, or "12 Pictures".
     nonisolated static func jobTitle(for items: [LayoutItem]) -> String {
-        items.count == 1 ? items[0].name : "\(items.count) Pictures"
+        items.count == 1 ? items[0].name : localized(.init("\(items.count) Pictures", comment: "Print job title"))
     }
 }
 

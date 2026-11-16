@@ -72,22 +72,23 @@ extension BrowserWindowController {
     private func makeMultiPage(_ urls: [URL], settings: MultiPageSettings, to destination: URL) async {
         let pages = await BlockingWork.run { MultiPageBuilder.pages(of: urls, everyPage: settings.includesEveryPage) }
         let limit = ImageDecoder.exportDecodeLimit()
-        let outcome = await produce(destination, total: pages.count,
-                                    title: "Making “\(destination.lastPathComponent)”") { temporary, progress in
+        let outcome = await produce(destination, total: pages.count, title: Self.makingTitle(destination)) { temporary, progress in
             let cancel = progress.cancellation
             return try await BlockingWork.run {
                 try MultiPageBuilder.write(pages, settings: settings, to: temporary, byteLimit: limit, cancel: cancel) { done in
                     Task { @MainActor in progress.set(done: done) }
                 }.map { page, error in
                     let name = page.url.lastPathComponent
-                    return page.of > 1 ? "\(name), page \(page.index + 1): \(SaveAlert.message(for: error))"
-                                       : "\(name): \(SaveAlert.message(for: error))"
+                    return page.of > 1
+                        ? localized(.init("\(name), page \(page.index + 1): \(SaveAlert.message(for: error))",
+                                          comment: "A file name, a page number, then what went wrong with that page"))
+                        : localized(.init("\(name): \(SaveAlert.message(for: error))", comment: "A file name, then what went wrong with it"))
                 }
             }
         }
         guard let left = outcome else { return }
         if !left.isEmpty {
-            reportMultiPage(title: left.count == 1 ? "1 page was left out." : "\(left.count.formatted()) pages were left out.",
+            reportMultiPage(title: localized("\(left.count) pages were left out."),
                             detail: Self.listed(left))
         }
     }
@@ -120,8 +121,7 @@ extension BrowserWindowController {
 
     private func makeImageStrip(_ urls: [URL], settings: ImageStripSettings, to destination: URL) async {
         let limit = ImageDecoder.exportDecodeLimit()
-        let outcome = await produce(destination, total: 1,
-                                    title: "Making “\(destination.lastPathComponent)”") { temporary, progress in
+        let outcome = await produce(destination, total: 1, title: Self.makingTitle(destination)) { temporary, progress in
             let cancel = progress.cancellation
             return try await BlockingWork.run {
                 let sizes = ImageStripRenderer.sizes(of: urls)
@@ -131,12 +131,12 @@ extension BrowserWindowController {
                 // options' background colour, which the sheet shows.
                 let data = try ImageEncoder.encode(strip.image, options: settings.options, metadataSource: nil)
                 try data.write(to: temporary, options: .withoutOverwriting)
-                return strip.failed.map { "\($0.lastPathComponent): couldn’t be read." }
+                return strip.failed.map { localized(.init("\($0.lastPathComponent): couldn’t be read.", comment: "%@ is a file name")) }
             }
         }
         guard let left = outcome else { return }
         if !left.isEmpty {
-            reportMultiPage(title: left.count == 1 ? "1 image was left out." : "\(left.count.formatted()) images were left out.",
+            reportMultiPage(title: localized("\(left.count) images were left out."),
                             detail: Self.listed(left))
         }
         MultiPageTools.showResult(destination)
@@ -161,7 +161,7 @@ extension BrowserWindowController {
         // Files minivu may not use (an external volume) are refused, as
         // everywhere else.
         guard VolumePolicy.isAllowed(url.deletingLastPathComponent()) else {
-            present(message: "minivu works only with folders on this Mac’s internal storage.")
+            present(message: localized("minivu works only with folders on this Mac’s internal storage."))
             return nil
         }
         return url
@@ -211,7 +211,7 @@ extension BrowserWindowController {
             try? FileManager.default.removeItem(at: temporary.url)
             progress.finish()
             if !(error is CancellationError) {
-                reportMultiPage(title: "“\(destination.lastPathComponent)” couldn’t be made.",
+                reportMultiPage(title: localized(.init("“\(destination.lastPathComponent)” couldn’t be made.", comment: "%@ is a file name")),
                                 detail: SaveAlert.message(for: error))
             }
             return nil
@@ -241,7 +241,13 @@ extension BrowserWindowController {
     /// Up to 8 lines, and how many more.
     static func listed(_ lines: [String]) -> String {
         var shown = Array(lines.prefix(8))
-        if lines.count > 8 { shown.append("…and \((lines.count - 8).formatted()) more.") }
+        if lines.count > 8 {
+            shown.append(localized(.init("…and \(lines.count - 8) more.", comment: "End of a list of files that is too long to show")))
+        }
         return shown.joined(separator: "\n")
+    }
+
+    private static func makingTitle(_ destination: URL) -> String {
+        localized(.init("Making “\(destination.lastPathComponent)”", comment: "Progress title; %@ is the name of the file being made"))
     }
 }

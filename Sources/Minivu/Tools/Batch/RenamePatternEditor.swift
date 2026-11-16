@@ -19,22 +19,22 @@ struct RenamePatternEditor: View {
     var offersPageNumber = false
 
     /// The tokens offered by the Insert Token menu, with what each does.
-    static let tokens: [(title: String, token: String)] = [
-        ("Original Name", "{name}"),
-        ("Counter", "{#}"),
-        ("Counter, 3 Digits", "{###}"),
-        ("Date Taken", "{date}"),
-        ("Date and Time Taken", "{date:yyyy-MM-dd HH.mm.ss}"),
-        ("Date Modified", "{modified}"),
-        ("Width", "{width}"),
-        ("Height", "{height}"),
-        ("Original Extension", "{ext}"),
-    ]
+    static var tokens: [(title: String, token: String)] {
+        [(localized(.init("Original Name", comment: "Rename token: the file's name")), "{name}"),
+         (localized(.init("Counter", comment: "Rename token: a number that counts up")), "{#}"),
+         (localized(.init("Counter, 3 Digits", comment: "Rename token")), "{###}"),
+         (localized(.init("Date Taken", comment: "Rename token")), "{date}"),
+         (localized(.init("Date and Time Taken", comment: "Rename token")), "{date:yyyy-MM-dd HH.mm.ss}"),
+         (localized("Date Modified"), "{modified}"),
+         (localized(.init("Width", comment: "Rename token: the image's width in pixels")), "{width}"),
+         (localized(.init("Height", comment: "Rename token: the image's height in pixels")), "{height}"),
+         (localized(.init("Original Extension", comment: "Rename token: the file name extension")), "{ext}")]
+    }
 
     /// The page or frame number, for outputs taken from one page of a file.
-    static let pageTokens: [(title: String, token: String)] = [
-        ("Page Number", "{page}"),
-    ]
+    static var pageTokens: [(title: String, token: String)] {
+        [(localized(.init("Page Number", comment: "Rename token: the page or frame number")), "{page}")]
+    }
 
     var body: some View {
         switch layout {
@@ -65,7 +65,7 @@ struct RenamePatternEditor: View {
         }
     }
 
-    private func label(_ text: String) -> some View {
+    private func label(_ text: LocalizedStringKey) -> some View {
         Text(text).gridColumnAlignment(.trailing)
     }
 
@@ -81,7 +81,7 @@ struct RenamePatternEditor: View {
                 .frame(minWidth: 220)
             Menu("Insert Token") {
                 ForEach(Self.tokens + (offersPageNumber ? Self.pageTokens : []), id: \.token) { item in
-                    Button("\(item.title)  \(item.token)") { pattern.text += item.token }
+                    Button("\(item.title)  \(item.token)" as String) { pattern.text += item.token }
                 }
             }
             .menuStyle(.button)
@@ -93,17 +93,21 @@ struct RenamePatternEditor: View {
     private var counterControls: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             numberField("Start", value: $pattern.counterStart)
-            Text("start").foregroundStyle(.secondary)
+            Text("start", comment: "Label after the counter's first number").foregroundStyle(.secondary)
             numberField("Step", value: $pattern.counterStep)
                 .padding(.leading, 8)
-            Text("step").foregroundStyle(.secondary)
+            Text("step", comment: "Label after the number the counter goes up by").foregroundStyle(.secondary)
             Stepper(value: $pattern.counterDigits, in: 1...9) {
                 Text("\(pattern.counterDigits)").monospacedDigit()
             }
             .accessibilityLabel("Minimum digits")
             .accessibilityValue("\(pattern.counterDigits)")
             .padding(.leading, 8)
-            Text(pattern.counterDigits == 1 ? "digit minimum" : "digits minimum").foregroundStyle(.secondary)
+            // One or several, not a plural rule: the number is in the stepper.
+            Text(pattern.counterDigits == 1
+                 ? localized(.init("digit minimum", comment: "Label after a stepper showing 1: the counter's minimum number of digits"))
+                 : localized(.init("digits minimum", comment: "Label after a stepper showing 2 to 9: the counter's minimum number of digits")))
+                .foregroundStyle(.secondary)
         }
         .fixedSize()
     }
@@ -114,7 +118,7 @@ struct RenamePatternEditor: View {
                 .labelsHidden()
                 .textFieldStyle(.roundedBorder)
                 .multilineTextAlignment(.leading)
-            Text("with").foregroundStyle(.secondary)
+            Text("with", comment: "Between the text to find and its replacement: replace … with …").foregroundStyle(.secondary)
             TextField("Replace with", text: $pattern.replacement, prompt: Text("Replacement"))
                 .labelsHidden()
                 .textFieldStyle(.roundedBorder)
@@ -131,18 +135,18 @@ struct RenamePatternEditor: View {
             }
             .labelsHidden()
             .fixedSize()
-            Text("name").foregroundStyle(.secondary)
+            Text("name", comment: "Label after the letter case picker for the file name").foregroundStyle(.secondary)
             Picker("Extension", selection: $pattern.extensionCase) {
                 ForEach(RenamePattern.ExtensionCase.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             .labelsHidden()
             .fixedSize()
             .padding(.leading, 8)
-            Text("extension").foregroundStyle(.secondary)
+            Text("extension", comment: "Label after the letter case picker for the file name extension").foregroundStyle(.secondary)
         }
     }
 
-    private func numberField(_ title: String, value: Binding<Int>) -> some View {
+    private func numberField(_ title: LocalizedStringKey, value: Binding<Int>) -> some View {
         TextField(title, value: value, format: .number.grouping(.never))
             .labelsHidden()
             .textFieldStyle(.roundedBorder)

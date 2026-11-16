@@ -15,9 +15,8 @@ struct BatchPresetControls: View {
 
     let items: [Item]
     let selection: UUID?
-    /// What the preset holds, for the save alert: "the edits and every
-    /// option" or "the pattern".
-    let contents: String
+    /// The Save alert's text: what a preset keeps.
+    let saveMessage: String
     let onChoose: (UUID?) -> Void
     let onSave: (String) -> Bool
     let onRename: (String) -> Bool
@@ -64,22 +63,20 @@ struct BatchPresetControls: View {
                 .accessibilityLabel("Preset Actions")
             }
         }
-        .alert(naming == .rename ? "Rename Preset" : "Save Preset", isPresented: Binding(
+        .alert(naming == .rename ? localized("Rename Preset") : localized("Save Preset"), isPresented: Binding(
             get: { naming != nil }, set: { if !$0 { naming = nil } })) {
             TextField("Name", text: $name)
                 .accessibilityLabel("Preset name")
-            Button(naming == .rename ? "Rename" : "Save") {
+            Button(naming == .rename ? localized("Rename") : localized("Save")) {
                 let ok = naming == .rename ? onRename(name) : onSave(name)
                 if !ok { NSSound.beep() }
                 naming = nil
             }
             Button("Cancel", role: .cancel) { naming = nil }
         } message: {
-            Text(naming == .rename
-                 ? "A name no other preset has."
-                 : "The preset keeps \(contents). Saving under a name already used replaces that preset.")
+            Text(naming == .rename ? localized("A name no other preset has.") : saveMessage)
         }
-        .alert("Delete the preset “\(selectedName ?? "")”?", isPresented: $confirmingDelete) {
+        .alert(localized("Delete the preset “\(selectedName ?? "")”?"), isPresented: $confirmingDelete) {
             Button("Delete", role: .destructive, action: onDelete)
             Button("Cancel", role: .cancel) {}
         } message: {

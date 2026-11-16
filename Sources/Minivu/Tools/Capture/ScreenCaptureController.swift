@@ -148,11 +148,10 @@ import MinivuCore
 
     static func showPermissionAlert() {
         let alert = NSAlert()
-        alert.messageText = "minivu needs permission to capture the screen"
-        alert.informativeText = "Turn on minivu in System Settings > Privacy & Security > Screen & System Audio "
-            + "Recording, then quit and reopen minivu."
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = localized("minivu needs permission to capture the screen")
+        alert.informativeText = localized("Turn on minivu in System Settings > Privacy & Security > Screen & System Audio Recording, then quit and reopen minivu.")
+        alert.addButton(withTitle: localized("Open System Settings"))
+        alert.addButton(withTitle: localized("Cancel"))
         if alert.runModal() == .alertFirstButtonReturn {
             NSWorkspace.shared.open(privacySettingsURL)
         }
@@ -160,7 +159,7 @@ import MinivuCore
 
     static func showFailureAlert(_ error: Error) {
         let alert = NSAlert()
-        alert.messageText = "The screen couldn’t be captured."
+        alert.messageText = localized("The screen couldn’t be captured.")
         alert.informativeText = error.localizedDescription
         alert.runModal()
     }

@@ -42,10 +42,16 @@ nonisolated struct DuplicateSource: Sendable {
 
     func title(of scope: DuplicateScope) -> String {
         switch scope {
-        case .selection: "Selected Images (\(selection.count))"
+        case .selection: localized(.init("Selected Images (\(selection.count))", comment: "Find Duplicates: where to look, with how many"))
         case .folder:
-            if let folder { "“\(FileManager.default.displayName(atPath: folder.path))”" } else { "Images Shown" }
-        case .folderAndSubfolders: "“\(folder.map { FileManager.default.displayName(atPath: $0.path) } ?? "")” and Subfolders"
+            if let folder {
+                localized(.init("“\(FileManager.default.displayName(atPath: folder.path))”", comment: "A name or text in quotation marks"))
+            } else {
+                localized(.init("Images Shown", comment: "Find Duplicates: where to look, the images the browser shows"))
+            }
+        case .folderAndSubfolders:
+            localized(.init("“\(folder.map { FileManager.default.displayName(atPath: $0.path) } ?? "")” and Subfolders",
+                            comment: "Find Duplicates: where to look, a folder's name in quotation marks"))
         }
     }
 }
@@ -222,7 +228,7 @@ struct DuplicateGroup: Identifiable, Equatable {
         resultMode = outcome.mode
         pixelSizes = outcome.pixelSizes
         scanned = outcome.scanned
-        note = outcome.isCancelled ? "Stopped before the end: only the images compared so far are grouped." : outcome.note
+        note = outcome.isCancelled ? localized("Stopped before the end: only the images compared so far are grouped.") : outcome.note
         state = .finished
         regroup()
     }
@@ -346,14 +352,14 @@ struct DuplicateGroup: Identifiable, Equatable {
                 let limit = TreeEnumerator.Limits.standard.maximumImages
                 if images.count > limit {
                     images = Array(FolderListing.sorted(images, by: FileSortOrder()).prefix(limit))
-                    outcome.note = "A folder limit was reached: not every image was compared."
+                    outcome.note = localized("A folder limit was reached: not every image was compared.")
                 }
             } else if let folder = source.folder {
                 guard let walk = try? TreeEnumerator.images(under: folder, includeHidden: source.includeHidden,
                                                             isCancelled: { cancel.isCancelled })
                 else { return outcome }
                 images = walk.images
-                if walk.isTruncated { outcome.note = "A folder limit was reached: not every image was compared." }
+                if walk.isTruncated { outcome.note = localized("A folder limit was reached: not every image was compared.") }
             } else {
                 images = source.listImages ?? []
             }
@@ -373,8 +379,7 @@ struct DuplicateGroup: Identifiable, Equatable {
         case .similar:
             if images.count > request.maximumSimilarImages {
                 images = Array(images.prefix(request.maximumSimilarImages))
-                outcome.note = "Only the first \(request.maximumSimilarImages.formatted()) images were compared, "
-                    + "to keep memory in hand."
+                outcome.note = localized("Only the first \(request.maximumSimilarImages) images were compared, to keep memory in hand.")
             }
             let prints = DuplicateFinder.featurePrints(for: images, store: store, workers: request.workers,
                                                        isCancelled: { cancel.isCancelled }, progress: progress)

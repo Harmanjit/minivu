@@ -70,7 +70,7 @@ final class MontageSheetController: NSObject, NSWindowDelegate {
             } catch {
                 work = nil
                 let alert = NSAlert()
-                alert.messageText = "The montage couldn’t be made."
+                alert.messageText = localized("The montage couldn’t be made.")
                 alert.informativeText = error.localizedDescription
                 alert.beginSheetModal(for: sheet, completionHandler: nil)
             }
@@ -140,7 +140,8 @@ struct MontageSheetView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Montage Wallpaper").font(.headline)
-                Text("A collage of \(model.entries.count == 1 ? "1 photo" : "\(model.entries.count) photos") at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture.")
+                Text(localized(.init("A collage of \(model.entries.count) photos at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture.",
+                                     comment: "“minivu Wallpapers” is the folder's name on disk: keep it in English")))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
