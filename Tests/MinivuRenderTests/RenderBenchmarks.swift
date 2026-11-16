@@ -12,7 +12,7 @@ extension Benchmarks {
     /// slider's preview from the request to the frame delivered.
     @MainActor @Suite(.serialized) struct EditLatencyBenchmark {
         /// The proxy's long edge: a 16-inch MacBook Pro's screen.
-        static let screenEdge = 3456
+        nonisolated static let screenEdge = 3456
 
         func preview(_ doc: EditDocument, _ pixelSize: Int = screenEdge) async {
             await withCheckedContinuation { done in
@@ -117,6 +117,34 @@ extension Benchmarks {
                     .rawDevelop(RawDevelop(exposure: $0 * 2 - 1))
                 }
             }
+        }
+
+        /// A RAW tool preview at screen size from the document's engine
+        /// filter, alone and started 5 ms after a full-resolution render of
+        /// the same filter (the full lane's developed original), which it may
+        /// have to wait for (`RawDevelopFilter.withImage`).
+        @Test(.enabled(if: Bench.nef != nil)) nonisolated func rawPreviewBesideFullRender() throws {
+            let filter = try #require(RawDevelopFilter(url: Bench.nef!))
+            let settings = DisplaySettings(), size = filter.orientedSize
+            let scale = Double(Self.screenEdge) / Double(max(size.width, size.height))
+            var step = 0
+            func preview() throws {
+                step += 1
+                _ = try EditRenderer.renderDeveloped(filter, develop: RawDevelop(exposure: Double(step % 9) / 10),
+                                                     fullSize: size, scale: scale, settings: settings, gpu: .shared)
+            }
+            let full: @Sendable () throws -> Void = {
+                _ = try EditRenderer.developedSource(filter, develop: RawDevelop(exposure: 0.5), settings: settings,
+                                                     gpu: .shared)
+            }
+            try Bench.measure("edit", "rawPreview_alone", extra: "pixels=\(Self.screenEdge)") { try preview() }
+            try Bench.measure("edit", "rawFull_alone") { try full() }
+            let done = DispatchSemaphore(value: 0)
+            try Bench.measure("edit", "rawPreview_besideFull", warmups: 0, runs: Bench.runs(9),
+                              extra: "pixels=\(Self.screenEdge)", setup: {
+                DispatchQueue.global(qos: .utility).async { try? full(); done.signal() }
+                Thread.sleep(forTimeInterval: 0.005)
+            }, timing: { if !$0 { done.wait() } }) { try preview() }
         }
     }
 
