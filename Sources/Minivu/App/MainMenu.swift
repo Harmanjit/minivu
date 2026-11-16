@@ -39,6 +39,7 @@ enum MainMenu {
 
     private static func appMenu() -> NSMenu {
         let menu = NSMenu(title: "minivu")
+        menu.identifier = .app
         menu.add("About minivu", #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
         menu.addItem(.separator())
         menu.add("Settings…", #selector(AppDelegate.showSettings(_:)), ",")
@@ -57,6 +58,7 @@ enum MainMenu {
 
     private static func fileMenu() -> NSMenu {
         let menu = NSMenu(title: localized(.init("File", comment: "Menu bar menu")))
+        menu.identifier = .file
         menu.add(.init("Open Folder…", comment: "Verb: choose a folder to browse"), .openFolder, "o")
         menu.add("Add Folder to Sidebar…", .addFolderToSidebar, "o", [.command, .shift])
         menu.add("New Folder", .newFolder, "n", [.command, .shift])
@@ -80,8 +82,12 @@ enum MainMenu {
         // here (Finder's Return-to-rename is taken) and ⌘R rotates. A plain
         // function key is safe as a real equivalent: text fields ignore it.
         menu.add(.init("Rename", comment: "Verb: rename the selected file"), .renameItem, Key.f2, [])
-        menu.add(submenu: RecentDestinationsMenu.make(title: RecentDestinationsMenu.copyTitle, action: .copyToFolder))
-        menu.add(submenu: RecentDestinationsMenu.make(title: RecentDestinationsMenu.moveTitle, action: .moveToFolder))
+        let copyTo = RecentDestinationsMenu.make(title: RecentDestinationsMenu.copyTitle, action: .copyToFolder)
+        copyTo.identifier = .copyTo
+        menu.add(submenu: copyTo)
+        let moveTo = RecentDestinationsMenu.make(title: RecentDestinationsMenu.moveTitle, action: .moveToFolder)
+        moveTo.identifier = .moveTo
+        menu.add(submenu: moveTo)
         menu.addItem(.separator())
         // Collections and smart folders (G3), without shortcuts: commands
         // for organising, not for every photo.
@@ -102,6 +108,7 @@ enum MainMenu {
 
     private static func editMenu() -> NSMenu {
         let menu = NSMenu(title: localized(.init("Edit", comment: "Menu bar menu")))
+        menu.identifier = .edit
         // undo: and redo: are not declared in any Swift-visible class; NSWindow
         // routes them to the first responder's undo manager.
         menu.add("Undo", Selector(("undo:")), "z")
@@ -134,8 +141,10 @@ enum MainMenu {
 
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: localized(.init("View", comment: "Menu bar menu")))
+        menu.identifier = .view
 
         let sort = NSMenu(title: localized(.init("Sort By", comment: "Submenu: the order the files are listed in")))
+        sort.identifier = .sortBy
         for (index, key) in SortKey.allCases.enumerated() {
             sort.add(title: key.menuTitle, .sortBy).tag = index
         }
@@ -152,6 +161,7 @@ enum MainMenu {
         menu.addItem(.separator())
 
         let theme = NSMenu(title: localized(.init("Theme", comment: "Noun: submenu of colour schemes")))
+        theme.identifier = .theme
         for (index, value) in Preferences.Theme.allCases.enumerated() {
             theme.add(title: value.title, #selector(AppDelegate.selectTheme(_:))).tag = index
         }
@@ -174,6 +184,7 @@ enum MainMenu {
 
     private static func imageMenu(_ viewKeys: DisplayOnlyShortcuts) -> NSMenu {
         let menu = NSMenu(title: localized(.init("Image", comment: "Menu bar menu")))
+        menu.identifier = .image
         menu.delegate = viewKeys
         menu.add(.init("Fit to Window", comment: "Zoom: scale the image to fit the window"), .fitToWindow, "9")
         menu.add(.init("Actual Size", comment: "Zoom: show the image at 100%"), .actualSize, "0")
@@ -195,6 +206,7 @@ enum MainMenu {
         // Those can't be menu equivalents: the menu would take them from
         // text fields.
         let rating = NSMenu(title: localized(.init("Rating", comment: "Noun: star rating")))
+        rating.identifier = .rating
         for stars in 0...5 {
             rating.add(title: MenuStateTitles.rating(stars), .setRating, "\(stars)", [.control]).tag = stars
         }
@@ -220,6 +232,7 @@ enum MainMenu {
     /// also lists the folder's Finder tags.
     private static func filterMenu() -> NSMenu {
         let menu = NSMenu(title: localized(.init("Filter", comment: "Noun: submenu that shows only some images")))
+        menu.identifier = .filter
         menu.add(title: RatingText.filterTitle(minimum: 0), .filterByRating).tag = 0
         menu.addItem(.separator())
         for minimum in 1...5 {
@@ -258,6 +271,7 @@ enum MainMenu {
         menu.addItem(.separator())
 
         let adjust = NSMenu(title: localized(.init("Adjust", comment: "Submenu of colour and tone adjustments")))
+        adjust.identifier = .adjust
         // RAW files only: the RAW engine's settings come before every edit.
         adjust.add("RAW Adjustments…", .adjustRaw)
         adjust.addItem(.separator())
@@ -275,6 +289,7 @@ enum MainMenu {
         menu.add(submenu: adjust)
 
         let effects = NSMenu(title: localized(.init("Effects", comment: "Submenu of image effects")))
+        effects.identifier = .effects
         effects.add("Grayscale", .applyGrayscale)
         effects.add("Sepia", .applySepia)
         effects.add(.init("Negative", comment: "Effect: invert the colours"), .applyNegative)
@@ -290,6 +305,7 @@ enum MainMenu {
         menu.add(submenu: effects)
 
         let retouch = NSMenu(title: localized(.init("Retouch", comment: "Submenu of retouching tools")))
+        retouch.identifier = .retouch
         retouch.add("Clone Stamp…", .cloneStamp)
         retouch.add("Healing Brush…", .healingBrush)
         retouch.add("Red-Eye Removal…", .removeRedEye)
@@ -355,6 +371,7 @@ enum MainMenu {
         menu.add("Set as Desktop Picture", .setAsDesktopPicture)
         menu.addItem(.separator())
         let capture = NSMenu(title: localized(.init("Capture", comment: "Noun: submenu of screen captures")))
+        capture.identifier = .capture
         capture.add(.init("Entire Screen", comment: "Screen capture of the whole screen"), .captureScreen)
         capture.add(.init("Window…", comment: "Screen capture of one window"), .captureWindow)
         capture.add(.init("Selection…", comment: "Screen capture of a selected area"), .captureSelection)
@@ -471,9 +488,24 @@ extension SortKey {
 }
 
 extension NSUserInterfaceItemIdentifier {
+    static let app = NSUserInterfaceItemIdentifier("minivu.menu.app")
     static let services = NSUserInterfaceItemIdentifier("minivu.menu.services")
+    static let file = NSUserInterfaceItemIdentifier("minivu.menu.file")
+    static let copyTo = NSUserInterfaceItemIdentifier("minivu.menu.copy-to")
+    static let moveTo = NSUserInterfaceItemIdentifier("minivu.menu.move-to")
+    static let edit = NSUserInterfaceItemIdentifier("minivu.menu.edit")
+    static let view = NSUserInterfaceItemIdentifier("minivu.menu.view")
+    static let sortBy = NSUserInterfaceItemIdentifier("minivu.menu.sort-by")
+    static let filter = NSUserInterfaceItemIdentifier("minivu.menu.filter")
+    static let theme = NSUserInterfaceItemIdentifier("minivu.menu.theme")
+    static let image = NSUserInterfaceItemIdentifier("minivu.menu.image")
+    static let rating = NSUserInterfaceItemIdentifier("minivu.menu.rating")
+    static let adjust = NSUserInterfaceItemIdentifier("minivu.menu.adjust")
+    static let effects = NSUserInterfaceItemIdentifier("minivu.menu.effects")
+    static let retouch = NSUserInterfaceItemIdentifier("minivu.menu.retouch")
     static let go = NSUserInterfaceItemIdentifier("minivu.menu.go")
     static let tools = NSUserInterfaceItemIdentifier("minivu.menu.tools")
+    static let capture = NSUserInterfaceItemIdentifier("minivu.menu.capture")
     static let window = NSUserInterfaceItemIdentifier("minivu.menu.window")
     static let help = NSUserInterfaceItemIdentifier("minivu.menu.help")
 }

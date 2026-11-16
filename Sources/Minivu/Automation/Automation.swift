@@ -68,7 +68,7 @@ import MinivuRender
                 tokens.count == 1
                     ? localized(.init("The pattern has a token minivu doesn’t know: \(tokens[0]). Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}.",
                                       comment: "Shortcuts error; %@ is a rename pattern token such as {nmae}. Keep the {…} tokens as they are"))
-                    : localized(.init("The pattern has tokens minivu doesn’t know: \(tokens.formatted(.list(type: .and, width: .narrow))). Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}.",
+                    : localized(.init("The pattern has tokens minivu doesn’t know: \(tokens.formatted(.list(type: .and, width: .narrow).locale(Bundle.minivuHelp.interfaceLocale))). Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}.",
                                       comment: "Shortcuts error; %@ is a list of rename pattern tokens such as {nmae}. Keep the {…} tokens as they are"))
             case .renameProblems(let lines):
                 localized("Nothing was renamed:") + "\n" + Self.list(lines)
