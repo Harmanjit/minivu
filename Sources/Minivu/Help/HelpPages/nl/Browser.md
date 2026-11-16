@@ -7,8 +7,8 @@ cameragegevens. Video’s staan tussen de foto’s.
 
 ## Mappen
 
-- De navigatiekolom toont eerst je favoriete mappen, dan de mappenstructuur
-  en dan je slimme mappen en collecties, zodra je die hebt. Kies **Weergave >
+- De navigatiekolom toont je favoriete mappen, die elk openklappen tot hun
+  submappen, en dan je slimme mappen en collecties, zodra je die hebt. Kies **Weergave >
   Toon navigatiekolom** of **Toon voorvertoningspaneel** om een van beide
   kanten te verbergen of te tonen.
 - Klik dubbel op een map in het raster om deze te openen. De knoppen

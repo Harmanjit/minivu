@@ -157,9 +157,9 @@ One image goes from file to screen like this:
    store 1616 px, or the user zooms past it) the sensor data is rendered
    on the GPU by Apple's RAW engine (`CIRAWFilter` through a Core Image
    context on our Metal queue) straight into the mipmapped texture, and
-   steps 3 to 5 don't apply. The "RAW files" setting (Embedded preview /
-   Render RAW data) can render every time, and "extended dynamic range"
-   RAW always renders, since embedded previews are SDR. A RAW file being
+   steps 3 to 5 don't apply. The "RAW files" setting (Embedded preview
+   (faster) / Render RAW data) can render every time, and "Render RAW
+   files with extended dynamic range" always renders, since embedded previews are SDR. A RAW file being
    edited with RAW Adjustments is developed with the tool's settings
    instead (4.7, "RAW settings").
 3. **Convert colour once.** The CGImage is drawn into a bitmap whose memory
@@ -651,8 +651,9 @@ read is refused rather than overwritten.
 space and depth, with the options last used for that format and metadata
 always kept (location included), after a "Replace the original?"
 confirmation that can be turned off. Files minivu can't write back (RAW,
-WebP, PDF, animations, multi-page files, and AVIF where ImageIO has no
-encoder) go to Save As instead. Save As is the system save panel
+WebP, JPEG XL, PDF, SVG, PSD, animations, files holding more than one
+image other than JPEG, such as a multi-page TIFF or an icon with several
+sizes, and AVIF where ImageIO has no encoder) go to Save As instead. Save As is the system save panel
 as a sheet, with an accessory for format, quality, colour profile,
 metadata, Remove location (on by default), progressive, 16-bit (10-bit for
 AVIF), TIFF compression and background; the options are remembered per
@@ -956,8 +957,9 @@ mixing (`toneMapToHeadroom` in Common.h), and tests pin it to the canvas's
 tone map. 1.0–2.5 ms a frame at 5K on M4.
 
 **Slideshow playback.** `SlideshowWindowController` opens a borderless,
-normal-level window on the originating window's screen; menu bar and Dock
-hide while it is key.
+normal-level window on the display the full-screen viewer would use
+(`Displays.fullScreenDisplay`, which follows Settings > Viewer > "Full-screen
+viewer opens on"); menu bar and Dock hide while it is key.
 
 - Between slides nothing renders: one `DispatchWorkItem` waits the interval,
   counted from the end of each transition, and the display link runs only
@@ -985,7 +987,7 @@ hide while it is key.
   (key "slideshowSettings"); missing fields default and numbers are clamped
   (interval 1–60 s, duration 0.3–3 s, volume 0–1). A running show reads
   interval, transition and caption afresh for each slide; order, loop and
-  playlist are fixed at the start. Volume ramps over 0.1 s, and Play Music
+  playlist are fixed at the start. Volume ramps over 0.1 s, and Play music
   off mutes over 0.25 s.
 - `SlideshowAudioPlayer` plays the music behind `SlideshowAudioPlaying`.
   AVFoundation is also imported by `VideoFrames` and `ImageFormats`
@@ -1643,7 +1645,7 @@ key reaches the grid, the viewer or a text field otherwise.
 | Menu | Item | Shortcut |
 |---|---|---|
 | minivu | Settings… | ⌘, |
-| | Hide minivu / Hide Others / Quit | ⌘H / ⌥⌘H / ⌘Q |
+| | Hide minivu / Hide Others / Quit minivu | ⌘H / ⌥⌘H / ⌘Q |
 | File | Open Folder… / Add Folder to Sidebar… | ⌘O / ⇧⌘O |
 | | New Folder | ⇧⌘N (Finder) |
 | | Open in Viewer / Close Window | ⌘↓ / ⌘W |
@@ -1666,7 +1668,7 @@ key reaches the grid, the viewer or a text field otherwise.
 | View | Sort By > (keys, Ascending, Descending) | none |
 | | Show Hidden Files | ⇧⌘. |
 | | Flat View | ⌥⌘F |
-| | Filter > Show All, ★ or More … ★★★★★, Tagged Only, Photos Only, Videos Only, More Filters… | none |
+| | Filter > Show All, ★ or More … ★★★★★ or More, Tagged Only, Photos Only, Videos Only, More Filters… | none |
 | | Theme > / Live Text | none |
 | | Show Sidebar / Show Preview Pane / Enter Full Screen | ⌃⌘S / ⌥⌘P / ⌃⌘F |
 | Image | Fit to Window / Actual Size / Zoom In / Zoom Out | ⌘9 / ⌘0 / ⌘= / ⌘- |
@@ -1732,13 +1734,14 @@ slideshow of a single selected image plays the whole folder from it. In the
 viewer they work on the image shown, and the slideshow plays the viewer's
 list from it. Picture tools skip videos.
 
-- *Slideshow:* full screen on the display the window is on, black
+- *Slideshow:* full screen where the full-screen viewer would open (Settings >
+  Viewer > "Full-screen viewer opens on"), black
   background, HDR as in the viewer. Eight transitions rendered by one Metal
   shader (cross-fade, fade through black, slide, push, wipe, zoom, iris,
   dissolve) or a random one per slide; interval, order (in order or
   shuffled), loop, captions (name, date, EXIF line), and a music playlist
   (MP3, AAC/M4A, WAV, AIFF chosen by the user) through AVFoundation that
-  fades out at the end; volume and Play Music changed in Settings apply to
+  fades out at the end; volume and Play music changed in Settings apply to
   a show that is running. Space pauses, arrows step, Esc ends; the pointer
   hides and a small control bar appears when it moves. Next images decode
   ahead through the image loader. Videos are skipped.
@@ -1800,7 +1803,9 @@ list from it. Picture tools skip videos.
 - *Montage Wallpaper:* a collage of the images at the size of the display
   (grid, mosaic or scattered, spacing, background), saved to Pictures/minivu
   Wallpapers and set as that display's desktop picture. Set as Desktop
-  Picture uses a single image as it is.
+  Picture uses a single image: the file itself when it is a JPEG, PNG, HEIC
+  or TIFF inside Pictures with no unsaved edits, otherwise a copy in
+  Pictures/minivu Wallpapers (the newest 10 copies are kept).
 - *Capture:* the entire screen, a window picked with the system's content
   picker, or a dragged selection, through ScreenCaptureKit, saved as PNG to
   Pictures/minivu Captures and opened in the viewer. Only Entire Screen and

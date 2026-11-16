@@ -7,8 +7,8 @@ the photos.
 
 ## Folders
 
-- The sidebar lists your favorite folders first, then the folder tree,
-  then your smart folders and collections, once you have some. Choose
+- The sidebar lists your favourite folders, each opening into its
+  subfolders, then your smart folders and collections, once you have some. Choose
   **View > Show Sidebar** or **Show Preview Pane** to hide or show either
   side.
 - Double-click a folder in the grid to open it. The toolbar’s back, forward

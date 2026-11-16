@@ -7,9 +7,9 @@ detalles del archivo y de la cámara. Los vídeos aparecen entre las fotos.
 
 ## Carpetas
 
-- La barra lateral muestra primero tus carpetas favoritas, después el árbol
-  de carpetas y, cuando tengas alguna, tus carpetas inteligentes y
-  colecciones. Elige **Visualización > Mostrar barra lateral** o **Mostrar
+- La barra lateral muestra tus carpetas favoritas, cada una desplegable en
+  sus subcarpetas, y después, cuando tengas alguna, tus carpetas
+  inteligentes y colecciones. Elige **Visualización > Mostrar barra lateral** o **Mostrar
   panel de previsualización** para ocultar o mostrar cualquiera de los lados.
 - Haz doble clic en una carpeta de la cuadrícula para abrirla. Los botones de
   atrás, adelante y carpeta contenedora de la barra de herramientas, y el menú

@@ -68,7 +68,8 @@ An honest list. Some are design decisions, some are unfinished work, some are th
 
 ## Finding and organising
 
-- **Flat View, Find and Find Duplicates walk at most 12 levels down, 20,000 images and 5,000 folders.** They stop at the deepest level first, and the status bar says "limit reached, not every image is shown".
+- **Flat View and Find walk at most 12 levels down, 20,000 images and 5,000 folders.** They stop at the deepest level first, and the status bar says "limit reached, not every image is shown".
+- **Find Duplicates has the same limits.** Looking in the folder and its subfolders, it leaves out the deepest levels first. Looking in the folder shown, it compares the first 20,000 images by name. Either way its window says "A folder limit was reached: not every image was compared."
 - **Flat View and lists don't bring back the marks of files moved in Finder;** opening the file's new folder does.
 - **Only the top folder of a flat view is watched** for changes; lists such as search results aren't watched. minivu's own changes show at once.
 - **Find doesn't use Spotlight,** so the first search of a large tree by camera details reads every file's header once, which takes a while.

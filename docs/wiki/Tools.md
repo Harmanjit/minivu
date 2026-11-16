@@ -367,7 +367,7 @@ minivu adds actions to Apple's Shortcuts app (search for "minivu" in its action 
 | **Set Colour Label** | Label (None, Red, Orange, Yellow, Green, Blue, Purple or Gray; Red to start) |
 | **Open in minivu** | Images or Folder |
 
-Convert and Resize never write beside the originals: they hand the new files back to the shortcut, whose next action (Save File, for example) puts them where you want. Rename works only in your Pictures folder and folders added to minivu's sidebar, and renames nothing if any file is elsewhere. Files on external drives, memory cards and network shares are refused, as everywhere in minivu. A video given to Convert or Resize fails for that file. Convert Images, Resize Images and Open in minivu are also offered as ready-made shortcuts under minivu in the Shortcuts app.
+Convert and Resize never write beside the originals: they hand the new files back to the shortcut, whose next action (Save File, for example) puts them where you want. Rename works only in your Pictures folder and folders added to minivu's sidebar, and renames nothing if any file is elsewhere. Files on external drives, memory cards and network shares are refused, as everywhere in minivu. These actions take images only, not videos. Convert Images, Resize Images and Open in minivu are also offered as ready-made shortcuts under minivu in the Shortcuts app.
 
 To use one from Finder, make a shortcut that receives images, turn on **Use as Quick Action** in the shortcut's details, and it appears under **Quick Actions** in Finder's right-click menu.
 

@@ -7,8 +7,9 @@ vídeos aparecem junto com as fotos.
 
 ## Pastas
 
-- A barra lateral lista primeiro as suas pastas favoritas, depois a árvore
-  de pastas e, quando você as tiver, as suas pastas inteligentes e coleções.
+- A barra lateral lista as suas pastas favoritas, cada uma se abrindo em
+  suas subpastas, e depois, quando você as tiver, as suas pastas
+  inteligentes e coleções.
   Escolha **Visualizar > Mostrar Barra Lateral** ou **Mostrar Painel de
   Pré-Visualização** para ocultar ou mostrar cada lado.
 - Clique duas vezes em uma pasta na grade para abri-la. Os botões de voltar,

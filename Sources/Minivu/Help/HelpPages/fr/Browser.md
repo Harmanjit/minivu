@@ -7,9 +7,9 @@ fichier et de l’appareil photo. Les vidéos se trouvent parmi les photos.
 
 ## Dossiers
 
-- La barre latérale affiche d’abord vos dossiers favoris, puis
-  l’arborescence des dossiers, puis vos dossiers intelligents et vos
-  collections, dès que vous en avez. Choisissez **Présentation > Afficher la
+- La barre latérale affiche vos dossiers favoris, chacun se dépliant sur
+  ses sous-dossiers, puis vos dossiers intelligents et vos collections,
+  dès que vous en avez. Choisissez **Présentation > Afficher la
   barre latérale** ou **Afficher la sous-fenêtre d’aperçu** pour masquer ou
   afficher l’un ou l’autre côté.
 - Double-cliquez sur un dossier dans la grille pour l’ouvrir. Les boutons

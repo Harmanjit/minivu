@@ -49,16 +49,18 @@ mit einer Vorschau.
 
 - **Größe** der Miniaturen im Raster.
 - **Miniaturcache leeren** entfernt gesicherte Miniaturen; sie werden beim
-  nächsten Anzeigen eines Ordners aus den Dateien neu erstellt.
+  nächsten Anzeigen eines Ordners aus den Dateien neu erstellt. Miniaturen,
+  die minivu schon angezeigt hat, bleiben, bis du minivu beendest und neu
+  öffnest.
 
 ## Diashow
 
 Die Anzeigedauer jedes Dias, die Reihenfolge, ob nach dem letzten Dia von
 vorne begonnen wird, Untertitel (Dateiname, Dateiname und Datum oder Kamera
 und Belichtung), der Übergang und seine Dauer mit einer Vorschau sowie die
-Musik: Titel oder Ordner, Mischen und Lautstärke. Eine Änderung der
-Lautstärke oder das Ein- und Ausschalten der Musik wirkt sich auch auf eine
-bereits laufende Diashow aus. **Werkzeuge > Diashow-Video exportieren …**
+Musik: Titel oder Ordner, Mischen und Lautstärke. In einer Diashow, die mit
+Musik gestartet wurde, wirkt eine Änderung der Lautstärke oder das Aus- und
+Einschalten der Musik sofort. **Werkzeuge > Diashow-Video exportieren …**
 verwendet dieselben Einstellungen, außer der Lautstärke.
 
 ## Editoren

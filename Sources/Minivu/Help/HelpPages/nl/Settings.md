@@ -49,15 +49,17 @@ houdt op een afbeelding, met een voorvertoning.
 - **Grootte** van de miniaturen in het raster.
 - **Wis miniatuurcache** verwijdert bewaarde miniaturen; ze worden opnieuw
   gemaakt uit de bestanden wanneer je de volgende keer een map bekijkt.
+  Miniaturen die minivu al heeft getoond, blijven tot je minivu stopt en
+  opnieuw opent.
 
 ## Diavoorstelling
 
 De tijd dat elke dia wordt getoond, de volgorde, of de voorstelling na de
 laatste dia opnieuw begint, bijschriften (bestandsnaam, bestandsnaam en datum,
 of camera en belichting), de overgang en de duur ervan met een voorvertoning,
-en de muziek: nummers of mappen, willekeurige volgorde en volume. Het wijzigen
-van het volume, of het in- of uitschakelen van muziek, geldt ook voor een
-voorstelling die al wordt afgespeeld. **Gereedschap > Exporteer
+en de muziek: nummers of mappen, willekeurige volgorde en volume. In een
+voorstelling die met muziek is begonnen, geldt het wijzigen van het volume,
+of het uit- of inschakelen van muziek, meteen. **Gereedschap > Exporteer
 diavoorstellingsvideo…** gebruikt dezelfde instellingen, behalve het volume.
 
 ## Editors

@@ -7,9 +7,9 @@ Videos stehen zwischen den Fotos.
 
 ## Ordner
 
-- Die Seitenleiste listet zuerst deine Lieblingsordner auf, dann die
-  Ordnerhierarchie und danach deine intelligenten Ordner und Sammlungen,
-  sobald du welche hast. Wähle **Darstellung > Seitenleiste einblenden**
+- Die Seitenleiste listet deine Lieblingsordner auf, die sich jeweils zu
+  ihren Unterordnern aufklappen lassen, und danach deine intelligenten
+  Ordner und Sammlungen, sobald du welche hast. Wähle **Darstellung > Seitenleiste einblenden**
   oder **Vorschaubereich einblenden**, um eine der beiden Seiten aus- oder
   einzublenden.
 - Doppelklicke auf einen Ordner im Raster, um ihn zu öffnen. Mit den Tasten

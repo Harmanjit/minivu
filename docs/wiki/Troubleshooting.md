@@ -7,7 +7,7 @@ The app is signed ad hoc and isn't notarised, so Gatekeeper stops it the first t
 Memory cards, USB and external drives, disk images and network shares are refused by design. Opening such a file from Finder says the same about files. Copy the photos to a folder on the Mac, then open that folder.
 
 **"minivu doesn't have permission to open" a folder.**
-The sandbox lets minivu into your Pictures folder, folders and files you chose in an Open or Save panel or dropped on it, folders in its sidebar and recent Copy To and Move To folders, and nothing else. The message usually appears after **Go > Enclosing Folder** (⌘↑) climbs above a folder you opened, or **Go > Back** returns to a folder whose access has gone. Choose **File > Open Folder…** (⌘O) and select the folder, or add a folder that contains it with **File > Add Folder to Sidebar…** (⇧⌘O).
+The sandbox lets minivu into your Pictures folder, folders and files you chose in an Open or Save panel or dropped on it, folders in its sidebar and recent Copy To and Move To folders, and nothing else. The message usually appears when **Go > Back** returns (⌘[) to a folder whose access has gone. (**Go > Enclosing Folder** is greyed out when the folder above can't be read, so it doesn't lead here.) Choose **File > Open Folder…** (⌘O) and select the folder, or add a folder that contains it with **File > Add Folder to Sidebar…** (⇧⌘O).
 
 **A folder passed on the command line doesn't open.**
 The sandboxed bundle can't read arbitrary paths. For testing, build with `scripts/make_app.sh --dev`, which leaves the sandbox out, and run `open build/minivu.app --args <path>`; or use the debug build, `.build/debug/minivu <path>`.
@@ -80,7 +80,10 @@ A label is the file's Finder colour tag, so minivu must be allowed to change the
 - **A catalog that can't be opened at all** is replaced for that session by a temporary one in memory, and the log says "Catalog unavailable, using a temporary one". Marks made then are gone when minivu quits.
 
 **The status bar says "limit reached, not every image is shown".**
-**Flat View**, **Find…** and **Find Duplicates** walk at most 12 folder levels down, 20,000 images and 5,000 folders, and leave out the deepest levels first. Open a subfolder and try again from there.
+**Flat View** and **Find…** walk at most 12 folder levels down, 20,000 images and 5,000 folders, and leave out the deepest levels first. Open a subfolder and try again from there.
+
+**Find Duplicates says "A folder limit was reached: not every image was compared."**
+**Find Duplicates** has the same limits. Looking in a folder and its subfolders, it leaves out the deepest levels first; looking in the folder shown, it compares the first 20,000 images by name. Choose a smaller folder, or select the images to compare.
 
 **A search or smart folder finds nothing in a folder.**
 Find searches only Pictures, the folders in the sidebar and the folder shown: places minivu has been given. Add the folder with **File > Add Folder to Sidebar…** (⇧⌘O). A smart folder whose folder has gone from the sidebar shows the usual permission message.

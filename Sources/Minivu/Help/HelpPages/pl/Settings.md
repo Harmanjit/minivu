@@ -46,15 +46,16 @@ przytrzymaniu obrazu, z podglądem.
 
 - **Rozmiar** miniatur w siatce.
 - **Wyczyść bufor miniatur** usuwa zachowane miniatury; zostaną utworzone
-  ponownie z plików przy następnym oglądaniu folderu.
+  ponownie z plików przy następnym oglądaniu folderu. Miniatury, które
+  minivu już pokazał, zostają do zakończenia i ponownego otwarcia minivu.
 
 ## Pokaz slajdów
 
 Czas wyświetlania każdego slajdu, kolejność, czy zaczynać od nowa po
 ostatnim slajdzie, podpisy (nazwa pliku, nazwa pliku i data albo aparat i
 ekspozycja), przejście i jego czas trwania z podglądem oraz muzyka: utwory
-lub foldery, odtwarzanie losowe i głośność. Zmiana głośności oraz włączenie
-lub wyłączenie muzyki dotyczy także pokazu, który już trwa. **Narzędzia >
+lub foldery, odtwarzanie losowe i głośność. W pokazie rozpoczętym z muzyką
+zmiana głośności oraz wyłączenie lub włączenie muzyki działa od razu. **Narzędzia >
 Eksportuj wideo z pokazem slajdów…** używa tych samych ustawień, z wyjątkiem
 głośności.
 

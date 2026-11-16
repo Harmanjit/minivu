@@ -49,7 +49,9 @@ una previsualización.
 
 - **Tamaño** de las miniaturas de la cuadrícula.
 - **Borrar caché de miniaturas** elimina las miniaturas guardadas; se vuelven a
-  crear a partir de los archivos la próxima vez que veas una carpeta.
+  crear a partir de los archivos la próxima vez que veas una carpeta. Las
+  miniaturas que minivu ya ha mostrado se mantienen hasta que salgas de
+  minivu y lo vuelvas a abrir.
 
 ## Pase de diapositivas
 
@@ -57,8 +59,8 @@ El tiempo que se muestra cada diapositiva, el orden, si volver a empezar tras
 la última diapositiva, los pies de foto (nombre de archivo, nombre de archivo y
 fecha, o cámara y exposición), la transición y su duración con una
 previsualización, y la música: canciones o carpetas, orden aleatorio y
-volumen. Cambiar el volumen, o activar o desactivar la música, se aplica a un
-pase que ya se está reproduciendo. **Herramientas > Exportar vídeo del pase
+volumen. En un pase que empezó con música, cambiar el volumen, o desactivar
+o activar la música, se aplica al momento. **Herramientas > Exportar vídeo del pase
 de diapositivas…** usa los mismos ajustes, excepto el volumen.
 
 ## Editores

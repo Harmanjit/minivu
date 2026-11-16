@@ -47,16 +47,17 @@ imagem, com uma pré-visualização.
 - **Tamanho** das miniaturas na grade.
 - **Limpar Cache de Miniaturas** remove as miniaturas salvas; elas são
   criadas novamente a partir dos arquivos na próxima vez que você vir uma
-  pasta.
+  pasta. As miniaturas que o minivu já mostrou ficam até você encerrar e
+  reabrir o minivu.
 
 ## Apresentação de Slides
 
 O tempo de exibição de cada slide, a ordem, se deve recomeçar depois do
 último slide, as legendas (nome do arquivo, nome do arquivo e data, ou câmera
 e exposição), a transição e a duração dela com uma pré-visualização, e a
-música: músicas ou pastas, embaralhar e volume. Alterar o volume, ou ativar ou
-desativar a música, vale também para uma apresentação que já está em
-andamento. **Ferramentas > Exportar Vídeo da Apresentação…** usa os mesmos
+música: músicas ou pastas, embaralhar e volume. Em uma apresentação iniciada
+com música, alterar o volume, ou desativar ou ativar a música, vale na
+hora. **Ferramentas > Exportar Vídeo da Apresentação…** usa os mesmos
 ajustes, exceto o volume.
 
 ## Editores

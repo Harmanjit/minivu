@@ -7,8 +7,9 @@ pojawiają się razem ze zdjęciami.
 
 ## Foldery
 
-- Pasek boczny pokazuje najpierw ulubione foldery, potem drzewo folderów, a
-  następnie foldery inteligentne i kolekcje, gdy już jakieś masz. Wybierz
+- Pasek boczny pokazuje ulubione foldery, z których każdy rozwija się do
+  swoich podfolderów, a następnie foldery inteligentne i kolekcje, gdy już
+  jakieś masz. Wybierz
   **Widok > Pokaż pasek boczny** lub **Pokaż panel podglądu**, aby ukryć lub
   pokazać którąś ze stron.
 - Kliknij dwukrotnie folder w siatce, aby go otworzyć. Przyciski Wstecz,

@@ -52,7 +52,8 @@ bouton enfoncé sur une image, avec un aperçu.
 - **Taille** des vignettes dans la grille.
 - **Vider le cache des vignettes** supprime les vignettes enregistrées ;
   elles sont recréées à partir des fichiers la prochaine fois que vous
-  consultez un dossier.
+  consultez un dossier. Les vignettes que minivu a déjà affichées restent
+  jusqu’à ce que vous quittiez et rouvriez minivu.
 
 ## Diaporama
 
@@ -60,8 +61,9 @@ La durée d’affichage de chaque diapositive, l’ordre, le fait de recommencer
 ou non après la dernière diapositive, les légendes (nom de fichier, nom de
 fichier et date, ou appareil photo et exposition), la transition et sa
 durée avec un aperçu, ainsi que la musique : morceaux ou dossiers, lecture
-aléatoire et volume. La modification du volume, ou l’activation ou la
-désactivation de la musique, s’applique à un diaporama déjà en cours.
+aléatoire et volume. Dans un diaporama lancé avec de la musique, la
+modification du volume, ou la désactivation ou l’activation de la musique,
+s’applique aussitôt.
 **Outils > Exporter la vidéo du diaporama…** utilise les mêmes réglages,
 sauf le volume.
 

@@ -143,6 +143,8 @@ The tests can't reach some things, such as the Shortcuts app, the sandboxed app 
 - [sys.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/sys.md), "Checks by hand": Shortcuts, volumes, the Rename refusal and the Quick Action.
 - [batch.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/batch.md), the Set Colour Label checks.
 - [l10n.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/l10n.md), "Checking by hand": truncation, plurals and CJK text.
+- [video.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/video.md), "Checks by hand": full screen while a video plays, the keyboard after clicking AVKit's controls, and HDR video.
+- [org.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/org.md), "Checks by hand": whether a collection finds a photo moved in Finder in the sandboxed app.
 
 ## The snapshot harness
 

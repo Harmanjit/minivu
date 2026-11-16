@@ -46,16 +46,18 @@ un’immagine, con un’anteprima.
 
 - **Dimensione** delle miniature nella griglia.
 - **Svuota cache delle miniature** rimuove le miniature salvate; vengono
-  ricreate dai file la prossima volta che visualizzi una cartella.
+  ricreate dai file la prossima volta che visualizzi una cartella. Le
+  miniature che minivu ha già mostrato restano finché non esci da minivu e
+  lo riapri.
 
 ## Presentazione
 
 La durata di ogni diapositiva, l’ordine, se ricominciare dopo l’ultima
 diapositiva, le didascalie (nome file, nome file e data, oppure fotocamera
 ed esposizione), la transizione e la sua durata con un’anteprima, e la
-musica: brani o cartelle, riproduzione casuale e volume. La modifica del
-volume, o l’attivazione e la disattivazione della musica, si applica anche a
-una presentazione già in corso. **Strumenti > Esporta video della
+musica: brani o cartelle, riproduzione casuale e volume. In una
+presentazione avviata con la musica, la modifica del volume, o la
+disattivazione e l’attivazione della musica, si applica subito. **Strumenti > Esporta video della
 presentazione…** usa le stesse impostazioni, tranne il volume.
 
 ## Editor

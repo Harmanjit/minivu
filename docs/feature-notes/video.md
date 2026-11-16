@@ -271,6 +271,20 @@ the control bar's edit button follow `canEditCurrent`):
   copy can also write an HDR movie (`hdr: true`: HEVC Main 10, BT.2020,
   PQ, a flat grey at luma 800 written as 10-bit YCbCr).
 
+### Checks by hand (tests can't drive AVKit playback)
+
+- **Full screen while playing:** open a video in the viewer, press Space
+  to play, then Return (or ⌃⌘F). The player moves into the full-screen
+  window and keeps playing.
+- **Keyboard focus:** turn on System Settings > Keyboard > Keyboard
+  navigation. Play a video and click AVKit's scrubber, then its volume
+  slider. Afterwards → still moves to the next file and Space still
+  pauses: the keyboard went back to the viewer.
+- **HDR video:** on an HDR screen, play an HDR clip (HEVC with PQ or HLG)
+  with Settings > Viewer > Display HDR photos in HDR on: highlights are
+  brighter than white. Turn it off while the clip plays: it changes to
+  standard range at once (macOS 26 and later; before that AVKit decides).
+
 ## G18, part 2: describe, copy and save frames, Compare, resources
 
 ### What the user can do

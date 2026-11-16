@@ -7,8 +7,8 @@ file e della fotocamera. I video si trovano insieme alle foto.
 
 ## Cartelle
 
-- La barra laterale elenca prima le cartelle preferite, poi l’albero delle
-  cartelle, poi le cartelle smart e le raccolte, quando ne hai. Scegli
+- La barra laterale elenca le cartelle preferite, ognuna espandibile nelle
+  sue sottocartelle, poi le cartelle smart e le raccolte, quando ne hai. Scegli
   **Vista > Mostra barra laterale** o **Mostra pannello di anteprima** per
   nascondere o mostrare ciascun lato.
 - Fai doppio clic su una cartella nella griglia per aprirla. I pulsanti

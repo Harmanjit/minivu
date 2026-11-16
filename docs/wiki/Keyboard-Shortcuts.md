@@ -183,7 +183,7 @@ On a video the arrows, Page Up and Page Down, ⌫, Home and End still move betwe
 | Scroll | Next or previous image, or zoom, as **Settings > Viewer > Mouse wheel** says; hold ⌘ for the other |
 | Pointer to an edge | Filmstrip (top), tools (left), info and histogram (right), controls (bottom) |
 
-On a trackpad, scrolling a zoomed-in image pans it instead of changing images. While an editing tool is open, a mouse wheel always zooms (⌘ doesn't swap it) and a trackpad pans.
+On a trackpad, when **Mouse wheel** is set to change images, scrolling a zoomed-in image pans it instead. While an editing tool is open, a mouse wheel always zooms (⌘ doesn't swap it) and a trackpad pans; hold ⌘ to zoom with the trackpad.
 
 With **View > Live Text** on, the pointer becomes an I-beam over text in the picture. There, dragging selects text instead of panning, and pressing and holding selects instead of showing the magnifier. Pan with the arrow keys, the trackpad or the wheel, or turn **Live Text** off.
 
@@ -258,10 +258,11 @@ With **Text and Shapes…**, a brush or the red-eye tool open, ⌫ never goes ba
 
 | Keys | Action |
 |---|---|
+| Return | Capture the rectangle while you are still dragging |
 | Esc | Cancel |
 | ⌘Q | Cancel the capture and quit |
 
-No other key reaches minivu while the overlay is up.
+No other key reaches minivu while the overlay is up. Return is rarely needed, because letting go of the mouse already captures.
 
 ## Text fields
 

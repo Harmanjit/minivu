@@ -44,15 +44,16 @@ image, with a preview.
 
 - **Size** of the thumbnails in the grid.
 - **Clear Thumbnail Cache** removes saved thumbnails; they are made again
-  from the files the next time you look at a folder.
+  from the files the next time you look at a folder. Thumbnails minivu has
+  already shown stay until you quit and reopen it.
 
 ## Slideshow
 
 The time each slide shows, the order, whether to start again after the last
 slide, captions (file name, file name and date, or camera and exposure), the
 transition and its duration with a preview, and the music: songs or folders,
-shuffle and volume. Changing the volume, or turning music on or off, applies
-to a show that is already playing. **Tools > Export Slideshow Video…** uses
+shuffle and volume. In a show that started with music, changing the volume,
+or turning music off or on, applies at once. **Tools > Export Slideshow Video…** uses
 the same settings, except the volume.
 
 ## Editors

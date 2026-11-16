@@ -330,6 +330,16 @@ folder"). Nothing new animates.
   the cells' folder names, More Filters, ⌘F and ⌥⌘F, the form's parsing.
 - SearchBenchmark (opt-in, `MINIVU_BENCH_DIR`): the figures above.
 
+## Checks by hand (tests run outside the sandbox)
+
+- **Finding a moved member in the packaged app:** build with
+  `scripts/make_app.sh` (sandboxed), add a photo in Pictures to a
+  collection, quit minivu, and move the photo into another folder in
+  Pictures with Finder. Open the collection: the photo should be there
+  at its new place. If it shows as missing, `fsgetpath` is refused under
+  the App Sandbox; open the photo's new folder once (healing) and check
+  that the collection finds it then.
+
 ## What the documentation pass should change
 
 - **DESIGN.md 1 (Goals):** add that searching and the flat view read on
