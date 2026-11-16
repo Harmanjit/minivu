@@ -147,6 +147,10 @@ enum KeyboardShortcutsPage {
             ShortcutRow(title: localized("Keep the info overlay up"), keys: "I"),
             ShortcutRow(title: localized("Keep the filmstrip open"), keys: "F"),
             ShortcutRow(title: localized("Play or pause an animation"), keys: "P"),
+            // On a video, Space plays and pauses instead of moving on (G18);
+            // P does too, and M mutes (both in the Image menu's section).
+            ShortcutRow(title: MenuStateTitles.videoPlayback(isPlaying: false),
+                        keys: localized(.init("Space", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Switch between window and full screen"), keys: localized(.init("Return", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Back to the browser"), keys: localized(.init("Esc", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
         ]),
