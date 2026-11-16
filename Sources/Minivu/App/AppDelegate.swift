@@ -258,6 +258,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         BrowserModel.catalogWrites.sync {}
     }
 
+    /// Whether a quit replies `.terminateLater` (and waits) rather than
+    /// quitting now: a running Shortcuts action counts as pending work.
+    nonisolated static func quitMustWait(hasEdits: Bool, marksMayBePending: Bool, pendingWrites: Int,
+                                         transferActive: Bool, renamesRunning: Int, actionsRunning: Int) -> Bool {
+        hasEdits || marksMayBePending || pendingWrites > 0 || transferActive || renamesRunning > 0 || actionsRunning > 0
+    }
+
     /// Quitting must not lose work. Three things can be at risk:
     ///
     /// 1. Unsaved edits in the viewer: ask, exactly as moving to another
@@ -272,13 +279,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     ///    leaving every item either transferred or where it was. A batch
     ///    rename under way finishes (a swap hides a file for a moment).
     ///
-    /// Whether a quit replies `.terminateLater` (and waits) rather than
-    /// quitting now: a running Shortcuts action counts as pending work.
-    nonisolated static func quitMustWait(hasEdits: Bool, marksMayBePending: Bool, pendingWrites: Int,
-                                         transferActive: Bool, renamesRunning: Int, actionsRunning: Int) -> Bool {
-        hasEdits || marksMayBePending || pendingWrites > 0 || transferActive || renamesRunning > 0 || actionsRunning > 0
-    }
-
+    ///
     /// `.terminateLater` keeps the app alive until `reply` is called.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let viewer = ViewerWindowController.current

@@ -484,8 +484,8 @@ a launch made only to run an action must not open the browser.
   quits only with none running, so ⌘Q never cuts an action off. ⌘Q
   therefore waits, without a progress cue or a time limit, until a long
   action (Convert on hundreds of RAW files) finishes; a hung one keeps it
-  waiting. A second ⌘Q during that wait starts a second reply, which
-  quits: the user asked again.
+  waiting, and a second ⌘Q waits for the same action, so a hung action
+  leaves only Force Quit.
   60 s: a shortcut's steps, or the same Quick Action used on a few
   selections in a row, come seconds apart, and each would otherwise pay a
   fresh launch (catalog, Metal); an idle windowless process costs little
