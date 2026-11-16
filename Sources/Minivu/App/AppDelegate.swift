@@ -41,12 +41,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         MainMenu.install()
         NSWindow.allowsAutomaticWindowTabbing = false
         // Logged for the hand check of a launch by a shortcut (sys.md): the
-        // event that launched minivu, with its parameters.
-        launchEvent = NSAppleEventManager.shared().currentAppleEvent.map(String.init(describing:)) ?? "none"
+        // event that launched minivu and which parameters it carries.
+        launchEvent = Self.describe(NSAppleEventManager.shared().currentAppleEvent)
     }
 
     /// The Apple event that launched minivu, for the log.
     private var launchEvent = "none"
+
+    /// An Apple event as its class, ID and parameter keywords, all as
+    /// four-character codes ("aevt/odoc [----]"). Never the values: an
+    /// open-documents event carries the user's file paths.
+    nonisolated static func describe(_ event: NSAppleEventDescriptor?) -> String {
+        guard let event else { return "none" }
+        let keywords = event.numberOfItems > 0
+            ? (1...event.numberOfItems).map { fourCharCode(event.keywordForDescriptor(at: $0)) } : []
+        return "\(fourCharCode(event.eventClass))/\(fourCharCode(event.eventID)) [\(keywords.joined(separator: " "))]"
+    }
+
+    nonisolated static func fourCharCode(_ code: FourCharCode) -> String {
+        let bytes = [24, 16, 8, 0].map { UInt8(truncatingIfNeeded: code >> $0) }
+        return bytes.allSatisfy { (0x20...0x7E).contains($0) }
+            ? String(decoding: bytes, as: UTF8.self) : String(format: "0x%08X", code)
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // `$theme` publishes its current value on subscription, so this also
@@ -111,7 +127,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     /// for minivu after a launch made for a shortcut.
     private func showBrowser() {
         guard browser == nil else { return }
-        NSApp.setActivationPolicy(.regular)
+        // From `.accessory` (after a launch for a shortcut) the menu bar can
+        // stay the previous app's unless minivu activates after the switch,
+        // on the next run-loop turn.
+        if NSApp.activationPolicy() == .accessory {
+            NSApp.setActivationPolicy(.regular)
+            DispatchQueue.main.async { NSApp.activate() }
+        } else {
+            NSApp.setActivationPolicy(.regular)
+        }
         let browser = BrowserWindowController()
         self.browser = browser
         let requested = pendingOpens
@@ -263,6 +287,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
             return .terminateNow
         }
 
+        // A Shortcuts action that begins during the wait cancels the quit
+        // (IntentLaunch.quitReply): the waits may already have passed it.
+        let launch = IntentLaunch.shared
+        launch.quitWaits()
+        func reply(_ proceed: Bool) {
+            NSApp.reply(toApplicationShouldTerminate: launch.quitReply(proceed))
+        }
         func finishWritesThenQuit() {
             FileTransfer.cancelActive()
             Task {
@@ -272,12 +303,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
                 await FileTransfer.waitUntilInactive()
                 await BatchTools.waitForRenames()
                 await writes.waitUntilIdle()
-                NSApp.reply(toApplicationShouldTerminate: true)
+                reply(true)
             }
         }
         if let viewer, hasEdits {
             viewer.reviewUnsavedEditsBeforeQuitting { mayQuit in
-                if mayQuit { finishWritesThenQuit() } else { NSApp.reply(toApplicationShouldTerminate: false) }
+                if mayQuit { finishWritesThenQuit() } else { reply(false) }
             }
         } else {
             finishWritesThenQuit()

@@ -460,7 +460,7 @@ a launch made only to run an action must not open the browser.
 - A launch for any other action (Convert, Resize, Rename, Set Rating,
   Set Colour Label, which leave `openAppWhenRun` false) shows no window
   and leaves the Dock (`.accessory`) as soon as the action starts. The
-  Dock icon shows while minivu starts, until then: the activation policy
+  Dock icon shows only briefly, while minivu starts: the activation policy
   is still `.regular` from main.swift, kept so that a normal launch is
   exactly as before (starting `.accessory` and switching would risk the
   menu bar of every normal launch for a flash on these).
@@ -468,13 +468,23 @@ a launch made only to run an action must not open the browser.
   `NSApp.terminate`, so the normal quit waits for queued writes
   (`FileWriteQueue`, ratings, renames) exactly as ⌘Q does. Another action
   within the 60 s cancels the quit; the period starts again when it ends.
+  An action that begins while the quit waits for those writes cancels the
+  quit too (`IntentLaunch.quitWaits`/`quitReply`, checked just before the
+  reply): the waits may already have passed its work (a rename registered
+  after `waitForRenames` returned would be cut off mid-swap). The idle
+  quit comes round 60 s after it ends. The same gate covers ⌘Q at no
+  extra cost: an action begun during ⌘Q's wait cancels that quit, and the
+  user presses ⌘Q again.
   60 s: a shortcut's steps, or the same Quick Action used on a few
   selections in a row, come seconds apart, and each would otherwise pay a
   fresh launch (catalog, Metal); an idle windowless process costs little
   for a minute.
-- Opening minivu meanwhile (clicking it in the Dock, Finder or
-  Launchpad, opening a file in it, Open in minivu) makes it an ordinary
-  app: Dock icon, browser window, no quit.
+- Opening minivu meanwhile (from Finder, Launchpad, Spotlight or
+  Applications, opening a file in it, Open in minivu; it has no Dock icon
+  to click by then) makes it an ordinary app: Dock icon, browser window,
+  no quit. Switching from `.accessory` to `.regular` while active can
+  leave the previous app's menu bar, so minivu then activates itself on
+  the next run-loop turn.
 
 **Telling the launch apart: the evidence.**
 
@@ -518,8 +528,10 @@ practice, and 300 ms when nothing activates the app (`open -g`, a bare
 executable started from Terminal).
 
 For the hand check, launch logs one line (subsystem com.minivu.app,
-"launch: event …, default …, active …") with the launch Apple event and
-its parameters, `launchIsDefault` and whether minivu was active. If a
+"launch: event …, default …, active …") with the launch Apple event's
+class and ID and the keywords of its parameters, as four-character codes
+("aevt/oapp []"), `launchIsDefault` and whether minivu was active. Never
+the parameters' values: an open-documents event carries file paths. If a
 Shortcuts launch turns out to activate minivu, it shows the window (as
 before) and the line says why.
 
@@ -566,9 +578,13 @@ before) and the line says why.
     again after it.
   - With minivu quit, run Open in minivu: the browser and viewer open as
     before, and minivu stays open.
-  - Run Convert with minivu quit, then within the 60 s click minivu in
-    the Dock (or Launchpad, or double-click it in Applications): the
-    browser opens, the Dock icon stays, and minivu doesn't quit.
+  - Run Convert with minivu quit, then within the 60 s open minivu from
+    Finder, Launchpad or Spotlight (or double-click it in Applications;
+    it has no Dock icon by then): the browser opens, the Dock icon
+    comes back and stays, and minivu doesn't quit.
+  - The same, with another app frontmost: the menu bar becomes minivu's
+    (its name next to the Apple menu), not the other app's, and the
+    browser window is in front.
   - Launch minivu from the Dock, Finder and `open -a minivu`: the browser
     appears as quickly as before.
   - Run Convert on a large set and, while it runs, nothing else: minivu

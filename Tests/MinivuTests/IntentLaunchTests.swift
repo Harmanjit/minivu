@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import CoreServices
 @testable import Minivu
 
 /// The launch decision and the idle quit of a launch made for a Shortcuts
@@ -174,6 +175,81 @@ import Foundation
             try await IntentLaunch.run { throw Failure() }
         }
         #expect(IntentLaunch.shared.running == before)
+    }
+
+    /// An action that begins while the idle quit waits for writes cancels
+    /// it (its work may start after the waits passed it); the idle quit
+    /// comes round again when it ends.
+    @Test func actionDuringTheQuitsWaitCancelsIt() {
+        let (launch, timers, events) = make()
+        launch.launchFinished(windowRequested: false)
+        launch.actionBegan()
+        launch.actionEnded()
+        timers.fire()
+        #expect(events.log == ["hide", "quit"])
+        launch.quitWaits()
+        launch.actionBegan()
+        #expect(launch.quitReply(true) == false)
+        #expect(!launch.quitting)
+        #expect(timers.live.isEmpty)   // not while it runs
+        launch.actionEnded()
+        #expect(timers.live == [IntentLaunch.idleGrace])
+        timers.fire()
+        #expect(events.log == ["hide", "quit", "quit"])
+        // With nothing beginning meanwhile, the quit goes ahead.
+        launch.quitWaits()
+        #expect(launch.quitReply(true))
+    }
+
+    /// Begun and ended within the wait: still cancelled (its rename may
+    /// have been registered after the wait for renames), and rescheduled.
+    @Test func actionBegunAndEndedDuringTheWaitStillCancels() {
+        let (launch, timers, _) = make()
+        launch.launchFinished(windowRequested: false)
+        launch.actionBegan()
+        launch.actionEnded()
+        timers.fire()
+        launch.quitWaits()
+        launch.actionBegan()
+        launch.actionEnded()
+        #expect(launch.quitReply(true) == false)
+        #expect(timers.live == [IntentLaunch.idleGrace])
+    }
+
+    /// The same gate covers ⌘Q in a normal launch; it schedules nothing,
+    /// and a quit the user cancelled stays cancelled.
+    @Test func manualQuitIsGatedToo() {
+        let (launch, timers, _) = make()
+        launch.launchFinished(windowRequested: true)
+        launch.quitWaits()
+        #expect(launch.quitReply(true))
+        launch.quitWaits()
+        launch.actionBegan()
+        launch.actionEnded()
+        #expect(launch.quitReply(true) == false)
+        #expect(timers.live.isEmpty)
+        launch.quitWaits()
+        #expect(launch.quitReply(false) == false)
+        // An action outside any quit leaves the next one alone.
+        launch.actionBegan()
+        launch.actionEnded()
+        launch.quitWaits()
+        #expect(launch.quitReply(true))
+    }
+
+    /// The launch log names the event and its parameter keywords only:
+    /// never an open-documents event's file paths.
+    @Test func launchEventLogShowsNoValues() {
+        let event = NSAppleEventDescriptor(eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEOpenDocuments),
+                                           targetDescriptor: nil, returnID: AEReturnID(kAutoGenerateReturnID),
+                                           transactionID: AETransactionID(kAnyTransactionID))
+        let list = NSAppleEventDescriptor.list()
+        list.insert(NSAppleEventDescriptor(fileURL: URL(fileURLWithPath: "/Users/someone/Pictures/secret.jpg")), at: 0)
+        event.setParam(list, forKeyword: AEKeyword(keyDirectObject))
+        let text = AppDelegate.describe(event)
+        #expect(text == "aevt/odoc [----]")
+        #expect(AppDelegate.describe(nil) == "none")
+        #expect(AppDelegate.fourCharCode(0x0001_0203) == "0x00010203")
     }
 
     @Test func gracePeriods() {

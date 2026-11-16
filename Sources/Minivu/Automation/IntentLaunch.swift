@@ -16,7 +16,9 @@ import Foundation
 ///
 /// When an action came first, minivu stays windowless and out of the Dock
 /// (`.accessory`), and quits through the normal quit path (which waits for
-/// queued writes) once no action has run for `idleGrace`.
+/// queued writes) once no action has run for `idleGrace`. An action that
+/// begins while a quit waits for those writes cancels the quit (see
+/// `quitWaits`), so it is never cut off; the idle quit comes round again.
 final class IntentLaunch {
     enum Mode: Equatable {
         /// Before `applicationDidFinishLaunching`.
@@ -47,6 +49,10 @@ final class IntentLaunch {
     private(set) var mode: Mode = .launching
     private(set) var running = 0
     private var actionBeforeDecision = false
+    /// A quit is waiting for writes (`applicationShouldTerminate` returned
+    /// `.terminateLater`), and whether an action began meanwhile.
+    private(set) var quitting = false
+    private var actionDuringQuit = false
     private var cancelPending: (() -> Void)?
     private let schedule: Scheduler
     /// Set by the app delegate: show the browser (and switch to `.regular`),
@@ -89,6 +95,7 @@ final class IntentLaunch {
 
     func actionBegan() {
         running += 1
+        if quitting { actionDuringQuit = true }
         switch mode {
         case .launching: actionBeforeDecision = true
         case .deciding: becomeIntentOnly()
@@ -100,6 +107,22 @@ final class IntentLaunch {
     func actionEnded() {
         running = max(running - 1, 0)
         if mode == .intentOnly, running == 0 { scheduleQuit() }
+    }
+
+    /// Any quit (the idle one or ⌘Q) that waits for writes before replying.
+    func quitWaits() {
+        quitting = true
+        actionDuringQuit = false
+    }
+
+    /// The reply to a waiting quit, checked synchronously just before it is
+    /// given: an action that began during the wait cancels it. Its work may
+    /// have started after the waits had passed it (a rename registered after
+    /// `waitForRenames` returned) and would be cut off. The idle quit is
+    /// scheduled again when the action ends.
+    func quitReply(_ proceed: Bool) -> Bool {
+        defer { quitting = false; actionDuringQuit = false }
+        return proceed && !actionDuringQuit
     }
 
     /// Wraps an action's work (every intent but Open in minivu).

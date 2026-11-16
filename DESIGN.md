@@ -1211,7 +1211,8 @@ Convert, Resize and Open in minivu are also ready App Shortcuts. Rules:
   minivu's runs in `IntentLaunch.run`) keeps minivu windowless and
   `.accessory`; the timeout shows the browser (fail safe). Windowless, it
   quits through `NSApp.terminate`, so after queued writes, 60 s after the
-  last action ends; the user opening minivu meanwhile cancels that.
+  last action ends; the user opening minivu meanwhile cancels that, and
+  so does an action that begins while that quit waits for writes.
   macOS gives no documented launch reason for intents
   (feature-notes/sys.md, "Launched by a shortcut").
 
