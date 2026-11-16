@@ -33,42 +33,45 @@ final class ViewerToolsPanel: NSView {
     static let showColorEffectsAction = #selector(ViewerWindowController.showColorEffectsTool(_:))
 
     static let groups: [Group] = [
-        Group(title: "Adjust", tools: [
-            Tool(title: "Resize", symbol: "arrow.up.left.and.arrow.down.right", action: .resizeImage),
-            Tool(title: "Canvas Size", symbol: "square.dashed", action: .changeCanvasSize),
-            Tool(title: "Crop", symbol: "crop", action: .cropImage),
-            Tool(title: "Rotate & Flip", symbol: "rotate.right", action: showRotateFlipAction),
-            Tool(title: "Straighten", symbol: "level", action: .straightenImage),
-            Tool(title: "Perspective", symbol: "perspective", action: .correctPerspective),
-            Tool(title: "RAW Adjustments", symbol: "camera.aperture", action: .adjustRaw),
-            Tool(title: "Auto Enhance", symbol: "wand.and.stars", action: .autoEnhance),
-            Tool(title: "Lighting", symbol: "sun.max", action: .adjustLighting),
-            Tool(title: "Colors", symbol: "paintpalette", action: .adjustColors),
-            Tool(title: "Curves", symbol: "point.bottomleft.forward.to.point.topright.scurvepath", action: .adjustCurves),
-            Tool(title: "Levels", symbol: "slider.horizontal.3", action: .adjustLevels),
-            Tool(title: "Sharpen", symbol: "rhombus", action: .sharpenImage),
-            Tool(title: "Blur", symbol: "drop.halffull", action: .blurImage),
-            Tool(title: "Noise Reduction", symbol: "circle.dotted", action: .reduceNoise),
+        Group(title: localized(.init("Adjust", comment: "Submenu of colour and tone adjustments")), tools: [
+            Tool(title: localized("Resize"), symbol: "arrow.up.left.and.arrow.down.right", action: .resizeImage),
+            Tool(title: localized("Canvas Size"), symbol: "square.dashed", action: .changeCanvasSize),
+            Tool(title: localized(.init("Crop", comment: "Verb: crop the image")), symbol: "crop", action: .cropImage),
+            Tool(title: localized("Rotate & Flip"), symbol: "rotate.right", action: showRotateFlipAction),
+            Tool(title: localized("Straighten"), symbol: "level", action: .straightenImage),
+            Tool(title: localized("Perspective"), symbol: "perspective", action: .correctPerspective),
+            Tool(title: localized("RAW Adjustments"), symbol: "camera.aperture", action: .adjustRaw),
+            Tool(title: localized("Auto Enhance"), symbol: "wand.and.stars", action: .autoEnhance),
+            Tool(title: localized("Lighting"), symbol: "sun.max", action: .adjustLighting),
+            Tool(title: localized("Colors"), symbol: "paintpalette", action: .adjustColors),
+            Tool(title: localized("Curves"), symbol: "point.bottomleft.forward.to.point.topright.scurvepath", action: .adjustCurves),
+            Tool(title: localized(.init("Levels", comment: "Adjustment: black point, white point and gamma")),
+                symbol: "slider.horizontal.3", action: .adjustLevels),
+            Tool(title: localized("Sharpen"), symbol: "rhombus", action: .sharpenImage),
+            Tool(title: localized("Blur"), symbol: "drop.halffull", action: .blurImage),
+            Tool(title: localized("Noise Reduction"), symbol: "circle.dotted", action: .reduceNoise),
         ]),
-        Group(title: "Effects", tools: [
-            Tool(title: "Color Effects", symbol: "camera.filters", action: showColorEffectsAction),
-            Tool(title: "Drop Shadow", symbol: "shadow", action: .addDropShadow),
-            Tool(title: "Frame", symbol: "photo.artframe", action: .addFrame),
-            Tool(title: "Bump Map", symbol: "mountain.2", action: .applyBumpMap),
-            Tool(title: "Sketch", symbol: "pencil.and.scribble", action: .applySketch),
-            Tool(title: "Oil Painting", symbol: "paintbrush.pointed", action: .applyOilPaint),
-            Tool(title: "Lens", symbol: "circle.dashed", action: .applyLens),
-            Tool(title: "Vignette", symbol: "circle.lefthalf.striped.horizontal", action: .addVignette),
+        Group(title: localized(.init("Effects", comment: "Submenu of image effects")), tools: [
+            Tool(title: localized("Color Effects"), symbol: "camera.filters", action: showColorEffectsAction),
+            Tool(title: localized("Drop Shadow"), symbol: "shadow", action: .addDropShadow),
+            Tool(title: localized(.init("Frame", comment: "Effect: a picture frame (border) around the image, not a video frame")),
+                symbol: "photo.artframe", action: .addFrame),
+            Tool(title: localized("Bump Map"), symbol: "mountain.2", action: .applyBumpMap),
+            Tool(title: localized(.init("Sketch", comment: "Effect: pencil drawing")), symbol: "pencil.and.scribble", action: .applySketch),
+            Tool(title: localized("Oil Painting"), symbol: "paintbrush.pointed", action: .applyOilPaint),
+            Tool(title: localized(.init("effect.lens", defaultValue: "Lens", comment: "Effect: magnifying-lens distortion")),
+                symbol: "circle.dashed", action: .applyLens),
+            Tool(title: localized("Vignette"), symbol: "circle.lefthalf.striped.horizontal", action: .addVignette),
         ]),
-        Group(title: "Draw", tools: [
-            Tool(title: "Text and Shapes", symbol: "pencil.tip.crop.circle", action: .drawAnnotations),
-            Tool(title: "Watermark", symbol: "c.circle", action: .addWatermark),
+        Group(title: localized(.init("Draw", comment: "Heading of the drawing tools")), tools: [
+            Tool(title: localized("Text and Shapes"), symbol: "pencil.tip.crop.circle", action: .drawAnnotations),
+            Tool(title: localized("Watermark"), symbol: "c.circle", action: .addWatermark),
         ]),
-        Group(title: "Retouch", tools: [
-            Tool(title: "Clone Stamp", symbol: "square.on.square", action: .cloneStamp),
-            Tool(title: "Healing Brush", symbol: "bandage", action: .healingBrush),
-            Tool(title: "Red-Eye Removal", symbol: "eye", action: .removeRedEye),
-            Tool(title: "Remove Background", symbol: "person.and.background.dotted", action: .removeBackground),
+        Group(title: localized(.init("Retouch", comment: "Submenu of retouching tools")), tools: [
+            Tool(title: localized("Clone Stamp"), symbol: "square.on.square", action: .cloneStamp),
+            Tool(title: localized("Healing Brush"), symbol: "bandage", action: .healingBrush),
+            Tool(title: localized("Red-Eye Removal"), symbol: "eye", action: .removeRedEye),
+            Tool(title: localized("Remove Background"), symbol: "person.and.background.dotted", action: .removeBackground),
         ]),
     ]
 
@@ -79,7 +82,8 @@ final class ViewerToolsPanel: NSView {
     init() {
         super.init(frame: NSRect(x: 0, y: 0, width: Self.width, height: 600))
 
-        let title = NSTextField(labelWithString: "Tools")
+        let title = NSTextField(labelWithString: localized(.init("viewer.tools.title", defaultValue: "Tools",
+                                                                 comment: "Title of the viewer's panel of editing tools")))
         title.font = .systemFont(ofSize: 13, weight: .semibold)
 
         let stack = NSStackView(views: [title])
@@ -89,7 +93,7 @@ final class ViewerToolsPanel: NSView {
         stack.edgeInsets = NSEdgeInsets(top: 14, left: 12, bottom: 14, right: 12)
         stack.setCustomSpacing(12, after: title)
         for group in Self.groups {
-            let header = NSTextField(labelWithString: group.title.uppercased())
+            let header = NSTextField(labelWithString: group.title.localizedUppercase)
             header.font = .systemFont(ofSize: 10, weight: .semibold)
             header.textColor = .secondaryLabelColor
             stack.addArrangedSubview(header)
@@ -179,8 +183,8 @@ final class ViewerToolsPanel: NSView {
             button.isEnabled = false   // until the viewer says an image can be edited
         } else {
             button.isEnabled = false
-            button.toolTip = "\(tool.title) (coming soon)"
-            let soon = NSTextField(labelWithString: "Soon")
+            button.toolTip = localized(.init("\(tool.title) (coming soon)", comment: "Tooltip: %@ is a tool not available yet"))
+            let soon = NSTextField(labelWithString: localized(.init("Soon", comment: "Badge on a tool not available yet")))
             soon.font = .systemFont(ofSize: 10)
             soon.textColor = .tertiaryLabelColor
             soon.translatesAutoresizingMaskIntoConstraints = false
