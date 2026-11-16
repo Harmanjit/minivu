@@ -76,7 +76,9 @@ struct ImageOrderList: View {
                         }
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(index + 1): \(entry.name)\(detail(entry).map { ", \($0)" } ?? "")")
+                    .accessibilityLabel(detail(entry).map {
+                        localized(.init("\(index + 1): \(entry.name), \($0)", comment: "VoiceOver: position, file name, then its number of pages"))
+                    } ?? localized(.init("\(index + 1): \(entry.name)", comment: "VoiceOver: position, then file name")))
                 }
                 .onMove { order.move(from: $0, to: $1) }
             }
