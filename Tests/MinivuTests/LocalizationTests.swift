@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import MinivuCore
+import MinivuRender
 @testable import Minivu
 
 /// The String Catalogs (docs/feature-notes/l10n.md): every translation is
@@ -44,9 +46,11 @@ import Foundation
     }
 
     /// The format specifiers in `text`, without positions and in order of
-    /// type, so a translation may reorder its arguments.
+    /// type, so a translation may reorder its arguments. No space flag: the
+    /// compiler never writes one, and "0 % Farbe" or "100% to" in a string
+    /// without arguments is text (it isn't formatted).
     static func specifiers(_ text: String) -> [String] {
-        let pattern = /%(?:\d+\$)?[-+ #0']*\d*(?:\.\d+)?(?:hh|h|ll|l|q|z|t|j)?[@dDiuUxXoOfFeEgGcCsSpaA%]/
+        let pattern = /%(?:\d+\$)?[-+#0']*\d*(?:\.\d+)?(?:hh|h|ll|l|q|z|t|j)?[@dDiuUxXoOfFeEgGcCsSpaA%]/
         return text.matches(of: pattern).map { String($0.output).replacing(/\d+\$/, with: "") }
             .filter { $0 != "%%" }.sorted()
     }
@@ -122,6 +126,49 @@ import Foundation
         #expect(MenuStateTitles.rating(1) == "Rate 1 Star")
         #expect(MenuStateTitles.rating(3) == "Rate 3 Stars")
         #expect(MenuStateTitles.rating(0) == "Clear Rating")
+    }
+
+    /// Every shipped language resolves from each target's compiled bundle,
+    /// so none silently falls back to English: a few known keys, one plural.
+    @Test func everyLanguageResolvesItsOwnText() throws {
+        let render = Bundle.minivuRender
+        let core = try #require(Bundle(url: render.bundleURL.deletingLastPathComponent()
+            .appendingPathComponent("minivu_MinivuCore.bundle")))
+        let stars = 3
+        for language in try Self.shippedLanguages() {
+            let locale = Locale(identifier: language)
+            let pairs: [(String, String)] = [
+                ("Open Folder…", localized("Open Folder…", locale: locale)),
+                ("Move to Trash", localized("Move to Trash", locale: locale)),
+                ("Slideshow", localized("Slideshow", locale: locale)),
+                ("Rate 3 Stars", localized("Rate \(stars) Stars", locale: locale)),
+                ("Red", core.localizedText("Red", locale: locale)),
+                ("Blur", render.localizedText("Blur", locale: locale)),
+                ("Sharpen", render.localizedText("Sharpen", locale: locale)),
+            ]
+            for (english, text) in pairs {
+                #expect(text != english && !text.isEmpty, "\(language): \"\(english)\" is \"\(text)\"")
+            }
+            #expect(localized("Rate \(stars) Stars", locale: locale).contains("3"), "\(language): plural lost its number")
+        }
+    }
+
+    /// Each translated help page parses, starts with its title in that
+    /// language, and shows no raw Markdown (CommonMark leaves `**` unclosed
+    /// before a CJK letter when punctuation precedes it).
+    @Test func translatedHelpPagesRender() throws {
+        for language in try Self.shippedLanguages() {
+            for page in HelpPage.allCases where page != .shortcuts {
+                let context = "\(language)/\(page.rawValue).md"
+                let text = try #require(HelpLibrary.markdown(for: page, languages: [language]), "\(context) missing")
+                #expect(text != HelpLibrary.markdown(for: page, languages: []), "\(context) is the English page")
+                let blocks = try HelpMarkdown.blocks(from: text)
+                #expect(blocks.first?.plainText == page.title(locale: Locale(identifier: language)), "\(context) title")
+                for block in blocks where block.kind != .code && block.plainText.contains("**") {
+                    Issue.record("\(context): raw ** in \"\(block.plainText.prefix(80))\"")
+                }
+            }
+        }
     }
 
     /// A help page in the first language that has it, otherwise English.

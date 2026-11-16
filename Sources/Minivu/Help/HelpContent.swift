@@ -20,17 +20,21 @@ nonisolated enum HelpPage: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     /// Matches the `# Title` of the page in the same language.
-    var title: String {
+    var title: String { title(locale: nil) }
+
+    /// The title in `locale`'s language (tests); see `localized(_:locale:)`.
+    func title(locale: Locale?) -> String {
         switch self {
-        case .gettingStarted: localized(.init("Getting Started", comment: "Help page"))
-        case .browser: localized(.init("Browser", comment: "The window with the folder list and the thumbnail grid"))
-        case .viewer: localized(.init("Viewer", comment: "The window that shows one image"))
-        case .editing: localized(.init("Editing", comment: "Help page about editing images"))
-        case .effects: localized(.init("Effects & Retouching", comment: "Help page"))
-        case .tools: localized(.init("Tools", comment: "Menu bar menu"))
-        case .settings: localized(.init("Settings", comment: "Window title"))
-        case .privacy: localized(.init("Privacy", comment: "Help page"))
-        case .shortcuts: localized("Keyboard Shortcuts")
+        case .gettingStarted: localized(.init("Getting Started", comment: "Help page"), locale: locale)
+        case .browser:
+            localized(.init("Browser", comment: "The window with the folder list and the thumbnail grid"), locale: locale)
+        case .viewer: localized(.init("Viewer", comment: "The window that shows one image"), locale: locale)
+        case .editing: localized(.init("Editing", comment: "Help page about editing images"), locale: locale)
+        case .effects: localized(.init("Effects & Retouching", comment: "Help page"), locale: locale)
+        case .tools: localized(.init("Tools", comment: "Menu bar menu"), locale: locale)
+        case .settings: localized(.init("Settings", comment: "Window title"), locale: locale)
+        case .privacy: localized(.init("Privacy", comment: "Help page"), locale: locale)
+        case .shortcuts: localized("Keyboard Shortcuts", locale: locale)
         }
     }
 
