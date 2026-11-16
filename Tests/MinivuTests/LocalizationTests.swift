@@ -63,7 +63,8 @@ import MinivuRender
     /// yet is skipped. Only shipped languages appear.
     @Test func translationsAreComplete() throws {
         let languages = try Self.shippedLanguages()
-        #expect(languages == ["de", "fr", "es", "it", "pt-BR", "nl", "pl", "ja", "zh-Hans", "ko"])
+        #expect(languages == ["de", "fr", "es", "it", "pt-BR", "nl", "pl", "ja", "zh-Hans", "ko",
+                              "hi", "pa", "bn", "gu", "ta"])
         for (target, strings) in try Self.catalogs() {
             let live = strings.filter { !Self.isStale($0.value) && Self.translatable($0.value) }
             for (key, entry) in strings {
@@ -83,12 +84,15 @@ import MinivuRender
         "de": ["one", "other"], "nl": ["one", "other"], "fr": ["one", "many", "other"],
         "es": ["one", "many", "other"], "it": ["one", "many", "other"], "pt-BR": ["one", "many", "other"],
         "pl": ["one", "few", "many", "other"], "ja": ["other"], "zh-Hans": ["other"], "ko": ["other"],
+        "hi": ["one", "other"], "pa": ["one", "other"], "bn": ["one", "other"], "gu": ["one", "other"],
+        "ta": ["one", "other"],
     ]
 
     /// Every translation has English's format specifiers (any order), and
     /// plural forms exactly when English has them, in exactly its language's
     /// categories. A `zero` form, and a `one` form where `one` means only 1,
-    /// may leave the number out; in fr and pt-BR `one` also covers 0.
+    /// may leave the number out; in fr, pt-BR, hi, pa, bn and gu `one` also
+    /// covers 0.
     @Test func translationsKeepSpecifiersAndPlurals() throws {
         let languages = try Self.shippedLanguages()
         for (target, strings) in try Self.catalogs() {
@@ -110,7 +114,8 @@ import MinivuRender
                         let categories = Set(forms.keys).subtracting(["zero"])
                         #expect(categories == Self.pluralCategories[language], "\(context) has \(categories.sorted())")
                     }
-                    let mayDropNumber: Set = ["fr", "pt-BR"].contains(language) ? ["zero"] : ["zero", "one"]
+                    let oneCoversZero = ["fr", "pt-BR", "hi", "pa", "bn", "gu"].contains(language)
+                    let mayDropNumber: Set = oneCoversZero ? ["zero"] : ["zero", "one"]
                     for (category, text) in forms where !["other", ""].contains(category) {
                         let found = Self.specifiers(text)
                         #expect(found.allSatisfy(expected.contains), "\(context) [\(category)]: \(text)")
