@@ -137,16 +137,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         case .persistent, .private:
             return nil
         case .temporary(let reason):
-            return ("minivu can’t keep your ratings this time",
-                    "The ratings database couldn’t be opened, so the stars, tags and Custom Order you set "
-                        + "now last only until minivu quits. The reason given was “\(reason)”. Freeing up "
-                        + "space on the disk and opening minivu again usually puts it right.")
+            return (localized("minivu can’t keep your ratings this time"),
+                    localized(.init("The ratings database couldn’t be opened, so the stars, tags and Custom Order you set now last only until minivu quits. The reason given was “\(reason)”. Freeing up space on the disk and opening minivu again usually puts it right.",
+                                    comment: "Alert detail at launch; %@ is the system's reason, such as “disk is full”. Custom Order is the name of a sort order")))
         case .recovered(let setAside):
-            let kept = setAside.map { "The damaged file has been kept beside the new one as “\($0)”, in case "
-                + "it can be recovered." } ?? "The damaged file could not be set aside for you to recover."
-            return ("minivu started a new ratings database",
-                    "The old one was damaged and couldn’t be read, so the stars, tags and Custom Order you "
-                        + "had set are no longer shown. \(kept)")
+            let detail = setAside.map {
+                localized(.init("The old one was damaged and couldn’t be read, so the stars, tags and Custom Order you had set are no longer shown. The damaged file has been kept beside the new one as “\($0)”, in case it can be recovered.",
+                                comment: "Alert detail at launch, under “minivu started a new ratings database”; %@ is a file name"))
+            } ?? localized(.init("The old one was damaged and couldn’t be read, so the stars, tags and Custom Order you had set are no longer shown. The damaged file could not be set aside for you to recover.",
+                                 comment: "Alert detail at launch, under “minivu started a new ratings database”"))
+            return (localized("minivu started a new ratings database"), detail)
         }
     }
 
@@ -290,11 +290,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let external = targets.filter { $0.1 == .external }.map(\.0)
         let missing = targets.filter { $0.1 == .missing }.map(\.0)
         if !external.isEmpty {
-            explain(external, "minivu only works with files on this Mac’s internal storage. Copy the photos "
-                + "from the external drive, memory card or network share to a folder on this Mac first.")
+            explain(external, localized("minivu only works with files on this Mac’s internal storage. Copy the photos from the external drive, memory card or network share to a folder on this Mac first."))
         }
         if !missing.isEmpty {
-            explain(missing, "The item may have been moved or deleted, or minivu may not have permission to read it.")
+            explain(missing, localized("The item may have been moved or deleted, or minivu may not have permission to read it."))
         }
         guard let (url, target) = targets.last(where: { $0.1 == .folder || $0.1 == .file }) else { return false }
         if target == .folder {
@@ -309,7 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let alert = NSAlert()
         alert.alertStyle = .informational
         let names = urls.map { "“\($0.lastPathComponent)”" }.formatted(.list(type: .and))
-        alert.messageText = "minivu can’t open \(names)"
+        alert.messageText = localized(.init("minivu can’t open \(names)", comment: "Alert title; %@ is a list of quoted file or folder names"))
         alert.informativeText = reason
         present(alert)
     }
@@ -328,7 +327,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
 
     /// Chooses a folder, adds it to the sidebar and shows it.
     @objc func openFolder(_ sender: Any?) {
-        chooseFolder(prompt: "Open") { [weak self] url in
+        chooseFolder(prompt: localized(.init("panel.open-folder.prompt", defaultValue: "Open", comment: "Open panel button: opens the chosen folder"))) { [weak self] url in
             if BookmarkStore.shared.add(url) {
                 NotificationCenter.default.post(name: .minivuFavoritesChanged, object: nil)
             }
@@ -337,7 +336,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
 
     @objc func addFolderToSidebar(_ sender: Any?) {
-        chooseFolder(prompt: "Add") { url in
+        chooseFolder(prompt: localized(.init("panel.add-folder.prompt", defaultValue: "Add", comment: "Open panel button: adds the chosen folder to the sidebar"))) { url in
             if BookmarkStore.shared.add(url) {
                 NotificationCenter.default.post(name: .minivuFavoritesChanged, object: nil)
             }
@@ -439,7 +438,8 @@ nonisolated struct ExternalVolumeError: LocalizedError, Equatable {
     var folder: URL
 
     var errorDescription: String? {
-        "“\(FileManager.default.displayName(atPath: folder.path))” isn’t on this Mac’s internal storage. "
-            + "minivu only writes to folders on this Mac’s internal storage."
+        let name = FileManager.default.displayName(atPath: folder.path)
+        return localized(.init("“\(name)” isn’t on this Mac’s internal storage. minivu only writes to folders on this Mac’s internal storage.",
+                               comment: "Error; %@ is a folder name"))
     }
 }
