@@ -125,7 +125,7 @@ public final class Catalog: @unchecked Sendable {
     /// the folder it went to is opened in minivu.
     static let missingRetention: TimeInterval = 365 * 24 * 3600
 
-    static let schemaVersion = 3
+    static let schemaVersion = 4
 
     let db: SQLiteDatabase
     /// Fixed at construction, never afterwards: this class is `@unchecked
@@ -285,6 +285,14 @@ public final class Catalog: @unchecked Sendable {
                     );
                     """)
                 version = 3
+            }
+            if version < 4 {
+                // A video's metadata rows were read before the filters read
+                // its date, camera and location: empty, and current by size
+                // and date for ever. The table is a cache; every row is read
+                // again when next needed.
+                try db.executeScript("DELETE FROM metadata;")
+                version = 4
             }
             try db.setUserVersion(version)
         }

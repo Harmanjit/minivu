@@ -74,7 +74,7 @@ import Foundation
                 """)
         }
         let catalog = try Catalog(url: url)
-        #expect(try catalog.db.userVersion() == 3)
+        #expect(try catalog.db.userVersion() == Catalog.schemaVersion)
         #expect(catalog.marks(for: URL(fileURLWithPath: "/old/one.jpg")) == Marks(rating: 3, isTagged: true))
         #expect(try catalog.db.query("SELECT overrides_file FROM files").first?.int("overrides_file") == 0)
         #expect(catalog.customOrder(in: URL(fileURLWithPath: "/old")) == ["one.jpg"])

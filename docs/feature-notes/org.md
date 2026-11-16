@@ -70,8 +70,9 @@ reads nothing.
 
 - **View > Filter > More Filters…** (and the toolbar's Filter menu) opens a
   sheet with: **Type** (JPEG, HEIF and AVIF, PNG, RAW, TIFF, GIF, WebP,
-  Photoshop, PDF, SVG, Other; none ticked shows all), **Date Taken** (from
-  and/or to, inclusive days), **Camera model** and **Lens** (part of the
+  Photoshop, PDF, SVG, Video, Other; none ticked shows all), **Date Taken**
+  (from and/or to, inclusive days; a video's recording date, on the
+  camera's clock), **Camera model** and **Lens** (part of the
   name, case and accents ignored: "5d" finds "Canon EOS 5D Mark IV"),
   **ISO**, **Aperture (f/)** and **Focal length (mm)** ranges (either end
   open; "f/2,8" and "2.8" both read), **Keywords** (all of these, comma

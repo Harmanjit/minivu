@@ -220,8 +220,9 @@ public struct RenameSource: Hashable, Sendable {
         self.pageCount = pageCount
     }
 
-    /// Fills in the date taken (EXIF DateTimeOriginal, else DateTimeDigitized)
-    /// and the pixel size as displayed from the file's header, and the
+    /// Fills in the date taken (EXIF DateTimeOriginal, else DateTimeDigitized;
+    /// a video's recording date) and the pixel size as displayed from the
+    /// file's header, and the
     /// modification date if missing. Blocking I/O, a millisecond or two per
     /// file: never on the main thread.
     public func withImageMetadata() -> RenameSource {
@@ -237,6 +238,16 @@ public struct RenameSource: Hashable, Sendable {
                     copy.pixelWidth = Int(saturating: size.width.rounded())
                     copy.pixelHeight = Int(saturating: size.height.rounded())
                 }
+            }
+        case .video?:
+            // The recording date, as the info panel shows it under Original.
+            if let created = VideoFrames.metadata(for: url)?.created {
+                copy.dateTaken = created.date
+                copy.dateTakenTimeZone = created.timeZone
+            }
+            if let size = VideoFrames.info(for: url)?.pixelSize {
+                copy.pixelWidth = Int(saturating: size.width.rounded())
+                copy.pixelHeight = Int(saturating: size.height.rounded())
             }
         default:
             if let size = ImageDecoder.info(for: url)?.pixelSize {

@@ -81,6 +81,31 @@ import CoreGraphics
         #expect(KeepRule.highestResolution.keeper(of: entries, pixelSizes: sizes)?.url == clip)
     }
 
+    /// The filters, Find and Batch Rename's {date} read a video's
+    /// recording date (on the camera's clock), camera and location, and it
+    /// files under its own type, not "Other".
+    @Test func filtersAndRenameReadAVideosDateCameraAndLocation() async throws {
+        let url = try await TestVideos.make(at: folder.url.appendingPathComponent("phone.mov"), seconds: 1, metadata: [
+            .quickTimeMetadataCreationDate: "2024-05-01T14:30:05+0200",
+            .quickTimeMetadataLocationISO6709: "+48.8584+002.2945+035.000/",
+            .quickTimeMetadataMake: "Apple",
+            .quickTimeMetadataModel: "iPhone 15 Pro",
+        ])
+        let metadata = await BlockingWork.run { FilterMetadata.read(from: url) }
+        #expect(metadata.dateTaken == 20240501143005)
+        #expect(metadata.camera?.contains("iPhone 15 Pro") == true)
+        #expect(metadata.hasLocation)
+        #expect(metadata.pixelWidth == 160 && metadata.pixelHeight == 96)
+        var criteria = MetadataCriteria()
+        criteria.fileTypes = [.video]
+        #expect(criteria.passesType(url) && !criteria.passesType(folder.url.appendingPathComponent("a.bmp")))
+        #expect(FileTypeGroup.of(URL(fileURLWithPath: "/x/clip.MP4")) == .video)
+
+        let source = await BlockingWork.run { RenameSource(url: url).withImageMetadata() }
+        let namer = RenameNamer(pattern: RenamePattern(text: "{date:yyyyMMdd-HHmmss}"))
+        #expect(namer.baseName(for: source, index: 0) == "20240501-143005", "the camera's clock, not the copy date")
+    }
+
     @Test func aFileThatIsNoMovieReadsAsNothing() async throws {
         let fake = try folder.file("broken.mov", bytes: 512)
         #expect(await BlockingWork.run { VideoFrames.info(for: fake) } == nil)
