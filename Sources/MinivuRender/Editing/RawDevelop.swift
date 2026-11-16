@@ -134,13 +134,19 @@ public struct RawDefaults: Hashable, Sendable {
 /// 300 ms for a 24 MP NEF on M4, and a half-size render after it about
 /// 110 ms; the same filter given new settings rendered again at half size
 /// in 65-78 ms. Draft mode measured no faster at those sizes, so it stays
-/// off. The filter is not safe to change from two threads, so settings and
-/// output are taken under a lock; the `CIImage` it returns keeps the
-/// settings it was made with and renders outside it, so a preview needn't
-/// wait behind a full-resolution render of the same file.
-/// `oneFilterRendersTwoSettingsAtOnceWithoutMixingThem` pins that: eight
-/// renders of two settings at once from one filter each match a render
-/// alone.
+/// off. The filter is not safe to change from two threads, and Apple doesn't
+/// promise that an output image is unaffected by later changes to its
+/// filter, so one lock is held from setting the parameters until the render
+/// of the output has finished (`withImage`): renders of one file never
+/// overlap. A preview may so wait behind a full-resolution render of the
+/// same file, but no longer than before: on M4 (24 MP NEF, 3456 px preview,
+/// release, `rawPreviewBesideFullRender`) a preview started beside a full
+/// render took 370-440 ms with the lock, 375-395 ms when the two overlapped
+/// without it and 360-420 ms beside a second filter's full render (alone
+/// 100-185 ms), as the engine's renders don't run side by side anyway; so
+/// no second filter is opened for full renders.
+/// `rendersOfOneFilterNeverOverlap` and
+/// `oneFilterRendersTwoSettingsAtOnceWithoutMixingThem` pin it.
 final class RawDevelopFilter: @unchecked Sendable {
     let url: URL
     let defaults: RawDefaults
@@ -163,8 +169,15 @@ final class RawDevelopFilter: @unchecked Sendable {
     /// The engine's rendering with `develop` (nil: the camera's settings),
     /// at `scale` of the sensor's size, upright with its extent at the
     /// origin. With `hdr` highlights reach up to `headroom` (see
-    /// `RawRenderer.maximumHeadroom`).
-    func image(develop: RawDevelop?, scale: Double, hdr: Bool, headroom: Float) -> CIImage? {
+    /// `RawRenderer.maximumHeadroom`), handed to `render`, which must have
+    /// finished with it when it returns: the filter stays locked until then.
+    /// Never return the image, or anything still lazily built from it, out
+    /// of `render`; return a finished texture or values.
+    /// Nil to `render` when the engine makes nothing. Called inside an editor
+    /// RAW slot (`RawRenderer.withEditRenderSlot`), never the reverse, so the
+    /// lock order is slot, then filter.
+    func withImage<T>(develop: RawDevelop?, scale: Double, hdr: Bool, headroom: Float,
+                      _ render: (CIImage?) throws -> T) rethrows -> T {
         lock.lock()
         defer { lock.unlock() }
         let settings = (develop ?? RawDevelop()).filled(from: defaults)
@@ -188,8 +201,11 @@ final class RawDevelopFilter: @unchecked Sendable {
         if #available(macOS 26.0, *), defaults.supportsHighlightRecovery {
             filter.isHighlightRecoveryEnabled = settings.recoversHighlights ?? defaults.recoversHighlights
         }
-        guard let output = filter.outputImage, !output.extent.isInfinite, !output.extent.isEmpty else { return nil }
-        return output.transformed(by: CGAffineTransform(translationX: -output.extent.minX, y: -output.extent.minY))
+        guard let output = filter.outputImage, !output.extent.isInfinite, !output.extent.isEmpty else {
+            return try render(nil)
+        }
+        return try render(output.transformed(by: CGAffineTransform(translationX: -output.extent.minX,
+                                                                   y: -output.extent.minY)))
     }
 
     private static func clamp(_ value: Double?, _ range: ClosedRange<Double>, default fallback: Double) -> Double {
@@ -245,24 +261,27 @@ extension EditRenderer {
         let long = max(fullSize.width, fullSize.height)
         let sensorLong = max(filter.orientedSize.width, filter.orientedSize.height)
         let engineScale = long > 0 && sensorLong > 0 ? scale * Double(long / sensorLong) : scale
+        // Slot first, then the filter's lock, held until the texture is
+        // rendered and measured: nothing derived from the filter outlives it.
         return try RawRenderer.withEditRenderSlot {
-            guard let output = filter.image(develop: develop, scale: engineScale, hdr: hdr,
-                                            headroom: settings.rawHeadroom) else {
-                throw DecodeError.noImage(filter.url)
+            try filter.withImage(develop: develop, scale: engineScale, hdr: hdr,
+                                 headroom: settings.rawHeadroom) { output in
+                guard let output else { throw DecodeError.noImage(filter.url) }
+                let width = EditGraph.workingLength(Int(fullSize.width.rounded()), scale: scale)
+                let height = EditGraph.workingLength(Int(fullSize.height.rounded()), scale: scale)
+                let exact = Int(output.extent.width.rounded()) == width && Int(output.extent.height.rounded()) == height
+                    ? output : lanczos(output, to: fullSize, scale: scale)
+                let context = RawRenderer.context(for: gpu)
+                let (texture, image) = try renderIntermediate(exact, context: context, gpu: gpu,
+                                                              label: "a RAW rendering")
+                var headroom: Float = 1
+                if hdr {
+                    // As `RawRenderer.render` measures it: the engine reports none.
+                    let fallback = pow(2, RawRenderer.edrAmount(forHeadroom: settings.rawHeadroom))
+                    headroom = max(1, RawRenderer.peakValue(of: texture, gpu: gpu) ?? fallback)
+                }
+                return (texture, image, headroom)
             }
-            let width = EditGraph.workingLength(Int(fullSize.width.rounded()), scale: scale)
-            let height = EditGraph.workingLength(Int(fullSize.height.rounded()), scale: scale)
-            let exact = Int(output.extent.width.rounded()) == width && Int(output.extent.height.rounded()) == height
-                ? output : lanczos(output, to: fullSize, scale: scale)
-            let context = RawRenderer.context(for: gpu)
-            let (texture, image) = try renderIntermediate(exact, context: context, gpu: gpu, label: "a RAW rendering")
-            var headroom: Float = 1
-            if hdr {
-                // As `RawRenderer.render` measures it: the engine reports none.
-                let fallback = pow(2, RawRenderer.edrAmount(forHeadroom: settings.rawHeadroom))
-                headroom = max(1, RawRenderer.peakValue(of: texture, gpu: gpu) ?? fallback)
-            }
-            return (texture, image, headroom)
         }
     }
 

@@ -319,12 +319,18 @@ lens corrections of minivu's own.
   frees. Batch Convert renders RAW files through the editor's
   path, so it shares the slot as well. On larger Macs the viewer keeps its
   own slot, so a photo shown while the editor renders doesn't wait.
-  `RawDevelopFilter` hands out the engine's image under a lock and renders
-  it outside, which is right only if that image keeps the settings it was
-  made with; `oneFilterRendersTwoSettingsAtOnceWithoutMixingThem` pins it
-  (eight renders of two settings at once from one filter, on a Mac with
-  two editor slots, each match a render alone), so a preview needn't wait
-  behind a full render of the same file.
+  `RawDevelopFilter` holds its lock from setting the engine's parameters
+  until the render of its output has finished (`withImage`, called inside
+  an editor slot, so the lock order is slot then filter), since Apple
+  doesn't promise an output image is unaffected by later changes to its
+  filter. Renders of one file so never overlap
+  (`rendersOfOneFilterNeverOverlap`), and each still matches a render alone
+  (`oneFilterRendersTwoSettingsAtOnceWithoutMixingThem`). A preview may wait
+  behind a full render of the same file, but measured no slower than
+  before (M4, 24 MP NEF, 3456 px preview started beside a full render:
+  370-440 ms locked, 375-395 ms overlapping, 360-420 ms beside a second
+  filter; alone 100-185 ms; `rawPreviewBesideFullRender`): the engine's
+  renders don't run side by side anyway, so no second filter is kept.
 - **Limits.** Save can't write RAW files (as before), so the settings reach
   a file through Save As (or Copy). The engine's white balance picker
   (`neutralLocation`), sharpness, local contrast, detail, moiré and lens
