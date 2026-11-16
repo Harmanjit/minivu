@@ -24,9 +24,11 @@ public enum FolderListingError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .notAllowed(let url): "\(url.lastPathComponent) is not on this Mac's internal storage."
-        case .notPermitted(let url): "\(url.lastPathComponent) could not be read: permission denied"
-        case .unreadable(let url, let reason): "\(url.lastPathComponent) could not be read: \(reason)"
+        case .notAllowed(let url): localized("\(url.lastPathComponent) is not on this Mac's internal storage.")
+        case .notPermitted(let url): localized("\(url.lastPathComponent) could not be read: permission denied")
+        case .unreadable(let url, let reason):
+            localized(.init("\(url.lastPathComponent) could not be read: \(reason)",
+                            comment: "First %@ is a folder name, second the system's reason"))
         }
     }
 }

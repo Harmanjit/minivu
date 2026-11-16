@@ -29,10 +29,10 @@ public struct RenamePattern: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .unchanged: "Unchanged"
-            case .lower: "lowercase"
-            case .upper: "UPPERCASE"
-            case .title: "Title Case"
+            case .unchanged: localized(.init("Unchanged", comment: "Letter case choice: leave the name's letter case as it is"))
+            case .lower: localized(.init("lowercase", comment: "Letter case choice, written in that case"))
+            case .upper: localized(.init("UPPERCASE", comment: "Letter case choice, written in that case"))
+            case .title: localized(.init("Title Case", comment: "Letter case choice: each word capitalised, written in that case"))
             }
         }
     }
@@ -42,9 +42,9 @@ public struct RenamePattern: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .unchanged: "Unchanged"
-            case .lower: "lowercase"
-            case .upper: "UPPERCASE"
+            case .unchanged: localized(.init("Unchanged", comment: "Letter case choice: leave the name's letter case as it is"))
+            case .lower: localized(.init("lowercase", comment: "Letter case choice, written in that case"))
+            case .upper: localized(.init("UPPERCASE", comment: "Letter case choice, written in that case"))
             }
         }
     }

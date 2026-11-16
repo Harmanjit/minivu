@@ -81,11 +81,34 @@ public enum MetadataWriter {
 
         public var errorDescription: String? {
             switch self {
-            case .unsupported: "Metadata can’t be written for this kind of file."
-            case .unreadable: "The file couldn’t be read."
-            case .copyFailed(let detail): "The metadata couldn’t be written (\(detail))."
-            case .didNotTake(let field): "The new \(field) didn’t take, so the file was left as it was."
-            case .unreadableSidecar(let name): "The sidecar “\(name)” isn’t readable XMP, so it was left as it was."
+            case .unsupported: localized("Metadata can’t be written for this kind of file.")
+            case .unreadable: localized("The file couldn’t be read.")
+            case .copyFailed(let detail):
+                localized(.init("The metadata couldn’t be written (\(detail)).",
+                                comment: "%@ is a technical detail in English"))
+            case .didNotTake(let field):
+                localized(.init("The new \(Self.fieldName(field)) didn’t take, so the file was left as it was.",
+                                comment: "%@ is a metadata field in lower case, such as “title” or “keywords”"))
+            case .unreadableSidecar(let name):
+                localized(.init("The sidecar “\(name)” isn’t readable XMP, so it was left as it was.",
+                                comment: "%@ is the file name of an XMP sidecar"))
+            }
+        }
+
+        /// The field `didNotTake` names, for its message.
+        static func fieldName(_ field: String) -> String {
+            switch field {
+            case "title": localized(.init("metadata.field.title", defaultValue: "title", comment: "Metadata field, in a sentence"))
+            case "caption": localized(.init("metadata.field.caption", defaultValue: "caption", comment: "Metadata field, in a sentence"))
+            case "creator": localized(.init("metadata.field.creator", defaultValue: "creator", comment: "Metadata field, in a sentence"))
+            case "copyright": localized(.init("metadata.field.copyright", defaultValue: "copyright", comment: "Metadata field, in a sentence"))
+            case "keywords": localized(.init("metadata.field.keywords", defaultValue: "keywords", comment: "Metadata field, in a sentence"))
+            case "date taken": localized(.init("metadata.field.date", defaultValue: "date taken", comment: "Metadata field, in a sentence"))
+            case "location removal": localized(.init("metadata.field.location", defaultValue: "location removal", comment: "Metadata change, in a sentence: the GPS location was removed"))
+            case "rating": localized(.init("metadata.field.rating", defaultValue: "rating", comment: "Metadata field, in a sentence: star rating"))
+            case "tag": localized(.init("metadata.field.tag", defaultValue: "tag", comment: "Metadata field, in a sentence: the image's tagged (picked) mark"))
+            case "label": localized(.init("metadata.field.label", defaultValue: "label", comment: "Metadata field, in a sentence: the colour label"))
+            default: field
             }
         }
     }

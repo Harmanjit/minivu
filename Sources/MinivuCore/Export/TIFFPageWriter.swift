@@ -32,9 +32,9 @@ public final class TIFFPageWriter {
 
         public var errorDescription: String? {
             switch self {
-            case .unreadablePage: "A page couldn’t be added to the TIFF file."
-            case .mixedByteOrder: "The pages couldn’t be joined into one TIFF file."
-            case .tooLarge: "The TIFF file would be larger than 4 GB, the most a TIFF file can hold."
+            case .unreadablePage: localized("A page couldn’t be added to the TIFF file.")
+            case .mixedByteOrder: localized("The pages couldn’t be joined into one TIFF file.")
+            case .tooLarge: localized("The TIFF file would be larger than 4 GB, the most a TIFF file can hold.")
             }
         }
     }
