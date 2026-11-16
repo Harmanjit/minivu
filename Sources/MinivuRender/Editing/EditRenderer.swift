@@ -1199,10 +1199,10 @@ public enum EditRenderError: Error, CustomStringConvertible {
 
     public var description: String {
         switch self {
-        case .unsupportedBitDepth(let bits): "\(bits) bits per component can't be exported (8 or 16 can)."
-        case .renderFailed: "The edited image could not be rendered."
+        case .unsupportedBitDepth(let bits): localized("\(bits) bits per component can't be exported (8 or 16 can).")
+        case .renderFailed: localized("The edited image could not be rendered.")
         case .sourceChanged(let url):
-            "\u{201C}\(url.lastPathComponent)\u{201D} changed on disk after editing began, so the edits can\u{2019}t be applied to it again. Reopen the image to keep editing."
+            localized("“\(url.lastPathComponent)” changed on disk after editing began, so the edits can’t be applied to it again. Reopen the image to keep editing.")
         }
     }
 }

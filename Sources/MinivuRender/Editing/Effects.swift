@@ -170,9 +170,9 @@ public struct FrameStyle: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .solid: "Solid"
-            case .matte: "Matte"
-            case .bevel: "Bevel"
+            case .solid: localized(.init("Solid", comment: "Frame style: one plain colour"))
+            case .matte: localized(.init("Matte", comment: "Frame style: a mat board around the picture"))
+            case .bevel: localized(.init("Bevel", comment: "Frame style: a raised moulding"))
             case .polaroid: "Polaroid"
             }
         }
@@ -280,9 +280,9 @@ public struct Sketch: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .pencil: "Pencil"
-            case .charcoal: "Charcoal"
-            case .coloredPencil: "Colored Pencil"
+            case .pencil: localized(.init("Pencil", comment: "Sketch style"))
+            case .charcoal: localized(.init("Charcoal", comment: "Sketch style"))
+            case .coloredPencil: localized(.init("Colored Pencil", comment: "Sketch style"))
             }
         }
     }

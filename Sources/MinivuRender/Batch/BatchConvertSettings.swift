@@ -174,11 +174,11 @@ public struct BatchResize: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .none: "Don’t Resize"
-            case .longSide: "Long Side"
-            case .width: "Width"
-            case .height: "Height"
-            case .percent: "Percentage"
+            case .none: localized("Don’t Resize")
+            case .longSide: localized(.init("Long Side", comment: "Resize by the longer of width and height"))
+            case .width: localized("Width")
+            case .height: localized("Height")
+            case .percent: localized(.init("Percentage", comment: "Resize by a percentage of the size"))
             }
         }
     }
