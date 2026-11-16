@@ -5,8 +5,9 @@ Every command is in the menu bar, with its key beside it. The same list is in th
 ## How keys reach minivu
 
 - **Menu shortcuts** (those with ⌘, ⌃ or ⌥, and F2 and ⇧F2) work from any window where the command applies; elsewhere the item is greyed out.
-- **Arrows, Home, End, P and ⌥-arrows** are shown in the **Go** and **Image** menus only while the menu is open. They aren't real menu shortcuts: the grid, the viewer or a text field takes them, so an arrow in a rename field moves the insertion point instead of changing the image.
-- **Single keys** such as 0–5, `` ` ``, T, F, I, / and \* belong to the grid and the viewer. While you type in a text field they type.
+- **Arrows, Home, End, P, M and ⌥-arrows** are shown in the **Go** and **Image** menus only while the menu is open. They aren't real menu shortcuts: the grid, the viewer or a text field takes them, so an arrow in a rename field moves the insertion point instead of changing the image.
+- **Single keys** such as 0–5, `` ` ``, T, F, I, M, / and \* belong to the grid and the viewer. While you type in a text field they type.
+- **In another language** (see [Languages](Languages)) the commands have translated names but keep the same keys. This page uses the English names.
 - **⌘⌫, ⌘↑ and ⌘↓** in a text field edit the text (delete to the start of the line, jump to the start or end) instead of reaching **Move to Trash**, **Enclosing Folder** and **Open in Viewer**. The menu items still work when clicked.
 
 ## Menu bar
@@ -19,6 +20,8 @@ Every command is in the menu bar, with its key beside it. The same list is in th
 | ⌘H | **Hide minivu** |
 | ⌥⌘H | **Hide Others** |
 | ⌘Q | **Quit minivu** |
+
+**About minivu** and **Show All** have no shortcut.
 
 ### File
 
@@ -37,7 +40,7 @@ Every command is in the menu bar, with its key beside it. The same list is in th
 | ⇧⌘P | **Page Setup…** |
 | ⌘P | **Print…** |
 
-**Revert to Saved**, **Copy To** and **Move To** have no shortcut.
+**Save Frame As…**, **Revert to Saved**, **Save Edits as Preset…**, **Copy To**, **Move To**, **New Collection…**, **Add to Collection**, **Remove from Collection**, **Save as Smart Folder…** and **Share…** have no shortcut.
 
 ### Edit
 
@@ -45,18 +48,24 @@ Every command is in the menu bar, with its key beside it. The same list is in th
 |---|---|
 | ⌘Z, ⇧⌘Z | **Undo**, **Redo** |
 | ⌘X, ⌘C, ⌘V | **Cut**, **Copy**, **Paste** |
+| ⇧⌘C | **Copy Text** (the text Live Text found in the viewer's picture) |
 | ⌘A | **Select All** |
+| ⇧⌘I | **Invert Selection** |
+| ⌘F | **Find…** |
+
+**Copy Subject**, **Copy Frame** and **Select Tagged** have no shortcut. In the viewer, ⌘C copies the text you selected in the picture, if any, and otherwise the picture.
 
 ### View
 
 | Keys | Action |
 |---|---|
 | ⇧⌘. | **Show Hidden Files** |
+| ⌥⌘F | **Flat View** (the images of every subfolder in one list) |
 | ⌃⌘S | **Show Sidebar** / **Hide Sidebar** |
 | ⌥⌘P | **Show Preview Pane** / **Hide Preview Pane** |
 | ⌃⌘F | **Enter Full Screen** / **Exit Full Screen** (in the viewer, minivu's own instant full screen) |
 
-**Sort By**, **Filter** and **Theme** have no shortcut.
+**Sort By**, **Filter** (including **More Filters…**), **Theme** and **Live Text** have no shortcut.
 
 ### Image
 
@@ -72,14 +81,18 @@ Every command is in the menu bar, with its key beside it. The same list is in th
 | ⌥⌘C | **Adjust > Colors…** |
 | ⇧⌘M | **Adjust > Curves…** |
 | ⇧⌘L | **Adjust > Levels…** |
-| P | **Play Animation** / **Pause Animation** (viewer) |
+| ⌘I | **Edit Metadata…** |
+| P | **Play Animation** / **Pause Animation**, or **Play Video** / **Pause Video** for a video (viewer) |
+| M | **Mute Video** / **Unmute Video** (viewer) |
 | ⌃0 | **Rating > Clear Rating** |
 | ⌃1–⌃5 | **Rating > Rate 1 Star** to **Rate 5 Stars** |
 | ⌘T | **Tag** / **Remove Tag** |
+| ⌥⌘0 | **Label > None** |
+| ⌥⌘1–⌥⌘7 | **Label > Red**, **Orange**, **Yellow**, **Green**, **Blue**, **Purple**, **Gray** |
 | ⌥⌘K | **Compare Selected** |
 | ⇧⌘H | **Histogram** (the viewer's info panel) |
 
-The flips, **Straighten…**, **Sharpen…**, **Blur…**, everything under **Effects** and **Retouch**, **Text and Shapes…**, **Edit Comment…** and **Count Colors** have no shortcut.
+A *label* is the file's Finder colour tag, the same one Finder shows. The flips, **Canvas Size…**, **Straighten…**, **Perspective…**, **Adjust > RAW Adjustments…**, **Auto Enhance**, **Sharpen…**, **Blur…**, **Noise Reduction…**, everything under **Effects** and **Retouch**, **Text and Shapes…**, **Watermark…**, **Remove Background…**, **Edit Comment…** and **Count Colors** have no shortcut.
 
 ### Go
 
@@ -98,10 +111,9 @@ The flips, **Straighten…**, **Sharpen…**, **Blur…**, everything under **Ef
 | ⇧⌘F | **Start Slideshow** |
 | ⌥⌘B | **Batch Convert…** |
 | ⇧F2 | **Batch Rename…** |
-| ⇧⌘I | **Invert Selection** |
 | ⌘E | The first editor under **Open in External Editor** |
 
-**Contact Sheet…**, **Montage Wallpaper…**, **Set as Desktop Picture** and **Capture** have no shortcut; macOS keeps ⇧⌘3 to ⇧⌘5 for its own screenshots.
+**Export Slideshow Video…**, **Extract Pages…**, **Find Duplicates…**, **Create Multi-Page File…**, **Image Strip…**, **Contact Sheet…**, **Create Web Gallery…**, **Montage Wallpaper…**, **Set as Desktop Picture** and **Capture** have no shortcut; macOS keeps ⇧⌘3 to ⇧⌘5 for its own screenshots.
 
 ### Window and Help
 
@@ -111,6 +123,8 @@ The flips, **Straighten…**, **Sharpen…**, **Blur…**, everything under **Ef
 | ⌃⌥⌘→ | **Move to Next Display** (the viewer or a slideshow; left to right, wrapping) |
 | ⌘? | **minivu Help** |
 | ⌘/ | **Keyboard Shortcuts** |
+
+**Window > Zoom** and **Bring All to Front** have no shortcut.
 
 ## Browser
 
@@ -135,7 +149,7 @@ When the image is larger than the window, the arrow keys pan it by a tenth of th
 
 | Keys | Action |
 |---|---|
-| → ↓ Space | Next image |
+| → ↓ Space | Next image (Space plays or pauses a video instead) |
 | ← ↑ ⌫ | Previous image |
 | Home, End | First, last image |
 | Page Down, Page Up | Next or previous page of a PDF or multi-page TIFF, then the next or previous image |
@@ -147,11 +161,14 @@ When the image is larger than the window, the arrow keys pan it by a tenth of th
 | T or `` ` `` | Tag or untag |
 | I | Keep the info overlay up |
 | F | Keep the filmstrip open |
-| P | Play or pause an animation |
+| P | Play or pause an animation or a video |
+| M | Mute or unmute a video |
 | Return | Switch between window and full screen |
 | Esc | Back to the browser |
 
 Held down, the keys that go to the next or previous image or page, pan and zoom repeat; the others, including Home, End, Return, F and I, don't.
+
+On a video the arrows, Page Up and Page Down, ⌫, Home and End still move between items, so the keys that step through a folder never change meaning. Zoom keys do nothing on a video: it is always shown fitted. The video player's own buttons and scrubber work with the pointer; they never take the keyboard.
 
 ## Viewer mouse and trackpad
 
@@ -167,6 +184,8 @@ Held down, the keys that go to the next or previous image or page, pan and zoom 
 | Pointer to an edge | Filmstrip (top), tools (left), info and histogram (right), controls (bottom) |
 
 On a trackpad, scrolling a zoomed-in image pans it instead of changing images. While an editing tool is open, a mouse wheel always zooms (⌘ doesn't swap it) and a trackpad pans.
+
+With **View > Live Text** on, the pointer becomes an I-beam over text in the picture. There, dragging selects text instead of panning, and pressing and holding selects instead of showing the magnifier. Pan with the arrow keys, the trackpad or the wheel, or turn **Live Text** off.
 
 ## Full screen
 
@@ -194,7 +213,7 @@ The menu bar appears when the pointer reaches the top of the screen. In the brow
 | Return or F | Full screen |
 | Esc | Close |
 
-The **Image** menu's zoom commands act on the chosen pane, and **Sync Zoom** carries them to the others.
+The **Image** menu's zoom commands, **Rating**, **Tag** and **Label** act on the chosen pane, and **Sync Zoom** carries the zoom to the others.
 
 ## Slideshow
 
@@ -223,6 +242,15 @@ Menu shortcuts such as ⌘Q and ⌘, still work during a show. Move the pointer 
 | ⌫ | Text and Shapes, Red-Eye Removal: delete the selection |
 
 With **Text and Shapes…**, a brush or the red-eye tool open, ⌫ never goes back to the previous image.
+
+## Find, filters and duplicates
+
+**Edit > Find…** (⌘F), **View > Filter > More Filters…** and the **Find Duplicates** window take two keys:
+
+| Keys | Action |
+|---|---|
+| Return | **Find**, **Filter** or (in Find Duplicates) start the search |
+| Esc | **Cancel** the sheet, or **Stop** a duplicate search under way |
 
 ## Capture
 

@@ -10,6 +10,7 @@
 - [Tools](Tools)
 - [Settings](Settings)
 - [Keyboard Shortcuts](Keyboard-Shortcuts)
+- [Languages](Languages)
 - [Architecture](Architecture)
 - [Security and Privacy](Security-and-Privacy)
 - [Accessibility](Accessibility)

@@ -4,6 +4,8 @@ Choose **minivu > Settings…** (⌘,). The window has six panes: **General**, *
 
 Every change is saved and takes effect the moment you make it; there is no OK or Apply button. Settings live in minivu's sandbox container, on your Mac only (see [Security and Privacy](Security-and-Privacy)).
 
+There is no language setting in minivu. It follows the language you choose for it in macOS; see [Languages](Languages).
+
 ## General
 
 | Setting | Choices | Default |
@@ -13,12 +15,19 @@ Every change is saved and takes effect the moment you make it; there is no OK or
 | **Wrap around at end of folder** | on or off | off |
 | **Open viewer in full screen** | on or off | on |
 | **Ask before saving over the original** | on or off | on |
+| **Write ratings into files (XMP)** | on or off | off |
 
 - **Theme.** **System** follows macOS's light or dark appearance. **Bright** and **Dark** are the standard light and dark looks; **Gray** is the dark look with lighter surfaces. **View > Theme** sets the same thing.
 - **Show hidden files** lists hidden files and folders in the browser. **View > Show Hidden Files** (⇧⌘.) toggles the same setting.
 - **Wrap around at end of folder.** Going to the next image after the last goes back to the first, and the previous image before the first goes to the last. It applies in the viewer and Compare, and to scrolling over the browser's preview pane.
 - **Open viewer in full screen.** Double-clicking an image, or pressing Return, opens the viewer full screen; off, it opens in a window. See [Viewer](Viewer).
 - **Ask before saving over the original.** **File > Save** asks before it writes over the file. Ticking **Don't ask again** in that question turns this off; this switch is the way to turn it back on. See [Editing](Editing).
+- **Write ratings into files (XMP).** *XMP* is a standard block of metadata that Lightroom, Bridge, digiKam and many other apps read. While this is on, every star rating, tag and colour label you set in minivu is also written into the photo as XMP. Camera RAW files, and formats minivu can't rewrite without re-encoding, get an *XMP sidecar* instead: a small `.xmp` file with the same name, beside the photo. minivu never re-encodes the pixels to do this. It is off by default because it changes your files.
+  - Only changes made while it is on are written. Turning it on doesn't copy the marks you set before.
+  - Writing a mark into a JPEG, HEIC, PNG or TIFF changes the file's modification date, so its thumbnail is made again.
+  - Videos are never written to; their marks stay in minivu's catalog.
+  - Reading is always on, whatever this setting says. A photo you haven't rated in minivu shows the rating and tag it carries itself, for example from Lightroom. Once you rate it in minivu, minivu's rating wins and the file's is no longer shown.
+  - A colour label (**Image > Label**) is always written, as the file's Finder colour tag, whether this is on or off. This setting adds a copy in the XMP.
 
 ## Viewer
 
@@ -96,6 +105,8 @@ How **Tools > Start Slideshow** plays. [Tools](Tools) describes the show itself.
 - The **Transition** section has a small preview of the chosen transition; click it to play. With Reduce Motion on in macOS's Accessibility settings, transitions that move the picture play as a cross-fade.
 - **Music.** **Add…** chooses MP3, AAC, WAV and AIFF files, or folders of them, and turns **Play music** on. Each song or folder is listed with **Remove**; the list reads "No music chosen" when empty. **Shuffle** and **Volume** are available while **Play music** is on. The music fades in when a slideshow starts, pauses with it, and fades out when it ends.
 
+**Slideshow videos.** **Tools > Export Slideshow Video…** plays the same settings: slide time, transition and its duration, order, captions and music. Its dialog shows them, with a **Slideshow Settings…** button that opens this pane. The video's own choices (resolution, frame rate, codec, quality and file type) are kept separately, in the dialog. See [Tools](Tools).
+
 **During a show.** In a show that started with music, **Volume** and **Play music** apply at once. **Show each slide for**, **Transition**, **Duration** and **Captions** apply from the next slide. **Order**, **Start again after the last slide**, the songs and **Shuffle** apply to the next show.
 
 ## Editors
@@ -114,10 +125,21 @@ The images open as saved. When the editor saves one, minivu shows the change; se
 
 Some choices are kept between launches without appearing in Settings. They are saved in the same place:
 
-- The browser's sort order.
-- Save As's format and its options for each format.
-- The Batch Convert sheet (when you press **Convert**), its name pattern, and Batch Rename's pattern (when you press **Rename**), each kept separately.
+- **View > Live Text**, on by default. It lets you select and copy text in the viewer's picture. Off, minivu doesn't look for text at all. See [Viewer](Viewer).
+- The browser's sort order, and the direction for each sort key.
+- How much of the preview pane's height the image takes, above the details.
+- Save As's format and its options for each format, including **Keep metadata** and **Remove location**.
+- The Batch Convert sheet (when you press **Convert**), its name pattern, and Batch Rename's pattern (when you press **Rename**), each kept separately. Batch Convert also remembers which preset it showed.
+- Batch Convert and Batch Rename presets: the named settings you save in those sheets, or with **File > Save Edits as Preset…** in the viewer.
+- The Extract Pages sheet and its name pattern, apart from Batch Convert's.
+- The Create Multi-Page File and Image Strip sheets.
 - The print layout from the print panel's **Picture Layout** section.
 - The Contact Sheet dialog, except the header text.
+- The Create Web Gallery dialog, except the title.
+- The Export Slideshow Video dialog.
 - Montage Wallpaper's layout, spacing and background.
+- Find Duplicates' **Find** choice, **Similarity** threshold and **Keep** rule.
+- The Compare window's arrangement and **Sync Zoom**.
 - The Settings pane you last looked at.
+
+**Edit > Find…** starts from the last search made in that window, but searches aren't kept between launches. To keep one, use **File > Save as Smart Folder…**; smart folders and collections live in the catalog, not in settings.
