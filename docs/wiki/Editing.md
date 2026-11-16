@@ -1,6 +1,6 @@
 # Editing
 
-Editing happens in the viewer (see [Viewer](Viewer)). Every change is kept as a step in a list and shown as you make it, but the file on disk stays exactly as it was until you save. The Image menu holds every tool; the File menu holds Save, Save As and Revert to Saved; the Edit menu holds Undo and Redo. The in-app help (**Help > minivu Help**, ⌘?) has a shorter version of this page under Editing and Effects & Retouching.
+Editing happens in the viewer (see [Viewer](Viewer)). Every change is kept as a step in a list and shown as you make it, but the file on disk stays exactly as it was until you save. The Image menu holds every tool; the File menu holds Save, Save As, Revert to Saved and Save Edits as Preset; the Edit menu holds Undo, Redo and Copy Subject. The in-app help (**Help > minivu Help**, ⌘?) has a shorter version of this page under Editing and Effects & Retouching.
 
 ## How an edit works
 
@@ -10,20 +10,27 @@ Lengths are stored in pixels of the full image, or as a share of its short side,
 
 The render works in extended linear Display P3 in half floats, so wide-gamut colours and HDR highlights pass through every operation that isn't meant to clip them. An original wider or taller than 16384 px is shown at that size while you edit and saved at its own size.
 
-Still images can be edited, including one page of a PDF or a multi-page TIFF. Animated GIFs and PNGs can't, because only one frame would be saved. Edits are not stored anywhere but the open session: move on without saving and they are gone, after you have been asked.
+Still images can be edited, including one page of a PDF or a multi-page TIFF. Animated GIFs and PNGs can't, because only one frame would be saved. Videos can't be edited either: with a video on screen every tool in the Image menu, the tools panel and Save, Save As and Revert are greyed out, because minivu writes no video. (**File > Save Frame As…** saves the frame on screen as a picture; see [Viewer](Viewer).) Edits are not stored anywhere but the open session: move on without saving and they are gone, after you have been asked.
 
 ## The tools panel
 
-Move the pointer to the left edge of the viewer, or click **Show Edit Tools** in the control bar, for the tools panel. It lists the tools in four groups: **Adjust** (Resize, Crop, Rotate & Flip, Straighten, Lighting, Colors, Curves, Levels, Sharpen, Blur), **Effects** (Color Effects, Drop Shadow, Frame, Bump Map, Sketch, Oil Painting, Lens), **Draw** (Text and Shapes) and **Retouch** (Clone Stamp, Healing Brush, Red-Eye Removal). The same tools are in the **Image** menu.
+Move the pointer to the left edge of the viewer, or click **Show Edit Tools** in the control bar, for the tools panel. It lists the tools in four groups:
+
+- **Adjust:** Resize, Canvas Size, Crop, Rotate & Flip, Straighten, Perspective, RAW Adjustments, Auto Enhance, Lighting, Colors, Curves, Levels, Sharpen, Blur, Noise Reduction.
+- **Effects:** Color Effects, Drop Shadow, Frame, Bump Map, Sketch, Oil Painting, Lens, Vignette.
+- **Draw:** Text and Shapes, Watermark.
+- **Retouch:** Clone Stamp, Healing Brush, Red-Eye Removal, Remove Background.
+
+The same tools are in the **Image** menu. Only these have a shortcut: Rotate Left ⌘L, Rotate Right ⌘R, Resize/Resample ⌥⌘I, Crop ⌘K, Lighting ⌥⌘L, Colors ⌥⌘C, Curves ⇧⌘M and Levels ⇧⌘L. Every other tool has none.
 
 Opening a tool replaces the list with its controls and keeps the panel open; the chevron at the top goes back to the list. One tool is open at a time.
 
 - **Apply** adds the change as one step, **Cancel** leaves it out, and **Reset** puts the controls back where they started. Return applies and Esc cancels, from the canvas or a number field.
 - Sliders in the adjustment, effect and retouch tools have a number field beside them: type a value and it is clamped to the slider's range. Double-click a slider to reset it. (Text and Shapes sliders show their value but have no field.)
-- Tools that preview as they open (Sharpen, Blur and every effect) show their starting settings at once, so opening Drop Shadow already shows a shadow.
+- Tools that preview as they open (Sharpen, Blur, Noise Reduction, Watermark and every effect) show their starting settings at once, so opening Drop Shadow already shows a shadow.
 - While a tool is open you can still zoom and pan.
 
-**Switching tools.** Choosing another command while a tool is open closes it first. What happens to its changes depends on the kind of tool. Tools of settings (sliders, curves, levels, crop and the effects) are cancelled, so looking through the effects doesn't stack every one you looked at. Tools of hand-made steps (Clone Stamp and Healing Brush strokes, red-eye circles, Text and Shapes objects) apply what you have done, so a drawing doesn't vanish because you pressed ⌘R. Only Cancel, Esc, the back chevron or Undo drop those. Save and Save As apply whatever tool is open before they write.
+**Switching tools.** Choosing another command while a tool is open closes it first. What happens to its changes depends on the kind of tool. Tools of settings (sliders, curves, levels, crop, perspective, RAW Adjustments, the watermark, Remove Background and the effects) are cancelled, so looking through the effects doesn't stack every one you looked at. Tools of hand-made steps (Clone Stamp and Healing Brush strokes, red-eye circles, Text and Shapes objects) apply what you have done, so a drawing doesn't vanish because you pressed ⌘R. Only Cancel, Esc, the back chevron or Undo drop those. Save and Save As apply whatever tool is open before they write.
 
 ## Undo and redo
 
@@ -43,16 +50,33 @@ With a tool open, ⌘Z first takes back its unapplied change (closing the tool),
 
 **Straighten…** turns the image by **Angle**, −45° to 45°, over a grid for lining up a horizon or a wall, and crops the empty corners away to the largest upright rectangle inside.
 
+**Image > Canvas Size…** changes the canvas, the area the picture sits on, without resizing the picture. The Canvas Size sheet has **Unit** (Pixels or Percent), **Width** and **Height**, an **Anchor** (a 3 × 3 grid that says where the picture sits on the new canvas; the centre to start), and the colour of the added area: **Fill** (white to start) or **Transparent**. JPEG and BMP fill a transparent canvas when saving; the other formats keep it. The sheet shows the current and new size. A canvas smaller than the picture crops it about the anchor, and the sheet says so. A side can be at most 32,768 px, as in Resize, and **Apply** is greyed out while the size is unchanged.
+
+**Image > Perspective…** straightens something photographed at an angle, such as a document, a screen or the front of a building. Four white handles sit on the corners of the picture. Drag each one onto a corner of something that should be rectangular; the area outside them is dimmed, and a grid shows inside. **Auto** asks Apple's Vision framework, on this Mac, for the most prominent rectangle and moves the handles there; the line under it says whether one was found. **Show result** previews the correction. Under **Corners**, each corner's position can also be typed, across and down, as a percentage of the picture. Return or a double-click inside applies. The new picture is as wide and tall as the longer of each pair of opposite edges. Handles that cross each other turn the outline red, and **Apply** then does nothing. The handles can't go outside the picture.
+
 ## Tone and colour
 
 | Tool | Controls | Shortcut |
 |---|---|---|
+| **Image > Adjust > RAW Adjustments…** | Exposure, Boost, Recover highlights; Temperature, Tint; Luminance Noise, Color Noise | none |
 | **Image > Adjust > Lighting…** | Brightness, Contrast, Gamma, Shadows, Highlights | ⌥⌘L |
 | **Image > Adjust > Colors…** | Hue, Saturation, Lightness, Temperature, Tint; Red, Green, Blue | ⌥⌘C |
 | **Image > Adjust > Curves…** | a curve for RGB, Red, Green and Blue | ⇧⌘M |
 | **Image > Adjust > Levels…** | input black, gamma and white; output black and white, per channel | ⇧⌘L |
+| **Image > Adjust > Auto Enhance** | none: one click | none |
 | **Image > Adjust > Sharpen…** | Amount, Radius | none |
 | **Image > Adjust > Blur…** | Radius | none |
+| **Image > Adjust > Noise Reduction…** | Level, Sharpness | none |
+
+**RAW Adjustments** works only on camera RAW files (it is greyed out for anything else). Its settings are those of Apple's RAW engine, the part of macOS that turns a camera's sensor data into a picture; they change how the file is developed, before every other edit. minivu is still not a full RAW developer: there are no profiles, lens corrections or local adjustments.
+
+- **Exposure**, −4 to +4 EV (a step of 1 EV doubles or halves the light), 0 to start, on top of the camera's own setting.
+- **Boost**, 0–100% (100% to start): how much of the engine's contrast curve is applied; lower is flatter.
+- **Recover highlights**, on to start. It shows only on macOS 26 and later, and only when the engine supports it for that camera.
+- **White Balance:** **Temperature**, 2000 to 20000 K, and **Tint**, −150 to 150. Both start at the white balance the camera recorded.
+- **Noise Reduction:** **Luminance Noise** and **Color Noise**, 0–100%, starting at what the engine picks for the photo. Each shows only when the engine supports it for that camera.
+
+The tool opens on the settings in effect: the last RAW Adjustments step, or with none, the camera's. The canvas then shows the engine's rendering, even if the viewer was showing the camera's embedded JPEG before. **Reset** and a double-click on a slider go back to the camera's settings. **Apply** adds one step, **Undo RAW Adjustments**. Open the tool again later and it starts from those settings, and the new step replaces them. Save can't write RAW files, so the result reaches a file through **Save As…**. A RAW file whose camera the engine doesn't know gets a beep.
 
 **Lighting.** Brightness, Contrast, Shadows and Highlights run from −100 to 100. Brightness lifts or lowers every tone by up to half the range; Contrast scales the distance from middle grey by up to three times either way; Shadows and Highlights brighten or darken one end of the range by up to 1.5 stops, fading out towards the other end. **Gamma** runs from 0.20 to 5.00 on a logarithmic slider, with 1 in the middle; above 1 brightens the midtones.
 
@@ -63,6 +87,10 @@ With a tool open, ⌘Z first takes back its unapplied change (closing the tool),
 **Levels.** Under the histogram are the black, midtone and white input handles, and under those a grey ramp with the two output handles. The same five values can be typed: **Input** Black, Gamma and White, and **Output** Black and White, as 0–255 (gamma 0.10 to 9.99). Output white below output black inverts the channel. As with curves, a colour channel applies before RGB.
 
 **Sharpen** is an unsharp mask: **Amount** 0 to 5 (1.00 to start) and **Radius** 0.5 to 20 px (1.5 px). **Blur** is a Gaussian blur with **Radius** 0.5 to 100 px (2 px); the image's edge pixels are repeated outward, so the edges don't fade. Both lengths are pixels of the full image.
+
+**Auto Enhance** has no controls. It looks at the picture as it stands, asks Core Image (Apple's image-processing framework) which corrections it suggests, such as a tone curve, vibrance, a lift of shadows and highlights, or a white-balance shift, and adds them as one step, **Undo Auto Enhance**. The measured values are stored in the step, so the preview, the saved file and a reload all show exactly the same result. A photo that needs nothing gets a beep and no step. The command is greyed out for the moment the measuring takes. Running it twice adds two steps.
+
+**Noise Reduction** smooths grain while keeping edges. **Level** is 0–100% (50% to start): how large a difference counts as noise. **Sharpness** is 0 to 2 (0.40 to start): how much of the edges is added back, without sharpening the noise. It previews at once. At fit-to-window size it seems to do little, because a screen-sized copy has already lost most of its noise; zoom to 100% to judge it.
 
 ## Effects
 
@@ -76,6 +104,7 @@ The other effects open with their settings in the panel and a live preview. Size
 - **Sketch…** draws the photo from its edges. **Style** is Pencil, Charcoal or Colored Pencil; **Strength** sets how dark the lines are, and **Line width** (1–40 px) how far a line spreads, so wider lines pick up softer edges. The width starts at 6 px for a 24 MP photo, scaled with the photo's size.
 - **Oil Painting…** paints the photo in brush strokes. **Brush size** is 1 to 16 px of the full image, starting at 4 px for 24 MP scaled with the size, so zoom to 100% to judge it. **Levels** (10–60, 30 to start) sets how many brightness steps there are; fewer paints flatter patches.
 - **Lens…** magnifies a round part of the image as if under a lens. **Magnification** runs from 0.5× to 3× (below 1× the lens pinches), **Radius** from 2% to 100%, and **Glass rim** adds a glassy edge. Drag inside the circle to move it, drag its edge to resize it, and double-click inside to apply.
+- **Vignette…** darkens or lightens the edges of the photo. **Amount** runs from −100 to 100 (50 to start): positive darkens the edges, negative lightens them, by up to two stops in the corners. **Radius** (0–100%, 50% to start) is where the change begins, measured from the centre towards the corners, and **Feather** (0–100%, 50% to start) is how gradually it fades in.
 
 ## Retouch
 
@@ -89,6 +118,10 @@ Option-click where to copy from, then paint. The source follows the brush at the
 The panel also shows whether a source is set and how many strokes there are. ⌘Z takes back the last stroke and ⇧⌘Z brings it back. **Apply** adds every stroke as one step.
 
 **Red-Eye Removal…** darkens red pupils inside circles. **Auto Detect** looks for faces with Apple's Vision framework, on this Mac, in a 1600 px rendering of the image with its edits so far, and adds a circle for each eye that is red and not already covered by one of yours. Or drag from a pupil's centre to draw a circle, or click one for a circle of the default size. Drag a circle to move it; Delete removes the selected one. Only reddish pixels inside a circle change, so the catchlight stays. Each circle is listed under **Eyes** with its own **Strength** and a button to remove it, and ⌘Z removes the last circle.
+
+**Remove Background…** cuts the subject out of the photo and removes everything behind it. When the tool opens it says **Finding the subject…** while Apple's Vision framework looks for it, on this Mac; nothing is sent anywhere. Then it says **Subject found** and previews the cut-out, or **No subject found**, with a hint, and **Apply** does nothing. Every subject Vision finds counts, so a person and their dog stay together. **Background** is **Transparent** (to start) or, with Transparent off, a **Background color**. PNG, TIFF and HEIC keep the transparency; saving as JPEG fills it with Save As's background colour. **Apply** adds one step, **Undo Remove Background**. The edge is as soft as Vision makes it: there is no brush to refine it, and no way to keep only one of several subjects. Landscapes and textures often have no subject Vision can find.
+
+**Edit > Copy Subject** puts the subject of the picture on screen on the clipboard, cut out and cropped to it, as PNG and TIFF, without changing the document. A change in an open tool is included. With no subject it beeps and leaves the clipboard as it was. It has no shortcut and works only in the viewer.
 
 ## Text and Shapes
 
@@ -104,6 +137,23 @@ Arrow keys nudge the selection by one pixel of the image, ten with Shift. ⌘D d
 
 Objects are drawn as vectors at whatever size the image renders, so text stays sharp at 100% and in the saved file. **Apply** adds the drawing as one step. Open Text and Shapes again while that drawing is still the last step, and it comes back as objects to edit. Once another edit is on top of it, or the image is saved, the tool starts a new drawing.
 
+## Watermark
+
+**Image > Watermark…** (or **Watermark** in the panel's Draw group) stamps a line of text or a small picture, such as a logo, on the photo. It previews at once. **Kind** is **Text** or **Image**.
+
+- **Text:** the text itself (it starts as "©" and the year), **Font** (System or any installed family), **Weight** and **Color**. Line breaks are drawn as spaces: a watermark is one line.
+- **Image:** **Choose Picture…** picks the file, and its name is shown. PNG or HEIC pictures with transparency work best. Files on external drives, memory cards and network shares are refused with a beep, as everywhere in minivu. minivu remembers the file with a read-only bookmark (a saved reference that lets it read the file again later), so a Batch Convert preset can use it next time. If the file has moved, choose it again.
+
+**Placement:**
+
+- **Size**, 1–100% of the photo's short side (5% to start): the height of the text or the picture.
+- **Opacity**, 60% to start.
+- **Position**, one of nine places (bottom right to start).
+- **Margin**, 0–25% of the short side (3% to start): the space to the photo's edges.
+- **Tile across the photo** repeats the watermark in a grid over the whole photo, with **Spacing** between tiles from 0.2 to 5 watermark heights (1.5 to start).
+
+Because size and margin are shares of the short side, the watermark covers the same share of any photo. A text or picture too big for the photo is shrunk to fit inside the margins, so it can come out smaller than **Size** says. **Apply** adds one step, **Undo Watermark**. There is no rotation, outline or shadow, and a picture is drawn in SDR. Batch Convert can add a watermark to many photos at once; see [Tools](Tools).
+
 ## Saving
 
 | Command | Shortcut |
@@ -111,20 +161,21 @@ Objects are drawn as vectors at whatever size the image renders, so text stays s
 | **File > Save** | ⌘S |
 | **File > Save As…** | ⇧⌘S |
 | **File > Revert to Saved** | none |
+| **File > Save Edits as Preset…** | none |
 
-Every write to an image file (Save, Save As, a comment, a lossless rotate) goes through one queue, so ⌘S, an edit and ⌘S again land in that order. A small progress sheet appears only if a save takes long enough to notice. Quitting waits for queued writes to finish.
+Every write to an image file (Save, Save As, a comment, a metadata edit, a lossless rotate) goes through one queue, so ⌘S, an edit and ⌘S again land in that order. A small progress sheet appears only if a save takes long enough to notice. Quitting waits for queued writes to finish.
 
 ### Save
 
-**File > Save** writes the edited image over the original, in the same format, colour space and bit depth, with the options last used in Save As for that format (or its defaults). Grey, CMYK, Lab and indexed-colour originals are written in sRGB, HDR originals in Display P3, and 16 bits per channel is kept only in PNG and TIFF. The file's metadata is always kept where the format can hold it (JPEG, PNG, HEIC and TIFF): the orientation is reset, because the pixels are now upright, the pixel size is updated, any embedded thumbnail is dropped, and a JPEG's comment is carried over. Camera Raw's edit settings and descriptions of an old gain map are left out.
+**File > Save** writes the edited image over the original, in the same format, colour space and bit depth, with the options last used in Save As for that format (or its defaults). Grey, CMYK, Lab and indexed-colour originals are written in sRGB, HDR originals in Display P3, and more than 8 bits per channel is kept only in PNG and TIFF (16 bits) and AVIF (10 bits). The file's metadata, location included, is always kept where the format can hold it (JPEG, PNG, HEIC, AVIF and TIFF): the orientation is reset, because the pixels are now upright, the pixel size is updated, any embedded thumbnail is dropped, and a JPEG's comment is carried over. Camera Raw's edit settings and descriptions of an old gain map are left out.
 
 Before writing, minivu asks **Replace the original “name”?** and says the format and quality it will write, because that quality is the last one chosen in Save As. The alert has **Don’t ask again**; to be asked again, turn **Ask before saving over the original** back on in **Settings > General** (see [Settings](Settings)).
 
 The new file is written beside the old one under a hidden temporary name and swapped into place when complete, so a crash or a full disk never leaves a half-written photo. The swap keeps the file's creation date, permissions and Finder tags. Because the file is new, a hard link to the old one keeps the old picture; a symbolic link is written through to the file it points at.
 
-minivu can't write some formats back: camera raw, WebP, AVIF, JPEG XL, PDF, SVG, PSD, animated files and multi-page files. For those, and for a file that has been renamed or moved away, Save opens Save As.
+minivu can't write some formats back: camera raw, WebP, JPEG XL, PDF, SVG, PSD, OpenEXR, ICNS, CUR, animated files (APNG included), files with more than one image (a multi-page TIFF, an icon with several sizes, a HEIC collection), AVIF on a Mac whose macOS can't write AVIF, and other formats minivu can't write. For those, and for a file that has been renamed or moved away, Save opens Save As.
 
-**HDR.** Saving a JPEG or HEIC that has a gain map keeps it HDR: the edit is rendered with the original's highlights and written as a new SDR image with a new gain map, whatever the viewer's HDR setting. PQ and HLG files, and gain maps in other formats, are saved tone mapped to SDR, and the Replace alert says so.
+**HDR.** Saving a JPEG, HEIC or AVIF that has a gain map (extra data in the file that tells an HDR screen how much brighter each part may be shown) keeps it HDR: the edit is rendered with the original's highlights and written as a new SDR image with a new gain map, whatever the viewer's HDR setting. PQ and HLG files, and gain maps in other formats, are saved tone mapped to SDR, and the Replace alert says so.
 
 ### Save As
 
@@ -132,24 +183,36 @@ minivu can't write some formats back: camera raw, WebP, AVIF, JPEG XL, PDF, SVG,
 
 | Option | Formats | Notes |
 |---|---|---|
-| **Format** | JPEG, PNG, HEIC, TIFF, BMP, GIF, TGA, JPEG 2000, ICO | |
-| **Quality** | JPEG, HEIC, JPEG 2000 | 1 to 100; starts at 90, or 80 for HEIC |
-| **Color profile** | JPEG, PNG, HEIC, TIFF, JPEG 2000 | Keep original, sRGB, Display P3 or Adobe RGB (1998); the other formats are written in sRGB |
+| **Format** | JPEG, PNG, HEIC, AVIF, TIFF, BMP, GIF, TGA, JPEG 2000, ICO | AVIF only where macOS can write it |
+| **Quality** | JPEG, HEIC, AVIF, JPEG 2000 | 1 to 100; starts at 90, or 80 for HEIC and AVIF |
+| **Color profile** | JPEG, PNG, HEIC, AVIF, TIFF, JPEG 2000 | Keep original, sRGB, Display P3 or Adobe RGB (1998); the other formats are written in sRGB |
 | **Compression** | TIFF | None, LZW (the default) or PackBits, all lossless |
 | **Background** | JPEG, BMP | only when the image has transparency to flatten |
 | **Progressive** | JPEG | |
-| **16 bits per channel** | PNG, TIFF | on to start when the source is deeper than 8 bits, unless you have saved in that format before |
-| **Keep metadata (EXIF, GPS, IPTC, XMP)** | JPEG, PNG, HEIC, TIFF | |
+| **16 bits per channel** (**10 bits** for AVIF) | PNG, TIFF, AVIF | on to start when the source is deeper than 8 bits, unless you have saved in that format before |
+| **Keep metadata (EXIF, GPS, IPTC, XMP)** | JPEG, PNG, HEIC, AVIF, TIFF | |
+| **Remove location** | JPEG, PNG, HEIC, AVIF, TIFF | under Keep metadata, and greyed out while it is off; on to start. Leaves out the GPS position and the IPTC place names (city, country and so on) and keeps the rest |
 
-Options are remembered for each format. **Estimated size** is the size of the file these options would write, from a full encode shortly after the last change; for a large image that takes a while, it shows a figure worked out from a centre crop until the exact one arrives. **Compare…** (not for ICO) opens a Compare Quality window with the original and the saved result side by side at 100%, 200% or 400% (⌘= and ⌘-); for JPEG, HEIC and JPEG 2000 it has its own **Quality** slider that moves the panel's.
+Options are remembered for each format. **Estimated size** is the size of the file these options would write, from a full encode shortly after the last change; for a large image that takes a while, it shows a figure worked out from a centre crop until the exact one arrives. **Compare…** (not for ICO) opens a Compare Quality window with the original and the saved result side by side at 100%, 200% or 400% (⌘= and ⌘-); for JPEG, HEIC, AVIF and JPEG 2000 it has its own **Quality** slider that moves the panel's.
 
-Save As always writes SDR: an HDR photo is tone mapped. **Keep original** on an edited image keeps a wide-gamut source's colour space and otherwise saves in Display P3, so colours an edit pushed past sRGB aren't clipped; grey, CMYK, Lab and indexed-colour sources are saved in sRGB. Saving over the image's own file counts as saving the edits; saving anywhere else leaves them unsaved in the viewer.
+Save As always writes SDR: an HDR photo is tone mapped. **Keep original** on an edited image keeps a wide-gamut source's colour space and otherwise saves in Display P3, so colours an edit pushed past sRGB aren't clipped; grey, CMYK, Lab and indexed-colour sources are saved in sRGB. Saving over the image's own file counts as saving the edits; saving anywhere else leaves them unsaved in the viewer. Saving over the image's own file also keeps its location, whatever **Remove location** says, because that file is your only copy.
 
 In the browser, **Save As…** converts the one selected image as it is. To convert many, use **Tools > Batch Convert…** (see [Tools](Tools)).
 
 ### Revert to Saved
 
 **File > Revert to Saved** asks, then throws away every unsaved edit and shows the file as saved.
+
+### Save Edits as Preset
+
+**File > Save Edits as Preset…** keeps the steps of the photo on screen as a preset: a named set of edits that **Tools > Batch Convert…** can apply to many photos (see [Tools](Tools)). It works only in the viewer, while the photo has edits. A change in an open tool is applied first, as Save As does, and Cancel in the sheet doesn't take it back (⌘Z does). The photo's own edits are not changed.
+
+The sheet has a **Name** (the photo's name and "Edits" to start), and two lists:
+
+- **Included:** the steps the preset will apply, in order. Some carry a note, because they behave differently on other photos: Auto Enhance is measured again on each photo; Crop and Perspective take the same part of each photo, as a fraction of its size; RAW Adjustments applies to RAW files only.
+- **Left Out:** the steps that only make sense on this photo, each with the reason. These are Resize and Canvas Size (sizes in pixels), Text and Shapes, Clone Stamp, Healing Brush and Red-Eye Removal (placed on this photo's content), and Remove Background (the subject was found in this photo). A Crop or Perspective that comes after a left-out Canvas Size is left out too.
+
+A name already used replaces that preset, and the line by the buttons says so. When no step can travel, the line says so in red and **Save** is greyed out. Saving over a preset made in Batch Convert replaces its edits and keeps its output options.
 
 ### Unsaved edits
 
@@ -163,14 +226,28 @@ A document remembers the file's modification date and size from when editing beg
 
 **Image > Edit Comment…** edits the comment stored in a JPEG: the image shown in the viewer, or the one JPEG selected in the browser. The JPEG Comment sheet shows the text and its size in bytes. Return starts a new line; **Save** (⌘Return) writes the comment without re-encoding the image, replacing the file atomically, and Esc cancels. A comment longer than 65,533 bytes is stored in several segments, which minivu reads back as one.
 
-Ratings and tags are kept in minivu's catalog rather than in the file; see [Browser](Browser). There is no editor for other metadata.
+Ratings and tags are kept in minivu's catalog rather than in the file; see [Browser](Browser).
+
+## Metadata
+
+**Image > Edit Metadata…** (⌘I, also in the grid's right-click menu) edits the descriptive metadata of the image shown in the viewer, or of every image selected in the browser. Metadata is the information stored in a photo file beside the picture: who took it, when, where, and what it shows. The sheet has:
+
+- **Description:** **Title**, **Caption**, **Creator** (names separated by semicolons, since a name can contain a comma) and **Copyright**.
+- **Keywords:** every keyword any of the files has, with "2 of 5" beside one that only some have. The minus button removes a keyword from every file, and the plus button adds a partial keyword to the rest. Type new keywords in the field, separated by commas, and press Return.
+- **Date Taken:** **Leave unchanged**, **Shift by** (Later or Earlier, by days, hours, minutes and seconds, for example to fix a camera clock set to the wrong time zone) or **Set to** a date and time.
+- **Location:** **Remove location** takes out the GPS position and the IPTC place names and keeps everything else. It is greyed out when none of the files has a location.
+
+With several files, a field whose value differs shows "Mixed". Left empty, it keeps each file's own value; typing writes the new value to all of them; the x button beside it removes the field from every file. Only the fields you change are written. **Save** is greyed out until something has changed, and Esc cancels.
+
+JPEG, HEIC, PNG and TIFF files are changed in place without re-encoding the picture. Camera RAW files (which minivu never modifies) and formats it can't rewrite get an XMP sidecar instead: a small file named like the photo with the extension `.xmp`, which Lightroom, Bridge and Capture One also read. A RAW file's own location therefore stays in the RAW file, and the summary afterwards says so. PDF, SVG and video files can't have their metadata edited; they are skipped and named in the summary. With more than one file a progress sheet with **Cancel** appears; each file is written whole or not at all. If the image has unsaved edits in the viewer, minivu asks about them first.
 
 ## What editing doesn't do
 
 - No layers, masks or local adjustments; every tool changes the whole image, except the retouching tools, the lens and drawn objects.
 - Edits aren't kept once you move on without saving, and undo doesn't reach back past a save.
-- Save As writes SDR only, and Save keeps HDR only for gain-map JPEG and HEIC files.
-- Animated files can't be edited.
-- Adjustments can't be applied to many files at once; Batch Convert resizes, rotates and flips.
+- Save As writes SDR only, and Save keeps HDR only for gain-map JPEG, HEIC and AVIF files.
+- Animated files and videos can't be edited.
+- RAW Adjustments offers only the RAW engine's own settings: no lens corrections, profiles or local changes.
+- To edit many files at once, save the edits as a preset and apply it with Batch Convert. Steps tied to one photo's content (drawings, retouching, Remove Background) and pixel sizes (Resize, Canvas Size) can't go into a preset.
 
 See [Limitations](Limitations) for the full list, and [Keyboard Shortcuts](Keyboard-Shortcuts) for every key.

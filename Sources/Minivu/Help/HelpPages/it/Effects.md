@@ -21,6 +21,9 @@ colore**.
 - **Lente…** ingrandisce una parte dell’immagine come se fosse sotto una
   lente. Trascina il cerchio per spostarlo, o il suo bordo per
   ridimensionarlo.
+- **Vignettatura…** scurisce i bordi della foto, o li schiarisce con un
+  valore negativo. Raggio imposta dove inizia e Sfumatura quanto
+  gradualmente si attenua.
 
 ## Testo e forme
 
@@ -35,6 +38,21 @@ di freccia, font, allineamento e ombra per l’oggetto selezionato.
   rimuove ed **Esc** la deseleziona.
 - Gli oggetti restano modificabili: riapri Testo e forme subito dopo e il
   disegno torna come oggetti anziché come pixel.
+
+## Filigrana
+
+**Immagine > Filigrana…** applica sulla foto un testo, come “© 2026”, o
+un’immagine, come un logo.
+
+- Scegli font, spessore e colore del testo, oppure **Scegli immagine…** per
+  un file immagine.
+- Imposta dimensione, opacità, una delle nove posizioni e il margine dal
+  bordo. **Affianca sull’intera foto** la ripete, con la spaziatura che
+  scegli.
+- Le dimensioni sono una frazione del lato corto della foto, così una
+  filigrana copre la stessa parte di ogni foto. Converti in blocco può
+  aggiungere la stessa filigrana a molte immagini; consulta
+  [Strumenti](help:Tools).
 
 ## Timbro clone e Pennello correttivo
 
@@ -54,3 +72,13 @@ oppure trascina un cerchio su ogni pupilla rossa, o fai clic su una di esse.
 Cambiano solo i pixel rossi all’interno di un cerchio, quindi il riflesso di
 luce rimane. Trascina un cerchio per spostarlo, impostane l’intensità nel
 pannello o premi **Elimina** per rimuoverlo.
+
+## Rimuovi sfondo
+
+**Immagine > Rimuovi sfondo…** trova il soggetto della foto, come una
+persona, un animale o un oggetto, e rimuove tutto il resto. Lascia lo sfondo
+trasparente oppure scegli un colore per riempirlo. Se non viene trovato alcun
+soggetto, minivu lo segnala e Applica non ha effetto.
+
+Per copiare il soggetto senza modificare la foto, usa **Modifica > Copia
+soggetto** nel visore. Entrambi trovano il soggetto sul tuo Mac.

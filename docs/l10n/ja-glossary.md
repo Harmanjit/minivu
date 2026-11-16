@@ -53,7 +53,7 @@ Apple の macOS 日本語版（Finder、写真、プレビュー）の用語に�
 | watermark | 透かし | |
 | preset | プリセット | |
 | edits | 編集内容 | |
-| image / picture / photo | イメージ / ピクチャ / 写真 | 原文の区別を保持 |
+| image / picture / photo | イメージ / ピクチャ / 写真 | 原文の区別を保持。例外: コンタクトシートと Web ギャラリーの「Pictures」「Large pictures」は 画像 / 大きい画像（ピクチャ フォルダーと区別するため） |
 | Pictures folder | ピクチャ | Finder の表示名 |
 | Trash | ゴミ箱 | |
 | Move to Trash | ゴミ箱に入れる | |
@@ -102,6 +102,30 @@ Apple の macOS 日本語版（Finder、写真、プレビュー）の用語に�
 | Flat View | フラット表示 | |
 | external editor | 外部エディタ | |
 | Custom Order | カスタムの順序 | |
+| More Filters… | その他のフィルタ… | |
+| Show All (filter) | すべてを表示 | |
+| Select Tagged / Invert Selection | タグ付きを選択 / 選択範囲を反転 | |
+| Find… / find across folders | 検索… / 複数のフォルダを検索する | |
+| Canvas Size… | カンバスサイズ… | |
+| Perspective… | 遠近補正… | |
+| RAW Adjustments… | RAW調整… | |
+| Auto Enhance | 自動補正 | |
+| Noise Reduction… | ノイズ除去… | |
+| Vignette… / Radius / Feather | ビネット… / 半径 / ぼかし幅 | |
+| Mixed (differing values) | 混在 | ヘルプでは “混在” |
+| GPS position / place names | GPSの位置 / 地名 | |
+| Copy Subject / Copy Text / Copy Frame | 被写体をコピー / テキストをコピー / フレームをコピー | |
+| subject (of a photo) | 被写体 | |
+| Export Slideshow Video… | スライドショービデオを書き出す… | |
+| Extract Pages… / Create Multi-Page File… | ページを取り出す… / マルチページファイルを作成… | |
+| Identical Files / Similar Images / Similarity | 同一のファイル / 類似イメージ / 類似度 | |
+| Mark Suggested | 推奨項目をマーク | |
+| Count Colors | 色数を数える | |
+| fingerprint (duplicate detection) | フィンガープリント | |
+| Shortcuts app | ショートカットApp | |
+| Language & Region | 言語と地域 | 「システム設定」>「一般」 |
+| codec / frame rate / data rate / scrubber | コーデック / フレームレート / データレート / スクラバー | |
+| mute | 消音 | |
 
 ## 英語のまま残したもの
 

@@ -1,7 +1,8 @@
 # Impostazioni
 
 Scegli **minivu > Impostazioni…** (**⌘,**). Ogni modifica ha effetto
-immediato; non c’è nulla da confermare.
+immediato; non c’è nulla da confermare. Anche **Vista > Tema** e **Vista >
+Testo live** sono impostazioni, e minivu le ricorda.
 
 ## Generali
 
@@ -12,6 +13,11 @@ immediato; non c’è nulla da confermare.
 - **Apri il visore a tutto schermo**, anziché in una finestra.
 - **Chiedi prima di sovrascrivere l’originale:** riattiva questa opzione se
   avevi scelto di non ricevere la richiesta durante il salvataggio.
+- **Scrivi le valutazioni nei file (XMP):** le stelle, il tag e le etichette
+  colore vengono scritti anche in ogni foto, così Lightroom, Bridge e altre
+  app li vedono. I file RAW, e i formati che minivu non può riscrivere,
+  ricevono invece un file sidecar XMP accanto. Disattivata all’inizio;
+  quando la attivi, vengono scritte solo le modifiche successive.
 
 ## Visore
 
@@ -28,7 +34,8 @@ immediato; non c’è nulla da confermare.
   più veloce, oppure l’elaborazione dei dati RAW. minivu elabora comunque i
   dati RAW quando l’anteprima è troppo piccola per lo schermo o lo zoom.
 - **Elabora i file RAW con gamma dinamica estesa** mostra le alte luci dei
-  file RAW in HDR, il che richiede un momento per ogni foto.
+  file RAW in HDR, il che richiede un momento per ogni foto. Anche
+  **Immagine > Regola > Regolazioni RAW…** segue questa impostazione.
 
 ## Lente d’ingrandimento
 
@@ -39,16 +46,19 @@ un’immagine, con un’anteprima.
 
 - **Dimensione** delle miniature nella griglia.
 - **Svuota cache delle miniature** rimuove le miniature salvate; vengono
-  ricreate dai file la prossima volta che visualizzi una cartella.
+  ricreate dai file la prossima volta che visualizzi una cartella. Le
+  miniature che minivu ha già mostrato restano finché non esci da minivu e
+  lo riapri.
 
 ## Presentazione
 
 La durata di ogni diapositiva, l’ordine, se ricominciare dopo l’ultima
 diapositiva, le didascalie (nome file, nome file e data, oppure fotocamera
 ed esposizione), la transizione e la sua durata con un’anteprima, e la
-musica: brani o cartelle, riproduzione casuale e volume. La modifica del
-volume, o l’attivazione e la disattivazione della musica, si applica anche a
-una presentazione già in corso.
+musica: brani o cartelle, riproduzione casuale e volume. In una
+presentazione avviata con la musica, la modifica del volume, o la
+disattivazione e l’attivazione della musica, si applica subito. **Strumenti > Esporta video della
+presentazione…** usa le stesse impostazioni, tranne il volume.
 
 ## Editor
 

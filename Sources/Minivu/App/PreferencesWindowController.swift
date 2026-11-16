@@ -3,8 +3,9 @@ import SwiftUI
 import MinivuRender
 
 extension Notification.Name {
-    /// Settings > Thumbnails > Clear Thumbnail Cache. The thumbnail cache
-    /// empties its memory and disk stores when it sees this.
+    /// Settings > Thumbnails > Clear Thumbnail Cache. AppServices empties the
+    /// disk store (`ThumbnailStore.removeAll`) when it sees this; thumbnails
+    /// already in memory stay until minivu quits.
     nonisolated static let minivuClearThumbnailCache = Notification.Name("MinivuClearThumbnailCache")
 }
 

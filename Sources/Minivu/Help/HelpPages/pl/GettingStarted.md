@@ -1,8 +1,8 @@
 # Pierwsze kroki
 
 minivu to szybka przeglądarka, podgląd i edytor obrazów na Maca. Pokazuje
-folder zdjęć jako miniatury, otwiera każde z nich na pełnym ekranie z
-wiernymi kolorami i prawdziwym HDR oraz edytuje bez zmieniania oryginału,
+folder zdjęć i wideo jako miniatury, otwiera każde z nich na pełnym ekranie
+z wiernymi kolorami i prawdziwym HDR oraz edytuje bez zmieniania oryginału,
 dopóki nie zachowasz zmian.
 
 ## Otwieranie folderu
@@ -27,7 +27,7 @@ dopóki nie zachowasz zmian.
 Kliknij dwukrotnie miniaturę lub zaznacz ją i naciśnij Return, aby otworzyć
 ją w [widoku obrazu](help:Viewer). Klawisze strzałek i spacja przenoszą po
 folderze, a Esc wraca do przeglądarki. Return przełącza widok obrazu między
-oknem a pełnym ekranem.
+oknem a pełnym ekranem. Wideo zaczyna się odtwarzać po naciśnięciu spacji.
 
 ## Wybieranie najlepszych zdjęć
 
@@ -35,6 +35,10 @@ Naciśnij klawisz od **1** do **5**, aby nadać zaznaczonym zdjęciom gwiazdki,
 lub **0**, aby je usunąć. Naciśnij klawisz grawisu (**`**), aby oznaczyć
 zdjęcia, które chcesz zachować. Następnie użyj menu Filtr na pasku narzędzi,
 aby pokazać tylko je. Zobacz [Przeglądarka](help:Browser).
+
+Aby przeglądać wiele folderów naraz, wybierz **Edycja > Znajdź…** (**⌘F**)
+lub **Widok > Widok płaski** (**⌥⌘F**), aby zobaczyć folder razem ze
+wszystkimi jego podfolderami.
 
 ## Edycja i zachowywanie
 
@@ -51,3 +55,13 @@ jako…**. Zobacz [Edycja](help:Editing).
   zawsze zgodna z menu.
 - minivu nigdy nie łączy się z internetem. Zobacz
   [Prywatność](help:Privacy).
+
+## Język
+
+Menu minivu i ta pomoc są w języku Twojego Maca. Aby używać innego języka
+tylko w minivu, dodaj minivu w sekcji Aplikacje w **Ustawienia systemowe >
+Ogólne > Język i region**. minivu jest dostępne w językach: angielskim,
+niemieckim, francuskim, hiszpańskim, włoskim, portugalskim (Brazylia),
+niderlandzkim, polskim, japońskim, chińskim (uproszczonym) i koreańskim.
+Tłumaczenia zostały wykonane maszynowo i nie zostały jeszcze sprawdzone przez
+rodzimych użytkowników języka.

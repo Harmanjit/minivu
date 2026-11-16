@@ -1,10 +1,10 @@
 # Premiers pas
 
 minivu est un navigateur, une visionneuse et un éditeur d’images rapide pour
-votre Mac. Il affiche un dossier de photos sous forme de vignettes, ouvre
-n’importe laquelle en plein écran avec des couleurs fidèles et un vrai HDR,
-et permet de les modifier sans changer l’original tant que vous
-n’enregistrez pas.
+votre Mac. Il affiche un dossier de photos et de vidéos sous forme de
+vignettes, ouvre n’importe laquelle en plein écran avec des couleurs fidèles
+et un vrai HDR, et permet de les modifier sans changer l’original tant que
+vous n’enregistrez pas.
 
 ## Ouvrir un dossier
 
@@ -29,7 +29,7 @@ Double-cliquez sur une vignette, ou sélectionnez-la et appuyez sur Retour,
 pour l’ouvrir dans la [visionneuse](help:Viewer). Les touches fléchées et
 Espace permettent de parcourir le dossier, et Échap vous ramène au
 navigateur. Retour fait basculer la visionneuse entre une fenêtre et le
-plein écran.
+plein écran. Une vidéo est lue lorsque vous appuyez sur Espace.
 
 ## Choisir les meilleures
 
@@ -38,6 +38,10 @@ sélectionnées, ou sur **0** pour les supprimer. Appuyez sur la touche accent
 grave (**`**) pour marquer celles que vous souhaitez garder. Utilisez
 ensuite le menu Filtre de la barre d’outils pour n’afficher que celles-ci.
 Consultez [Navigateur](help:Browser).
+
+Pour parcourir plusieurs dossiers à la fois, choisissez **Édition >
+Rechercher…** (**⌘F**), ou **Présentation > Présentation à plat** (**⌥⌘F**)
+pour voir un dossier et tous ses sous-dossiers ensemble.
 
 ## Modifier et enregistrer
 
@@ -55,3 +59,13 @@ sur le disque tant que vous ne choisissez pas **Fichier > Enregistrer** ou
   raccourcis, toujours à jour avec les menus.
 - minivu ne se connecte jamais à Internet. Consultez
   [Confidentialité](help:Privacy).
+
+## Langue
+
+Les menus de minivu et cette aide sont dans la langue de votre Mac. Pour
+utiliser une autre langue pour minivu uniquement, ajoutez minivu sous
+Applications dans **Réglages Système > Général > Langue et région**. minivu
+est disponible en anglais, allemand, français, espagnol, italien, portugais
+(Brésil), néerlandais, polonais, japonais, chinois (simplifié) et coréen.
+Les traductions ont été réalisées par machine et n’ont pas encore été
+vérifiées par des locuteurs natifs.

@@ -19,6 +19,9 @@ na hora. No painel esquerdo, eles ficam juntos em **Efeitos de Cor**.
   em versões dela mesma em relevo, desenhadas ou pintadas.
 - **Lente…** amplia parte da imagem como se estivesse sob uma lente. Arraste o
   círculo para movê-lo, ou a borda dele para redimensioná-lo.
+- **Vinheta…** escurece as bordas da foto, ou as clareia com um valor
+  negativo. Raio define onde ela começa e Suavização, quão gradualmente ela
+  se desfaz.
 
 ## Texto e Formas
 
@@ -34,6 +37,20 @@ selecionado.
   **Esc** a desmarca.
 - Os objetos continuam editáveis: abra Texto e Formas de novo logo em seguida,
   e o seu desenho volta como objetos, e não como pixels.
+
+## Marca-d’água
+
+**Imagem > Marca-d’água…** aplica um texto, como “© 2026”, ou uma imagem,
+como um logotipo, sobre a foto.
+
+- Escolha a fonte, o peso e a cor do texto, ou **Escolher Imagem…** para um
+  arquivo de imagem.
+- Defina o tamanho, a opacidade, uma de nove posições e a margem em relação à
+  borda. **Repetir lado a lado na foto** repete a marca, com o espaçamento que
+  você escolher.
+- Os tamanhos são uma fração do lado menor da foto, para que a marca-d’água
+  cubra a mesma parte de todas as fotos. A Conversão em Lote pode adicionar a
+  mesma marca-d’água a muitas imagens; consulte [Ferramentas](help:Tools).
 
 ## Carimbo e Pincel de Recuperação
 
@@ -53,3 +70,13 @@ rostos, ou arraste um círculo sobre cada pupila vermelha, ou clique em uma.
 Só os pixels vermelhos dentro de um círculo mudam, por isso o brilho do olho é
 mantido. Arraste um círculo para movê-lo, defina a intensidade dele no painel
 ou pressione **Delete** para removê-lo.
+
+## Remover Fundo
+
+**Imagem > Remover Fundo…** encontra o motivo da foto, como uma pessoa, um
+animal de estimação ou um objeto, e remove todo o resto. Deixe o fundo
+transparente ou escolha uma cor para preenchê-lo. Se nenhum motivo for
+encontrado, o minivu avisa, e Aplicar não faz nada.
+
+Para copiar o motivo sem alterar a foto, use **Editar > Copiar Motivo** no
+visualizador. Os dois encontram o motivo no seu Mac.

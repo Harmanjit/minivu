@@ -18,6 +18,9 @@ al instante. En el panel izquierdo están agrupados en **Efectos de color**.
   versión en relieve, dibujada o pintada de sí misma.
 - **Lente…** amplía una parte de la imagen como si estuviera bajo una lente.
   Arrastra el círculo para moverlo, o su borde para cambiar su tamaño.
+- **Viñeta…** oscurece los bordes de la foto, o los aclara con una cantidad
+  negativa. Radio define dónde empieza y Desvanecimiento, lo gradual que es
+  la transición.
 
 ## Texto y formas
 
@@ -33,6 +36,21 @@ objeto seleccionado.
   elimina y **Esc** anula la selección.
 - Los objetos siguen siendo editables: vuelve a abrir Texto y formas justo
   después y tu dibujo vuelve como objetos, no como píxeles.
+
+## Marca de agua
+
+**Imagen > Marca de agua…** estampa un texto, como “© 2026”, o una imagen,
+como un logotipo, sobre la foto.
+
+- Elige el tipo de letra, el grosor y el color del texto, o **Elegir
+  imagen…** para usar un archivo de imagen.
+- Define el tamaño, la opacidad, una de nueve posiciones y el margen desde el
+  borde. **Repetir en mosaico por la foto** la repite, con la separación que
+  elijas.
+- Los tamaños son una proporción del lado corto de la foto, así que una marca
+  de agua cubre la misma parte de cada foto. Conversión por lotes puede
+  añadir la misma marca de agua a muchas imágenes; consulta
+  [Herramientas](help:Tools).
 
 ## Tampón de clonar y Pincel corrector
 
@@ -52,3 +70,13 @@ o arrastra un círculo sobre cada pupila roja, o haz clic en una. Solo cambian
 los píxeles rojos dentro de un círculo, así que el reflejo se mantiene.
 Arrastra un círculo para moverlo, define su intensidad en el panel o pulsa
 **Eliminar** para quitarlo.
+
+## Eliminar fondo
+
+**Imagen > Eliminar fondo…** encuentra el sujeto de la foto, como una
+persona, una mascota o un objeto, y elimina todo lo demás. Deja el fondo
+transparente o elige un color para rellenarlo. Si no encuentra ningún sujeto,
+minivu lo indica y Aplicar no hace nada.
+
+Para copiar el sujeto sin cambiar la foto, usa **Edición > Copiar sujeto** en
+el visor. Ambos encuentran el sujeto en tu Mac.

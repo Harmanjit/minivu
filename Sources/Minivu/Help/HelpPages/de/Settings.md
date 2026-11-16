@@ -1,7 +1,9 @@
 # Einstellungen
 
 Wähle **minivu > Einstellungen …** (**⌘,**). Jede Änderung wird sofort
-wirksam; es gibt nichts zu bestätigen.
+wirksam; es gibt nichts zu bestätigen. **Darstellung > Design** und
+**Darstellung > Live Text** sind ebenfalls Einstellungen, die minivu sich
+merkt.
 
 ## Allgemein
 
@@ -12,6 +14,12 @@ wirksam; es gibt nichts zu bestätigen.
 - **Betrachter im Vollbildmodus öffnen** statt in einem Fenster.
 - **Vor dem Überschreiben des Originals fragen:** Aktiviere dies wieder,
   wenn du festgelegt hast, beim Sichern nicht gefragt zu werden.
+- **Bewertungen in Dateien schreiben (XMP):** Sterne, Kennzeichnung und
+  Farbetiketten werden auch in jedes Foto geschrieben, sodass Lightroom,
+  Bridge und andere Programme sie sehen. RAW-Dateien und Formate, die
+  minivu nicht neu schreiben kann, erhalten stattdessen eine
+  XMP-Filialdatei daneben. Anfangs deaktiviert; wenn du die Option
+  aktivierst, werden nur spätere Änderungen geschrieben.
 
 ## Betrachter
 
@@ -29,7 +37,8 @@ wirksam; es gibt nichts zu bestätigen.
   RAW-Daten ohnehin, wenn die Vorschau für den Bildschirm oder den Zoom zu
   klein ist.
 - **RAW-Dateien mit erweitertem Dynamikumfang rendern** zeigt RAW-Lichter in
-  HDR an, was pro Foto einen Moment dauert.
+  HDR an, was pro Foto einen Moment dauert. **Bild > Anpassen >
+  RAW-Anpassungen …** richtet sich ebenfalls danach.
 
 ## Lupe
 
@@ -40,16 +49,19 @@ mit einer Vorschau.
 
 - **Größe** der Miniaturen im Raster.
 - **Miniaturcache leeren** entfernt gesicherte Miniaturen; sie werden beim
-  nächsten Anzeigen eines Ordners aus den Dateien neu erstellt.
+  nächsten Anzeigen eines Ordners aus den Dateien neu erstellt. Miniaturen,
+  die minivu schon angezeigt hat, bleiben, bis du minivu beendest und neu
+  öffnest.
 
 ## Diashow
 
 Die Anzeigedauer jedes Dias, die Reihenfolge, ob nach dem letzten Dia von
 vorne begonnen wird, Untertitel (Dateiname, Dateiname und Datum oder Kamera
 und Belichtung), der Übergang und seine Dauer mit einer Vorschau sowie die
-Musik: Titel oder Ordner, Mischen und Lautstärke. Eine Änderung der
-Lautstärke oder das Ein- und Ausschalten der Musik wirkt sich auch auf eine
-bereits laufende Diashow aus.
+Musik: Titel oder Ordner, Mischen und Lautstärke. In einer Diashow, die mit
+Musik gestartet wurde, wirkt eine Änderung der Lautstärke oder das Aus- und
+Einschalten der Musik sofort. **Werkzeuge > Diashow-Video exportieren …**
+verwendet dieselben Einstellungen, außer der Lautstärke.
 
 ## Editoren
 

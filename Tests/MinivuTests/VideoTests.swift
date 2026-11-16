@@ -52,8 +52,8 @@ import MinivuRender
     }
 
     @Test func filterMenusOfferPhotosAndVideosOnly() throws {
-        let view = try #require(MainMenu.make().items.first { $0.title == "View" }?.submenu)
-        let filter = try #require(view.items.first { $0.title == "Filter" }?.submenu)
+        let view = try #require(MainMenu.make().submenu(.view))
+        let filter = try #require(view.submenu(.filter))
         let items = filter.items.filter { $0.action == .filterByFileType }
         #expect(items.map(\.title) == ["Photos Only", "Videos Only"])
         #expect(items.map(\.tag) == [FileTypeFilter.photos.rawValue, FileTypeFilter.videos.rawValue])
@@ -150,7 +150,7 @@ import MinivuRender
     }
 
     @Test func muteItemHasADisplayOnlyM() throws {
-        let image = try #require(MainMenu.make().items.first { $0.title == "Image" }?.submenu)
+        let image = try #require(MainMenu.make().submenu(.image))
         let mute = try #require(image.items.first { $0.action == .toggleMute })
         #expect(mute.title == "Mute Video")
         #expect(mute.keyEquivalent.isEmpty, "a bare M would be taken from text fields")

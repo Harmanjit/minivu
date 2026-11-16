@@ -127,6 +127,39 @@ de « %@ »…"). Undo step names (MinivuRender "Name of an edit") use nouns
 | Hide minivu / Hide Others / Quit minivu / About minivu | Masquer minivu / Masquer les autres / Quitter minivu / À propos de minivu |
 | Show Info / Hide Info | Afficher les infos / Masquer les infos |
 | menus File, Edit, View, Go, Image, Tools, Window, Help | Fichier, Édition, Présentation, Aller, Image, Outils, Fenêtre, Aide |
+| Flat View (browser) | Présentation à plat (prose: la présentation à plat) |
+| Find… (search across folders) | Rechercher… |
+| Show All (filters) / More Filters… | Tout afficher / Plus de filtres… |
+| Copy / Paste / clipboard | Copier / Coller / presse-papiers |
+| Select Tagged / Invert Selection | Sélectionner les images marquées / Inverser la sélection |
+| Mixed (differing field values) | Mixte |
+| Auto Enhance | Amélioration automatique |
+| Perspective… / Auto (find a rectangle) | Perspective… / Auto |
+| RAW Adjustments… | Réglages RAW… |
+| boost (RAW contrast) / highlight recovery / white balance | renforcement / récupération des hautes lumières / balance des blancs |
+| radius / feather (vignette) | rayon / contour progressif |
+| amount / opacity / margin / spacing | quantité / opacité / marge / espacement |
+| Tile across the photo (watermark) | Mosaïque sur la photo |
+| font weight | graisse |
+| Choose Picture… | Choisir une image… |
+| Copy Subject / Copy Text / Copy Frame | Copier le sujet / Copier le texte / Copier l’image vidéo |
+| Save Frame As… | Enregistrer l’image vidéo sous… |
+| Save Edits as Preset… | Enregistrer comme préréglage… |
+| Keep original (colour profile) | Conserver l’original |
+| Multi-page files: First page only / Every page | Fichiers multipages : Première page uniquement / Chaque page |
+| Extract Pages… / Create Multi-Page File… | Extraire les pages… / Créer un fichier multipage… |
+| Export Slideshow Video… | Exporter la vidéo du diaporama… |
+| Find Duplicates… / Identical Files / Similar Images | Rechercher les doublons… / Fichiers identiques / Images similaires |
+| similarity / fingerprint (duplicates) | similarité / empreinte |
+| Mark Suggested | Cocher les suggestions |
+| burst (photos) | rafale |
+| video length / frame rate / data rate / codec | durée / fréquence d’images / débit / codec |
+| scrubber (video) | barre de défilement |
+| play mark (thumbnail) | symbole de lecture |
+| mute (video) | couper le son |
+| Shortcuts app / action (Shortcuts) | app Raccourcis / action |
+| Set Rating / Set Colour Label (Shortcuts actions) | Attribuer une note / Définir l’étiquette de couleur |
+| Language & Region (System Settings) | Langue et région |
 | display (screen) | écran |
 | app / application | app (help text) / application (system-style messages) |
 
@@ -148,5 +181,7 @@ Keyboard Shortcuts → Raccourcis clavier.
 
 minivu, file-format names (JPEG, HEIC, TIFF…), on-disk folder names
 ("minivu Captures", "minivu Wallpapers"), rename tokens ({name}, {#}…),
-the technical detail inside "(%@)" errors, Apple product names (MacBook Pro,
-Pro Display XDR, Liquid Retina XDR), ImageIO, App Sandbox, Vision.
+the technical detail inside "(%@)" errors, the web gallery’s "Previous" and
+"Next" links (the generated pages are always in English), Apple product
+names (MacBook Pro, Pro Display XDR, Liquid Retina XDR), ImageIO, App
+Sandbox, Vision.

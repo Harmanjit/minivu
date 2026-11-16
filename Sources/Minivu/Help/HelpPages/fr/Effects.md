@@ -21,6 +21,9 @@ de couleur**.
 - **Lentille…** grossit une partie de l’image comme sous une lentille.
   Faites glisser le cercle pour le déplacer, ou son bord pour le
   redimensionner.
+- **Vignettage…** assombrit les bords de la photo, ou les éclaircit avec une
+  quantité négative. Rayon définit où il commence et Contour progressif la
+  douceur de son fondu.
 
 ## Texte et formes
 
@@ -37,6 +40,21 @@ et l’ombre de l’objet sélectionné.
   **Supprimer** la supprime et **Échap** la désélectionne.
 - Les objets restent modifiables : rouvrez Texte et formes juste après, et
   votre dessin revient sous forme d’objets plutôt que de pixels.
+
+## Filigrane
+
+**Image > Filigrane…** appose du texte, comme « © 2026 », ou une image,
+comme un logo, sur la photo.
+
+- Choisissez la police, la graisse et la couleur du texte, ou **Choisir une
+  image…** pour un fichier image.
+- Réglez la taille, l’opacité, l’une des neuf positions et la marge par
+  rapport au bord. **Mosaïque sur la photo** le répète, avec l’espacement
+  que vous choisissez.
+- Les tailles sont une proportion du petit côté de la photo : un filigrane
+  couvre donc la même partie de chaque photo. Convertir par lot peut
+  ajouter le même filigrane à de nombreuses images ; consultez
+  [Outils](help:Tools).
 
 ## Tampon de duplication et pinceau correcteur
 
@@ -59,3 +77,13 @@ dessus. Seuls les pixels rouges à l’intérieur d’un cercle changent : le
 reflet est donc préservé. Faites glisser un cercle pour le déplacer, réglez
 son intensité dans le panneau ou appuyez sur **Supprimer** pour le
 supprimer.
+
+## Supprimer l’arrière-plan
+
+**Image > Supprimer l’arrière-plan…** trouve le sujet de la photo, comme
+une personne, un animal ou un objet, et supprime tout le reste. Laissez
+l’arrière-plan transparent, ou choisissez une couleur pour le remplir. Si
+aucun sujet n’est trouvé, minivu l’indique et Appliquer n’a aucun effet.
+
+Pour copier le sujet sans modifier la photo, utilisez **Édition > Copier le
+sujet** dans la visionneuse. Les deux trouvent le sujet sur votre Mac.

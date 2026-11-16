@@ -22,8 +22,8 @@ puntero a la parte superior de la pantalla.
 
 ## Zoom y desplazamiento
 
-- Haz clic para alternar entre ajustar a la ventana y el tamaño real, centrado
-  en el punto donde has hecho clic.
+- Haz clic para alternar entre ajustar a la ventana y el tamaño real. El punto
+  donde has hecho clic se queda bajo el puntero.
 - Arrastra para desplazarte. Cuando la imagen es más grande que la ventana,
   las teclas de flecha la desplazan en lugar de cambiar de imagen.
 - Pellizca en un trackpad, o usa **+** y **−**; **/** muestra el tamaño real y
@@ -39,8 +39,10 @@ Lleva el puntero a un borde del visor para mostrar un panel:
 
 - **Arriba:** la tira de miniaturas de la carpeta.
 - **Izquierda:** las herramientas de edición y de efectos.
-- **Derecha:** la información del archivo, los detalles de la cámara y el
-  histograma.
+- **Derecha:** la información del archivo, los detalles de la cámara, las
+  palabras clave y el histograma. **Imagen > Histograma** (**⇧⌘H**) lo abre
+  desde el teclado, e **Imagen > Contar colores** cuenta allí los colores de
+  la imagen.
 - **Abajo:** los controles de zoom, navegación y pase de diapositivas.
 
 La pequeña información superpuesta de la esquina muestra el nombre, la
@@ -51,6 +53,11 @@ desvanece. Pulsa **I** para mantenerla visible.
 
 Pulsa de **0** a **5** para valorar la imagen que se muestra, y **T** o **`**
 para marcarla o desmarcarla. La información superpuesta muestra ambas cosas.
+**Imagen > Etiqueta** (de **⌥⌘0** a **⌥⌘7**) asigna su etiqueta de color.
+
+En el panel de información, haz clic en la x de una palabra clave para
+quitarla, o escribe palabras clave nuevas, separadas por comas, y pulsa
+Retorno.
 
 ## Documentos y animaciones
 
@@ -60,6 +67,46 @@ para marcarla o desmarcarla. La información superpuesta muestra ambas cosas.
   o anterior.
 - Los GIF y PNG animados se reproducen solos. Pulsa **P** para pausar y
   reproducir.
+
+## Seleccionar y copiar texto
+
+minivu encuentra el texto de la imagen con Texto en vivo, como Vista Previa.
+Lleva el puntero sobre la imagen y arrastra sobre el texto para
+seleccionarlo.
+
+- **⌘C** copia el texto seleccionado. Si no hay texto seleccionado, copia la
+  imagen tal como la ves, con las ediciones incluidas.
+- **Edición > Copiar texto** (**⇧⌘C**) copia todo el texto de la imagen.
+- **Edición > Copiar sujeto** copia el sujeto principal de la imagen, sin el
+  fondo.
+- Sobre un texto, arrastrar selecciona en lugar de desplazar. Para
+  desplazarte, usa las teclas de flecha o un trackpad, o desactiva
+  **Visualización > Texto en vivo**.
+
+## Compartir
+
+**Archivo > Compartir…** envía la imagen que se muestra por AirDrop, Mensajes,
+Mail y las demás vías que ofrece tu Mac. Si la imagen tiene cambios sin guardar,
+minivu te avisa primero y comparte el archivo tal como se guardó por última vez
+(**Compartir archivo guardado**). Para compartir tus cambios, guárdalos antes.
+
+## Vídeos
+
+Un vídeo se abre como una foto, mostrando su primer fotograma con un botón de
+reproducción.
+
+- **Espacio** o **P** lo reproduce y lo pone en pausa, y **M** lo silencia.
+  Las teclas de flecha siguen pasando al ítem siguiente o anterior.
+- Mientras se reproduce, los controles propios del reproductor muestran el
+  tiempo, una barra de reproducción y el volumen.
+- **Edición > Copiar fotograma** copia el fotograma en pantalla como una
+  imagen, y **Archivo > Guardar fotograma como…** lo guarda como un archivo
+  de imagen. El fotograma no tiene HDR ni metadatos.
+- El panel de información muestra la duración, la frecuencia de fotogramas,
+  el códec y la velocidad de datos del vídeo, y la cámara, la fecha y la
+  ubicación cuando el vídeo las tiene.
+- La edición, el zoom, Texto en vivo y la impresión no están disponibles
+  para los vídeos.
 
 ## Color y HDR
 
@@ -77,8 +124,9 @@ mientras las fotos ocupan la otra:
 
 - Ajusta **El visor a pantalla completa se abre en** en **Ajustes > Visor** a
   **Otra pantalla** para abrir allí el visor a pantalla completa.
-- **Ventana > Mover a la siguiente pantalla** mueve la ventana que está
-  delante a la siguiente pantalla.
+- **Ventana > Mover a la siguiente pantalla** mueve el visor, o un pase de
+  diapositivas, a la siguiente pantalla. No está disponible si solo hay una
+  pantalla conectada.
 
 ## Comparar
 
@@ -88,10 +136,11 @@ zoom o desplazar una se mueven las demás con ella (Sincronizar, en la barra de
 herramientas, lo desactiva). Haz clic en un panel, o pulsa de **⌘1** a
 **⌘4**, para elegirlo: entonces las teclas de flecha cambian su imagen, de
 **0** a **5** la valoran, **T** la marca y **Eliminar** la traslada a la
-papelera.
+papelera. Un vídeo se compara por su primer fotograma.
 
 ## Formatos
 
 minivu abre JPEG, PNG, GIF, HEIC y HEIF, AVIF, WebP, JPEG XL, JPEG 2000, TIFF,
 BMP, TGA, ICO, Photoshop (acoplado), los formatos RAW de cámara compatibles
-con macOS, PDF y SVG.
+con macOS, PDF y SVG. Reproduce los vídeos que reproduce macOS, como MOV, MP4,
+M4V, 3GP, MTS y MPEG.

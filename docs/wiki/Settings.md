@@ -4,6 +4,8 @@ Choose **minivu > Settings…** (⌘,). The window has six panes: **General**, *
 
 Every change is saved and takes effect the moment you make it; there is no OK or Apply button. Settings live in minivu's sandbox container, on your Mac only (see [Security and Privacy](Security-and-Privacy)).
 
+There is no language setting in minivu. It follows the language you choose for it in macOS; see [Languages](Languages).
+
 ## General
 
 | Setting | Choices | Default |
@@ -13,12 +15,19 @@ Every change is saved and takes effect the moment you make it; there is no OK or
 | **Wrap around at end of folder** | on or off | off |
 | **Open viewer in full screen** | on or off | on |
 | **Ask before saving over the original** | on or off | on |
+| **Write ratings into files (XMP)** | on or off | off |
 
 - **Theme.** **System** follows macOS's light or dark appearance. **Bright** and **Dark** are the standard light and dark looks; **Gray** is the dark look with lighter surfaces. **View > Theme** sets the same thing.
 - **Show hidden files** lists hidden files and folders in the browser. **View > Show Hidden Files** (⇧⌘.) toggles the same setting.
 - **Wrap around at end of folder.** Going to the next image after the last goes back to the first, and the previous image before the first goes to the last. It applies in the viewer and Compare, and to scrolling over the browser's preview pane.
 - **Open viewer in full screen.** Double-clicking an image, or pressing Return, opens the viewer full screen; off, it opens in a window. See [Viewer](Viewer).
 - **Ask before saving over the original.** **File > Save** asks before it writes over the file. Ticking **Don't ask again** in that question turns this off; this switch is the way to turn it back on. See [Editing](Editing).
+- **Write ratings into files (XMP).** *XMP* is a standard block of metadata that Lightroom, Bridge, digiKam and many other apps read. While this is on, every star rating, tag and colour label you set in minivu is also written into the photo as XMP. Camera RAW files, and other formats minivu can't rewrite without re-encoding, get an *XMP sidecar* instead: a small `.xmp` file with the same name, beside the photo. minivu never re-encodes the pixels to do this. It is off by default because it changes your files.
+  - Only changes made while it is on are written. Turning it on doesn't copy the marks you set before.
+  - Writing a mark into a JPEG, HEIC, PNG or TIFF changes the file's modification date, so its thumbnail is made again.
+  - PDFs, SVGs and videos are never written to, not even with a sidecar; their marks stay in minivu's catalog.
+  - Reading is always on, whatever this setting says. A photo you haven't rated in minivu shows the rating and tag it carries itself, for example from Lightroom. Once you rate it in minivu, minivu's rating wins and the file's is no longer shown.
+  - A colour label (**Image > Label**) is always written, as the file's Finder colour tag, whether this is on or off. This setting adds a copy in the XMP.
 
 ## Viewer
 
@@ -37,7 +46,7 @@ Every change is saved and takes effect the moment you make it; there is no OK or
 - **Enlarge small images to fit** scales an image smaller than the window or screen up to fit it. Off, small images show at their own size. Slideshows follow it too.
 - **Pixelated zoom above 200%** draws each pixel as a sharp square once you zoom in past 200%, so you can judge pixels one by one. Off, they are smoothed.
 - **Mouse wheel** decides what scrolling over an image does. Hold ⌘ while scrolling to get the other one.
-- **Full-screen viewer opens on.** **Another display** keeps the browser's display free: browse on one display and view full screen on the other. With one display connected, the viewer opens on it. Slideshows open where the full-screen viewer does, and **Window > Move to Next Display** (⌃⌥⌘→) moves either. Two-display behaviour has been tested with simulated displays only.
+- **Full-screen viewer opens on.** **Another display** keeps the browser's display free: browse on one display and view full screen on the other. With one display connected, the viewer opens on it. Slideshows open where the full-screen viewer does, and **Window > Move to Next Display** (⌃⌥⌘→) moves either.
 - **Display HDR photos in HDR.** HDR photos (gain maps, PQ and HLG) show highlights brighter than white on screens that can show them: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Off, or on other screens, they are tone mapped.
 - **RAW files.** **Embedded preview (faster)** shows the JPEG the camera saved inside the raw file, at once. Where that preview is too small for the screen or the zoom, the RAW data is rendered instead. **Render RAW data** always renders the sensor data with Apple's RAW engine: slower, but the same rendering at every zoom. Batch Convert renders RAW files the same way.
 - **Render RAW files with extended dynamic range** shows RAW highlights in HDR. It always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen. It can only be turned on while **Display HDR photos in HDR** is on.
@@ -72,7 +81,7 @@ Scrolling while the magnifier is up also changes **Zoom**, by 1.25× per wheel n
 ## Thumbnails
 
 - **Size:** 80 to 320 pt, 150 pt by default. It is the side of each square cell in the browser's grid. The **Thumbnail Size** slider in the browser's toolbar sets the same value.
-- **Clear Thumbnail Cache** empties the thumbnail cache on disk; thumbnails are made again from the original files when they are next needed. Nothing else is touched: stars, tags and custom orders are in the catalog, not the cache.
+- **Clear Thumbnail Cache** empties the thumbnail cache on disk; thumbnails are made again from the original files when they are next needed. The fingerprints Find Duplicates keeps are in the same cache and are emptied too. Nothing else is touched: stars, tags and custom orders are in the catalog, not the cache.
 - Without clearing, the disk cache is kept to about 1 GB: at each launch the least recently used thumbnails are removed beyond that.
 
 ## Slideshow
@@ -96,6 +105,8 @@ How **Tools > Start Slideshow** plays. [Tools](Tools) describes the show itself.
 - The **Transition** section has a small preview of the chosen transition; click it to play. With Reduce Motion on in macOS's Accessibility settings, transitions that move the picture play as a cross-fade.
 - **Music.** **Add…** chooses MP3, AAC, WAV and AIFF files, or folders of them, and turns **Play music** on. Each song or folder is listed with **Remove**; the list reads "No music chosen" when empty. **Shuffle** and **Volume** are available while **Play music** is on. The music fades in when a slideshow starts, pauses with it, and fades out when it ends.
 
+**Slideshow videos.** **Tools > Export Slideshow Video…** plays the same settings: slide time, transition and its duration, order, captions and music. Its dialog shows them, with a **Slideshow Settings…** button that opens this pane. The video's own choices (resolution, frame rate, codec, quality and file type) are kept separately, in the dialog. See [Tools](Tools).
+
 **During a show.** In a show that started with music, **Volume** and **Play music** apply at once. **Show each slide for**, **Transition**, **Duration** and **Captions** apply from the next slide. **Order**, **Start again after the last slide**, the songs and **Shuffle** apply to the next show.
 
 ## Editors
@@ -114,10 +125,21 @@ The images open as saved. When the editor saves one, minivu shows the change; se
 
 Some choices are kept between launches without appearing in Settings. They are saved in the same place:
 
-- The browser's sort order.
-- Save As's format and its options for each format.
-- The Batch Convert sheet (when you press **Convert**), its name pattern, and Batch Rename's pattern (when you press **Rename**), each kept separately.
+- **View > Live Text**, on by default. It lets you select and copy text in the viewer's picture. Off, minivu doesn't look for text at all. See [Viewer](Viewer).
+- The browser's sort order, and the direction for each sort key.
+- How much of the preview pane's height the image takes, above the details.
+- Save As's format and its options for each format, including **Keep metadata** and **Remove location**.
+- The Batch Convert sheet (when you press **Convert**), its name pattern, and Batch Rename's pattern (when you press **Rename**), each kept separately. Batch Convert also remembers which preset it showed.
+- Batch Convert and Batch Rename presets: the named settings you save in those sheets, or with **File > Save Edits as Preset…** in the viewer.
+- The Extract Pages sheet and its name pattern, apart from Batch Convert's.
+- The Create Multi-Page File and Image Strip sheets.
 - The print layout from the print panel's **Picture Layout** section.
 - The Contact Sheet dialog, except the header text.
+- The Create Web Gallery dialog, except the title.
+- The Export Slideshow Video dialog.
 - Montage Wallpaper's layout, spacing and background.
+- Find Duplicates' **Find** choice, **Similarity** threshold and **Keep** rule.
+- The Compare window's arrangement and **Sync Zoom**.
 - The Settings pane you last looked at.
+
+**Edit > Find…** starts from the last search made in that window, but searches aren't kept between launches. To keep one, use **File > Save as Smart Folder…**; smart folders and collections live in the catalog, not in settings.

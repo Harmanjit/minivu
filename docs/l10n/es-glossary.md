@@ -94,6 +94,23 @@ Machine translation; every string needs review by a native speaker.
 | item | ítem | como Finder |
 | token (rename pattern) | elemento | |
 | duplicate (finder) | duplicado | Find Duplicates = Buscar duplicados |
+| video | vídeo | con tilde, como en el catálogo ("Solo vídeos") |
+| frame (video) | fotograma | Copy Frame = Copiar fotograma; frame rate = frecuencia de fotogramas |
+| codec / data rate | códec / velocidad de datos | |
+| scrubber | barra de reproducción | |
+| flat view | vista plana | Flat View = Vista plana |
+| metadata | metadatos | Edit Metadata… = Editar metadatos… |
+| location (GPS) | ubicación | Remove location = Eliminar ubicación; place names = nombres de lugar |
+| Mixed (field value) | Mixto | |
+| Auto Enhance | Mejora automática | |
+| Noise Reduction | Reducción de ruido | |
+| Perspective | Perspectiva | |
+| Vignette / Radius / Feather | Viñeta / Radio / Desvanecimiento | |
+| Similar Images / Identical Files | Imágenes similares / Archivos idénticos | Similarity = Similitud |
+| fingerprint (duplicates) | huella | |
+| Shortcuts (app) | Atajos | "la app Atajos"; a shortcut = un atajo |
+| Messages / Mail / Preview (apps) | Mensajes / Mail / Vista Previa | |
+| Language & Region | Idioma y región | en Ajustes del Sistema > General |
 | Edit / View / Go / Window / Help (menus) | Edición / Visualización / Ir / Ventana / Ayuda | |
 | Pictures (folder) | Imágenes | |
 | Return / Space / Delete / Home / End / Page Up / Page Down | Retorno / Espacio / Eliminar / Inicio / Fin / Re Pág / Av Pág | Option = Opción, Command = Comando, Shift = Mayúsculas, Tab = Tabulador |

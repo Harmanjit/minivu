@@ -26,15 +26,26 @@ the clone with `git rm` before committing.
   Getting Started.
 - `_Sidebar.md` sets the order of the sidebar on GitHub. Add every new page
   to it, and to the Pages table on `Home.md`.
-- Link between pages with bare page names only, `[Viewer](Viewer)` or
-  `[Keyboard Shortcuts](Keyboard-Shortcuts)`, with no `#anchors`.
+- Link between pages with bare page names, `[Viewer](Viewer)` or
+  `[Keyboard Shortcuts](Keyboard-Shortcuts)`, with no `.md`. To link to a
+  heading, add an *anchor*: the heading in lower case, with spaces turned
+  into hyphens and punctuation dropped, as in `[Videos](#videos)` on the
+  same page or `[Collections](Browser#collections)` on another. If you
+  rename a heading, search the wiki for its old anchor.
 - Link to files in the repository with full URLs,
   `https://github.com/Harmanjit/minivu/blob/main/DESIGN.md`, never relative
   paths: the wiki is a separate repository.
 - Check every menu name, shortcut, setting, default and number against the
   code before writing it. `Sources/Minivu/App/MainMenu.swift` has the menus
-  and their shortcuts, `Sources/Minivu/App/PreferencesWindowController.swift`
-  the Settings panes, and `DESIGN.md` the spec and its known limits.
+  and their shortcuts, `Sources/Minivu/Help/KeyboardShortcutsPage.swift` the
+  keys views take directly, `Sources/Minivu/App/PreferencesWindowController.swift`
+  and `Sources/Minivu/Common/Preferences.swift` the Settings panes and
+  their defaults, `Sources/Minivu/Automation/AutomationIntents.swift` the
+  Shortcuts actions, and `DESIGN.md` the spec and its known limits.
+  `docs/feature-notes/` has the notes each feature branch left, with what
+  the user can do and its limits.
+- The wiki is in English only. Use the English names of menus and
+  commands; [Languages](Languages) says so for readers.
 
 ## The in-app help is separate
 
@@ -47,6 +58,12 @@ set in `Sources/Minivu/Help/HelpPages/*.md`, bundled into the app by
   heading equal to its title.
 - They link to each other as `help:Browser`; the Help window refuses any
   other link.
+- They are translated: each shipped language has a folder of its own,
+  `HelpPages/<lang>/` (`de`, `pt-BR`, `zh-Hans`…), with the same files. A
+  page missing in a language falls back to English. A change to an English
+  page leaves the translations behind until they are updated too;
+  `swift test --filter LocalizationTests` checks that every language has
+  every page and that each starts with its translated title.
 - The Keyboard Shortcuts page there has no Markdown file. Its menu
   shortcuts are read from the menu bar at runtime, so they can't fall
   behind the menus; the keys views take directly are listed in

@@ -46918,7 +46918,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "大きいピクチャのサイズ"
+            "value" : "大きい画像のサイズ"
           }
         },
         "ko" : {
@@ -46982,7 +46982,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "大きいピクチャ"
+            "value" : "大きい画像"
           }
         },
         "ko" : {
@@ -62056,7 +62056,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ピクチャ"
+            "value" : "画像"
           }
         },
         "ko" : {
@@ -62074,7 +62074,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Obrazki"
+            "value" : "Obrazy"
           }
         },
         "pt-BR" : {

@@ -22,8 +22,8 @@ przesunięciu wskaźnika do górnej krawędzi ekranu.
 
 ## Powiększanie i przesuwanie
 
-- Kliknij, aby przełączać między dopasowaniem do okna a rzeczywistym
-  rozmiarem, z wyśrodkowaniem w klikniętym punkcie.
+- Kliknij, aby przełączać między dopasowaniem do okna a rzeczywistym rozmiarem.
+  Kliknięty punkt pozostaje pod wskaźnikiem.
 - Przeciągnij, aby przesunąć. Gdy obraz jest większy od okna, klawisze
   strzałek przesuwają go zamiast zmieniać obraz.
 - Zsuń palce na gładziku lub użyj **+** i **−**; **/** pokazuje rzeczywisty
@@ -40,7 +40,9 @@ Przesuń wskaźnik do krawędzi widoku obrazu, aby wyświetlić panel:
 
 - **Góra:** pasek klatek z folderem.
 - **Lewo:** narzędzia edycji i efektów.
-- **Prawo:** informacje o pliku, dane aparatu i histogram.
+- **Prawo:** informacje o pliku, dane aparatu, słowa kluczowe i histogram.
+  **Obraz > Histogram** (**⇧⌘H**) otwiera go z klawiatury, a **Obraz >
+  Policz kolory** liczy tam kolory na obrazie.
 - **Dół:** powiększenie, nawigacja i sterowanie pokazem slajdów.
 
 Mała nakładka w rogu pokazuje nazwę, położenie w folderze, rozmiar i
@@ -51,7 +53,11 @@ pozostawić.
 
 Naciśnij klawisz od **0** do **5**, aby ocenić pokazany obraz, oraz **T**
 lub **`**, aby go oznaczyć lub usunąć oznaczenie. Nakładka pokazuje jedno i
-drugie.
+drugie. **Obraz > Etykieta** (od **⌥⌘0** do **⌥⌘7**) ustawia jego etykietę
+kolorową.
+
+W panelu informacji kliknij x przy słowie kluczowym, aby je usunąć, lub
+wpisz nowe słowa kluczowe, rozdzielone przecinkami, i naciśnij Return.
 
 ## Dokumenty i animacje
 
@@ -61,6 +67,45 @@ drugie.
   potem do następnego lub poprzedniego obrazu.
 - Animowane pliki GIF i PNG odtwarzają się same. Naciśnij **P**, aby
   wstrzymać i odtworzyć.
+
+## Zaznaczanie i kopiowanie tekstu
+
+minivu znajduje tekst na obrazie za pomocą funkcji Tekst na żywo, tak jak
+Podgląd. Przesuń wskaźnik nad obraz, a następnie przeciągnij po tekście, aby
+go zaznaczyć.
+
+- **⌘C** kopiuje zaznaczony tekst. Gdy żaden tekst nie jest zaznaczony,
+  kopiuje obraz w takiej postaci, w jakiej go widzisz, razem ze zmianami.
+- **Edycja > Kopiuj tekst** (**⇧⌘C**) kopiuje cały tekst z obrazu.
+- **Edycja > Kopiuj obiekt** kopiuje główny obiekt obrazu, bez tła.
+- Na tekście przeciąganie zaznacza zamiast przesuwać. Aby przesunąć obraz,
+  użyj klawiszy strzałek lub gładzika albo wyłącz **Widok > Tekst na
+  żywo**.
+
+## Udostępnianie
+
+**Plik > Udostępnij…** wysyła pokazany obraz przez AirDrop, Wiadomości, Mail i
+inne sposoby dostępne na Macu. Jeśli obraz ma niezachowane zmiany, minivu
+najpierw ostrzega i udostępnia plik w stanie z ostatniego zachowania
+(**Udostępnij zachowany plik**). Aby udostępnić swoje zmiany, najpierw je
+zachowaj.
+
+## Wideo
+
+Wideo otwiera się tak jak zdjęcie, pokazując pierwszą klatkę z przyciskiem
+odtwarzania.
+
+- **Spacja** lub **P** odtwarza i wstrzymuje wideo, a **M** wycisza dźwięk.
+  Klawisze strzałek nadal przechodzą do następnej lub poprzedniej rzeczy.
+- Podczas odtwarzania własne elementy sterujące odtwarzacza pokazują czas,
+  suwak przewijania i głośność.
+- **Edycja > Kopiuj klatkę** kopiuje klatkę widoczną na ekranie jako obraz,
+  a **Plik > Zachowaj klatkę jako…** zachowuje ją jako plik obrazu. Klatka
+  nie ma HDR ani metadanych.
+- Panel informacji pokazuje czas trwania wideo, liczbę klatek na sekundę,
+  kodek, szybkość transmisji danych oraz aparat, datę i lokalizację, jeśli
+  wideo je zawiera.
+- Edycja, powiększanie, Tekst na żywo i drukowanie są niedostępne dla wideo.
 
 ## Kolor i HDR
 
@@ -79,8 +124,9 @@ zdjęcia wypełniają drugi:
 - Ustaw opcję **Widok obrazu na pełnym ekranie otwiera się na** w
   **Ustawienia > Widok obrazu** na **Inny ekran**, aby tam otwierać widok
   obrazu na pełnym ekranie.
-- **Okno > Przenieś na następny ekran** przenosi okno na wierzchu na
-  następny ekran.
+- **Okno > Przenieś na następny ekran** przenosi widok obrazu lub pokaz slajdów
+  na następny ekran. Polecenie jest niedostępne, gdy podłączony jest tylko jeden
+  ekran.
 
 ## Porównywanie
 
@@ -90,10 +136,11 @@ przesunięcie jednego przesuwa razem z nim pozostałe (przycisk Synchronizuj
 na pasku narzędzi to wyłącza). Kliknij panel lub naciśnij klawisze od **⌘1**
 do **⌘4**, aby go wybrać: klawisze strzałek zmieniają wtedy jego obraz,
 klawisze od **0** do **5** go oceniają, **T** go oznacza, a **Delete**
-przenosi go do kosza.
+przenosi go do kosza. Wideo jest porównywane według pierwszej klatki.
 
 ## Formaty
 
 minivu otwiera pliki JPEG, PNG, GIF, HEIC i HEIF, AVIF, WebP, JPEG XL, JPEG
 2000, TIFF, BMP, TGA, ICO, Photoshop (spłaszczone), formaty RAW aparatów
-obsługiwane przez macOS, PDF i SVG.
+obsługiwane przez macOS, PDF i SVG. Odtwarza wideo obsługiwane przez macOS,
+takie jak MOV, MP4, M4V, 3GP, MTS i MPEG.

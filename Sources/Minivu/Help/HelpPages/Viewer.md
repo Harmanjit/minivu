@@ -19,8 +19,8 @@ the top of the screen.
 
 ## Zoom and pan
 
-- Click to switch between fitting the window and actual size, centered on
-  the point you clicked.
+- Click to switch between fitting the window and actual size, keeping the
+  point you clicked under the pointer.
 - Drag to pan. When the image is larger than the window, the arrow keys pan
   it instead of changing images.
 - Pinch on a trackpad, or use **+** and **−**; **/** shows actual size and
@@ -36,7 +36,9 @@ Move the pointer to an edge of the viewer to reveal a panel:
 
 - **Top:** the filmstrip of the folder.
 - **Left:** the editing and effect tools.
-- **Right:** file information, camera details and the histogram.
+- **Right:** file information, camera details, keywords and the
+  histogram. **Image > Histogram** (**⇧⌘H**) opens it from the keyboard,
+  and **Image > Count Colors** counts the colors in the image there.
 - **Bottom:** zoom, navigation and slideshow controls.
 
 The small overlay in the corner shows the name, position in the folder, size
@@ -45,7 +47,11 @@ and zoom whenever they change, then fades. Press **I** to keep it up.
 ## Stars and tags
 
 Press **0** to **5** to rate the image shown, and **T** or **`** to tag or
-untag it. The overlay shows both.
+untag it. The overlay shows both. **Image > Label** (**⌥⌘0** to **⌥⌘7**)
+sets its color label.
+
+In the info panel, click the x on a keyword to remove it, or type new
+keywords, separated by commas, and press Return.
 
 ## Documents and animations
 
@@ -53,6 +59,41 @@ untag it. The overlay shows both.
   (**⌥→** and **⌥←**) move between pages. **Page Down** and **Page Up** go
   through the pages first, then on to the next or previous image.
 - Animated GIFs and PNGs play on their own. Press **P** to pause and play.
+
+## Select and copy text
+
+minivu finds text in the picture with Live Text, as Preview does. Move the
+pointer over the picture, then drag over the text to select it.
+
+- **⌘C** copies the selected text. With no text selected, it copies the
+  picture as you see it, edits and all.
+- **Edit > Copy Text** (**⇧⌘C**) copies all the text in the picture.
+- **Edit > Copy Subject** copies the main subject of the picture, without
+  its background.
+- On text, dragging selects rather than pans. To pan, use the arrow keys
+  or a trackpad, or turn off **View > Live Text**.
+
+## Share
+
+**File > Share…** sends the image shown with AirDrop, Messages, Mail and
+the other ways your Mac offers. If the image has edits that aren’t saved,
+minivu warns you first and shares the file as it was last saved (**Share
+Saved File**). To share your edits, save them first.
+
+## Videos
+
+A video opens like a photo, showing its first frame with a play button.
+
+- **Space** or **P** plays and pauses it, and **M** mutes it. The arrow
+  keys still move to the next or previous item.
+- While it plays, the player’s own controls show the time, a scrubber and
+  the volume.
+- **Edit > Copy Frame** copies the frame on screen as a picture, and **File
+  > Save Frame As…** saves it as a picture file. The frame has no HDR and
+  no metadata.
+- The info panel shows the video’s length, frame rate, codec, data rate,
+  and the camera, date and location when the video has them.
+- Editing, zoom, Live Text and printing are off for videos.
 
 ## Color and HDR
 
@@ -69,8 +110,8 @@ the other:
 
 - Set **Full-screen viewer opens on** in **Settings > Viewer** to
   **Another display** to open the full-screen viewer there.
-- **Window > Move to Next Display** moves the window in front to the next
-  display.
+- **Window > Move to Next Display** moves the viewer, or a slideshow, to the
+  next display. It is dimmed when only one display is connected.
 
 ## Compare
 
@@ -79,9 +120,11 @@ Selected**. The images sit side by side, and zooming or panning one moves
 the others with it (the toolbar’s Sync turns that off). Click a pane, or
 press **⌘1** to **⌘4**, to choose it: the arrow keys then change its image,
 **0** to **5** rate it, **T** tags it and **Delete** moves it to the Trash.
+A video is compared by its first frame.
 
 ## Formats
 
 minivu opens JPEG, PNG, GIF, HEIC and HEIF, AVIF, WebP, JPEG XL, JPEG 2000,
 TIFF, BMP, TGA, ICO, Photoshop (flattened), the camera RAW formats macOS
-supports, PDF and SVG.
+supports, PDF and SVG. It plays the videos macOS plays, such as MOV, MP4,
+M4V, 3GP, MTS and MPEG.

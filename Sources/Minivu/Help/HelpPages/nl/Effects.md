@@ -20,6 +20,9 @@ meteen toegepast. In het linkerpaneel staan ze samen onder **Kleureffecten**.
 - **Lens…** vergroot een deel van de afbeelding alsof het onder een lens ligt.
   Sleep de cirkel om deze te verplaatsen, of de rand ervan om de grootte te
   wijzigen.
+- **Vignet…** maakt de randen van de foto donkerder, of lichter met een
+  negatieve hoeveelheid. Straal bepaalt waar het begint en Doezelaar hoe
+  geleidelijk het vervaagt.
 
 ## Tekst en vormen
 
@@ -35,6 +38,20 @@ de schaduw van het geselecteerde object in.
   **Delete** verwijdert het en **Esc** deselecteert het.
 - Objecten blijven bewerkbaar: open Tekst en vormen direct daarna opnieuw, en
   je tekening komt terug als objecten in plaats van pixels.
+
+## Watermerk
+
+**Afbeelding > Watermerk…** zet tekst, zoals ‘© 2026’, of een afbeelding,
+zoals een logo, op de foto.
+
+- Kies het lettertype, het gewicht en de kleur van de tekst, of **Kies
+  afbeelding…** voor een afbeeldingsbestand.
+- Stel de grootte, de dekking, een van negen posities en de marge tot de
+  rand in. **Herhaal over de foto** herhaalt het watermerk, met de
+  tussenruimte die je kiest.
+- Groottes zijn een deel van de korte zijde van de foto, zodat een watermerk
+  op elke foto hetzelfde deel bedekt. Batchconversie kan hetzelfde
+  watermerk aan veel afbeeldingen toevoegen; zie [Gereedschap](help:Tools).
 
 ## Kloonstempel en retoucheerpenseel
 
@@ -55,3 +72,15 @@ sleep een cirkel over elke rode pupil, of klik erop. Alleen rode pixels binnen
 een cirkel veranderen, zodat het lichtpuntje blijft. Sleep een cirkel om deze
 te verplaatsen, stel de sterkte in het paneel in, of druk op **Delete** om
 deze te verwijderen.
+
+## Achtergrond verwijderen
+
+**Afbeelding > Verwijder achtergrond…** vindt het onderwerp van de foto,
+zoals een persoon, een huisdier of een voorwerp, en verwijdert al het
+andere. Laat de achtergrond transparant, of kies een kleur om deze te
+vullen. Als er geen onderwerp wordt gevonden, meldt minivu dat en doet Pas
+toe niets.
+
+Om het onderwerp te kopiëren zonder de foto te wijzigen, gebruik je
+**Wijzig > Kopieer onderwerp** in de viewer. Beide vinden het onderwerp op je
+Mac.

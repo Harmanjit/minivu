@@ -20,6 +20,9 @@ angewendet. Im linken Bereich findest du sie gemeinsam unter
   eine geprägte, gezeichnete oder gemalte Version seiner selbst.
 - **Lupe …** vergrößert einen Teil des Bilds wie unter einer Lupe. Ziehe den
   Kreis, um ihn zu bewegen, oder seinen Rand, um seine Größe zu ändern.
+- **Vignette …** dunkelt die Ränder des Fotos ab oder hellt sie mit einem
+  negativen Wert auf. „Radius“ legt fest, wo sie beginnt, und „Weiche
+  Kante“, wie allmählich sie ausläuft.
 
 ## Text und Formen
 
@@ -36,6 +39,21 @@ ausgewählte Objekt fest.
   auf.
 - Objekte bleiben bearbeitbar: Öffne „Text und Formen“ direkt danach
   erneut, und deine Zeichnung erscheint wieder als Objekte statt als Pixel.
+
+## Wasserzeichen
+
+**Bild > Wasserzeichen …** setzt Text, etwa „© 2026“, oder ein Bild, etwa
+ein Logo, auf das Foto.
+
+- Wähle Schrift, Schriftstärke und Farbe des Texts oder **Bild auswählen …**
+  für eine Bilddatei.
+- Lege Größe, Deckkraft, eine von neun Positionen und den Abstand zum Rand
+  fest. **Über das Foto kacheln** wiederholt das Wasserzeichen mit dem
+  Abstand, den du wählst.
+- Größen sind ein Anteil der kurzen Seite des Fotos, sodass ein
+  Wasserzeichen bei jedem Foto denselben Teil bedeckt. Die
+  Stapelkonvertierung kann dasselbe Wasserzeichen zu vielen Bildern
+  hinzufügen; siehe [Werkzeuge](help:Tools).
 
 ## Kopierstempel und Reparaturpinsel
 
@@ -56,3 +74,13 @@ ziehe einen Kreis über jede rote Pupille oder klicke auf eine. Nur rote
 Pixel innerhalb eines Kreises ändern sich, sodass das Glanzlicht erhalten
 bleibt. Ziehe einen Kreis, um ihn zu bewegen, lege seine Stärke im Bereich
 fest oder drücke die **Rückschritttaste**, um ihn zu entfernen.
+
+## Hintergrund entfernen
+
+**Bild > Hintergrund entfernen …** findet das Motiv des Fotos, etwa eine
+Person, ein Haustier oder einen Gegenstand, und entfernt alles andere. Lass
+den Hintergrund transparent oder wähle eine Farbe, um ihn zu füllen. Wird
+kein Motiv gefunden, teilt minivu dies mit, und „Anwenden“ bewirkt nichts.
+
+Um das Motiv zu kopieren, ohne das Foto zu ändern, verwende im Betrachter
+**Bearbeiten > Motiv kopieren**. Beide finden das Motiv auf deinem Mac.

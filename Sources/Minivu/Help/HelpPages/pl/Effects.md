@@ -19,6 +19,9 @@ razu. W lewym panelu znajdują się razem w sekcji **Efekty kolorów**.
 - **Soczewka…** powiększa część obrazu jak pod szkłem powiększającym.
   Przeciągnij okrąg, aby go przesunąć, lub jego krawędź, aby zmienić jego
   rozmiar.
+- **Winieta…** przyciemnia krawędzie zdjęcia lub rozjaśnia je przy ujemnej
+  wartości. Promień określa, gdzie się zaczyna, a Wtapianie, jak łagodnie
+  zanika.
 
 ## Tekst i kształty
 
@@ -33,6 +36,19 @@ czcionkę, wyrównanie i cień zaznaczonego obiektu.
   odznacza.
 - Obiekty pozostają edytowalne: otwórz ponownie Tekst i kształty zaraz
   potem, a rysunek wróci jako obiekty, a nie piksele.
+
+## Znak wodny
+
+**Obraz > Znak wodny…** umieszcza na zdjęciu tekst, na przykład „© 2026”,
+lub obraz, na przykład logo.
+
+- Wybierz czcionkę, grubość i kolor tekstu albo **Wybierz obraz…**, aby
+  użyć pliku z obrazem.
+- Ustaw rozmiar, krycie, jedno z dziewięciu położeń i margines od krawędzi.
+  **Powiel na całym zdjęciu** powtarza znak wodny z wybranym odstępem.
+- Rozmiary są częścią krótszego boku zdjęcia, więc znak wodny zajmuje tę
+  samą część każdego zdjęcia. Konwersja wsadowa może dodać ten sam znak
+  wodny do wielu obrazów; zobacz [Narzędzia](help:Tools).
 
 ## Stempel i Pędzel korygujący
 
@@ -52,3 +68,14 @@ przeciągnij okrąg na każdą czerwoną źrenicę lub ją kliknij. Zmieniają s
 tylko czerwone piksele wewnątrz okręgu, więc odblask pozostaje. Przeciągnij
 okrąg, aby go przesunąć, ustaw jego siłę w panelu lub naciśnij **Delete**,
 aby go usunąć.
+
+## Usuwanie tła
+
+**Obraz > Usuń tło…** znajduje obiekt na zdjęciu, na przykład osobę,
+zwierzę lub przedmiot, i usuwa wszystko inne. Pozostaw tło przezroczyste
+lub wybierz kolor, aby je wypełnić. Jeśli nie zostanie znaleziony żaden
+obiekt, minivu poinformuje o tym, a Zastosuj nic nie zrobi.
+
+Aby skopiować obiekt bez zmieniania zdjęcia, użyj polecenia **Edycja >
+Kopiuj obiekt** w widoku obrazu. Oba polecenia znajdują obiekt na Twoim
+Macu.

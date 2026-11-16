@@ -22,8 +22,8 @@ vous placez le pointeur en haut de l’écran.
 
 ## Zoom et déplacement
 
-- Cliquez pour basculer entre l’adaptation à la fenêtre et la taille
-  réelle, centrée sur le point où vous avez cliqué.
+- Cliquez pour basculer entre l’adaptation à la fenêtre et la taille réelle. Le
+  point où vous avez cliqué reste sous le pointeur.
 - Faites glisser pour déplacer l’image. Lorsque l’image est plus grande que
   la fenêtre, les touches fléchées la déplacent au lieu de changer d’image.
 - Pincez sur un trackpad, ou utilisez **+** et **−** ; **/** affiche la
@@ -42,7 +42,9 @@ panneau :
 - **En haut :** la pellicule du dossier.
 - **À gauche :** les outils d’édition et d’effets.
 - **À droite :** les informations sur le fichier, les détails de l’appareil
-  photo et l’histogramme.
+  photo, les mots-clés et l’histogramme. **Image > Histogramme** (**⇧⌘H**)
+  l’ouvre depuis le clavier, et **Image > Compter les couleurs** y compte
+  les couleurs de l’image.
 - **En bas :** les commandes de zoom, de navigation et de diaporama.
 
 La petite incrustation dans le coin affiche le nom, la position dans le
@@ -53,6 +55,11 @@ Appuyez sur **I** pour la garder affichée.
 
 Appuyez sur **0** à **5** pour noter l’image affichée, et sur **T** ou
 **`** pour la marquer ou la démarquer. L’incrustation affiche les deux.
+**Image > Étiquette** (**⌥⌘0** à **⌥⌘7**) définit son étiquette de couleur.
+
+Dans le panneau d’informations, cliquez sur le x d’un mot-clé pour le
+supprimer, ou saisissez de nouveaux mots-clés, séparés par des virgules, et
+appuyez sur Retour.
 
 ## Documents et animations
 
@@ -62,6 +69,47 @@ Appuyez sur **0** à **5** pour noter l’image affichée, et sur **T** ou
   pages, puis passent à l’image suivante ou précédente.
 - Les GIF et PNG animés sont lus automatiquement. Appuyez sur **P** pour
   mettre en pause et relancer la lecture.
+
+## Sélectionner et copier du texte
+
+minivu trouve le texte dans l’image avec Texte en direct, comme Aperçu.
+Placez le pointeur sur l’image, puis faites glisser sur le texte pour le
+sélectionner.
+
+- **⌘C** copie le texte sélectionné. Si aucun texte n’est sélectionné, il
+  copie l’image telle que vous la voyez, modifications comprises.
+- **Édition > Copier le texte** (**⇧⌘C**) copie tout le texte de l’image.
+- **Édition > Copier le sujet** copie le sujet principal de l’image, sans
+  son arrière-plan.
+- Sur du texte, faire glisser sélectionne au lieu de déplacer l’image. Pour
+  la déplacer, utilisez les touches fléchées ou un trackpad, ou désactivez
+  **Présentation > Texte en direct**.
+
+## Partager
+
+**Fichier > Partager…** envoie l’image affichée par AirDrop, Messages, Mail et
+les autres moyens que propose votre Mac. Si l’image a des modifications non
+enregistrées, minivu vous avertit d’abord et partage le fichier tel qu’il a été
+enregistré la dernière fois (**Partager le fichier enregistré**). Pour partager
+vos modifications, enregistrez-les d’abord.
+
+## Vidéos
+
+Une vidéo s’ouvre comme une photo, en affichant sa première image avec un
+bouton de lecture.
+
+- **Espace** ou **P** la lit et la met en pause, et **M** coupe le son. Les
+  touches fléchées passent toujours à l’élément suivant ou précédent.
+- Pendant la lecture, les commandes du lecteur affichent le temps, une
+  barre de défilement et le volume.
+- **Édition > Copier l’image vidéo** copie l’image affichée à l’écran, et
+  **Fichier > Enregistrer l’image vidéo sous…** l’enregistre dans un
+  fichier image. L’image n’a ni HDR ni métadonnées.
+- Le panneau d’informations affiche la durée de la vidéo, sa fréquence
+  d’images, son codec, son débit, ainsi que l’appareil, la date et le lieu
+  lorsque la vidéo les contient.
+- L’édition, le zoom, Texte en direct et l’impression sont désactivés pour
+  les vidéos.
 
 ## Couleur et HDR
 
@@ -81,8 +129,9 @@ les photos occupent l’autre :
 - Réglez **La visionneuse plein écran s’ouvre sur** dans **Réglages >
   Visionneuse** sur **Un autre écran** pour y ouvrir la visionneuse plein
   écran.
-- **Fenêtre > Déplacer vers l’écran suivant** déplace la fenêtre au premier
-  plan vers l’écran suivant.
+- **Fenêtre > Déplacer vers l’écran suivant** déplace la visionneuse, ou un
+  diaporama, vers l’écran suivant. La commande n’est pas disponible quand un
+  seul écran est connecté.
 
 ## Comparer
 
@@ -92,10 +141,12 @@ zoomer ou déplacer l’une déplace les autres en même temps (le bouton
 Synchroniser de la barre d’outils désactive ce comportement). Cliquez sur
 une sous-fenêtre, ou appuyez sur **⌘1** à **⌘4**, pour la choisir : les
 touches fléchées changent alors son image, **0** à **5** la notent, **T**
-la marque et **Supprimer** la place dans la corbeille.
+la marque et **Supprimer** la place dans la corbeille. Une vidéo est
+comparée d’après sa première image.
 
 ## Formats
 
 minivu ouvre les formats JPEG, PNG, GIF, HEIC et HEIF, AVIF, WebP, JPEG XL,
 JPEG 2000, TIFF, BMP, TGA, ICO, Photoshop (aplati), les formats RAW
-d’appareils photo pris en charge par macOS, PDF et SVG.
+d’appareils photo pris en charge par macOS, PDF et SVG. Il lit les vidéos
+que lit macOS, comme MOV, MP4, M4V, 3GP, MTS et MPEG.

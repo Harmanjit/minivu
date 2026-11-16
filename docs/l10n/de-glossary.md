@@ -156,3 +156,38 @@ Apple's German macOS (Finder, Fotos, Vorschau).
 | Keep Both / Replace / Skip | Beide behalten / Ersetzen / Überspringen |
 | display / screen | Display / Bildschirm |
 | internal storage | interner Speicher |
+| Find… (search across folders) | Suchen … |
+| Canvas Size… | Arbeitsfläche … |
+| Perspective / Auto / Show result | Perspektive / Automatisch / Ergebnis anzeigen |
+| RAW Adjustments | RAW-Anpassungen |
+| Auto Enhance | Automatisch verbessern |
+| Vignette / Radius / Feather | Vignette / Radius / Weiche Kante |
+| opacity | Deckkraft |
+| Tile across the photo | Über das Foto kacheln |
+| subject (of a photo) / Copy Subject | Motiv / Motiv kopieren |
+| Remove Background | Hintergrund entfernen |
+| Remove location | Ort entfernen |
+| Mixed (differing values) | Gemischt |
+| Edit Metadata… | Metadaten bearbeiten … |
+| Write ratings into files (XMP) | Bewertungen in Dateien schreiben (XMP) |
+| colour label names None/Red/…/Purple/Gray | Ohne/Rot/Orange/Gelb/Grün/Blau/Lila/Grau |
+| Select Tagged | Gekennzeichnete auswählen |
+| More Filters… / Show All | Weitere Filter … / Alle anzeigen |
+| Photos Only / Videos Only | Nur Fotos / Nur Videos |
+| Keep HDR / Keep original (colour profile) | HDR behalten / Original beibehalten |
+| Multi-page files: First page only / Every page | Mehrseitige Dateien: Nur erste Seite / Jede Seite |
+| Extract Pages… / Create Multi-Page File… | Seiten extrahieren … / Mehrseitige Datei erstellen … |
+| Identical Files / Similar Images / Mark Suggested | Identische Dateien / Ähnliche Bilder / Vorschläge markieren |
+| fingerprint (duplicate detection) | Fingerabdruck |
+| Export Slideshow Video… | Diashow-Video exportieren … |
+| frame rate / data rate / codec | Bildrate / Datenrate / Codec |
+| scrubber (video) | Zeitleiste |
+| mute | stummschalten |
+| Copy Text / Copy Frame / Save Frame As… | Text kopieren / Frame kopieren / Frame sichern unter … |
+| Count Colors | Farben zählen |
+| Shortcuts (app) / shortcut (workflow) | Kurzbefehle-App / Kurzbefehl |
+| share service | Teilen-Dienst |
+| clipboard | Zwischenablage |
+| Vision framework | Vision-Framework |
+| Language & Region / Apps (System Settings) | Sprache & Region / Apps |
+| Preview (Apple app) | Vorschau |

@@ -1,9 +1,9 @@
 # Primeros pasos
 
 minivu es un explorador, visor y editor de imágenes rápido para tu Mac.
-Muestra una carpeta de fotos como miniaturas, abre cualquiera de ellas a
-pantalla completa con un color preciso y HDR real, y edita sin cambiar el
-original hasta que guardas.
+Muestra una carpeta de fotos y vídeos como miniaturas, abre cualquiera de
+ellos a pantalla completa con un color preciso y HDR real, y edita sin cambiar
+el original hasta que guardas.
 
 ## Abrir una carpeta
 
@@ -26,7 +26,7 @@ original hasta que guardas.
 Haz doble clic en una miniatura, o selecciónala y pulsa Retorno, para abrirla
 en el [visor](help:Viewer). Las teclas de flecha y Espacio recorren la
 carpeta, y Esc te devuelve al explorador. Retorno cambia el visor entre una
-ventana y la pantalla completa.
+ventana y la pantalla completa. Un vídeo se reproduce al pulsar Espacio.
 
 ## Elegir las mejores
 
@@ -34,6 +34,10 @@ Pulsa de **1** a **5** para dar estrellas a las fotos seleccionadas, o **0**
 para borrarlas. Pulsa la tecla del acento grave (**`**) para marcar las que
 quieras conservar. Después usa el menú Filtro de la barra de herramientas para
 mostrar solo esas. Consulta [Explorador](help:Browser).
+
+Para revisar muchas carpetas a la vez, elige **Edición > Buscar…** (**⌘F**),
+o **Visualización > Vista plana** (**⌥⌘F**) para ver una carpeta y todas sus
+subcarpetas juntas.
 
 ## Editar y guardar
 
@@ -49,3 +53,12 @@ hasta que eliges **Archivo > Guardar** o **Guardar como…**. Consulta
 - [Funciones rápidas de teclado](help:KeyboardShortcuts) enumera todas las
   funciones rápidas, siempre al día con los menús.
 - minivu nunca se conecta a internet. Consulta [Privacidad](help:Privacy).
+
+## Idioma
+
+Los menús de minivu y esta ayuda están en el idioma de tu Mac. Para usar otro
+idioma solo en minivu, añade minivu en Aplicaciones en **Ajustes del Sistema >
+General > Idioma y región**. minivu está disponible en inglés, alemán,
+francés, español, italiano, portugués (Brasil), neerlandés, polaco, japonés,
+chino (simplificado) y coreano. Las traducciones se han hecho por máquina y
+aún no las han revisado hablantes nativos.

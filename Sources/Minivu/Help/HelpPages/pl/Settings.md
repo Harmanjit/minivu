@@ -1,7 +1,8 @@
 # Ustawienia
 
 Wybierz **minivu > Ustawienia…** (**⌘,**). Każda zmiana działa od razu; nie
-trzeba niczego zatwierdzać.
+trzeba niczego zatwierdzać. **Widok > Motyw** i **Widok > Tekst na żywo**
+to również ustawienia, które minivu zapamiętuje.
 
 ## Ogólne
 
@@ -12,6 +13,11 @@ trzeba niczego zatwierdzać.
 - **Otwieraj widok obrazu na pełnym ekranie** zamiast w oknie.
 - **Pytaj przed zachowaniem w miejsce oryginału:** włącz ponownie, jeśli
   wybrano, aby nie pytać przy zachowywaniu.
+- **Zapisuj oceny w plikach (XMP):** gwiazdki, oznaczenie i etykiety
+  kolorowe są zapisywane także w każdym zdjęciu, więc widzą je Lightroom,
+  Bridge i inne aplikacje. Pliki RAW oraz formaty, których minivu nie może
+  zapisać ponownie, otrzymują zamiast tego plik dodatkowy XMP obok siebie.
+  Domyślnie wyłączone; po włączeniu zapisywane są tylko późniejsze zmiany.
 
 ## Widok obrazu
 
@@ -28,7 +34,8 @@ trzeba niczego zatwierdzać.
   najszybsze, lub renderowanie danych RAW. minivu i tak renderuje dane RAW,
   gdy podgląd jest za mały dla ekranu lub powiększenia.
 - **Renderuj pliki RAW z rozszerzonym zakresem dynamicznym** pokazuje jasne
-  partie plików RAW w HDR, co trwa chwilę dla każdego zdjęcia.
+  partie plików RAW w HDR, co trwa chwilę dla każdego zdjęcia. **Obraz >
+  Dopasuj > Korekty RAW…** również uwzględnia to ustawienie.
 
 ## Lupa
 
@@ -39,15 +46,18 @@ przytrzymaniu obrazu, z podglądem.
 
 - **Rozmiar** miniatur w siatce.
 - **Wyczyść bufor miniatur** usuwa zachowane miniatury; zostaną utworzone
-  ponownie z plików przy następnym oglądaniu folderu.
+  ponownie z plików przy następnym oglądaniu folderu. Miniatury, które
+  minivu już pokazał, zostają do zakończenia i ponownego otwarcia minivu.
 
 ## Pokaz slajdów
 
 Czas wyświetlania każdego slajdu, kolejność, czy zaczynać od nowa po
 ostatnim slajdzie, podpisy (nazwa pliku, nazwa pliku i data albo aparat i
 ekspozycja), przejście i jego czas trwania z podglądem oraz muzyka: utwory
-lub foldery, odtwarzanie losowe i głośność. Zmiana głośności oraz włączenie
-lub wyłączenie muzyki dotyczy także pokazu, który już trwa.
+lub foldery, odtwarzanie losowe i głośność. W pokazie rozpoczętym z muzyką
+zmiana głośności oraz wyłączenie lub włączenie muzyki działa od razu. **Narzędzia >
+Eksportuj wideo z pokazem slajdów…** używa tych samych ustawień, z wyjątkiem
+głośności.
 
 ## Edytory
 
