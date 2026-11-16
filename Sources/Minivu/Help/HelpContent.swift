@@ -92,8 +92,8 @@ nonisolated enum HelpLibrary {
 }
 
 extension Bundle {
-    /// The app target's resource bundle (the help pages), found where a
-    /// shipped app keeps it.
+    /// The app target's resource bundle (the help pages and the compiled
+    /// Localizable.xcstrings), found where a shipped app keeps it.
     ///
     /// As with `Bundle.minivuRender`, an .app keeps resources in
     /// Contents/Resources, where SwiftPM's `Bundle.module` doesn't look. That
