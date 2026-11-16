@@ -114,15 +114,21 @@ nonisolated enum SavePolicy {
     /// So is an HDR photo losing its highlights.
     static func overwriteDetail(_ options: ExportOptions, hdr: InPlaceHDR = .none) -> String {
         let format = options.format
+        let quality = Int((options.quality * 100).rounded())
         let encoding = format.supportsQuality
-            ? "\(format.title) at quality \(Int((options.quality * 100).rounded()))"
+            ? localized(.init("\(format.title) at quality \(quality)", comment: "%1$@ is a file format such as JPEG, %2$lld a quality from 1 to 100"))
             : format.title
-        let range = switch hdr {
-        case .none: ""
-        case .gainMap: ", in HDR with a new gain map"
-        case .toneMapped: ", in SDR: minivu can’t write this kind of HDR file, so its highlights are tone mapped"
+        return switch hdr {
+        case .none:
+            localized(.init("The edited image is saved over the file as \(encoding). This can’t be undone.",
+                            comment: "Save confirmation; %@ is a format, such as “PNG” or “JPEG at quality 30”"))
+        case .gainMap:
+            localized(.init("The edited image is saved over the file as \(encoding), in HDR with a new gain map. This can’t be undone.",
+                            comment: "Save confirmation; %@ is a format, such as “PNG” or “JPEG at quality 30”"))
+        case .toneMapped:
+            localized(.init("The edited image is saved over the file as \(encoding), in SDR: minivu can’t write this kind of HDR file, so its highlights are tone mapped. This can’t be undone.",
+                            comment: "Save confirmation; %@ is a format, such as “PNG” or “JPEG at quality 30”"))
         }
-        return "The edited image is saved over the file as \(encoding)\(range). This can’t be undone."
     }
 
     /// Save's options: the ones remembered for the format, in the original's
@@ -151,7 +157,7 @@ nonisolated enum SaveAsNaming {
         let isImageExtension = !ext.isEmpty
             && (ImageFormats.allExtensions.contains(ext) || ExportFormat.format(for: URL(fileURLWithPath: trimmed)) != nil)
         var base = isImageExtension ? ns.deletingPathExtension : trimmed
-        if base.isEmpty { base = "Untitled" }
+        if base.isEmpty { base = localized(.init("Untitled", comment: "File name for a saved image whose name was left empty")) }
         return base + "." + format.fileExtension
     }
 }

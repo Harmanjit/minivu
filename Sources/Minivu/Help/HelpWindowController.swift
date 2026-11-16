@@ -63,7 +63,7 @@ final class HelpWindowController: NSWindowController {
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: true)
         window.contentViewController = hosting
-        window.title = "minivu Help"
+        window.title = localized(.init("minivu Help", comment: "Window title"))
         window.minSize = Self.minimumSize
         window.toolbarStyle = .unified
         window.isReleasedWhenClosed = false
@@ -290,8 +290,7 @@ struct ShortcutsPageView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Keyboard Shortcuts").font(.largeTitle.bold())
-                Text("The shortcuts in the menus, then the keys the browser, viewer and tools use directly. "
-                    + "Menu commands act on the window in front.")
+                Text("The shortcuts in the menus, then the keys the browser, viewer and tools use directly. Menu commands act on the window in front.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 12)

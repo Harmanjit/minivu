@@ -87,36 +87,43 @@ nonisolated enum MetadataBatch {
     static func summary(for outcome: Outcome) -> (title: String, detail: String)? {
         let notes = !outcome.locationLeft.isEmpty || !outcome.noDate.isEmpty
         guard !outcome.failed.isEmpty || !outcome.skipped.isEmpty || notes else { return nil }
-        func files(_ count: Int) -> String { count == 1 ? "1 file" : "\(count.formatted()) files" }
         func list(_ lines: [String]) -> String {
             let limit = 8
             var shown = Array(lines.prefix(limit))
-            if lines.count > limit { shown.append("…and \((lines.count - limit).formatted()) more.") }
+            if lines.count > limit {
+                shown.append(localized(.init("…and \(lines.count - limit) more.", comment: "Last line of a list of file names that was cut short")))
+            }
             return shown.joined(separator: "\n")
         }
+        func header(_ text: String, _ names: [String]) -> String { text + "\n" + list(names) }
         let updated = outcome.updated.count
         let title = !outcome.failed.isEmpty
-            ? "\(files(outcome.failed.count).capitalizedFirst) couldn’t be updated."
+            ? localized(.init("\(outcome.failed.count) files couldn’t be updated.", comment: "Alert title after editing metadata"))
             : !outcome.skipped.isEmpty
-                ? "\(files(outcome.skipped.count).capitalizedFirst) \(outcome.skipped.count == 1 ? "was" : "were") skipped."
-                : updated == 1 ? "The metadata was updated." : "The metadata of \(updated.formatted()) files was updated."
+                ? localized(.init("\(outcome.skipped.count) files were skipped.", comment: "Alert title after editing metadata"))
+                : updated == 1 ? localized("The metadata was updated.")
+                : localized(.init("The metadata of \(updated) files was updated.", comment: "Alert title after editing metadata"))
         var parts: [String] = []
-        parts.append(updated == 0 ? "No files were updated." : "\(files(updated).capitalizedFirst) updated.")
+        parts.append(updated == 0 ? localized("No files were updated.")
+            : localized(.init("\(updated) files updated.", comment: "Alert detail after editing metadata")))
         if !outcome.failed.isEmpty {
-            parts.append(list(outcome.failed.map { "\($0.url.lastPathComponent): \($0.reason)" }))
+            parts.append(list(outcome.failed.map {
+                localized(.init("\($0.url.lastPathComponent): \($0.reason)", comment: "A file name, then the reason it couldn’t be changed"))
+            }))
         }
         if !outcome.skipped.isEmpty {
-            parts.append("Metadata can’t be written for these files:\n"
-                + list(outcome.skipped.map(\.lastPathComponent)))
+            parts.append(header(localized("Metadata can’t be written for these files:"), outcome.skipped.map(\.lastPathComponent)))
         }
+        // No count is shown, so "this file" or "these files" is all that varies.
         if !outcome.locationLeft.isEmpty {
-            parts.append("The location was removed from the XMP sidecar, but stays in "
-                + "\(outcome.locationLeft.count == 1 ? "this camera raw file" : "these camera raw files"), "
-                + "which minivu never modifies:\n" + list(outcome.locationLeft.map(\.lastPathComponent)))
+            parts.append(header(outcome.locationLeft.count == 1
+                ? localized("The location was removed from the XMP sidecar, but stays in this camera raw file, which minivu never modifies:")
+                : localized("The location was removed from the XMP sidecar, but stays in these camera raw files, which minivu never modifies:"),
+                outcome.locationLeft.map(\.lastPathComponent)))
         }
         if !outcome.noDate.isEmpty {
-            parts.append("\(outcome.noDate.count == 1 ? "This file has" : "These files have") no date taken to shift:\n"
-                + list(outcome.noDate.map(\.lastPathComponent)))
+            parts.append(header(outcome.noDate.count == 1 ? localized("This file has no date taken to shift:")
+                : localized("These files have no date taken to shift:"), outcome.noDate.map(\.lastPathComponent)))
         }
         return (title, parts.joined(separator: "\n\n"))
     }

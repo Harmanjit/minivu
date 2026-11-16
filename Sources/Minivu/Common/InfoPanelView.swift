@@ -56,7 +56,7 @@ struct InfoPanelView: View {
                         }
                         if let editKeywords, let keywords, loadedURL == url {
                             GridRow {
-                                SectionTitle(title: "Keywords", isFirst: sections.isEmpty)
+                                SectionTitle(title: localized(.init("Keywords", comment: "Info panel section heading")), isFirst: sections.isEmpty)
                                     .gridCellColumns(2)
                             }
                             GridRow {

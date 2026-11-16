@@ -49,7 +49,7 @@ enum SavePresenter {
             store.remember(options)
             store.lastFolder = url.deletingLastPathComponent()
             let source = model.source
-            let progress = window.map { SaveProgress(on: $0, title: "Saving “\(url.lastPathComponent)”…") }
+            let progress = window.map { SaveProgress(on: $0, title: savingTitle(url.lastPathComponent)) }
             // In line with every other write, so a Save of the same file
             // asked for just before can't land after this one.
             let original = entry.url
@@ -71,7 +71,7 @@ enum SavePresenter {
                     completion(url)
                 } catch {
                     progress?.finish()
-                    SaveAlert.show(error, title: "“\(url.lastPathComponent)” couldn’t be saved.", on: window)
+                    SaveAlert.show(error, title: notSavedTitle(url.lastPathComponent), on: window)
                     completion(nil)
                 }
             }
@@ -166,7 +166,7 @@ enum SavePresenter {
         let savedOperations = snapshot.operations
         let renderer = EditRenderer.shared
         let url = entry.url
-        let progress = SaveProgress(on: window, title: "Saving “\(entry.name)”…")
+        let progress = SaveProgress(on: window, title: savingTitle(entry.name))
         let job = FileWriteQueue.shared.enqueue(replacing: [url]) {
             try await writeInPlace(snapshot, colorSpace: colorSpace, options: options, to: url, renderer: renderer,
                                    gainMap: gainMap)
@@ -183,7 +183,7 @@ enum SavePresenter {
                 completion(true)
             } catch {
                 progress.finish()
-                SaveAlert.show(error, title: "“\(entry.name)” couldn’t be saved.", on: window)
+                SaveAlert.show(error, title: notSavedTitle(entry.name), on: window)
                 completion(false)
             }
         }
@@ -253,13 +253,13 @@ enum SavePresenter {
                                          then: @escaping (Bool) -> Void) {
         guard preferences.confirmOverwriteOnSave else { return then(true) }
         let alert = NSAlert()
-        alert.messageText = "Replace the original “\(entry.name)”?"
+        alert.messageText = localized(.init("Replace the original “\(entry.name)”?", comment: "Alert title; %@ is a file name"))
         alert.informativeText = SavePolicy.overwriteDetail(options, hdr: hdr)
-        let replace = alert.addButton(withTitle: "Replace")
+        let replace = alert.addButton(withTitle: localized("Replace"))
         replace.hasDestructiveAction = true
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: localized("Cancel"))
         alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "Don’t ask again"
+        alert.suppressionButton?.title = localized("Don’t ask again")
         alert.beginSheetModal(for: window) { response in
             let confirmed = response == .alertFirstButtonReturn
             if confirmed, alert.suppressionButton?.state == .on {
@@ -267,6 +267,14 @@ enum SavePresenter {
             }
             then(confirmed)
         }
+    }
+
+    private static func savingTitle(_ name: String) -> String {
+        localized(.init("Saving “\(name)”…", comment: "Progress title; %@ is a file name"))
+    }
+
+    private static func notSavedTitle(_ name: String) -> String {
+        localized(.init("“\(name)” couldn’t be saved.", comment: "Alert title; %@ is a file name"))
     }
 
     /// After any write minivu made: the browser's thumbnails and the
@@ -305,8 +313,8 @@ nonisolated enum InPlaceSaveError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .fileChanged(let name):
-            "“\(name)” was changed by another application after you started editing it, so it wasn’t replaced. "
-                + "Use Save As to keep your edits in a new file."
+            localized(.init("“\(name)” was changed by another application after you started editing it, so it wasn’t replaced. Use Save As to keep your edits in a new file.",
+                            comment: "Error; %@ is a file name. Save As is a menu command"))
         }
     }
 }

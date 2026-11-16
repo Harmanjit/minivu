@@ -187,10 +187,10 @@ nonisolated private let marksLog = Logger(subsystem: "com.minivu.app", category:
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = failures.count == 1
-            ? "The rating couldn’t be written into “\(first.url.lastPathComponent)”."
-            : "Ratings couldn’t be written into \(failures.count.formatted()) files."
-        alert.informativeText = first.reason + " The ratings are kept in minivu all the same. "
-            + "Later failures in this session aren’t reported."
+            ? localized(.init("The rating couldn’t be written into “\(first.url.lastPathComponent)”.", comment: "Alert title; %@ is a file name"))
+            : localized(.init("Ratings couldn’t be written into \(failures.count) files.", comment: "Alert title"))
+        alert.informativeText = localized(.init("\(first.reason) The ratings are kept in minivu all the same. Later failures in this session aren’t reported.",
+                                                comment: "Alert detail; %@ is the reason the first write failed, a sentence"))
         alert.beginSheetModal(for: window)
     }
 }

@@ -161,7 +161,8 @@ nonisolated enum SizeEstimator {
     /// player shows it, with dots for the colons a file name can't hold.
     nonisolated static func frameName(of url: URL, seconds: Double) -> String {
         let time = VideoFrames.durationText(seconds).replacingOccurrences(of: ":", with: ".")
-        return "\(url.deletingPathExtension().lastPathComponent) frame \(time)"
+        let name = url.deletingPathExtension().lastPathComponent
+        return localized(.init("\(name) frame \(time)", comment: "File name for a still from a video; %1$@ is the video's name, %2$@ the time, such as 0.12"))
     }
 
     /// Whether the saved file can carry the original's metadata: not for a
@@ -225,18 +226,22 @@ nonisolated enum SizeEstimator {
     /// "JPEG quality 72", or just "PNG" for lossless formats.
     var formatDescription: String {
         let format = options.format
-        return format.supportsQuality ? "\(format.title) quality \(Int(qualityPercent))" : format.title
+        let quality = Int(qualityPercent)
+        return format.supportsQuality
+            ? localized(.init("\(format.title) quality \(quality)", comment: "%1$@ is a file format such as JPEG, %2$lld a quality from 1 to 100"))
+            : format.title
     }
 
     /// The value of the "Estimated size" line.
     var sizeText: String {
-        if renderError != nil { return "Unavailable" }
-        if isRendering { return "Preparing image…" }
+        let unavailable = localized(.init("Unavailable", comment: "Estimated file size: can't be worked out"))
+        if renderError != nil { return unavailable }
+        if isRendering { return localized("Preparing image…") }
         return switch estimate {
-        case .none, .estimating: "Estimating…"
-        case .approximate(let bytes): "About \(SaveSizeText.file(bytes))"
+        case .none, .estimating: localized(.init("Estimating…", comment: "Estimated file size: being worked out"))
+        case .approximate(let bytes): localized(.init("About \(SaveSizeText.file(bytes))", comment: "Estimated file size; %@ is a size such as “2.4 MB”"))
         case .exact(let bytes): SaveSizeText.file(bytes)
-        case .failed: "Unavailable"
+        case .failed: unavailable
         }
     }
 

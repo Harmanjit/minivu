@@ -37,7 +37,7 @@ final class PreferencesWindowController: NSWindowController {
         let window = NSWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
         window.toolbarStyle = .preference
-        window.title = "Settings"
+        window.title = localized(.init("Settings", comment: "Window title"))
         window.center()
         window.setFrameAutosaveName("Settings")
         super.init(window: window)
@@ -73,12 +73,12 @@ enum SettingsPane: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .general: "General"
-        case .viewer: "Viewer"
-        case .magnifier: "Magnifier"
-        case .thumbnails: "Thumbnails"
-        case .slideshow: "Slideshow"
-        case .editors: "Editors"
+        case .general: localized(.init("General", comment: "Settings pane"))
+        case .viewer: localized(.init("Viewer", comment: "The window that shows one image"))
+        case .magnifier: localized(.init("Magnifier", comment: "The loupe that magnifies part of the image"))
+        case .thumbnails: localized(.init("Thumbnails", comment: "Settings pane"))
+        case .slideshow: localized("Slideshow")
+        case .editors: localized(.init("Editors", comment: "Settings pane: external apps that edit images"))
         }
     }
 
@@ -189,23 +189,28 @@ private struct ViewerSettings: View {
 private struct MagnifierSettings: View {
     @ObservedObject var prefs = Preferences.shared
 
+    private var magnification: String {
+        localized(.init("zoom.magnification", defaultValue: "Zoom", comment: "Noun: how much the image is magnified"))
+    }
+    private var zoomText: String { prefs.magnifierZoom.formatted(.number.precision(.fractionLength(1))) }
+
     var body: some View {
         Form {
             Section {
-                LabeledContent("Zoom") {
+                LabeledContent(magnification) {
                     HStack {
                         Slider(value: $prefs.magnifierZoom, in: 1.5...8)
-                            .accessibilityLabel("Zoom")
-                            .accessibilityValue(String(format: "%.1f times", prefs.magnifierZoom))
-                        ValueLabel(text: String(format: "%.1f×", prefs.magnifierZoom))
+                            .accessibilityLabel(magnification)
+                            .accessibilityValue(localized(.init("\(zoomText) times", comment: "VoiceOver value: magnification; %@ is a number such as 2.5")))
+                        ValueLabel(text: "\(zoomText)×")
                     }
                 }
                 LabeledContent("Size") {
                     HStack {
                         Slider(value: wholePoints($prefs.magnifierRadius), in: MagnifierPreview.radii)
                             .accessibilityLabel("Size")
-                            .accessibilityValue("\(Int(prefs.magnifierRadius)) points")
-                        ValueLabel(text: "\(Int(prefs.magnifierRadius)) pt")
+                            .accessibilityValue(pointsValue(prefs.magnifierRadius))
+                        ValueLabel(text: pointsLabel(prefs.magnifierRadius))
                     }
                 }
             } footer: {
@@ -283,8 +288,8 @@ private struct ThumbnailSettings: View {
                     // No `step`: on macOS it draws a tick mark per step.
                     Slider(value: wholePoints($prefs.thumbnailSize), in: 80...320)
                         .accessibilityLabel("Size")
-                        .accessibilityValue("\(Int(prefs.thumbnailSize)) points")
-                    ValueLabel(text: "\(Int(prefs.thumbnailSize)) pt")
+                        .accessibilityValue(pointsValue(prefs.thumbnailSize))
+                    ValueLabel(text: pointsLabel(prefs.thumbnailSize))
                 }
             }
             Section {
@@ -305,10 +310,19 @@ private struct ThumbnailSettings: View {
 private extension RawDecoding {
     var title: String {
         switch self {
-        case .embeddedPreview: "Embedded preview (faster)"
-        case .fullRaw: "Render RAW data"
+        case .embeddedPreview: localized(.init("Embedded preview (faster)", comment: "Choice of how RAW files are shown: the JPEG preview the camera stored"))
+        case .fullRaw: localized(.init("Render RAW data", comment: "Choice of how RAW files are shown"))
         }
     }
+}
+
+/// A size slider's value for VoiceOver, and for its label beside it.
+private func pointsValue(_ size: Double) -> String {
+    localized(.init("\(Int(size)) points", comment: "VoiceOver value: a size in typographic points"))
+}
+
+private func pointsLabel(_ size: Double) -> String {
+    localized(.init("\(Int(size)) pt", comment: "A size in typographic points, abbreviated"))
 }
 
 /// Rounds a slider's value as it is written, so sizes are whole points: a

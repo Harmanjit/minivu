@@ -215,7 +215,7 @@ final class QualityCompareWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         window.contentViewController = hosting
         // After the content: the hosting controller brings its own (empty) title.
-        window.title = "Compare Quality"
+        window.title = localized(.init("Compare Quality", comment: "Window title: the original beside the image as it will be saved"))
         window.subtitle = saveModel.entry.name
         window.setContentSize(NSSize(width: 1160, height: 720))
         window.center()
@@ -248,8 +248,10 @@ struct QualityCompareView: View {
     var body: some View {
         let save = model.save
         HStack(spacing: 0) {
-            pane(title: "Original",
-                 detail: model.imageBytes.map { "\(SaveSizeText.memory($0)) in memory" } ?? "",
+            pane(title: localized(.init("Original", comment: "Noun: the image before it is saved, beside the saved result")),
+                 detail: model.imageBytes.map {
+                     localized(.init("\(SaveSizeText.memory($0)) in memory", comment: "%@ is a size such as “48 MB”"))
+                 } ?? "",
                  tile: model.original, isBusy: false)
             Divider()
             pane(title: save.formatDescription, detail: save.sizeText, tile: model.encoded,
@@ -263,7 +265,8 @@ struct QualityCompareView: View {
         .onChange(of: save.options) { model.optionsChanged() }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Picker("Zoom", selection: $model.zoom) {
+                Picker(localized(.init("zoom.magnification", defaultValue: "Zoom", comment: "Noun: how much the image is magnified")),
+                       selection: $model.zoom) {
                     ForEach(CompareViewport.zoomLevels, id: \.self) { level in
                         Text("\(level * 100)%").tag(level)
                     }
@@ -279,7 +282,7 @@ struct QualityCompareView: View {
                         Slider(value: Bindable(save).qualityPercent, in: 1...100)
                             .accessibilityLabel("Quality")
                             .frame(width: 180)
-                        Text("\(Int(save.qualityPercent))")
+                        Text(verbatim: "\(Int(save.qualityPercent))")
                             .monospacedDigit()
                             .frame(width: 28, alignment: .trailing)
                     }
