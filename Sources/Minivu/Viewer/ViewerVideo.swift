@@ -301,13 +301,14 @@ final class VideoStageView: NSView {
 
     let playButton: NSButton = {
         let configuration = NSImage.SymbolConfiguration(pointSize: 30, weight: .regular)
-        let image = NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: "Play Video")?
+        let label = localized("Play Video")
+        let image = NSImage(systemSymbolName: "play.circle.fill", accessibilityDescription: label)?
             .withSymbolConfiguration(configuration)
         let button = NSButton(image: image ?? NSImage(), target: nil, action: nil)
         button.isBordered = false
         button.imageScaling = .scaleProportionallyUpOrDown
         button.contentTintColor = .white
-        button.setAccessibilityLabel(localized("Play Video"))
+        button.setAccessibilityLabel(label)
         button.toolTip = localized(.init("Play Video (Space)", comment: "Tooltip: keep the key in brackets"))
         // Taking the keyboard would leave the viewer's keys with a button.
         button.refusesFirstResponder = true

@@ -407,8 +407,10 @@ public enum MetadataReader {
 
     /// Degrees, minutes and seconds with a hemisphere: 48.858222 N ->
     /// "48° 51′ 29.6″ N". ImageIO gives positive numbers plus a reference
-    /// letter; a negative number flips the hemisphere too.
-    static func formatCoordinate(_ value: Double, ref: String?, positive: String, negative: String) -> String {
+    /// letter; a negative number flips the hemisphere too. The seconds take
+    /// `locale`'s decimal mark ("29,6″" in German).
+    static func formatCoordinate(_ value: Double, ref: String?, positive: String, negative: String,
+                                 locale: Locale = .autoupdatingCurrent) -> String {
         var hemisphere = ref?.uppercased() == negative ? negative : positive
         if value < 0 { hemisphere = hemisphere == positive ? negative : positive }
         // Work in tenths of a second so rounding carries into minutes and
@@ -418,8 +420,8 @@ public enum MetadataReader {
         }
         let degrees = tenths / 36_000
         let minutes = (tenths % 36_000) / 600
-        let seconds = Double(tenths % 600) / 10
-        return "\(degrees)° \(minutes)′ \(String(format: "%.1f", seconds))″ \(hemisphereName(hemisphere))"
+        let seconds = (Double(tenths % 600) / 10).formatted(.number.precision(.fractionLength(1)).locale(locale))
+        return "\(degrees)° \(minutes)′ \(seconds)″ \(hemisphereName(hemisphere))"
     }
 
     /// The compass letter shown for an EXIF one ("W" is "O" in French).
