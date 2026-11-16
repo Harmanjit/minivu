@@ -107,8 +107,8 @@ nonisolated enum FullScreenDisplayChoice: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .browserDisplay: "The display with the browser"
-        case .anotherDisplay: "Another display"
+        case .browserDisplay: localized(.init("The display with the browser", comment: "Choice of where the full-screen viewer opens"))
+        case .anotherDisplay: localized(.init("Another display", comment: "Choice of where the full-screen viewer opens"))
         }
     }
 }
