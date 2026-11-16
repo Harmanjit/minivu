@@ -282,14 +282,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // something to wait for.
         let marks = MarksFileWriter.shared
         let marksMayBePending = marks.isEnabled() || marks.pendingCount > 0
+        let launch = IntentLaunch.shared
         guard hasEdits || marksMayBePending || writes.pendingCount > 0 || FileTransfer.isActive
-                || BatchTools.renamesRunning > 0 else {
+                || BatchTools.renamesRunning > 0 || launch.running > 0 else {
             return .terminateNow
         }
 
-        // A Shortcuts action that begins during the wait cancels the quit
+        // A Shortcuts action already running is waited for; one that begins
+        // during the wait, or the user opening minivu, cancels the quit
         // (IntentLaunch.quitReply): the waits may already have passed it.
-        let launch = IntentLaunch.shared
         launch.quitWaits()
         func reply(_ proceed: Bool) {
             NSApp.reply(toApplicationShouldTerminate: launch.quitReply(proceed))
@@ -297,6 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         func finishWritesThenQuit() {
             FileTransfer.cancelActive()
             Task {
+                await launch.waitUntilNoActions()
                 // Ratings and tags pressed just before quitting go into the
                 // write queue first, so waiting for it below includes them.
                 await marks.flush(after: BrowserModel.catalogWrites)

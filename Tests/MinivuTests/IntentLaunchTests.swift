@@ -237,6 +237,58 @@ import CoreServices
         #expect(launch.quitReply(true))
     }
 
+    /// Opening minivu while the idle quit waits for writes shows the
+    /// browser and cancels that quit, so minivu doesn't quit under it.
+    @Test func userAskingDuringTheQuitsWaitCancelsIt() {
+        let (launch, timers, events) = make()
+        launch.launchFinished(windowRequested: false)
+        launch.actionBegan()
+        launch.actionEnded()
+        timers.fire()
+        launch.quitWaits()
+        launch.userAsked()
+        #expect(events.log == ["hide", "quit", "window"])
+        #expect(launch.quitReply(true) == false)
+        #expect(timers.live.isEmpty)
+    }
+
+    /// A second terminate during the wait keeps the first one's
+    /// cancellation, and the idle quit doesn't fire over a pending one.
+    @Test func reentrantQuitKeepsTheCancellation() {
+        let (launch, timers, events) = make()
+        launch.launchFinished(windowRequested: false)
+        launch.actionBegan()
+        launch.actionEnded()
+        timers.fire()
+        launch.quitWaits()
+        launch.actionBegan()
+        launch.actionEnded()
+        launch.quitWaits()
+        timers.fire()
+        #expect(events.log == ["hide", "quit"])
+        #expect(launch.quitReply(true) == false)
+    }
+
+    /// ⌘Q while an action runs waits for it rather than cutting it off.
+    @Test func quitWaitsForARunningAction() async {
+        let (launch, _, _) = make()
+        launch.launchFinished(windowRequested: true)
+        launch.actionBegan()
+        launch.quitWaits()
+        #expect(launch.running == 1)
+        let waited = Task { await launch.waitUntilNoActions(); return launch.running }
+        await Task.yield()
+        launch.actionEnded()
+        #expect(await waited.value == 0)
+        #expect(launch.quitReply(true))
+        // Still running at reply time: no quit.
+        launch.actionBegan()
+        launch.quitWaits()
+        #expect(launch.quitReply(true) == false)
+        launch.actionEnded()
+        await launch.waitUntilNoActions()   // returns at once
+    }
+
     /// The launch log names the event and its parameter keywords only:
     /// never an open-documents event's file paths.
     @Test func launchEventLogShowsNoValues() {

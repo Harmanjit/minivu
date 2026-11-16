@@ -472,9 +472,14 @@ a launch made only to run an action must not open the browser.
   quit too (`IntentLaunch.quitWaits`/`quitReply`, checked just before the
   reply): the waits may already have passed its work (a rename registered
   after `waitForRenames` returned would be cut off mid-swap). The idle
-  quit comes round 60 s after it ends. The same gate covers ⌘Q at no
-  extra cost: an action begun during ⌘Q's wait cancels that quit, and the
-  user presses ⌘Q again.
+  quit comes round 60 s after it ends. A second terminate during the
+  wait keeps that cancellation (`quitWaits` resets only when no quit is
+  waiting), and the idle timer doesn't fire over a waiting quit. The same
+  gate covers ⌘Q at no extra cost: an action begun during ⌘Q's wait
+  cancels that quit, and the user presses ⌘Q again. An action already
+  running counts as pending work: ⌘Q returns `.terminateLater`, waits for
+  it to end (`waitUntilNoActions`) before the other waits, and `quitReply`
+  quits only with none running, so ⌘Q never cuts an action off.
   60 s: a shortcut's steps, or the same Quick Action used on a few
   selections in a row, come seconds apart, and each would otherwise pay a
   fresh launch (catalog, Metal); an idle windowless process costs little
@@ -482,7 +487,8 @@ a launch made only to run an action must not open the browser.
 - Opening minivu meanwhile (from Finder, Launchpad, Spotlight or
   Applications, opening a file in it, Open in minivu; it has no Dock icon
   to click by then) makes it an ordinary app: Dock icon, browser window,
-  no quit. Switching from `.accessory` to `.regular` while active can
+  no quit. That includes a quit already waiting for writes: showing the
+  browser cancels it, so minivu doesn't quit under the new window. Switching from `.accessory` to `.regular` while active can
   leave the previous app's menu bar, so minivu then activates itself on
   the next run-loop turn.
 

@@ -16,9 +16,11 @@ import Foundation
 ///
 /// When an action came first, minivu stays windowless and out of the Dock
 /// (`.accessory`), and quits through the normal quit path (which waits for
-/// queued writes) once no action has run for `idleGrace`. An action that
-/// begins while a quit waits for those writes cancels the quit (see
-/// `quitWaits`), so it is never cut off; the idle quit comes round again.
+/// queued writes) once no action has run for `idleGrace`. Any quit also
+/// waits for actions already running; one that begins while a quit waits,
+/// or the user opening minivu meanwhile, cancels the quit (see
+/// `quitWaits`), so no action is cut off and no window shown is quit
+/// under; the idle quit comes round again.
 final class IntentLaunch {
     enum Mode: Equatable {
         /// Before `applicationDidFinishLaunching`.
@@ -50,9 +52,10 @@ final class IntentLaunch {
     private(set) var running = 0
     private var actionBeforeDecision = false
     /// A quit is waiting for writes (`applicationShouldTerminate` returned
-    /// `.terminateLater`), and whether an action began meanwhile.
+    /// `.terminateLater`), and whether an action or the user cancelled it.
     private(set) var quitting = false
-    private var actionDuringQuit = false
+    private var quitCancelled = false
+    private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var cancelPending: (() -> Void)?
     private let schedule: Scheduler
     /// Set by the app delegate: show the browser (and switch to `.regular`),
@@ -95,7 +98,7 @@ final class IntentLaunch {
 
     func actionBegan() {
         running += 1
-        if quitting { actionDuringQuit = true }
+        if quitting { quitCancelled = true }
         switch mode {
         case .launching: actionBeforeDecision = true
         case .deciding: becomeIntentOnly()
@@ -106,23 +109,34 @@ final class IntentLaunch {
 
     func actionEnded() {
         running = max(running - 1, 0)
-        if mode == .intentOnly, running == 0 { scheduleQuit() }
+        guard running == 0 else { return }
+        idleWaiters.forEach { $0.resume() }
+        idleWaiters = []
+        if mode == .intentOnly { scheduleQuit() }
     }
 
-    /// Any quit (the idle one or ⌘Q) that waits for writes before replying.
+    /// Any quit (the idle one or ⌘Q) that waits before replying. A second
+    /// terminate during the wait keeps the first one's cancellation.
     func quitWaits() {
+        guard !quitting else { return }
         quitting = true
-        actionDuringQuit = false
+        quitCancelled = false
+    }
+
+    /// Returns once no action is running (a quit waits for them).
+    func waitUntilNoActions() async {
+        while running > 0 { await withCheckedContinuation { idleWaiters.append($0) } }
     }
 
     /// The reply to a waiting quit, checked synchronously just before it is
-    /// given: an action that began during the wait cancels it. Its work may
-    /// have started after the waits had passed it (a rename registered after
-    /// `waitForRenames` returned) and would be cut off. The idle quit is
-    /// scheduled again when the action ends.
+    /// given: an action that began during the wait, or the user opening
+    /// minivu, cancels it. The action's work may have started after the
+    /// waits had passed it (a rename registered after `waitForRenames`
+    /// returned) and would be cut off. The idle quit is scheduled again when
+    /// the action ends.
     func quitReply(_ proceed: Bool) -> Bool {
-        defer { quitting = false; actionDuringQuit = false }
-        return proceed && !actionDuringQuit
+        defer { quitting = false; quitCancelled = false }
+        return proceed && !quitCancelled && running == 0
     }
 
     /// Wraps an action's work (every intent but Open in minivu).
@@ -135,6 +149,7 @@ final class IntentLaunch {
     private func becomeNormal() {
         replacePending(nil)
         mode = .normal
+        if quitting { quitCancelled = true }
         showWindow()
     }
 
@@ -147,7 +162,7 @@ final class IntentLaunch {
 
     private func scheduleQuit() {
         replacePending(schedule(Self.idleGrace) { [weak self] in
-            guard let self, mode == .intentOnly, running == 0 else { return }
+            guard let self, mode == .intentOnly, running == 0, !quitting else { return }
             quit()
         })
     }
