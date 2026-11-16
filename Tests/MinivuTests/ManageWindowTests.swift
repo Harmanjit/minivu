@@ -281,6 +281,48 @@ extension AppWindowTests {
             #expect(controller.model.entries.map(\.name) == ["b.jpg"])
         }
 
+        /// A list looks on disk only for paths the catalog says files left:
+        /// rating a file that has gone some other way leaves it shown until
+        /// minivu removes it.
+        @Test func aListLooksOnlyAtPathsFilesLeft() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(list: VirtualList(kind: .files([a, b]), title: "2 copies"))
+            await settle(controller)
+            #expect(controller.model.entries.count == 2)
+
+            try FileManager.default.removeItem(at: a)
+            catalog.setRating(3, for: [a])
+            await settle(controller)
+            await settle(controller)
+            #expect(controller.model.entries.count == 2)
+            catalog.fileRemoved(a)
+            await TestTiming.waitUntil { controller.model.entries.count == 1 }
+            #expect(controller.model.entries.map(\.name) == ["b.jpg"])
+        }
+
+        /// A Duplicates list follows a rename made elsewhere (the viewer,
+        /// Shortcuts) once the catalog reports it, selection and all.
+        @Test func aListOfFilesFollowsRenamesMadeElsewhere() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(list: VirtualList(kind: .files([a, b]), title: "2 copies"))
+            await settle(controller)
+            controller.model.select(a)
+
+            let renamed = t.url.appendingPathComponent("keep.jpg")
+            try FileManager.default.moveItem(at: a, to: renamed)
+            catalog.fileMoved(from: a, to: renamed)
+            await TestTiming.waitUntil { controller.model.lead?.lastPathComponent == "keep.jpg" }
+            #expect(Set(controller.model.entries.map(\.name)) == ["keep.jpg", "b.jpg"])
+        }
+
         /// Copies from elsewhere arrive selected; Undo sends them to the Trash.
         @Test func copyInSelectsArrivals() async throws {
             _ = NSApplication.shared

@@ -331,7 +331,7 @@ public struct SearchQuery: Sendable, Equatable, Codable {
 
 extension MetadataCriteria {
     private enum CodingKeys: String, CodingKey {
-        case fileTypes, takenFrom, takenTo, camera, lens, iso, aperture, focalLength, keywords, colorLabel,
+        case fileTypes, videoGroup, takenFrom, takenTo, camera, lens, iso, aperture, focalLength, keywords, colorLabel,
              hasLocation, shape, minimumWidth, minimumHeight
     }
 
@@ -342,6 +342,8 @@ extension MetadataCriteria {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let types = (try? c.decodeIfPresent([String].self, forKey: .fileTypes))
         fileTypes = Set((types ?? []).compactMap(FileTypeGroup.init(rawValue:)))
+        // Saved before the Video group, when Other held videos: it still does.
+        if fileTypes.contains(.other), !c.contains(.videoGroup) { fileTypes.insert(.video) }
         takenFrom = (try? c.decodeIfPresent(Int.self, forKey: .takenFrom))
         takenTo = (try? c.decodeIfPresent(Int.self, forKey: .takenTo))
         camera = (try? c.decodeIfPresent(String.self, forKey: .camera)) ?? ""
@@ -359,7 +361,10 @@ extension MetadataCriteria {
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        if !fileTypes.isEmpty { try c.encode(fileTypes.map(\.rawValue).sorted(), forKey: .fileTypes) }
+        if !fileTypes.isEmpty {
+            try c.encode(fileTypes.map(\.rawValue).sorted(), forKey: .fileTypes)
+            try c.encode(true, forKey: .videoGroup)
+        }
         try c.encodeIfPresent(takenFrom, forKey: .takenFrom)
         try c.encodeIfPresent(takenTo, forKey: .takenTo)
         if !camera.isEmpty { try c.encode(camera, forKey: .camera) }

@@ -358,7 +358,9 @@ struct DuplicateGroup: Identifiable, Equatable {
                 images = source.listImages ?? []
             }
         }
-        images = images.filter { !$0.isDirectory }
+        // Similar mode never prints a video (`featurePrints`), so one must not
+        // take a place under the cap or count as compared.
+        images = images.filter { !$0.isDirectory && (request.mode == .exact || $0.kind != .video) }
         outcome.scanned = images.count
         let store = request.store
         defer { store?.pruneFingerprints() }

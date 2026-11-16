@@ -325,6 +325,7 @@ nonisolated struct FolderSnapshot: Sendable {
     /// again when it lands; otherwise a star set during a reload would
     /// flick back until the next change.
     private var catalogChangesDuringListing: [URL] = []
+    private var catalogLeftDuringListing: [URL] = []
     /// The Finder tag read in flight: a whole listing's, or a refresh of a
     /// few files'. The next listing cancels either.
     private var finderTagRead: (cancel: CancellationFlag, isWholeFolder: Bool)?
@@ -369,7 +370,12 @@ nonisolated struct FolderSnapshot: Sendable {
         catalogObserver = NotificationCenter.default.addObserver(forName: Catalog.didChange, object: nil,
                                                                  queue: .main) { [weak self] note in
             let urls = note.object as? [URL] ?? []
-            MainActor.assumeIsolated { self?.catalogChanged(urls) }
+            let moves = note.userInfo?[Catalog.movesKey] as? [(from: URL, to: URL)] ?? []
+            let removed = note.userInfo?[Catalog.removedKey] as? [URL] ?? []
+            MainActor.assumeIsolated {
+                self?.followRenames(moves)
+                self?.catalogChanged(urls, left: moves.map(\.from) + removed)
+            }
         }
         // A collection shown changes when members are added, removed or
         // found again; a smart folder is re-run only when opened.
@@ -513,6 +519,7 @@ nonisolated struct FolderSnapshot: Sendable {
         finderTagRead = nil
         pendingSelections = []
         catalogChangesDuringListing = []
+        catalogLeftDuringListing = []
         pendingSelection = item
         parentToCheck = enclosingFolder
         if parentToCheck == nil { canGoToEnclosingFolder = false }
@@ -873,9 +880,10 @@ nonisolated struct FolderSnapshot: Sendable {
             Perf.milestone("launch.firstFolderListed")
         }
         if !catalogChangesDuringListing.isEmpty {
-            let urls = catalogChangesDuringListing
+            let urls = catalogChangesDuringListing, left = catalogLeftDuringListing
             catalogChangesDuringListing = []
-            catalogChanged(urls)
+            catalogLeftDuringListing = []
+            catalogChanged(urls, left: left)
         }
         readEveryFileMarksIfNeeded()
         readFilterMetadataIfNeeded()
@@ -1067,10 +1075,15 @@ nonisolated struct FolderSnapshot: Sendable {
     /// The catalog changed some files, or a folder's order. Marks of this
     /// folder's files are read again (one small read), then only what they
     /// affect is redone: the cells, the filter, or the order.
-    func catalogChanged(_ urls: [URL]) {
+    /// `left`: the paths minivu moved or removed files from, which a list
+    /// drops if they are gone.
+    func catalogChanged(_ urls: [URL], left: [URL] = []) {
         let changing = Perf.begin("browser.catalogChanged")
         defer { changing.end() }
-        if isListing { catalogChangesDuringListing += urls }
+        if isListing {
+            catalogChangesDuringListing += urls
+            catalogLeftDuringListing += left
+        }
         guard let snapshot, state == .loaded else { return }
         var files: [URL] = []
         var orderChanged = false
@@ -1082,9 +1095,14 @@ nonisolated struct FolderSnapshot: Sendable {
             }
         }
         // A list watches no folder: a file the viewer or Compare trashed or
-        // moved (the catalog names both of its paths) leaves it here.
-        if list != nil {
-            let gone = files.filter { !FileManager.default.fileExists(atPath: $0.path) }
+        // moved leaves it here. Only those sources are looked at on disk
+        // (one may remain, a letter-case rename): a rating names no path
+        // that left.
+        if list != nil, !left.isEmpty {
+            let sources = Set(left.map(\.standardizedFileURL.path))
+            let gone = files.filter {
+                sources.contains($0.standardizedFileURL.path) && !FileManager.default.fileExists(atPath: $0.path)
+            }
             if !gone.isEmpty {
                 removeEntries(Set(gone))
                 files.removeAll { gone.contains($0) }
@@ -1488,8 +1506,9 @@ nonisolated struct FolderSnapshot: Sendable {
     /// A list of fixed files (a Duplicates group, `.files`) keeps the files
     /// minivu itself renamed or moved, here and in Back and Forward: it is
     /// read again from its paths, and would otherwise drop them.
-    func followMoves(_ moves: [(from: URL, to: URL)]) {
-        guard !moves.isEmpty else { return }
+    /// True when the list shown changed.
+    @discardableResult func followMoves(_ moves: [(from: URL, to: URL)]) -> Bool {
+        guard !moves.isEmpty else { return false }
         var moved: [String: URL] = [:]
         for move in moves { moved[move.from.standardizedFileURL.path] = move.to }
         func follow(_ list: VirtualList?) -> VirtualList? {
@@ -1502,9 +1521,26 @@ nonisolated struct FolderSnapshot: Sendable {
             location.list = follow(location.list)
             return location
         }
+        let shown = list
         list = follow(list)
         backStack = backStack.map(follow)
         forwardStack = forwardStack.map(follow)
+        return list != shown
+    }
+
+    /// Renames the catalog reports from anywhere (the viewer, Shortcuts, a
+    /// Batch Convert Replace that changes a name's letter case) are followed
+    /// as the browser's own are, and the list read again with them. A move
+    /// to another folder (the Trash, Move To from elsewhere) isn't: the list
+    /// drops that file (`catalogChanged`).
+    func followRenames(_ moves: [(from: URL, to: URL)]) {
+        let renames = moves.filter {
+            !Self.samePath($0.from, $0.to)
+                && Self.samePath($0.from.deletingLastPathComponent(), $0.to.deletingLastPathComponent())
+        }
+        let selected = Set(selection.map(\.standardizedFileURL.path))
+        guard followMoves(renames) else { return }
+        reload(thenSelect: renames.filter { selected.contains($0.from.standardizedFileURL.path) }.map(\.to))
     }
 
     func removeEntries(_ urls: Set<URL>) {

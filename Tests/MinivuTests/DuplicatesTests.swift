@@ -317,6 +317,27 @@ import MinivuCore
         request.mode = .exact
         #expect(DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }.exactGroups.isEmpty)
     }
+
+    /// Similar mode leaves videos out before the memory cap and the count:
+    /// clips listed first don't crowd out the pictures it can compare.
+    @Test func similarModeLeavesVideosOutOfTheCap() throws {
+        let t = try ScratchFolder()
+        let picture = try t.jpeg("a.jpg", width: 64, height: 48)
+        let clips = ["a.mov", "b.mp4"].map { name in
+            FolderEntry(url: t.url.appendingPathComponent(name), name: name, isDirectory: false, kind: .video,
+                        fileSize: 10, modified: Date(timeIntervalSince1970: 1000), created: Date(timeIntervalSince1970: 1000))
+        }
+        let still = FolderEntry(url: picture, name: "a.jpg", isDirectory: false, kind: .raster, fileSize: 10,
+                                modified: Date(timeIntervalSince1970: 1000), created: Date(timeIntervalSince1970: 1000))
+        var request = DuplicatesModel.Request(source: DuplicateSource(selection: clips + [still], folder: nil),
+                                              scope: .selection, mode: .similar, maximumSimilarImages: 1, workers: 1,
+                                              store: nil)
+        let similar = DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }
+        #expect(similar.scanned == 1 && similar.note == nil)
+        #expect(similar.similarImages.map(\.name) == ["a.jpg"])
+        request.mode = .exact
+        #expect(DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }.scanned == 3)
+    }
 }
 
 /// A count closures on other threads can add to.

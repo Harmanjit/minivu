@@ -137,6 +137,33 @@ extension AppWindowTests {
             #expect(controller.model.selection.map(\.lastPathComponent) == ["a.jpg"])
         }
 
+        /// Replacing an original whose extension changes letter case (a.JPG
+        /// to a.jpg) keeps it in a Duplicates list under its new name.
+        @Test func aListOfFilesFollowsAReplaceThatRenames() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let (trash, _) = try trashFolder(t)
+            BatchTools.trash = trash
+            BatchTools.confirmReplacing = { _ in .replace }
+            let upper = t.url.appendingPathComponent("a.JPG")
+            try FileManager.default.moveItem(at: try t.jpeg("x.jpg", width: 40, height: 30), to: upper)
+            let other = try t.jpeg("b.jpg", width: 40, height: 30)
+            let controller = BrowserWindowController(catalog: catalog)
+            _ = controller.grid.view
+            defer { controller.window?.close() }
+            controller.preview.isVisible = false
+            controller.open(list: VirtualList(kind: .files([upper, other]), title: "2 copies"))
+            await controller.model.work?.value
+            #expect(controller.model.entries.count == 2)
+
+            let settings = BatchConvertSettings(options: .defaults(for: .jpeg), existingFiles: .replace)
+            controller.runBatchConvert([try #require(controller.model.entries.first { $0.name == "a.JPG" })],
+                                       settings: settings)
+            await controller.batchWork?.value
+            await TestTiming.waitUntil { controller.model.entries.contains { $0.name == "a.jpg" } }
+            #expect(Set(controller.model.entries.map(\.name)) == ["a.jpg", "b.jpg"])
+        }
+
         /// Remove location (on by default) is for copies: an original
         /// replaced by its own conversion keeps its GPS position and place
         /// names, as Save keeps them; a new file beside it leaves them out.

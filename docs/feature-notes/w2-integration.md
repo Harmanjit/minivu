@@ -14,6 +14,8 @@ Every fix has a focused test unless noted.
 | 2 | The filter metadata never read a video's date, camera or location, so Date Taken, Camera and Location filters were wrong for clips. | `FilterMetadata.read` has a video branch that reads `VideoFrames.metadata` and `info`. It uses the camera's wall clock and falls back to this Mac's zone, as the info panel does. Catalog schema 4 clears the `metadata` cache so rows cached before this are read again. |
 | 3 | No Video type group: clips were filed under Other. | `FileTypeGroup.video` ("Video") is checked before the extension switch. The criteria form shows the toggle automatically. org.md's Type list is updated. |
 | 10 | Batch Rename `{date}` used a video's modification date. | `RenameSource.withImageMetadata` has a `.video` case that reads the recording date (with its zone) and the size. |
+| 29 | A search or smart folder saved with Other ticked stopped finding videos once Video became its own group. | Criteria saved since carry `"videoGroup": true` beside `fileTypes`. A saved query with Other and no marker decodes with Video added. No catalog migration: the JSON is fixed up when read, and the next save writes the marker. |
+| 30 | Find Duplicates > Similar Images counted videos as compared, and they took places under the memory cap (`maximumSimilarImages`). | `DuplicatesModel.find` leaves videos out in similar mode before the cap and `scanned`. Identical Files still counts them. |
 
 ## Browser lists and the flat view
 
@@ -22,6 +24,8 @@ Every fix has a focused test unless noted.
 | 11 | A Duplicates list (`.files`) dropped any file renamed, batch-renamed or moved inside it. | `BrowserModel.followMoves` rewrites the list's URLs, and those in Back/Forward, after rename, Batch Rename, Move To and its undo/redo. |
 | 12 | Batch Convert never refreshed a list, and in the flat view it refreshed only the top folder. | Mirrors Batch Rename: `showsManyFolders` reloads and selects the outputs. |
 | 13 | A file trashed or moved from the viewer or Compare stayed in a search, smart-folder or Duplicates list. | `catalogChanged` drops shown list entries whose file no longer exists. The catalog names both paths of every minivu move or trash. The Save and metadata-write parts of the report were overstated: those files stay at their path. |
+| 31 | The list check in 13 ran a `stat` on the main thread for every changed file shown, ratings included. | `Catalog.didChange` now has a userInfo with the moves (`movesKey`) and removals (`removedKey`). Only those source paths are checked on disk. A rating never touches the disk. |
+| 32 | A Duplicates list still dropped a file renamed outside the browser: by Shortcuts, or by a Batch Convert Replace whose name changed letter case (a.JPG to a.jpg). | `BrowserModel.followRenames` takes the catalog's reported moves within one folder through `followMoves`, then reloads the list with the selection kept. Moves to another folder (the Trash, Move To elsewhere) are not followed and are dropped as in 13. Note: the viewer has no Rename command of its own. Its renames reach the list the same way if one is added. |
 | 14 | A collection could never be shown in the order its images were added. | Under Custom Order a collection keeps the catalog's order (reversed when descending) and is read again on a resort. org.md now says Custom Order is how to see it. |
 | 16 | After Move To out of a list, nothing was selected. | Files that left are removed and the next image is selected, as in a folder. Arrivals the list still holds win after the reload. |
 | 17 | In the flat view, dragging a thumbnail onto the grid moved it from its subfolder into the top folder. | `GridDropPlan.decide` leaves out files the flat view lists from a folder below. |
@@ -45,6 +49,10 @@ Every fix has a focused test unless noted.
 | 20 | A folder heal's collection pass committed without checking for moves begun since the listing. | `healCommit` lock: the collection pass and the marks pass check `isHealingPaused` under it right before committing, and `pauseHealing` takes it, so no move can begin between the check and the commit. |
 | 21 | `collectionMembers` wrote re-homed paths back during a move, and the move's report then deleted them. | The write-back is skipped while healing is paused (under the same lock). The members found are still returned. |
 
+## Open items for Harman
+
+- An older minivu build that opens a schema 4 catalog can cache empty video metadata again. The `metadata` table has no reader-version column, so the newer build never re-reads those rows. Not changed here. Options: add a reader version per row, or clear video rows on every schema-4 open from an older writer.
+
 ## Manual checks for Harman
 
 1. Live Photo folder: Tools > Find Duplicates…, Similar Images, Highest Resolution. The MOV is in no group and the HEIC is not paired with it. Identical Files still groups two copies of one clip.
@@ -59,3 +67,5 @@ Every fix has a focused test unless noted.
 10. Collection shown: Create Web Gallery is titled after the collection and its panel opens in the images' folder.
 11. With Batch Rename's sheet up: ⇧⌘F, ⌘O and ⇧⌘O are greyed out. Also click the viewer control bar's slideshow button while a viewer sheet is up. That button sends its action straight to `NSApp`, so validation may not cover it (not fixed).
 12. Reveal in Finder works from search results. Filter > Show All is unticked while More Filters hides images.
+13. A smart folder saved before this build with Other ticked still lists videos.
+14. Find Duplicates > Show in Browser on two copies named IMG.JPG: Batch Convert to JPEG beside the originals, Replace. The list now shows IMG.jpg.

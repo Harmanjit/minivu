@@ -83,6 +83,9 @@ public final class Catalog: @unchecked Sendable {
     /// Posted on the main queue after marks or custom order change. `object`
     /// is the `[URL]` of files (or the folder, for custom order) affected.
     public static let didChange = Notification.Name("MinivuCatalogDidChange")
+    /// `didChange`'s userInfo: the `[(from: URL, to: URL)]` minivu moved
+    /// or renamed, and the `[URL]` it removed (each absent when none).
+    public static let movesKey = "moves", removedKey = "removed"
 
     /// The user's catalog, except in test runs and snapshot runs (or with
     /// `MINIVU_CATALOG=memory`), which get a private one in memory: tests and
@@ -525,7 +528,7 @@ public final class Catalog: @unchecked Sendable {
         } catch {
             log.error("Moving marks failed: \(String(describing: error), privacy: .public)")
         }
-        post(moves.flatMap { [$0.from, $0.to] })
+        post(moves.flatMap { [$0.from, $0.to] }, moves: moves)
         postLibraryChange()
     }
 
@@ -674,7 +677,7 @@ public final class Catalog: @unchecked Sendable {
         } catch {
             log.error("Removing marks failed: \(String(describing: error), privacy: .public)")
         }
-        post([url])
+        post([url], removed: [url])
         postLibraryChange()
     }
 
@@ -1071,9 +1074,14 @@ public final class Catalog: @unchecked Sendable {
         Marks(rating: Int(row.int("rating") ?? 0), isTagged: (row.int("tagged") ?? 0) != 0)
     }
 
-    private func post(_ urls: [URL]) {
+    private func post(_ urls: [URL], moves: [(from: URL, to: URL)] = [], removed: [URL] = []) {
         Perf.count("catalog.didChange")
-        DispatchQueue.main.async { NotificationCenter.default.post(name: Self.didChange, object: urls) }
+        DispatchQueue.main.async {
+            var info: [String: Any] = [:]
+            if !moves.isEmpty { info[Self.movesKey] = moves }
+            if !removed.isEmpty { info[Self.removedKey] = removed }
+            NotificationCenter.default.post(name: Self.didChange, object: urls, userInfo: info)
+        }
     }
 }
 
