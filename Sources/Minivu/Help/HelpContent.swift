@@ -19,17 +19,18 @@ nonisolated enum HelpPage: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// Matches the `# Title` of the page in the same language.
     var title: String {
         switch self {
-        case .gettingStarted: "Getting Started"
-        case .browser: "Browser"
-        case .viewer: "Viewer"
-        case .editing: "Editing"
-        case .effects: "Effects & Retouching"
-        case .tools: "Tools"
-        case .settings: "Settings"
-        case .privacy: "Privacy"
-        case .shortcuts: "Keyboard Shortcuts"
+        case .gettingStarted: localized(.init("Getting Started", comment: "Help page"))
+        case .browser: localized(.init("Browser", comment: "The window with the folder list and the thumbnail grid"))
+        case .viewer: localized(.init("Viewer", comment: "The window that shows one image"))
+        case .editing: localized(.init("Editing", comment: "Help page about editing images"))
+        case .effects: localized(.init("Effects & Retouching", comment: "Help page"))
+        case .tools: localized(.init("Tools", comment: "Menu bar menu"))
+        case .settings: localized(.init("Settings", comment: "Window title"))
+        case .privacy: localized(.init("Privacy", comment: "Help page"))
+        case .shortcuts: localized("Keyboard Shortcuts")
         }
     }
 
