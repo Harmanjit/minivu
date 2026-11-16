@@ -2184,8 +2184,7 @@ behaviour, in GCD rather than Core Image.
   in use there.
 - **Help:** without a Help Book, the Help menu's search field finds menu
   items only, not the text of the help pages; the Help window's own search
-  does that. The Keyboard Shortcuts page doesn't yet list a video's Space,
-  P and M keys.
+  does that.
 - **Menus:** the viewer control bar's slideshow button sends its action
   straight to `NSApp`, so it may not be disabled while a viewer sheet is up.
 - **Development:** the cooperative-pool check is debug-only and covers the

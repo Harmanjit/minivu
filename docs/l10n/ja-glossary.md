@@ -53,7 +53,7 @@ Apple の macOS 日本語版（Finder、写真、プレビュー）の用語に�
 | watermark | 透かし | |
 | preset | プリセット | |
 | edits | 編集内容 | |
-| image / picture / photo | イメージ / ピクチャ / 写真 | 原文の区別を保持 |
+| image / picture / photo | イメージ / ピクチャ / 写真 | 原文の区別を保持。例外: コンタクトシートと Web ギャラリーの「Pictures」「Large pictures」は 画像 / 大きい画像（ピクチャ フォルダーと区別するため） |
 | Pictures folder | ピクチャ | Finder の表示名 |
 | Trash | ゴミ箱 | |
 | Move to Trash | ゴミ箱に入れる | |
