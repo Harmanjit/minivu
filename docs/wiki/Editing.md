@@ -21,7 +21,7 @@ Move the pointer to the left edge of the viewer, or click **Show Edit Tools** in
 - **Draw:** Text and Shapes, Watermark.
 - **Retouch:** Clone Stamp, Healing Brush, Red-Eye Removal, Remove Background.
 
-The same tools are in the **Image** menu. Canvas Size, Perspective, RAW Adjustments, Auto Enhance, Noise Reduction, Vignette, Watermark and Remove Background have no shortcut.
+The same tools are in the **Image** menu. Only these have a shortcut: Rotate Left ⌘L, Rotate Right ⌘R, Resize/Resample ⌥⌘I, Crop ⌘K, Lighting ⌥⌘L, Colors ⌥⌘C, Curves ⇧⌘M and Levels ⇧⌘L. Every other tool has none.
 
 Opening a tool replaces the list with its controls and keeps the panel open; the chevron at the top goes back to the list. One tool is open at a time.
 
@@ -167,13 +167,13 @@ Every write to an image file (Save, Save As, a comment, a metadata edit, a lossl
 
 ### Save
 
-**File > Save** writes the edited image over the original, in the same format, colour space and bit depth, with the options last used in Save As for that format (or its defaults). Grey, CMYK, Lab and indexed-colour originals are written in sRGB, HDR originals in Display P3, and 16 bits per channel is kept only in PNG and TIFF. The file's metadata, location included, is always kept where the format can hold it (JPEG, PNG, HEIC, AVIF and TIFF): the orientation is reset, because the pixels are now upright, the pixel size is updated, any embedded thumbnail is dropped, and a JPEG's comment is carried over. Camera Raw's edit settings and descriptions of an old gain map are left out.
+**File > Save** writes the edited image over the original, in the same format, colour space and bit depth, with the options last used in Save As for that format (or its defaults). Grey, CMYK, Lab and indexed-colour originals are written in sRGB, HDR originals in Display P3, and more than 8 bits per channel is kept only in PNG and TIFF (16 bits) and AVIF (10 bits). The file's metadata, location included, is always kept where the format can hold it (JPEG, PNG, HEIC, AVIF and TIFF): the orientation is reset, because the pixels are now upright, the pixel size is updated, any embedded thumbnail is dropped, and a JPEG's comment is carried over. Camera Raw's edit settings and descriptions of an old gain map are left out.
 
 Before writing, minivu asks **Replace the original “name”?** and says the format and quality it will write, because that quality is the last one chosen in Save As. The alert has **Don’t ask again**; to be asked again, turn **Ask before saving over the original** back on in **Settings > General** (see [Settings](Settings)).
 
 The new file is written beside the old one under a hidden temporary name and swapped into place when complete, so a crash or a full disk never leaves a half-written photo. The swap keeps the file's creation date, permissions and Finder tags. Because the file is new, a hard link to the old one keeps the old picture; a symbolic link is written through to the file it points at.
 
-minivu can't write some formats back: camera raw, WebP, JPEG XL, PDF, SVG, PSD, animated files and multi-page files, and AVIF on a Mac whose macOS can't write AVIF. For those, and for a file that has been renamed or moved away, Save opens Save As.
+minivu can't write some formats back: camera raw, WebP, JPEG XL, PDF, SVG, PSD, OpenEXR, ICNS, CUR, animated files (APNG included), files with more than one image (a multi-page TIFF, an icon with several sizes, a HEIC collection), AVIF on a Mac whose macOS can't write AVIF, and other formats minivu can't write. For those, and for a file that has been renamed or moved away, Save opens Save As.
 
 **HDR.** Saving a JPEG, HEIC or AVIF that has a gain map (extra data in the file that tells an HDR screen how much brighter each part may be shown) keeps it HDR: the edit is rendered with the original's highlights and written as a new SDR image with a new gain map, whatever the viewer's HDR setting. PQ and HLG files, and gain maps in other formats, are saved tone mapped to SDR, and the Replace alert says so.
 

@@ -55,8 +55,9 @@ Solo ciò che chiedi:
   come**, Converti in blocco, Estrai pagine, Crea file multipagina, Striscia
   di immagini, Foglio provini, Montaggio, Esporta video della presentazione
   e Crea galleria web creano nuovi file.
-- La rotazione e la riflessione nel browser modificano il tag di
-  orientamento di un JPEG, e Modifica commento ne modifica il commento.
+- La rotazione e la riflessione nel browser modificano il tag di orientamento di
+  un file JPEG, HEIC, TIFF o PNG, e Modifica commento modifica il commento di un
+  JPEG.
 - **Modifica metadati** scrive i dettagli che modifichi nel file, oppure in
   un file sidecar XMP accanto a esso.
 - **Immagine > Etichetta** imposta il tag colore del Finder del file. Le
@@ -66,8 +67,14 @@ Solo ciò che chiedi:
   rinominare, valutare o etichettare i file che minivu può modificare.
 - Rinomina, Sposta, Copia, Nuova cartella e Rinomina in blocco modificano
   nomi e cartelle, e possono essere annullati.
-- **Sposta nel Cestino**, e la sostituzione di un file con lo stesso nome,
-  mettono gli elementi nel Cestino. minivu non elimina i tuoi file.
+- **Sposta nel Cestino** mette gli elementi nel Cestino. Quando una copia, uno
+  spostamento, un trascinamento o un’operazione Incolla sostituisce un file con
+  lo stesso nome, il vecchio file va nel Cestino. Lo stesso vale per un file
+  sostituito da Converti in blocco, Estrai pagine, Foglio provini o Esporta
+  video della presentazione.
+- **Salva**, e **Salva come**, Crea file multipagina, Striscia di immagini o
+  Salva fotogramma come sopra un file esistente, sostituiscono quel file per
+  sempre. Il file non va nel Cestino e l’operazione non si può annullare.
 - I file vengono prima scritti per intero e poi messi al loro posto, così un
   salvataggio interrotto non lascia mai un file a metà.
 

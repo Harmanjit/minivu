@@ -6,7 +6,7 @@ Every command is in the menu bar, with its key beside it. The same list is in th
 
 - **Menu shortcuts** (those with ⌘, ⌃ or ⌥, and F2 and ⇧F2) work from any window where the command applies; elsewhere the item is greyed out.
 - **Arrows, Home, End, P, M and ⌥-arrows** are shown in the **Go** and **Image** menus only while the menu is open. They aren't real menu shortcuts: the grid, the viewer or a text field takes them, so an arrow in a rename field moves the insertion point instead of changing the image.
-- **Single keys** such as 0–5, `` ` ``, T, F, I, M, / and \* belong to the grid and the viewer. While you type in a text field they type.
+- **Single keys:** the grid and the viewer both take 0–5 and `` ` ``. T, F, I, M, / and \* are viewer keys (M only does something on a video); in the grid, a letter starts typing a name instead. While you type in a text field they type.
 - **In another language** (see [Languages](Languages)) the commands have translated names but keep the same keys. This page uses the English names.
 - **⌘⌫, ⌘↑ and ⌘↓** in a text field edit the text (delete to the start of the line, jump to the start or end) instead of reaching **Move to Trash**, **Enclosing Folder** and **Open in Viewer**. The menu items still work when clicked.
 
@@ -254,11 +254,10 @@ With **Text and Shapes…**, a brush or the red-eye tool open, ⌫ never goes ba
 
 ## Capture
 
-**Tools > Capture > Selection…** covers every display. Drag a rectangle, then:
+**Tools > Capture > Selection…** covers every display. Drag a rectangle; letting go of the mouse captures it straight away. A rectangle too small to use is cleared, so drag again.
 
 | Keys | Action |
 |---|---|
-| Return | Capture the rectangle |
 | Esc | Cancel |
 | ⌘Q | Cancel the capture and quit |
 

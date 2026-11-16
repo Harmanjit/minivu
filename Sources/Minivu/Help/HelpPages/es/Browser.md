@@ -109,10 +109,10 @@ se muestran en minivu en las fotos que no hayas valorado aquí.
 
 ## Cambios rápidos sin abrir el visor
 
-- **Imagen > Girar a la izquierda**, **Girar a la derecha** y los volteos
-  giran las fotos JPEG cambiando su etiqueta de orientación, así que los
-  píxeles nunca se recodifican. Los archivos que no se pueden girar así, como
-  los archivos RAW, se omiten y se enumeran. Estos cambios se aplican a los
+- **Imagen > Girar a la izquierda**, **Girar a la derecha** y los volteos giran
+  los archivos JPEG, HEIC, TIFF y PNG cambiando su etiqueta de orientación, así
+  que los píxeles nunca se recodifican. Los archivos que no se pueden girar así,
+  como los archivos RAW, se omiten y se enumeran. Estos cambios se aplican a los
   archivos de inmediato.
 - **Imagen > Editar comentario…** cambia el comentario de un JPEG.
 - **Imagen > Editar metadatos…** (**⌘I**) cambia el título, el pie de foto,

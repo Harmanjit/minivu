@@ -106,10 +106,10 @@ aparecem no minivu para as fotos que você não classificou aqui.
 ## Alterações rápidas sem abrir o visualizador
 
 - **Imagem > Girar para a Esquerda**, **Girar para a Direita** e as inversões
-  giram fotos JPEG alterando a etiqueta de orientação delas, por isso os
-  pixels nunca são recodificados. Os arquivos que não podem girar dessa forma,
-  como os arquivos RAW, são ignorados e listados. Essas ações alteram os
-  arquivos imediatamente.
+  giram arquivos JPEG, HEIC, TIFF e PNG alterando a etiqueta de orientação
+  deles, por isso os pixels nunca são recodificados. Os arquivos que não podem
+  girar dessa forma, como os arquivos RAW, são ignorados e listados. Essas ações
+  alteram os arquivos imediatamente.
 - **Imagem > Editar Comentário…** altera o comentário de um JPEG.
 - **Imagem > Editar Metadados…** (**⌘I**) altera o título, a legenda, o
   criador, o copyright, as palavras-chave e a data da foto das imagens

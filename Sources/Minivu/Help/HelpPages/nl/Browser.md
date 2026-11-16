@@ -110,10 +110,10 @@ nog geen waardering hebt gegeven.
 ## Snelle wijzigingen zonder de viewer te openen
 
 - **Afbeelding > Draai linksom**, **Draai rechtsom** en de spiegelcommando’s
-  draaien JPEG-foto’s door hun oriëntatietag te wijzigen, zodat de pixels
-  nooit opnieuw worden gecodeerd. Bestanden die niet op die manier kunnen
-  draaien, zoals RAW-bestanden, worden overgeslagen en vermeld. Deze
-  commando’s wijzigen de bestanden meteen.
+  draaien JPEG-, HEIC-, TIFF- en PNG-bestanden door hun oriëntatietag te
+  wijzigen, zodat de pixels nooit opnieuw worden gecodeerd. Bestanden die niet
+  op die manier kunnen draaien, zoals RAW-bestanden, worden overgeslagen en
+  vermeld. Deze commando’s wijzigen de bestanden meteen.
 - **Afbeelding > Wijzig opmerking…** wijzigt de opmerking van een JPEG.
 - **Afbeelding > Wijzig metagegevens…** (**⌘I**) wijzigt de titel, het
   bijschrift, de maker, het copyright, de trefwoorden en de opnamedatum van

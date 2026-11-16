@@ -110,10 +110,10 @@ mostrate in minivu per le foto che non hai valutato qui.
 
 ## Modifiche rapide senza aprire il visore
 
-- **Immagine > Ruota a sinistra**, **Ruota a destra** e i comandi di
-  riflessione ruotano le foto JPEG modificandone il tag di orientamento, così
-  i pixel non vengono mai ricodificati. I file che non possono essere ruotati
-  in questo modo, come i file RAW, vengono saltati ed elencati. Queste
+- **Immagine > Ruota a sinistra**, **Ruota a destra** e i comandi di riflessione
+  ruotano i file JPEG, HEIC, TIFF e PNG modificandone il tag di orientamento,
+  così i pixel non vengono mai ricodificati. I file che non possono essere
+  ruotati in questo modo, come i file RAW, vengono saltati ed elencati. Queste
   modifiche vengono applicate subito ai file.
 - **Immagine > Modifica commento…** modifica il commento di un JPEG.
 - **Immagine > Modifica metadati…** (**⌘I**) modifica titolo, didascalia,

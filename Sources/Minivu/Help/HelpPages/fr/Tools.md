@@ -8,10 +8,10 @@ les vidéos.
 
 ## Diaporama
 
-**Outils > Lancer le diaporama** lit les images en plein écran sur l’écran
-où se trouve la fenêtre, avec le HDR comme dans la visionneuse. Si vous
-partez d’une seule image sélectionnée, tout le dossier est lu à partir de
-celle-ci.
+**Outils > Lancer le diaporama** lit les images en plein écran, avec le HDR
+comme dans la visionneuse. Il s’ouvre sur l’écran choisi par **La visionneuse
+plein écran s’ouvre sur** dans **Réglages > Visionneuse**. Si vous partez d’une
+seule image sélectionnée, tout le dossier est lu à partir de celle-ci.
 
 - **Espace** met en pause et reprend, les touches fléchées font avancer ou
   reculer, et **Échap** arrête le diaporama. Déplacez le pointeur pour faire
@@ -158,10 +158,10 @@ dossier sur un site web.
 
 ## Capture
 
-**Outils > Capture** prend une image de l’écran entier, d’une fenêtre ou
-d’une sélection que vous tracez (**Retour** capture, **Échap** annule). Les
-captures sont enregistrées sous forme de fichiers PNG dans
-**Images/minivu Captures** et s’ouvrent dans la visionneuse.
+**Outils > Capture** prend une image de l’écran entier, d’une fenêtre ou d’une
+sélection que vous tracez (relâcher la souris capture, **Échap** annule). Les
+captures sont enregistrées sous forme de fichiers PNG dans **Images/minivu
+Captures** et s’ouvrent dans la visionneuse.
 
 La capture de l’écran entier ou d’une sélection nécessite l’autorisation
 Enregistrement de l’écran. macOS la demande la première fois ; vous pouvez
@@ -185,9 +185,15 @@ fichier.
 ## Raccourcis
 
 minivu ajoute des actions à l’app Raccourcis : **Convertir des images**,
-**Redimensionner des images**, **Renommer des images**, **Attribuer une
-note**, **Définir l’étiquette de couleur** et **Ouvrir dans minivu**.
-Recherchez « minivu » parmi les actions de l’app Raccourcis pour les
-utiliser dans vos propres raccourcis. L’exécution d’un tel raccourci ouvre
-minivu s’il n’est pas ouvert. Les actions ne fonctionnent qu’avec les
-fichiers du stockage interne de votre Mac.
+**Redimensionner des images**, **Renommer des images**, **Attribuer une note**,
+**Définir l’étiquette de couleur** et **Ouvrir dans minivu**. Recherchez
+« minivu » parmi les actions de l’app Raccourcis pour les utiliser dans vos
+propres raccourcis. L’exécution d’un tel raccourci ouvre minivu s’il n’est pas
+ouvert. Les actions ne fonctionnent qu’avec les fichiers du stockage interne de
+votre Mac. **Renommer des images** ne fonctionne que dans votre dossier Images
+et dans les dossiers de la barre latérale de minivu ; si un fichier se trouve
+ailleurs, aucun n’est renommé.
+
+Pour utiliser un raccourci depuis le Finder, créez-en un qui reçoit des images
+et activez **Utiliser comme action rapide** dans ses détails. Il apparaît alors
+dans le menu contextuel du Finder, sous **Actions rapides**.

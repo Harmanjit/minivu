@@ -113,5 +113,6 @@ After you save, the undo history starts again.
 > whether to keep your edits or reload the file. If you keep them, Save
 > becomes Save As, so neither version is lost.
 
-Saving an HDR photo over the original writes it as a standard dynamic range
-image.
+Saving keeps HDR for JPEG, HEIC and AVIF photos with a gain map (extra data
+that tells an HDR screen how bright each part may be). Other HDR photos are
+saved in standard dynamic range, and minivu says so before it saves.

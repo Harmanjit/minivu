@@ -45,7 +45,8 @@ it should.
   0.3 s so a very short video doesn't flash it. Cancel stops at the next
   frame and leaves no file. A failure shows the usual save alert, "The
   slideshow video couldn’t be exported."
-- Nothing opens afterwards: minivu doesn't play video, and opening Finder
+- Nothing opens afterwards: minivu doesn't play video (superseded: G18 in
+  video.md added video playback), and opening Finder
   or a player would launch another app. The file appears in the browser
   if it shows that folder.
 

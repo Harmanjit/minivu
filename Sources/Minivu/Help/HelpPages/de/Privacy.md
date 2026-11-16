@@ -57,8 +57,9 @@ Nur das, worum du bittest:
   unter**, Stapelkonvertierung, „Seiten extrahieren“, „Mehrseitige Datei
   erstellen“, Bildstreifen, Kontaktabzug, Montage, „Diashow-Video
   exportieren“ und „Webgalerie erstellen“ erstellen neue Dateien.
-- Drehen und Spiegeln im Browser ändern die Ausrichtungsangabe eines JPEG,
-  und „Kommentar bearbeiten“ ändert seinen Kommentar.
+- Drehen und Spiegeln im Browser ändern die Ausrichtungsangabe einer JPEG-,
+  HEIC-, TIFF- oder PNG-Datei, und „Kommentar bearbeiten“ ändert den Kommentar
+  eines JPEG.
 - **Metadaten bearbeiten** schreibt die Angaben, die du änderst, in die
   Datei oder in eine XMP-Filialdatei daneben.
 - **Bild > Farbetikett** legt den farbigen Finder-Tag der Datei fest.
@@ -70,8 +71,15 @@ Nur das, worum du bittest:
   oder mit einem Farbetikett versehen.
 - Umbenennen, Bewegen, Kopieren, Neuer Ordner und Stapelumbenennung ändern
   Namen und Ordner und lassen sich widerrufen.
-- **In den Papierkorb legen** und das Ersetzen einer Datei mit demselben
-  Namen legen Objekte in den Papierkorb. minivu löscht deine Dateien nicht.
+- **In den Papierkorb legen** legt Objekte in den Papierkorb. Ersetzt Kopieren,
+  Bewegen, Ablegen oder Einsetzen eine Datei mit demselben Namen, kommt die alte
+  Datei in den Papierkorb. Das gilt auch für eine Datei, die
+  Stapelkonvertierung, „Seiten extrahieren“, Kontaktabzug oder „Diashow-Video
+  exportieren“ ersetzt.
+- **Sichern** sowie **Sichern unter**, „Mehrseitige Datei erstellen“,
+  Bildstreifen oder „Frame sichern unter“ über einer vorhandenen Datei ersetzen
+  diese Datei endgültig. Sie kommt nicht in den Papierkorb, und das lässt sich
+  nicht widerrufen.
 - Dateien werden zuerst vollständig geschrieben und dann an ihren Platz
   gelegt, sodass ein unterbrochener Sichervorgang nie eine halbe Datei
   hinterlässt.

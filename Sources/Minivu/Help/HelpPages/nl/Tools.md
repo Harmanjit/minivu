@@ -8,8 +8,9 @@ over.
 
 ## Diavoorstelling
 
-**Gereedschap > Start diavoorstelling** speelt de afbeeldingen schermvullend
-af op het scherm waarop het venster staat, met HDR zoals in de viewer. Als je
+**Gereedschap > Start diavoorstelling** speelt de afbeeldingen schermvullend af,
+met HDR zoals in de viewer. De diavoorstelling opent op het scherm dat
+**Schermvullende viewer opent op** in **Instellingen > Viewer** kiest. Als je
 begint vanaf één geselecteerde afbeelding, wordt de hele map vanaf die plek
 afgespeeld.
 
@@ -153,8 +154,8 @@ map naar een website hebt gekopieerd.
 
 ## Schermafbeelding
 
-**Gereedschap > Schermafbeelding** legt het volledige scherm vast, een
-venster of een selectie die je sleept (**Return** legt vast, **Esc**
+**Gereedschap > Schermafbeelding** legt het volledige scherm vast, een venster
+of een selectie die je sleept (de muisknop loslaten legt vast, **Esc**
 annuleert). Schermafbeeldingen worden als PNG-bestanden bewaard in
 **Afbeeldingen/minivu Captures** en openen in de viewer.
 
@@ -178,9 +179,15 @@ wilt behouden of het bestand opnieuw wilt laden.
 ## Opdrachten
 
 minivu voegt acties toe aan de app Opdrachten: **Converteer afbeeldingen**,
-**Wijzig grootte van afbeeldingen**, **Wijzig naam van afbeeldingen**,
-**Stel waardering in**, **Stel kleurlabel in** en **Open in minivu**. Zoek
-naar ‘minivu’ in de acties van de app Opdrachten om ze in je eigen opdrachten
-te gebruiken. Als je zo’n opdracht uitvoert, wordt minivu geopend als het nog
-niet open is. De acties werken alleen op bestanden op de interne opslag van
-je Mac.
+**Wijzig grootte van afbeeldingen**, **Wijzig naam van afbeeldingen**, **Stel
+waardering in**, **Stel kleurlabel in** en **Open in minivu**. Zoek naar
+‘minivu’ in de acties van de app Opdrachten om ze in je eigen opdrachten te
+gebruiken. Als je zo’n opdracht uitvoert, wordt minivu geopend als het nog niet
+open is. De acties werken alleen op bestanden op de interne opslag van je Mac.
+**Wijzig naam van afbeeldingen** werkt alleen in je map Afbeeldingen en in
+mappen in de navigatiekolom van minivu; als een bestand ergens anders staat,
+krijgt geen enkel bestand een nieuwe naam.
+
+Om een opdracht vanuit de Finder te gebruiken, maak je er een die afbeeldingen
+ontvangt en schakel je **Gebruik als snelle taak** in bij de details ervan. Hij
+verschijnt dan in het contextuele menu van de Finder onder **Snelle taken**.

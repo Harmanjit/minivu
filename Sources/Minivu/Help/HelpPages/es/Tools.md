@@ -9,9 +9,10 @@ omiten los vídeos.
 ## Pase de diapositivas
 
 **Herramientas > Iniciar pase de diapositivas** reproduce las imágenes a
-pantalla completa en la pantalla donde está la ventana, con HDR como en el
-visor. Si empiezas desde una sola imagen seleccionada, se reproduce toda la
-carpeta a partir de ella.
+pantalla completa, con HDR como en el visor. Se abre en la pantalla que elige
+**El visor a pantalla completa se abre en** en **Ajustes > Visor**. Si empiezas
+desde una sola imagen seleccionada, se reproduce toda la carpeta a partir de
+ella.
 
 - **Espacio** pone en pausa y reanuda, las teclas de flecha avanzan y
   retroceden, y **Esc** termina el pase. Mueve el puntero para que aparezca la
@@ -147,9 +148,9 @@ navegador web, desde tu Mac o después de copiar la carpeta a un sitio web.
 
 ## Captura
 
-**Herramientas > Captura** toma una imagen de toda la pantalla, de una ventana
-o de una selección que arrastres (**Retorno** captura, **Esc** cancela). Las
-capturas se guardan como archivos PNG en **Imágenes/minivu Captures** y se
+**Herramientas > Captura** toma una imagen de toda la pantalla, de una ventana o
+de una selección que arrastres (al soltar el ratón se captura, **Esc** cancela).
+Las capturas se guardan como archivos PNG en **Imágenes/minivu Captures** y se
 abren en el visor.
 
 Capturar toda la pantalla o una selección requiere el permiso de Grabación de
@@ -171,9 +172,15 @@ conservarlas o volver a cargarlo.
 
 ## Atajos
 
-minivu añade acciones a la app Atajos: **Convertir imágenes**,
-**Redimensionar imágenes**, **Renombrar imágenes**, **Asignar valoración**,
-**Asignar etiqueta de color** y **Abrir en minivu**. Busca “minivu” entre las
-acciones de la app Atajos para usarlas en tus propios atajos. Al ejecutar uno
-de esos atajos, minivu se abre si no estaba abierto. Las acciones solo
-funcionan con archivos del almacenamiento interno de tu Mac.
+minivu añade acciones a la app Atajos: **Convertir imágenes**, **Redimensionar
+imágenes**, **Renombrar imágenes**, **Asignar valoración**, **Asignar etiqueta
+de color** y **Abrir en minivu**. Busca “minivu” entre las acciones de la app
+Atajos para usarlas en tus propios atajos. Al ejecutar uno de esos atajos,
+minivu se abre si no estaba abierto. Las acciones solo funcionan con archivos
+del almacenamiento interno de tu Mac. **Renombrar imágenes** solo funciona en tu
+carpeta Imágenes y en las carpetas de la barra lateral de minivu; si algún
+archivo está en otro sitio, no renombra ninguno.
+
+Para usar un atajo desde el Finder, crea uno que reciba imágenes y activa **Usar
+como acción rápida** en sus detalles. Entonces aparece en el menú contextual del
+Finder, en **Acciones rápidas**.

@@ -266,7 +266,7 @@ minivu's catalog wins: once you rate or tag a file in minivu, minivu shows its o
 
 Stars and tags are kept in minivu's catalog, one SQLite database on your Mac, in the app's container at `~/Library/Containers/com.minivu.app/Data/Library/Application Support/minivu/catalog.sqlite`. The catalog also holds each folder's Custom Order, your collections and smart folders, and the metadata read for filters and searches.
 
-By default minivu doesn't write marks into your files, so other applications don't see them. Turn on **Write ratings into files (XMP)** in **Settings > General** to write every rating, tag and colour label you set from then on into the file as well: inside JPEG, HEIC, PNG and TIFF files, without re-encoding the picture, and in an XMP sidecar for camera RAW files and other formats. The file's modification date changes, and its thumbnail is made again. Marks already in the catalog aren't written when you turn it on. Videos are never written to.
+By default minivu doesn't write marks into your files, so other applications don't see them. Turn on **Write ratings into files (XMP)** in **Settings > General** to write every rating, tag and colour label you set from then on into the file as well: inside JPEG, HEIC, PNG and TIFF files, without re-encoding the picture, and in an XMP sidecar for camera RAW files and other formats. The file's modification date changes, and its thumbnail is made again. Marks already in the catalog aren't written when you turn it on. PDFs, SVGs and videos are never written to; their marks stay only in the catalog.
 
 Marks follow files:
 
@@ -337,11 +337,13 @@ minivu waits for any save still being written to a file before it moves, renames
 
 **File > Share…**, **Share…** in the right-click menu, or the toolbar's **Share** button offers the selected images to the system's share sheet: AirDrop, Messages, Mail, Notes and whatever else is installed. With nothing selected, it offers the lead image. Folders are left out, and Share never falls back to every image in the folder. The services get the files as they are on disk, as Finder would share them. Share has no shortcut. minivu itself makes no network connection; each share service runs in its own process.
 
-### Undo
+### Selecting, copying and pasting
 
 **Edit > Select Tagged** selects every tagged image the grid is showing, and **Edit > Invert Selection** (⇧⌘I) selects everything shown that wasn't selected. Both stop at what a filter shows, so an image hidden by one is left alone. Select Tagged never takes folders; Invert Selection takes them, as Select All does.
 
 **Edit > Copy** (⌘C) puts the selected files on the clipboard, so they paste into Finder or anywhere else that takes files, and **Edit > Paste** (⌘V) brings files on the clipboard into the folder you're looking at. Pasting copies, never moves, and a name already in the folder is offered Keep Both, Replace or Skip, exactly as dragging is. In the viewer, ⌘C copies the picture on screen, edits and all, so it pastes into Mail or Pages as you see it.
+
+### Undo
 
 **Edit > Undo** (⌘Z) and **Edit > Redo** (⇧⌘Z) cover copies, moves, renames, new folders and Batch Rename. The menu names the step, as in "Undo Move 3 Items".
 

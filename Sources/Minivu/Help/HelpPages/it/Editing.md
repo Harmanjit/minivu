@@ -126,5 +126,7 @@ la cronologia delle modifiche ricomincia.
 > chiede se mantenere le modifiche o ricaricare il file. Se le mantieni,
 > Salva diventa Salva come, così nessuna delle due versioni va persa.
 
-Il salvataggio di una foto HDR sopra l’originale la scrive come immagine a
-gamma dinamica standard.
+Al salvataggio, le foto JPEG, HEIC e AVIF con una mappa di guadagno (dati in più
+che dicono a uno schermo HDR quanto può essere luminosa ogni parte) restano HDR.
+Le altre foto HDR vengono salvate a gamma dinamica standard, e minivu lo dice
+prima di salvare.

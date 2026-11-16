@@ -7,8 +7,9 @@ slideshow, skip videos.
 
 ## Slideshow
 
-**Tools > Start Slideshow** plays the images full screen on the display the
-window is on, with HDR as in the viewer. Starting from a single selected
+**Tools > Start Slideshow** plays the images full screen, with HDR as in the
+viewer. It opens on the display that **Full-screen viewer opens on** in
+**Settings > Viewer** chooses. Starting from a single selected
 image plays the whole folder from there.
 
 - **Space** pauses and resumes, the arrow keys step, and **Esc** ends the
@@ -134,7 +135,7 @@ copy the folder to a website.
 ## Capture
 
 **Tools > Capture** takes a picture of the entire screen, a window or a
-selection you drag (**Return** captures, **Esc** cancels). Captures are
+selection you drag (letting go of the mouse captures, **Esc** cancels). Captures are
 saved as PNG files in **Pictures/minivu Captures** and open in the viewer.
 
 Capturing the entire screen or a selection needs Screen Recording
@@ -158,3 +159,9 @@ Images**, **Rename Images**, **Set Rating**, **Set Colour Label** and **Open
 in minivu**. Search for “minivu” in the Shortcuts app’s actions to use them
 in your own shortcuts. Running such a shortcut opens minivu if it isn’t
 open. The actions work only on files on your Mac’s internal storage.
+**Rename Images** works only in your Pictures folder and folders in
+minivu’s sidebar; if any file is elsewhere, it renames none of them.
+
+To use a shortcut from Finder, make one that receives images and turn on
+**Use as Quick Action** in its details. It then shows in Finder’s
+right-click menu under **Quick Actions**.

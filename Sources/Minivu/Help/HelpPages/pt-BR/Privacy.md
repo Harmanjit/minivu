@@ -56,8 +56,8 @@ Somente o que você pedir:
   Conversão em Lote, Extrair Páginas, Criar Arquivo de Várias Páginas, a Tira
   de Imagens, a Folha de Contato, a Montagem, Exportar Vídeo da Apresentação e
   Criar Galeria Web criam novos arquivos.
-- Girar e inverter no navegador alteram a etiqueta de orientação de um JPEG,
-  e Editar Comentário altera o comentário dele.
+- Girar e inverter no navegador alteram a etiqueta de orientação de um arquivo
+  JPEG, HEIC, TIFF ou PNG, e Editar Comentário altera o comentário de um JPEG.
 - **Editar Metadados** grava os detalhes que você altera no arquivo, ou em um
   arquivo auxiliar XMP ao lado dele.
 - **Imagem > Etiqueta** define a etiqueta de cor do Finder do arquivo. As
@@ -67,8 +67,13 @@ Somente o que você pedir:
   classificar ou atribuir etiquetas a arquivos que o minivu pode alterar.
 - Renomear, Mover, Copiar, Nova Pasta e Renomear em Lote alteram nomes e
   pastas, e podem ser desfeitos.
-- **Mover para o Lixo**, e substituir um arquivo com o mesmo nome, colocam os
-  itens no Lixo. O minivu não apaga os seus arquivos.
+- **Mover para o Lixo** coloca os itens no Lixo. Quando copiar, mover, soltar ou
+  colar substitui um arquivo com o mesmo nome, o arquivo antigo vai para o Lixo.
+  O mesmo vale para um arquivo que Converter em Lote, Extrair Páginas, Folha de
+  Contato ou Exportar Vídeo da Apresentação substitui.
+- **Salvar**, e **Salvar Como**, Criar Arquivo de Várias Páginas, Tira de
+  Imagens ou Salvar Quadro Como sobre um arquivo existente, substituem esse
+  arquivo para sempre. Ele não vai para o Lixo, e isso não pode ser desfeito.
 - Os arquivos são gravados por completo primeiro e só depois colocados no
   lugar, por isso um salvamento interrompido nunca deixa meio arquivo.
 

@@ -274,7 +274,7 @@ The layout is remembered between prints. After a print, the printer, paper, orie
 **Page.**
 
 - **Size:** **A4 at 300 dpi** (2480 × 3508 px, the default), **US Letter at 300 dpi** (2550 × 3300), **4K Display** (3840 × 2160), or **Custom**, 256 to 16,384 px a side (3000 × 2000 to start).
-- **Orientation:** **Portrait** (default) or **Landscape**; a custom size is taken as typed.
+- **Orientation:** **Portrait** (default) or **Landscape**. Every preset is turned to the orientation chosen, so 4K Display in Portrait makes a 2160 × 3840 page; choose **Landscape** for a screen-shaped 4K page. A custom size is taken as typed.
 - **Background:** white by default.
 
 **Grid.** **Columns** 1 to 20 (4); **Rows** 0 to 30 (5), where 0 is **Auto (one page)**; **Spacing** 0 to 400 px (40); **Margin** 0 to 800 px (120); **Pictures** **Fit in Cell** (default) or **Fill Cell**.
@@ -328,7 +328,7 @@ macOS reopens a desktop picture's file later, and after every restart, so minivu
 
 - **Entire Screen** captures the whole display the pointer is on, at its full pixel size.
 - **Window…** opens the system's window picker; the window you click is captured.
-- **Selection…** dims every screen and shows a crosshair. Drag a rectangle, which shows its size in pixels; letting go, or Return, captures it. A click without a drag clears the rectangle. Esc, or switching to another app, cancels.
+- **Selection…** dims every screen and shows a crosshair. Drag a rectangle, which shows its size in pixels; letting go captures it. A click without a drag, or a rectangle too small to use, clears the rectangle. Esc, or switching to another app, cancels.
 
 minivu's own windows are left out of Entire Screen and Selection captures, and the pointer is never included. Each capture is saved as a PNG in **Pictures/minivu Captures**, named `Capture 2026-09-14 at 10.30.05.png`, and opens in the viewer.
 
@@ -370,6 +370,8 @@ minivu adds actions to Apple's Shortcuts app (search for "minivu" in its action 
 Convert and Resize never write beside the originals: they hand the new files back to the shortcut, whose next action (Save File, for example) puts them where you want. Rename works only in your Pictures folder and folders added to minivu's sidebar, and renames nothing if any file is elsewhere. Files on external drives, memory cards and network shares are refused, as everywhere in minivu. A video given to Convert or Resize fails for that file. Convert Images, Resize Images and Open in minivu are also offered as ready-made shortcuts under minivu in the Shortcuts app.
 
 To use one from Finder, make a shortcut that receives images, turn on **Use as Quick Action** in the shortcut's details, and it appears under **Quick Actions** in Finder's right-click menu.
+
+To run a shortcut from a script, type `shortcuts run "Shortcut Name" --input-path photo.jpg` in Terminal, or use Automator's **Run Shortcut** action. minivu has no AppleScript dictionary of its own.
 
 ## See also
 

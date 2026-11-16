@@ -58,7 +58,8 @@ Solo lo que le pidas:
   Tira de imágenes, Hoja de contactos, Montaje, Exportar vídeo del pase de
   diapositivas y Crear galería web crean archivos nuevos.
 - Girar y voltear en el explorador cambian la etiqueta de orientación de un
-  JPEG, y Editar comentario cambia su comentario.
+  archivo JPEG, HEIC, TIFF o PNG, y Editar comentario cambia el comentario de un
+  JPEG.
 - **Editar metadatos** escribe la información que cambies en el archivo, o en
   un archivo auxiliar XMP junto a él.
 - **Imagen > Etiqueta** asigna la etiqueta de color de Finder del archivo.
@@ -69,8 +70,14 @@ Solo lo que le pidas:
   modificar.
 - Renombrar, Trasladar, Copiar, Nueva carpeta y Renombrar por lotes cambian
   nombres y carpetas, y se pueden deshacer.
-- **Trasladar a la papelera**, y reemplazar un archivo con el mismo nombre,
-  ponen los ítems en la papelera. minivu no elimina tus archivos.
+- **Trasladar a la papelera** pone los ítems en la papelera. Cuando copiar,
+  mover, soltar o pegar reemplaza un archivo con el mismo nombre, el archivo
+  antiguo va a la papelera. Lo mismo pasa con un archivo que reemplazan
+  Convertir por lotes, Extraer páginas, Hoja de contactos o Exportar vídeo del
+  pase de diapositivas.
+- **Guardar**, y **Guardar como**, Crear archivo multipágina, Tira de imágenes o
+  Guardar fotograma como sobre un archivo existente, reemplazan ese archivo para
+  siempre. No va a la papelera y no se puede deshacer.
 - Los archivos se escriben primero por completo y después se colocan en su
   sitio, así que un guardado interrumpido nunca deja medio archivo.
 

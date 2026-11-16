@@ -7,10 +7,10 @@ Gli strumenti che creano immagini, e la presentazione, saltano i video.
 
 ## Presentazione
 
-**Strumenti > Avvia presentazione** riproduce le immagini a tutto schermo sul
-monitor in cui si trova la finestra, con l’HDR come nel visore. Avviandola
-da una singola immagine selezionata viene riprodotta l’intera cartella a
-partire da quella.
+**Strumenti > Avvia presentazione** riproduce le immagini a tutto schermo, con
+l’HDR come nel visore. Si apre sul monitor scelto da **Il visore a tutto schermo
+si apre su** in **Impostazioni > Visore**. Avviandola da una singola immagine
+selezionata viene riprodotta l’intera cartella a partire da quella.
 
 - **Spazio** mette in pausa e riprende, i tasti freccia scorrono le immagini
   ed **Esc** termina la presentazione. Sposta il puntatore per mostrare la
@@ -149,7 +149,7 @@ web.
 ## Cattura
 
 **Strumenti > Cattura** acquisisce un’immagine dell’intero schermo, di una
-finestra o di una selezione che trascini (**A capo** cattura, **Esc**
+finestra o di una selezione che trascini (rilasciare il mouse cattura, **Esc**
 annulla). Le catture vengono salvate come file PNG in **Immagini/minivu
 Captures** e si aprono nel visore.
 
@@ -174,7 +174,13 @@ ricaricare il file.
 
 minivu aggiunge azioni all’app Comandi rapidi: **Converti immagini**,
 **Ridimensiona immagini**, **Rinomina immagini**, **Imposta valutazione**,
-**Imposta etichetta colore** e **Apri in minivu**. Cerca “minivu” tra le
-azioni dell’app Comandi rapidi per usarle nei tuoi comandi rapidi. Eseguire
-uno di questi comandi rapidi apre minivu se non è aperto. Le azioni
-funzionano solo con i file nell’archiviazione interna del tuo Mac.
+**Imposta etichetta colore** e **Apri in minivu**. Cerca “minivu” tra le azioni
+dell’app Comandi rapidi per usarle nei tuoi comandi rapidi. Eseguire uno di
+questi comandi rapidi apre minivu se non è aperto. Le azioni funzionano solo con
+i file nell’archiviazione interna del tuo Mac. **Rinomina immagini** funziona
+solo nella cartella Immagini e nelle cartelle della barra laterale di minivu; se
+un file si trova altrove, non ne rinomina nessuno.
+
+Per usare un comando rapido dal Finder, creane uno che riceve immagini e attiva
+**Usa come azione rapida** nei suoi dettagli. Comparirà nel menu contestuale del
+Finder, in **Azioni rapide**.

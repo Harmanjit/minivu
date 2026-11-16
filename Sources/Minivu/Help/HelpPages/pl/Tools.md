@@ -7,10 +7,11 @@ Narzędzia, które tworzą obrazy, oraz pokaz slajdów pomijają wideo.
 
 ## Pokaz slajdów
 
-**Narzędzia > Rozpocznij pokaz slajdów** odtwarza obrazy na pełnym ekranie
-na ekranie, na którym znajduje się okno, z HDR tak jak w widoku obrazu.
-Rozpoczęcie od jednego zaznaczonego obrazu odtwarza cały folder od tego
-miejsca.
+**Narzędzia > Rozpocznij pokaz slajdów** odtwarza obrazy na pełnym ekranie, z
+HDR tak jak w widoku obrazu. Pokaz otwiera się na ekranie wybranym w opcji
+**Widok obrazu na pełnym ekranie otwiera się na** w **Ustawienia > Widok
+obrazu**. Rozpoczęcie od jednego zaznaczonego obrazu odtwarza cały folder od
+tego miejsca.
 
 - **Spacja** wstrzymuje i wznawia pokaz, klawisze strzałek przechodzą o
   krok, a **Esc** kończy pokaz. Przesuń wskaźnik, aby wyświetlić pasek
@@ -145,10 +146,10 @@ folderu do witryny internetowej.
 
 ## Zrzut
 
-**Narzędzia > Zrzut** wykonuje zdjęcie całego ekranu, okna lub
-przeciągniętego zaznaczenia (**Return** wykonuje zrzut, **Esc** anuluje).
-Zrzuty są zachowywane jako pliki PNG w folderze **Obrazki/minivu Captures**
-i otwierają się w widoku obrazu.
+**Narzędzia > Zrzut** wykonuje zdjęcie całego ekranu, okna lub przeciągniętego
+zaznaczenia (puszczenie przycisku myszy wykonuje zrzut, **Esc** anuluje). Zrzuty
+są zachowywane jako pliki PNG w folderze **Obrazki/minivu Captures** i otwierają
+się w widoku obrazu.
 
 Przechwytywanie całego ekranu lub zaznaczenia wymaga uprawnienia do
 nagrywania ekranu. macOS pyta o nie za pierwszym razem; później możesz to
@@ -170,8 +171,14 @@ wczytać plik ponownie.
 ## Skróty
 
 minivu dodaje czynności do aplikacji Skróty: **Konwertuj obrazy**, **Zmień
-rozmiar obrazów**, **Zmień nazwy obrazów**, **Ustaw ocenę**, **Ustaw
-etykietę kolorową** i **Otwórz w minivu**. Wyszukaj „minivu” wśród
-czynności w aplikacji Skróty, aby używać ich we własnych skrótach.
-Uruchomienie takiego skrótu otwiera minivu, jeśli nie jest otwarte.
-Czynności działają tylko z plikami na wewnętrznym dysku Maca.
+rozmiar obrazów**, **Zmień nazwy obrazów**, **Ustaw ocenę**, **Ustaw etykietę
+kolorową** i **Otwórz w minivu**. Wyszukaj „minivu” wśród czynności w aplikacji
+Skróty, aby używać ich we własnych skrótach. Uruchomienie takiego skrótu otwiera
+minivu, jeśli nie jest otwarte. Czynności działają tylko z plikami na
+wewnętrznym dysku Maca. **Zmień nazwy obrazów** działa tylko w folderze Obrazki
+i w folderach z paska bocznego minivu; jeśli którykolwiek plik jest gdzie
+indziej, nie zmienia nazwy żadnego.
+
+Aby używać skrótu z Findera, utwórz skrót, który odbiera obrazy, i włącz w jego
+szczegółach **Użyj jako szybkiej czynności**. Pojawi się wtedy w menu podręcznym
+Findera w sekcji **Szybkie czynności**.

@@ -133,5 +133,7 @@ möchtest. Nach dem Sichern beginnt der Widerrufverlauf von vorne.
 > die Datei neu laden möchtest. Wenn du sie behältst, wird aus „Sichern“
 > „Sichern unter“, sodass keine Version verloren geht.
 
-Wird ein HDR-Foto über das Original gesichert, wird es als Bild mit
-Standard-Dynamikumfang geschrieben.
+Beim Sichern bleiben JPEG-, HEIC- und AVIF-Fotos mit einer Gain-Map
+(Zusatzdaten, die einem HDR-Bildschirm sagen, wie hell jeder Teil sein darf) in
+HDR. Andere HDR-Fotos werden mit Standard-Dynamikumfang gesichert, und minivu
+sagt dir das vorher.

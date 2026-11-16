@@ -19,8 +19,8 @@ the top of the screen.
 
 ## Zoom and pan
 
-- Click to switch between fitting the window and actual size, centered on
-  the point you clicked.
+- Click to switch between fitting the window and actual size, keeping the
+  point you clicked under the pointer.
 - Drag to pan. When the image is larger than the window, the arrow keys pan
   it instead of changing images.
 - Pinch on a trackpad, or use **+** and **−**; **/** shows actual size and
@@ -76,7 +76,9 @@ pointer over the picture, then drag over the text to select it.
 ## Share
 
 **File > Share…** sends the image shown with AirDrop, Messages, Mail and
-the other ways your Mac offers.
+the other ways your Mac offers. If the image has edits that aren’t saved,
+minivu warns you first and shares the file as it was last saved (**Share
+Saved File**). To share your edits, save them first.
 
 ## Videos
 
@@ -108,8 +110,8 @@ the other:
 
 - Set **Full-screen viewer opens on** in **Settings > Viewer** to
   **Another display** to open the full-screen viewer there.
-- **Window > Move to Next Display** moves the window in front to the next
-  display.
+- **Window > Move to Next Display** moves the viewer, or a slideshow, to the
+  next display. It is dimmed when only one display is connected.
 
 ## Compare
 

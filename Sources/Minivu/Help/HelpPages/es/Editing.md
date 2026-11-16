@@ -122,5 +122,7 @@ deshacer vuelve a empezar.
 > archivo. Si las conservas, Guardar pasa a ser Guardar como, así que no se
 > pierde ninguna de las dos versiones.
 
-Al guardar una foto HDR sobre el original, se escribe como una imagen de rango
-dinámico estándar.
+Al guardar, las fotos JPEG, HEIC y AVIF con un mapa de ganancia (datos
+adicionales que indican a una pantalla HDR cuánto brillo puede tener cada parte)
+siguen siendo HDR. Las demás fotos HDR se guardan en rango dinámico estándar, y
+minivu te lo avisa antes de guardar.

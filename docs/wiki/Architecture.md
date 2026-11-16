@@ -137,6 +137,13 @@ Test runs use a private catalog in memory and a private thumbnail store, so they
 MINIVU_BENCH_DIR=~/Pictures/some-folder swift test -c release --filter DecodeBenchmark
 ```
 
+The tests can't reach some things, such as the Shortcuts app, the sandboxed app on real volumes, and how translations fit on screen. They are checked by hand before a release, from these lists:
+
+- [w2-integration.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/w2-integration.md), "Manual checks for Harman".
+- [sys.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/sys.md), "Checks by hand": Shortcuts, volumes, the Rename refusal and the Quick Action.
+- [batch.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/batch.md), the Set Colour Label checks.
+- [l10n.md](https://github.com/Harmanjit/minivu/blob/main/docs/feature-notes/l10n.md), "Checking by hand": truncation, plurals and CJK text.
+
 ## The snapshot harness
 
 Debug builds can picture their own windows and quit, without screen recording permission, by asking views to render into a bitmap (Metal views composite their own content on top). A release build neither reads these variables nor carries the code that sends actions. The doc comment in [SnapshotHarness.swift](https://github.com/Harmanjit/minivu/blob/main/Sources/Minivu/App/SnapshotHarness.swift) is the reference.

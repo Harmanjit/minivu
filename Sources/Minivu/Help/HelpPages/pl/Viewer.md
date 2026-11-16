@@ -22,8 +22,8 @@ przesunięciu wskaźnika do górnej krawędzi ekranu.
 
 ## Powiększanie i przesuwanie
 
-- Kliknij, aby przełączać między dopasowaniem do okna a rzeczywistym
-  rozmiarem, z wyśrodkowaniem w klikniętym punkcie.
+- Kliknij, aby przełączać między dopasowaniem do okna a rzeczywistym rozmiarem.
+  Kliknięty punkt pozostaje pod wskaźnikiem.
 - Przeciągnij, aby przesunąć. Gdy obraz jest większy od okna, klawisze
   strzałek przesuwają go zamiast zmieniać obraz.
 - Zsuń palce na gładziku lub użyj **+** i **−**; **/** pokazuje rzeczywisty
@@ -84,8 +84,11 @@ go zaznaczyć.
 
 ## Udostępnianie
 
-**Plik > Udostępnij…** wysyła pokazany obraz przez AirDrop, Wiadomości, Mail
-i inne sposoby dostępne na Macu.
+**Plik > Udostępnij…** wysyła pokazany obraz przez AirDrop, Wiadomości, Mail i
+inne sposoby dostępne na Macu. Jeśli obraz ma niezachowane zmiany, minivu
+najpierw ostrzega i udostępnia plik w stanie z ostatniego zachowania
+(**Udostępnij zachowany plik**). Aby udostępnić swoje zmiany, najpierw je
+zachowaj.
 
 ## Wideo
 
@@ -121,8 +124,9 @@ zdjęcia wypełniają drugi:
 - Ustaw opcję **Widok obrazu na pełnym ekranie otwiera się na** w
   **Ustawienia > Widok obrazu** na **Inny ekran**, aby tam otwierać widok
   obrazu na pełnym ekranie.
-- **Okno > Przenieś na następny ekran** przenosi okno na wierzchu na
-  następny ekran.
+- **Okno > Przenieś na następny ekran** przenosi widok obrazu lub pokaz slajdów
+  na następny ekran. Polecenie jest niedostępne, gdy podłączony jest tylko jeden
+  ekran.
 
 ## Porównywanie
 

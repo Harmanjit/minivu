@@ -232,6 +232,10 @@ it should.
 In the Shortcuts app, minivu now appears in the action library (search
 "minivu", or the Apps tab) with five actions:
 
+> Superseded: later work added a sixth action, Set Colour Label
+> (batch.md), and AVIF to Convert Images (batch.md, G14). The wiki's
+> Tools page has the current list.
+
 | Action | Parameters (defaults) | Result |
 |---|---|---|
 | Convert Images | Images; Format (JPEG; also HEIC, PNG, TIFF, JPEG 2000, GIF, BMP, TGA, ICO); Quality 1-100 (90); Long Side in pixels (empty = keep the size, never enlarges); Remove Location (on) | the converted images |
@@ -505,7 +509,8 @@ something real. Findings:
     profile for a prompt-free group container; ad hoc signing has none.
   - minivu writes no XMP ratings (DESIGN.md 4.6: stars stay in the
     catalog), so a rating read from XMP would be Lightroom's, not
-    minivu's.
+    minivu's. (Superseded: since G2 in meta.md, minivu can write ratings
+    as XMP when Write ratings into files is on.)
   - Finder's preview pane, Get Info and Quick Look's own info already
     show the camera, lens, exposure and size.
   - minivu decodes only through Apple's frameworks, so the system preview

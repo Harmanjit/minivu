@@ -31,8 +31,10 @@ the original until you save.
   date taken of one image or many, and remove the location, written into
   the file without re-encoding or into an XMP sidecar.
 - **File management:** drag and drop, copy and paste, Copy To and Move To
-  with recent folders, rename in place, new folders and Move to Trash, all
-  undoable. Replaced files go to the Trash. Share with AirDrop, Messages,
+  with recent folders, rename in place, new folders and Move to Trash.
+  Edit > Undo covers copies, moves, renames and new folders; Move to Trash
+  isn't undoable (take the file back out of the Trash in Finder). A file
+  that a copy or move replaces goes to the Trash. Share with AirDrop, Messages,
   Mail and the rest of the system share sheet.
 - **Viewer:** windowed or instant full screen, zoom and pan at any size on
   the GPU, a magnifier, fly-out panels (filmstrip, tools, info and
@@ -118,8 +120,8 @@ open build/minivu.app
 ```
 
 `scripts/make_app.sh` builds the release binary and assembles the app
-bundle with its two resource bundles (the Metal shaders, and the help
-pages with the translations) and the Shortcuts actions' metadata. It precompiles the shaders when the Metal toolchain is installed,
+bundle with its three resource bundles (the Metal shaders, the help
+pages with the app's translations, and the core library's translations) and the Shortcuts actions' metadata. It precompiles the shaders when the Metal toolchain is installed,
 and signs the app ad hoc with the hardened runtime and the entitlements in
 `scripts/minivu.entitlements`. `scripts/make_app.sh --dev` leaves the
 sandbox out, for testing with folders passed on the command line.
@@ -194,9 +196,10 @@ Sharing hands files to the system's share services. The sandbox limits it
 to the Pictures folder, the files and folders you choose (remembered with
 app-scoped bookmarks) and its own container, where it keeps its catalog,
 thumbnail cache and settings. It changes your files only when you ask,
-writes each file in full before putting it in place, and sends anything it
-replaces to the Trash. Save As, Batch Convert and web galleries leave out
-the location by default. Help > minivu Help > Privacy has the details.
+and writes each file in full before putting it in place. Copy, Move and
+Batch Convert send a file they replace to the Trash; File > Save writes
+over the original after asking, and that can't be undone. Save As, Batch
+Convert and web galleries leave out the location by default. Help > minivu Help > Privacy has the details.
 
 ## License
 

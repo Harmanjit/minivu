@@ -8,7 +8,8 @@ ferramentas que criam imagens, e a apresentação de slides, ignoram os vídeos.
 ## Apresentação de Slides
 
 **Ferramentas > Iniciar Apresentação de Slides** reproduz as imagens em tela
-cheia na tela em que a janela está, com HDR como no visualizador. Começar com
+cheia, com HDR como no visualizador. Ela abre na tela escolhida em **O
+visualizador em tela cheia abre em**, em **Ajustes > Visualizador**. Começar com
 uma única imagem selecionada reproduz a pasta inteira a partir dela.
 
 - **Espaço** pausa e retoma, as teclas de seta avançam e voltam, e **Esc**
@@ -144,10 +145,10 @@ navegador web, no seu Mac ou depois de copiar a pasta para um site.
 
 ## Captura
 
-**Ferramentas > Captura** tira uma foto da tela inteira, de uma janela ou de
-uma seleção que você arrasta (**Return** captura, **Esc** cancela). As
-capturas são salvas como arquivos PNG em **Imagens/minivu Captures** e abrem
-no visualizador.
+**Ferramentas > Captura** tira uma foto da tela inteira, de uma janela ou de uma
+seleção que você arrasta (soltar o botão do mouse captura, **Esc** cancela). As
+capturas são salvas como arquivos PNG em **Imagens/minivu Captures** e abrem no
+visualizador.
 
 Capturar a tela inteira ou uma seleção exige a permissão de Gravação de Tela.
 O macOS pergunta na primeira vez; você pode alterar isso depois em **Ajustes
@@ -171,4 +172,10 @@ Imagens**, **Renomear Imagens**, **Definir Classificação**, **Definir Etiqueta
 de Cor** e **Abrir no minivu**. Busque “minivu” nas ações do app Atalhos para
 usá-las nos seus próprios atalhos. Executar um desses atalhos abre o minivu se
 ele não estiver aberto. As ações só funcionam com arquivos no armazenamento
-interno do seu Mac.
+interno do seu Mac. **Renomear Imagens** só funciona na sua pasta Imagens e nas
+pastas da barra lateral do minivu; se algum arquivo estiver em outro lugar,
+nenhum é renomeado.
+
+Para usar um atalho no Finder, crie um que receba imagens e ative **Usar como
+Ação Rápida** nos detalhes dele. Ele passa a aparecer no menu de contexto do
+Finder, em **Ações Rápidas**.

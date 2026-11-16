@@ -60,8 +60,8 @@ Uniquement ce que vous demandez :
   Bande d’images, Planche contact, Fond d’écran montage, Exporter la vidéo
   du diaporama et Créer une galerie web créent de nouveaux fichiers.
 - La rotation et la symétrie dans le navigateur modifient la balise
-  d’orientation d’un JPEG, et Modifier le commentaire modifie son
-  commentaire.
+  d’orientation d’un fichier JPEG, HEIC, TIFF ou PNG, et Modifier le commentaire
+  modifie le commentaire d’un JPEG.
 - **Modifier les métadonnées** écrit les informations que vous modifiez dans
   le fichier, ou dans un fichier annexe XMP placé à côté.
 - **Image > Étiquette** définit le tag de couleur du Finder du fichier. Les
@@ -71,9 +71,15 @@ Uniquement ce que vous demandez :
   renommer, noter ou étiqueter les fichiers que minivu peut modifier.
 - Renommer, Déplacer, Copier, Nouveau dossier et Renommer par lot modifient
   des noms et des dossiers, et peuvent être annulés.
-- **Placer dans la corbeille**, ainsi que le remplacement d’un fichier du
-  même nom, placent des éléments dans la corbeille. minivu ne supprime pas
-  vos fichiers.
+- **Placer dans la corbeille** place des éléments dans la corbeille. Quand une
+  copie, un déplacement, un dépôt ou un collage remplace un fichier du même nom,
+  l’ancien fichier va dans la corbeille. C’est aussi le cas d’un fichier que
+  remplacent Convertir par lot, Extraire les pages, Planche contact ou Exporter
+  la vidéo du diaporama.
+- **Enregistrer**, ainsi que **Enregistrer sous**, Créer un fichier multipage,
+  Bande d’images ou Enregistrer l’image vidéo sous sur un fichier existant,
+  remplacent ce fichier définitivement. Il ne va pas dans la corbeille, et c’est
+  irréversible.
 - Les fichiers sont d’abord écrits entièrement, puis mis en place : un
   enregistrement interrompu ne laisse donc jamais un fichier à moitié écrit.
 

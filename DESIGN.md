@@ -35,8 +35,10 @@ together, and the rules that keep it small and fast.
   them; text recognition runs on the Mac; App Intents run inside minivu's
   own process and sandbox.
 - Removable or external media: SD cards, USB drives, network volumes.
-  `VolumePolicy` refuses them everywhere, the Shortcuts actions, the
-  slideshow video and the web gallery included.
+  `VolumePolicy` refuses them almost everywhere: browsing, file
+  transfers, the Shortcuts actions, the slideshow video, the web gallery,
+  Batch Convert and multi-page files. Save As and Contact Sheet don't
+  check yet (section 8).
 - Formats without a native macOS decoder (PCX, WMF, EPS, X3F, WMA).
 - Portable mode, scanners, touch screens, email tools, multiple app
   instances.
@@ -1196,8 +1198,8 @@ Convert, Resize and Open in minivu are also ready App Shortcuts. Rules:
 - Rename and Set Rating refuse files that arrive as data; Convert and
   Resize copy them into minivu's folder first.
 - Taking the files and making or clearing run folders run on a GCD thread
-  (`BlockingWork.run`). Intents other than Open in minivu declare
-  `openAppWhenRun = false`.
+  (`BlockingWork.run`). Only Open in minivu declares
+  `openAppWhenRun = true`; the others leave it at its default, false.
 - There is no Apple Events interface beyond AppKit's open-documents event,
   and no scripting dictionary.
 
@@ -1481,8 +1483,9 @@ More than one file shows a progress sheet with Cancel, and a summary lists
 failures, skipped files and raws whose own location stays.
 
 **Filter and sort.** The toolbar's Filter menu (and View > Filter) shows
-everything, images rated at least 1 to 5 stars, tagged images only,
-Photos Only or Videos Only, or one of the folder's Finder tags; More
+everything, images rated at least 1 to 5 stars, tagged images only, or
+Photos Only or Videos Only. The toolbar menu also lists the folder's Finder
+tags; View > Filter doesn't. More
 Filters… opens a sheet with Type (JPEG, HEIF and AVIF, PNG, RAW, TIFF, GIF,
 WebP, Photoshop, PDF, SVG, Video, Other), Date Taken (from and to, a
 video's recording date), Camera model and Lens (part of the name, case and
@@ -1685,7 +1688,7 @@ key reaches the grid, the viewer or a text field otherwise.
 | | Text and Shapes… / Watermark… / Remove Background… | none |
 | | Play Animation / Pause Animation (Play Video / Pause Video on a video) | P (display) |
 | | Mute Video / Unmute Video | M (display) |
-| | Rating > Clear, 1–5 Stars | ⌃0–⌃5 (the grid and viewer also take bare 0–5) |
+| | Rating > Clear Rating, Rate 1–5 Stars | ⌃0–⌃5 (the grid and viewer also take bare 0–5) |
 | | Tag / Remove Tag | ⌘T (no tabs or Fonts panel to clash with; bare `` ` `` in the grid and viewer, T in the viewer) |
 | | Label > None, Red, Orange, Yellow, Green, Blue, Purple, Gray | ⌥⌘0–⌥⌘7 (no ⌥⌘ digit was taken; ⌥⌘8 is the system's Zoom) |
 | | Compare Selected | ⌥⌘K (⌘K is Crop) |
@@ -1877,8 +1880,9 @@ shows display-only shortcuts on the bar it is given, so it must get a fresh
     touches decoding, the browser, the viewer, editing or Batch Convert
     against the budgets below.
 
-**Budgets** (docs/PERFORMANCE.md, section 5). Counts, checked in CI, since
-they don't depend on how busy the machine is:
+**Budgets** (docs/PERFORMANCE.md, section 5). Counts, meant to be checked in
+CI, since they don't depend on how busy the machine is. This isn't wired up
+yet, and the first two need test photos, which CI doesn't have:
 
 | Check | Budget |
 |---|---|
@@ -2194,5 +2198,3 @@ behaviour, in GCD rather than Core Image.
   (`renderForExport` at low task priority, the full-size preview at
   `.utility`) relies on nothing blocking the pool. The check reads GCD's
   queue labels and goes quiet if Apple renames them.
-</content>
-</invoke>

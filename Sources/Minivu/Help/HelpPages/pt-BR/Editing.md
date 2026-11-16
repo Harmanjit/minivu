@@ -121,5 +121,6 @@ Depois que você salva, o histórico de desfazer recomeça.
 > as mantiver, Salvar passa a ser Salvar Como, para que nenhuma versão se
 > perca.
 
-Salvar uma foto HDR sobre o original a grava como uma imagem de faixa dinâmica
-padrão.
+Ao salvar, fotos JPEG, HEIC e AVIF com um mapa de ganho (dados extras que dizem
+a uma tela HDR quanto brilho cada parte pode ter) continuam em HDR. As outras
+fotos HDR são salvas em faixa dinâmica padrão, e o minivu avisa antes de salvar.

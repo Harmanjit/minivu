@@ -26,8 +26,12 @@ the clone with `git rm` before committing.
   Getting Started.
 - `_Sidebar.md` sets the order of the sidebar on GitHub. Add every new page
   to it, and to the Pages table on `Home.md`.
-- Link between pages with bare page names only, `[Viewer](Viewer)` or
-  `[Keyboard Shortcuts](Keyboard-Shortcuts)`, with no `#anchors`.
+- Link between pages with bare page names, `[Viewer](Viewer)` or
+  `[Keyboard Shortcuts](Keyboard-Shortcuts)`, with no `.md`. To link to a
+  heading, add an *anchor*: the heading in lower case, with spaces turned
+  into hyphens and punctuation dropped, as in `[Videos](#videos)` on the
+  same page or `[Collections](Browser#collections)` on another. If you
+  rename a heading, search the wiki for its old anchor.
 - Link to files in the repository with full URLs,
   `https://github.com/Harmanjit/minivu/blob/main/DESIGN.md`, never relative
   paths: the wiki is a separate repository.

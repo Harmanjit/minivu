@@ -8,10 +8,11 @@ Videos.
 
 ## Diashow
 
-**Werkzeuge > Diashow starten** spielt die Bilder im Vollbildmodus auf dem
-Display ab, auf dem sich das Fenster befindet, mit HDR wie im Betrachter.
-Wird mit einem einzelnen ausgewählten Bild gestartet, wird der ganze Ordner
-ab diesem Bild abgespielt.
+**Werkzeuge > Diashow starten** spielt die Bilder im Vollbildmodus ab, mit HDR
+wie im Betrachter. Die Diashow öffnet sich auf dem Display, das
+**Vollbild-Betrachter öffnet auf** unter **Einstellungen > Betrachter**
+festlegt. Wird mit einem einzelnen ausgewählten Bild gestartet, wird der ganze
+Ordner ab diesem Bild abgespielt.
 
 - Die **Leertaste** hält an und setzt fort, die Pfeiltasten blättern, und
   **Esc** beendet die Diashow. Bewege den Zeiger, um die Steuerleiste
@@ -155,9 +156,9 @@ den Ordner auf eine Website kopiert hast.
 ## Bildschirmfoto
 
 **Werkzeuge > Bildschirmfoto** nimmt den ganzen Bildschirm, ein Fenster oder
-eine von dir aufgezogene Auswahl auf (der **Zeilenschalter** nimmt auf,
-**Esc** bricht ab). Aufnahmen werden als PNG-Dateien in
-**Bilder/minivu Captures** gesichert und im Betrachter geöffnet.
+eine von dir aufgezogene Auswahl auf (Loslassen der Maustaste nimmt auf, **Esc**
+bricht ab). Aufnahmen werden als PNG-Dateien in **Bilder/minivu Captures**
+gesichert und im Betrachter geöffnet.
 
 Für die Aufnahme des ganzen Bildschirms oder einer Auswahl ist die
 Berechtigung zur Bildschirmaufnahme erforderlich. macOS fragt beim ersten
@@ -181,8 +182,14 @@ ob du sie behalten oder die Datei neu laden möchtest.
 
 minivu fügt der Kurzbefehle-App Aktionen hinzu: **Bilder konvertieren**,
 **Bildgröße ändern**, **Bilder umbenennen**, **Bewertung festlegen**,
-**Farbetikett festlegen** und **In minivu öffnen**. Suche in den Aktionen
-der Kurzbefehle-App nach „minivu“, um sie in deinen eigenen Kurzbefehlen zu
-verwenden. Wird ein solcher Kurzbefehl ausgeführt, öffnet er minivu, falls
-es nicht geöffnet ist. Die Aktionen funktionieren nur mit Dateien auf dem
-internen Speicher deines Mac.
+**Farbetikett festlegen** und **In minivu öffnen**. Suche in den Aktionen der
+Kurzbefehle-App nach „minivu“, um sie in deinen eigenen Kurzbefehlen zu
+verwenden. Wird ein solcher Kurzbefehl ausgeführt, öffnet er minivu, falls es
+nicht geöffnet ist. Die Aktionen funktionieren nur mit Dateien auf dem internen
+Speicher deines Mac. **Bilder umbenennen** funktioniert nur in deinem Ordner
+„Bilder“ und in Ordnern in der Seitenleiste von minivu. Liegt eine Datei
+woanders, benennt die Aktion keine der Dateien um.
+
+Um einen Kurzbefehl im Finder zu verwenden, erstelle einen, der Bilder empfängt,
+und aktiviere in seinen Details **Als Schnellaktion verwenden**. Er erscheint
+dann im Kontextmenü des Finder unter **Schnellaktionen**.

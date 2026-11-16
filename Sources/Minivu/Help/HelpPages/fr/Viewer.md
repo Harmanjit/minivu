@@ -22,8 +22,8 @@ vous placez le pointeur en haut de l’écran.
 
 ## Zoom et déplacement
 
-- Cliquez pour basculer entre l’adaptation à la fenêtre et la taille
-  réelle, centrée sur le point où vous avez cliqué.
+- Cliquez pour basculer entre l’adaptation à la fenêtre et la taille réelle. Le
+  point où vous avez cliqué reste sous le pointeur.
 - Faites glisser pour déplacer l’image. Lorsque l’image est plus grande que
   la fenêtre, les touches fléchées la déplacent au lieu de changer d’image.
 - Pincez sur un trackpad, ou utilisez **+** et **−** ; **/** affiche la
@@ -87,8 +87,11 @@ sélectionner.
 
 ## Partager
 
-**Fichier > Partager…** envoie l’image affichée par AirDrop, Messages, Mail
-et les autres moyens que propose votre Mac.
+**Fichier > Partager…** envoie l’image affichée par AirDrop, Messages, Mail et
+les autres moyens que propose votre Mac. Si l’image a des modifications non
+enregistrées, minivu vous avertit d’abord et partage le fichier tel qu’il a été
+enregistré la dernière fois (**Partager le fichier enregistré**). Pour partager
+vos modifications, enregistrez-les d’abord.
 
 ## Vidéos
 
@@ -126,8 +129,9 @@ les photos occupent l’autre :
 - Réglez **La visionneuse plein écran s’ouvre sur** dans **Réglages >
   Visionneuse** sur **Un autre écran** pour y ouvrir la visionneuse plein
   écran.
-- **Fenêtre > Déplacer vers l’écran suivant** déplace la fenêtre au premier
-  plan vers l’écran suivant.
+- **Fenêtre > Déplacer vers l’écran suivant** déplace la visionneuse, ou un
+  diaporama, vers l’écran suivant. La commande n’est pas disponible quand un
+  seul écran est connecté.
 
 ## Comparer
 

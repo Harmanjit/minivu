@@ -56,8 +56,9 @@ Alleen waar je om vraagt:
   als**, Batchconversie, Haal pagina’s eruit, Maak bestand met meerdere
   pagina’s, Afbeeldingsstrook, Contactafdruk, Montage, Exporteer
   diavoorstellingsvideo en Maak webgalerie aan maken nieuwe bestanden.
-- Draaien en spiegelen in de browser wijzigen de oriëntatietag van een JPEG,
-  en Wijzig opmerking wijzigt de opmerking ervan.
+- Draaien en spiegelen in de browser wijzigen de oriëntatietag van een JPEG-,
+  HEIC-, TIFF- of PNG-bestand, en Wijzig opmerking wijzigt de opmerking van een
+  JPEG.
 - **Wijzig metagegevens** schrijft de gegevens die je wijzigt in het
   bestand, of in een XMP-sidecarbestand ernaast.
 - **Afbeelding > Label** stelt de Finder-kleurtag van het bestand in. Sterren
@@ -68,9 +69,15 @@ Alleen waar je om vraagt:
   labelen.
 - Wijzig naam, Verplaats, Kopieer, Nieuwe map en Batch-naamswijziging wijzigen
   namen en mappen, en kunnen ongedaan worden gemaakt.
-- **Verplaats naar prullenmand**, en het vervangen van een bestand met
-  dezelfde naam, plaatsen onderdelen in de prullenmand. minivu verwijdert je
-  bestanden niet.
+- **Verplaats naar prullenmand** plaatst onderdelen in de prullenmand. Als
+  kopiëren, verplaatsen, neerzetten of plakken een bestand met dezelfde naam
+  vervangt, gaat het oude bestand naar de prullenmand. Dat geldt ook voor een
+  bestand dat Batchconversie, Haal pagina’s eruit, Contactafdruk of Exporteer
+  diavoorstellingsvideo vervangt.
+- **Bewaar**, en **Bewaar als**, Maak bestand met meerdere pagina’s,
+  Afbeeldingsstrook of Bewaar frame als over een bestaand bestand, vervangen dat
+  bestand voorgoed. Het gaat niet naar de prullenmand en dit kan niet ongedaan
+  worden gemaakt.
 - Bestanden worden eerst volledig geschreven en daarna op hun plek gezet, dus
   een onderbroken bewaaractie laat nooit een half bestand achter.
 

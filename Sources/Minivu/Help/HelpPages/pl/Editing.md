@@ -124,5 +124,7 @@ tak często, jak chcesz. Po zachowaniu historia cofania zaczyna się od nowa.
 > zachowasz, Zachowaj zmieni się w Zachowaj jako, więc żadna wersja nie
 > zostanie utracona.
 
-Zachowanie zdjęcia HDR w miejsce oryginału zapisuje je jako obraz o
-standardowym zakresie dynamicznym.
+Przy zachowywaniu zdjęcia JPEG, HEIC i AVIF z mapą wzmocnienia (dodatkowymi
+danymi, które mówią ekranowi HDR, jak jasna może być każda część) pozostają w
+HDR. Inne zdjęcia HDR są zachowywane w standardowym zakresie dynamicznym, a
+minivu mówi o tym przed zachowaniem.

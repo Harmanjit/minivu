@@ -111,12 +111,12 @@ n’avez pas notées ici.
 
 ## Modifications rapides sans ouvrir la visionneuse
 
-- **Image > Faire pivoter vers la gauche**, **Faire pivoter vers la
-  droite** et les symétries font pivoter les photos JPEG en modifiant leur
-  balise d’orientation : les pixels ne sont donc jamais réencodés. Les
-  fichiers qui ne peuvent pas pivoter de cette façon, comme les fichiers
-  RAW, sont ignorés et répertoriés. Ces commandes modifient immédiatement
-  les fichiers.
+- **Image > Faire pivoter vers la gauche**, **Faire pivoter vers la droite** et
+  les symétries font pivoter les fichiers JPEG, HEIC, TIFF et PNG en modifiant
+  leur balise d’orientation : les pixels ne sont donc jamais réencodés. Les
+  fichiers qui ne peuvent pas pivoter de cette façon, comme les fichiers RAW,
+  sont ignorés et répertoriés. Ces commandes modifient immédiatement les
+  fichiers.
 - **Image > Modifier le commentaire…** modifie le commentaire d’un JPEG.
 - **Image > Modifier les métadonnées…** (**⌘I**) modifie le titre, la
   légende, le créateur, le copyright, les mots-clés et la date de prise de

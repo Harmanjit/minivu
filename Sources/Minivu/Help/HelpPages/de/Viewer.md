@@ -22,8 +22,8 @@ den Zeiger an den oberen Bildschirmrand bewegst.
 
 ## Zoomen und schwenken
 
-- Klicke, um zwischen „An Fenster anpassen“ und Originalgröße zu wechseln,
-  zentriert auf die angeklickte Stelle.
+- Klicke, um zwischen „An Fenster anpassen“ und Originalgröße zu wechseln. Die
+  angeklickte Stelle bleibt dabei unter dem Zeiger.
 - Ziehe, um das Bild zu schwenken. Ist das Bild größer als das Fenster,
   schwenken die Pfeiltasten es, statt das Bild zu wechseln.
 - Ziehe auf einem Trackpad zwei Finger zusammen oder auseinander, oder
@@ -88,8 +88,11 @@ Zeiger über das Bild und ziehe dann über den Text, um ihn auszuwählen.
 
 ## Teilen
 
-**Ablage > Teilen …** sendet das angezeigte Bild per AirDrop, Nachrichten,
-Mail und auf den anderen Wegen, die dein Mac anbietet.
+**Ablage > Teilen …** sendet das angezeigte Bild per AirDrop, Nachrichten, Mail
+und auf den anderen Wegen, die dein Mac anbietet. Hat das Bild nicht gesicherte
+Bearbeitungen, warnt minivu dich zuerst und teilt die Datei so, wie sie zuletzt
+gesichert wurde (**Gesicherte Datei teilen**). Wenn du deine Bearbeitungen
+teilen willst, sichere sie zuerst.
 
 ## Videos
 
@@ -126,8 +129,9 @@ während Fotos den anderen füllen:
 - Setze **Vollbild-Betrachter öffnet auf** unter **Einstellungen >
   Betrachter** auf **Anderes Display**, um den Vollbild-Betrachter dort zu
   öffnen.
-- **Fenster > Auf nächstes Display bewegen** bewegt das vorderste Fenster
-  auf das nächste Display.
+- **Fenster > Auf nächstes Display bewegen** bewegt den Betrachter oder eine
+  Diashow auf das nächste Display. Ist nur ein Display angeschlossen, ist der
+  Befehl nicht verfügbar.
 
 ## Vergleichen
 

@@ -112,11 +112,11 @@ an, die du hier noch nicht bewertet hast.
 
 ## Schnelle Änderungen, ohne den Betrachter zu öffnen
 
-- **Bild > Nach links drehen**, **Nach rechts drehen** und die
-  Spiegeln-Befehle drehen JPEG-Fotos, indem sie deren Ausrichtungsangabe
-  ändern, sodass die Pixel nie neu codiert werden. Dateien, die sich so
-  nicht drehen lassen, etwa RAW-Dateien, werden übersprungen und aufgelistet.
-  Diese Befehle ändern die Dateien sofort.
+- **Bild > Nach links drehen**, **Nach rechts drehen** und die Spiegeln-Befehle
+  drehen JPEG-, HEIC-, TIFF- und PNG-Dateien, indem sie deren Ausrichtungsangabe
+  ändern, sodass die Pixel nie neu codiert werden. Dateien, die sich so nicht
+  drehen lassen, etwa RAW-Dateien, werden übersprungen und aufgelistet. Diese
+  Befehle ändern die Dateien sofort.
 - **Bild > Kommentar bearbeiten …** ändert den Kommentar eines JPEG.
 - **Bild > Metadaten bearbeiten …** (**⌘I**) ändert Titel,
   Bildunterschrift, Urheber, Copyright, Schlagwörter und Aufnahmedatum der

@@ -22,8 +22,8 @@ aanwijzer naar de bovenkant van het scherm beweegt.
 
 ## Zoom en verschuif
 
-- Klik om te wisselen tussen passend in het venster en werkelijke grootte,
-  gecentreerd op het punt waarop je klikte.
+- Klik om te wisselen tussen passend in het venster en werkelijke grootte. Het
+  punt waarop je klikte, blijft onder de aanwijzer.
 - Sleep om te verschuiven. Als de afbeelding groter is dan het venster,
   verschuiven de pijltoetsen deze in plaats van van afbeelding te wisselen.
 - Knijp op een trackpad, of gebruik **+** en **−**; **/** toont de werkelijke
@@ -87,7 +87,10 @@ deze te selecteren.
 ## Deel
 
 **Archief > Deel…** verstuurt de getoonde afbeelding via AirDrop, Berichten,
-Mail en de andere manieren die je Mac biedt.
+Mail en de andere manieren die je Mac biedt. Als de afbeelding wijzigingen heeft
+die niet bewaard zijn, waarschuwt minivu je eerst en deelt het bestand zoals het
+het laatst bewaard is (**Deel bewaard bestand**). Bewaar je wijzigingen eerst
+als je ze wilt delen.
 
 ## Video’s
 
@@ -123,8 +126,9 @@ het andere vullen:
 
 - Stel **Schermvullende viewer opent op** in **Instellingen > Viewer** in op
   **Ander scherm** om de schermvullende viewer daar te openen.
-- **Venster > Verplaats naar volgend scherm** verplaatst het voorste venster
-  naar het volgende scherm.
+- **Venster > Verplaats naar volgend scherm** verplaatst de viewer, of een
+  diavoorstelling, naar het volgende scherm. Het commando is niet beschikbaar
+  als er maar één scherm is aangesloten.
 
 ## Vergelijk
 

@@ -133,5 +133,7 @@ opnieuw.
 > opnieuw wilt laden. Als je ze behoudt, wordt Bewaar Bewaar als, zodat geen
 > van beide versies verloren gaat.
 
-Als je een HDR-foto over het origineel bewaart, wordt deze als afbeelding met
-standaard dynamisch bereik geschreven.
+Bij het bewaren blijven JPEG-, HEIC- en AVIF-foto’s met een gain map (extra
+gegevens die een HDR-scherm vertellen hoe helder elk deel mag zijn) HDR. Andere
+HDR-foto’s worden met standaard dynamisch bereik bewaard, en minivu zegt dat
+voordat het bewaart.

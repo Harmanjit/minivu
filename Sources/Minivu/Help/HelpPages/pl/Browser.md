@@ -107,10 +107,10 @@ tutaj.
 
 ## Szybkie zmiany bez otwierania widoku obrazu
 
-- **Obraz > Obróć w lewo**, **Obróć w prawo** i polecenia odbicia obracają
-  zdjęcia JPEG przez zmianę ich znacznika orientacji, więc piksele nigdy nie
-  są ponownie kodowane. Pliki, których nie można obrócić w ten sposób, na
-  przykład pliki RAW, są pomijane i wymieniane. Te polecenia zmieniają pliki
+- **Obraz > Obróć w lewo**, **Obróć w prawo** i polecenia odbicia obracają pliki
+  JPEG, HEIC, TIFF i PNG przez zmianę ich znacznika orientacji, więc piksele
+  nigdy nie są ponownie kodowane. Pliki, których nie można obrócić w ten sposób,
+  na przykład pliki RAW, są pomijane i wymieniane. Te polecenia zmieniają pliki
   od razu.
 - **Obraz > Edytuj komentarz…** zmienia komentarz pliku JPEG.
 - **Obraz > Edytuj metadane…** (**⌘I**) zmienia tytuł, podpis, autora,

@@ -22,8 +22,8 @@ puntero a la parte superior de la pantalla.
 
 ## Zoom y desplazamiento
 
-- Haz clic para alternar entre ajustar a la ventana y el tamaño real, centrado
-  en el punto donde has hecho clic.
+- Haz clic para alternar entre ajustar a la ventana y el tamaño real. El punto
+  donde has hecho clic se queda bajo el puntero.
 - Arrastra para desplazarte. Cuando la imagen es más grande que la ventana,
   las teclas de flecha la desplazan en lugar de cambiar de imagen.
 - Pellizca en un trackpad, o usa **+** y **−**; **/** muestra el tamaño real y
@@ -85,8 +85,10 @@ seleccionarlo.
 
 ## Compartir
 
-**Archivo > Compartir…** envía la imagen que se muestra por AirDrop,
-Mensajes, Mail y las demás vías que ofrece tu Mac.
+**Archivo > Compartir…** envía la imagen que se muestra por AirDrop, Mensajes,
+Mail y las demás vías que ofrece tu Mac. Si la imagen tiene cambios sin guardar,
+minivu te avisa primero y comparte el archivo tal como se guardó por última vez
+(**Compartir archivo guardado**). Para compartir tus cambios, guárdalos antes.
 
 ## Vídeos
 
@@ -122,8 +124,9 @@ mientras las fotos ocupan la otra:
 
 - Ajusta **El visor a pantalla completa se abre en** en **Ajustes > Visor** a
   **Otra pantalla** para abrir allí el visor a pantalla completa.
-- **Ventana > Mover a la siguiente pantalla** mueve la ventana que está
-  delante a la siguiente pantalla.
+- **Ventana > Mover a la siguiente pantalla** mueve el visor, o un pase de
+  diapositivas, a la siguiente pantalla. No está disponible si solo hay una
+  pantalla conectada.
 
 ## Comparar
 

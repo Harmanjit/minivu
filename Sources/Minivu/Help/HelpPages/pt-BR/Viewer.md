@@ -21,8 +21,8 @@ até a parte de cima da tela.
 
 ## Zoom e deslocamento
 
-- Clique para alternar entre ajustar à janela e o tamanho real, centralizado
-  no ponto em que você clicou.
+- Clique para alternar entre ajustar à janela e o tamanho real. O ponto em que
+  você clicou fica sob o ponteiro.
 - Arraste para deslocar. Quando a imagem é maior que a janela, as teclas de
   seta a deslocam em vez de trocar de imagem.
 - Faça o movimento de pinça em um trackpad, ou use **+** e **−**; **/**
@@ -82,8 +82,11 @@ para selecioná-lo.
 
 ## Compartilhar
 
-**Arquivo > Compartilhar…** envia a imagem exibida por AirDrop, Mensagens,
-Mail e pelas outras formas que o seu Mac oferece.
+**Arquivo > Compartilhar…** envia a imagem exibida por AirDrop, Mensagens, Mail
+e pelas outras formas que o seu Mac oferece. Se a imagem tiver edições não
+salvas, o minivu avisa antes e compartilha o arquivo como foi salvo da última
+vez (**Compartilhar Arquivo Salvo**). Para compartilhar suas edições, salve-as
+primeiro.
 
 ## Vídeos
 
@@ -118,8 +121,9 @@ ocupam a outra:
 
 - Defina **O visualizador em tela cheia abre em** como **Outra tela** em
   **Ajustes > Visualizador** para abrir o visualizador em tela cheia nela.
-- **Janela > Mover para a Próxima Tela** move a janela da frente para a
-  próxima tela.
+- **Janela > Mover para a Próxima Tela** move o visualizador, ou uma
+  apresentação, para a próxima tela. O comando fica indisponível quando há só
+  uma tela conectada.
 
 ## Comparar
 

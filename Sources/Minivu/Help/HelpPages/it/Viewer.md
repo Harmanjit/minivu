@@ -21,8 +21,8 @@ sposti il puntatore nella parte superiore dello schermo.
 
 ## Zoom e spostamento
 
-- Fai clic per passare tra l’adattamento alla finestra e le dimensioni
-  reali, centrando il punto su cui hai fatto clic.
+- Fai clic per passare tra l’adattamento alla finestra e le dimensioni reali. Il
+  punto su cui hai fatto clic resta sotto il puntatore.
 - Trascina per spostare l’immagine. Quando l’immagine è più grande della
   finestra, i tasti freccia la spostano invece di cambiare immagine.
 - Pizzica su un trackpad, oppure usa **+** e **−**; **/** mostra le
@@ -86,8 +86,11 @@ selezionarlo.
 
 ## Condividere
 
-**Archivio > Condividi…** invia l’immagine visualizzata con AirDrop,
-Messaggi, Mail e gli altri metodi offerti dal tuo Mac.
+**Archivio > Condividi…** invia l’immagine visualizzata con AirDrop, Messaggi,
+Mail e gli altri metodi offerti dal tuo Mac. Se l’immagine ha modifiche non
+salvate, minivu ti avvisa prima e condivide il file com’era all’ultimo
+salvataggio (**Condividi file salvato**). Per condividere le modifiche, salvale
+prima.
 
 ## Video
 
@@ -123,8 +126,9 @@ riempiono l’altro:
 
 - Imposta **Il visore a tutto schermo si apre su** in **Impostazioni >
   Visore** su **Un altro monitor** per aprire lì il visore a tutto schermo.
-- **Finestra > Sposta sul monitor successivo** sposta la finestra in primo
-  piano sul monitor successivo.
+- **Finestra > Sposta sul monitor successivo** sposta il visore, o una
+  presentazione, sul monitor successivo. Non è disponibile quando è collegato un
+  solo monitor.
 
 ## Confronto
 

@@ -22,10 +22,10 @@ There is no language setting in minivu. It follows the language you choose for i
 - **Wrap around at end of folder.** Going to the next image after the last goes back to the first, and the previous image before the first goes to the last. It applies in the viewer and Compare, and to scrolling over the browser's preview pane.
 - **Open viewer in full screen.** Double-clicking an image, or pressing Return, opens the viewer full screen; off, it opens in a window. See [Viewer](Viewer).
 - **Ask before saving over the original.** **File > Save** asks before it writes over the file. Ticking **Don't ask again** in that question turns this off; this switch is the way to turn it back on. See [Editing](Editing).
-- **Write ratings into files (XMP).** *XMP* is a standard block of metadata that Lightroom, Bridge, digiKam and many other apps read. While this is on, every star rating, tag and colour label you set in minivu is also written into the photo as XMP. Camera RAW files, and formats minivu can't rewrite without re-encoding, get an *XMP sidecar* instead: a small `.xmp` file with the same name, beside the photo. minivu never re-encodes the pixels to do this. It is off by default because it changes your files.
+- **Write ratings into files (XMP).** *XMP* is a standard block of metadata that Lightroom, Bridge, digiKam and many other apps read. While this is on, every star rating, tag and colour label you set in minivu is also written into the photo as XMP. Camera RAW files, and other formats minivu can't rewrite without re-encoding, get an *XMP sidecar* instead: a small `.xmp` file with the same name, beside the photo. minivu never re-encodes the pixels to do this. It is off by default because it changes your files.
   - Only changes made while it is on are written. Turning it on doesn't copy the marks you set before.
   - Writing a mark into a JPEG, HEIC, PNG or TIFF changes the file's modification date, so its thumbnail is made again.
-  - Videos are never written to; their marks stay in minivu's catalog.
+  - PDFs, SVGs and videos are never written to, not even with a sidecar; their marks stay in minivu's catalog.
   - Reading is always on, whatever this setting says. A photo you haven't rated in minivu shows the rating and tag it carries itself, for example from Lightroom. Once you rate it in minivu, minivu's rating wins and the file's is no longer shown.
   - A colour label (**Image > Label**) is always written, as the file's Finder colour tag, whether this is on or off. This setting adds a copy in the XMP.
 
@@ -81,7 +81,7 @@ Scrolling while the magnifier is up also changes **Zoom**, by 1.25× per wheel n
 ## Thumbnails
 
 - **Size:** 80 to 320 pt, 150 pt by default. It is the side of each square cell in the browser's grid. The **Thumbnail Size** slider in the browser's toolbar sets the same value.
-- **Clear Thumbnail Cache** empties the thumbnail cache on disk; thumbnails are made again from the original files when they are next needed. Nothing else is touched: stars, tags and custom orders are in the catalog, not the cache.
+- **Clear Thumbnail Cache** empties the thumbnail cache on disk; thumbnails are made again from the original files when they are next needed. The fingerprints Find Duplicates keeps are in the same cache and are emptied too. Nothing else is touched: stars, tags and custom orders are in the catalog, not the cache.
 - Without clearing, the disk cache is kept to about 1 GB: at each launch the least recently used thumbnails are removed beyond that.
 
 ## Slideshow

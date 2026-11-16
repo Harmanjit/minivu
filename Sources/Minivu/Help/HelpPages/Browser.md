@@ -93,8 +93,9 @@ here.
 
 ## Quick changes without opening the viewer
 
-- **Image > Rotate Left**, **Rotate Right** and the flips turn JPEG photos
-  by changing their orientation tag, so the pixels are never re-encoded.
+- **Image > Rotate Left**, **Rotate Right** and the flips turn JPEG, HEIC,
+  TIFF and PNG files by changing their orientation tag, so the pixels are
+  never re-encoded.
   Files that can’t turn that way, such as RAW files, are skipped and listed.
   These change the files straight away.
 - **Image > Edit Comment…** changes a JPEG’s comment.

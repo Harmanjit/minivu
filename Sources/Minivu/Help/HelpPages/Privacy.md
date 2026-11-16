@@ -52,8 +52,8 @@ Only what you ask for:
   Convert, Extract Pages, Create Multi-Page File, Image Strip, Contact
   Sheet, Montage, Export Slideshow Video and Create Web Gallery make new
   files.
-- Rotate and flip in the browser change a JPEG’s orientation tag, and Edit
-  Comment changes its comment.
+- Rotate and flip in the browser change the orientation tag of a JPEG,
+  HEIC, TIFF or PNG file, and Edit Comment changes a JPEG’s comment.
 - **Edit Metadata** writes the details you change into the file, or into an
   XMP sidecar file beside it.
 - **Image > Label** sets the file’s Finder color tag. Stars and tags are
@@ -63,8 +63,13 @@ Only what you ask for:
   label files that minivu may change.
 - Rename, Move, Copy, New Folder and Batch Rename change names and folders,
   and can be undone.
-- **Move to Trash**, and replacing a file of the same name, put items in the
-  Trash. minivu doesn’t delete your files.
+- **Move to Trash** puts items in the Trash. When a copy, move, drop or
+  paste replaces a file of the same name, the old file goes to the Trash.
+  So does a file that Batch Convert, Extract Pages, Contact Sheet or Export
+  Slideshow Video replaces.
+- **Save**, and **Save As**, Create Multi-Page File, Image Strip or Save
+  Frame As over an existing file, replace that file for good. It doesn’t go
+  to the Trash, and this can’t be undone.
 - Files are written in full first and then put in place, so an interrupted
   save never leaves half a file.
 

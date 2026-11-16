@@ -56,8 +56,8 @@ Tylko to, o co poprosisz:
   Konwersja wsadowa, Wyodrębnij strony, Utwórz plik wielostronicowy, Pasek
   obrazów, Arkusz stykowy, Tapeta z kolażu, Eksportuj wideo z pokazem
   slajdów i Utwórz galerię internetową tworzą nowe pliki.
-- Obracanie i odbijanie w przeglądarce zmienia znacznik orientacji pliku
-  JPEG, a Edytuj komentarz zmienia jego komentarz.
+- Obracanie i odbijanie w przeglądarce zmienia znacznik orientacji pliku JPEG,
+  HEIC, TIFF lub PNG, a Edytuj komentarz zmienia komentarz pliku JPEG.
 - **Edytuj metadane** zapisuje zmienione informacje w pliku lub w pliku
   dodatkowym XMP obok niego.
 - **Obraz > Etykieta** ustawia kolorowy tag Findera pliku. Gwiazdki i
@@ -68,8 +68,13 @@ Tylko to, o co poprosisz:
   zmieniać.
 - Zmień nazwę, Przenieś, Kopiuj, Nowy folder i Wsadowa zmiana nazw zmieniają
   nazwy i foldery, a te zmiany można cofnąć.
-- **Przenieś do kosza** oraz zastąpienie pliku o tej samej nazwie umieszczają
-  rzeczy w koszu. minivu nie usuwa Twoich plików.
+- **Przenieś do kosza** umieszcza rzeczy w koszu. Gdy kopiowanie, przenoszenie,
+  upuszczenie lub wklejenie zastępuje plik o tej samej nazwie, stary plik trafia
+  do kosza. Tak samo dzieje się z plikiem, który zastępuje Konwersja wsadowa,
+  Wyodrębnij strony, Arkusz stykowy lub Eksportuj wideo z pokazem slajdów.
+- **Zachowaj**, a także **Zachowaj jako**, Utwórz plik wielostronicowy, Pasek
+  obrazów lub Zachowaj klatkę jako w miejsce istniejącego pliku, zastępują ten
+  plik na zawsze. Nie trafia on do kosza i nie można tego cofnąć.
 - Pliki są najpierw zapisywane w całości, a dopiero potem umieszczane na
   miejscu, więc przerwane zachowywanie nigdy nie pozostawia połowy pliku.
 

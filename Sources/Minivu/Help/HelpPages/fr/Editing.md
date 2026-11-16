@@ -135,5 +135,7 @@ souhaitez. Après l’enregistrement, l’historique d’annulation repart de z�
 > Enregistrer devient Enregistrer sous : aucune des deux versions n’est
 > perdue.
 
-L’enregistrement d’une photo HDR sur l’original l’écrit sous forme d’image
-à plage dynamique standard.
+À l’enregistrement, les photos JPEG, HEIC et AVIF qui ont une carte de gain (des
+données en plus qui indiquent à un écran HDR jusqu’où chaque partie peut
+briller) restent en HDR. Les autres photos HDR sont enregistrées en plage
+dynamique standard, et minivu vous le signale avant d’enregistrer.
