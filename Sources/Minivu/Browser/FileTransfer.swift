@@ -195,16 +195,17 @@ final class FileTransfer {
     private static func askAboutConflict(_ file: URL, remaining: Int, isMove: Bool, window: NSWindow?) async -> Resolution {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "An item named “\(file.lastPathComponent)” already exists in this location."
-        alert.informativeText = "Do you want to replace it with the one you’re \(isMove ? "moving" : "copying")?"
+        alert.messageText = localized("An item named “\(file.lastPathComponent)” already exists in this location.")
+        alert.informativeText = isMove ? localized("Do you want to replace it with the one you’re moving?")
+            : localized("Do you want to replace it with the one you’re copying?")
         // Keep Both is the default: the choice that loses nothing.
-        alert.addButton(withTitle: "Keep Both")
-        alert.addButton(withTitle: "Replace")
-        let skip = alert.addButton(withTitle: "Skip")
+        alert.addButton(withTitle: localized(.init("Keep Both", comment: "Button: keep both files, renaming the one arriving")))
+        alert.addButton(withTitle: localized(.init("Replace", comment: "Verb: button that replaces the existing file")))
+        let skip = alert.addButton(withTitle: localized(.init("Skip", comment: "Verb: button that leaves this file where it is")))
         skip.keyEquivalent = "\u{1b}"
         if remaining > 1 {
             alert.showsSuppressionButton = true
-            alert.suppressionButton?.title = "Apply to All"
+            alert.suppressionButton?.title = localized("Apply to All")
         }
         let response: NSApplication.ModalResponse
         if let window {
@@ -224,24 +225,23 @@ final class FileTransfer {
 
     /// "Moving 120 items to “Trip”".
     nonisolated static func progressTitle(count: Int, isMove: Bool, destination: URL) -> String {
-        "\(isMove ? "Moving" : "Copying") \(itemsText(count)) to “\(destination.lastPathComponent)”"
-    }
-
-    /// "1 item", "3 items".
-    nonisolated static func itemsText(_ count: Int) -> String {
-        count == 1 ? "1 item" : "\(count.formatted()) items"
+        let folder = destination.lastPathComponent
+        return isMove ? localized(.init("Moving \(count) items to “\(folder)”", comment: "Progress sheet title; %@ is the folder"))
+            : localized(.init("Copying \(count) items to “\(folder)”", comment: "Progress sheet title; %@ is the folder"))
     }
 
     /// Tells the user what couldn't be copied or moved, if anything.
     static func reportFailures(_ outcome: Outcome, on window: NSWindow?) {
         guard !outcome.failed.isEmpty else { return }
         let alert = NSAlert()
-        let verb = outcome.request.isMove ? "moved" : "copied"
-        if outcome.failed.count == 1, let failure = outcome.failed.first {
-            alert.messageText = "“\(failure.url.lastPathComponent)” couldn’t be \(verb)."
+        let isMove = outcome.request.isMove, count = outcome.failed.count
+        if count == 1, let failure = outcome.failed.first {
+            let name = failure.url.lastPathComponent
+            alert.messageText = isMove ? localized("“\(name)” couldn’t be moved.") : localized("“\(name)” couldn’t be copied.")
             alert.informativeText = failure.message
         } else {
-            alert.messageText = "\(itemsText(outcome.failed.count).capitalizedFirst) couldn’t be \(verb)."
+            alert.messageText = isMove ? localized("\(count) items couldn’t be moved.")
+                : localized("\(count) items couldn’t be copied.")
             let names = outcome.failed.prefix(8).map(\.url.lastPathComponent)
             alert.informativeText = names.joined(separator: ", ") + (outcome.failed.count > 8 ? "…" : "")
         }
@@ -312,7 +312,7 @@ final class TransferProgressSheet: NSWindow {
         bar.minValue = 0
         bar.maxValue = Double(progress.total)
         bar.style = .bar
-        let cancel = NSButton(title: "Cancel", target: nil, action: #selector(cancelTransfer(_:)))
+        let cancel = NSButton(title: localized("Cancel"), target: nil, action: #selector(cancelTransfer(_:)))
         cancel.target = self
         cancel.keyEquivalent = "\u{1b}"
         let spacer = NSView()
@@ -361,7 +361,7 @@ nonisolated enum TransferChecks {
     static func preflight(_ urls: [URL], into destination: URL) -> Preflight {
         var result = Preflight()
         guard let destinationID = identity(destination) else {
-            result.failed = urls.map { ($0, "The destination folder can’t be found.") }
+            result.failed = urls.map { ($0, localized("The destination folder can’t be found.")) }
             return result
         }
         var parentIDs: [String: NSObject?] = [:]
@@ -374,7 +374,7 @@ nonisolated enum TransferChecks {
             }()
             if parentID?.isEqual(destinationID) == true { continue }
             if isDirectory(url), isSameOrInside(destination, url) {
-                result.failed.append((url, "A folder can’t be put inside itself."))
+                result.failed.append((url, localized("A folder can’t be put inside itself.")))
                 continue
             }
             let existing = destination.appendingPathComponent(url.lastPathComponent)
@@ -383,7 +383,8 @@ nonisolated enum TransferChecks {
                 continue
             }
             if isSameOrInside(url, existing) {
-                result.failed.append((url, "“\(existing.lastPathComponent)” can’t be replaced by an item inside it."))
+                let name = existing.lastPathComponent
+                result.failed.append((url, localized("“\(name)” can’t be replaced by an item inside it.")))
                 continue
             }
             result.files.append(url)
