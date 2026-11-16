@@ -108,6 +108,7 @@ extension BrowserWindowController {
                     catalog.setCustomOrder(order, in: folder)
                 }
                 done(true)
+                model.followMoves([(url, newURL)])
                 if model.showsManyFolders {
                     // A list from many folders (G3): the catalog has moved a
                     // collection's member, and a search runs again.
@@ -209,6 +210,7 @@ extension BrowserWindowController {
                 let record = TransferRecord(pairs: outcome.transfers, trashed: outcome.trashed, isMove: move)
                 undoRegistrar(record.actionName)(true, { $0.undoTransfer(record) })
             }
+            if move { model.followMoves(outcome.transfers.map { ($0.from, $0.to) }) }
             showTransferred(arrived: outcome.transfers.map(\.to), left: move ? outcome.transfers.map(\.from) : [],
                             thenSelect: next)
             FileTransfer.reportFailures(outcome, on: window)
@@ -252,8 +254,13 @@ extension BrowserWindowController {
         if model.showsManyFolders {
             // A list from many folders (G3) is read again: a collection's
             // members moved with their files, the flat view's tree changed
-            // and a search may now find them elsewhere.
-            if let next, model.entry(for: next) != nil, arrived.isEmpty { model.select(next) }
+            // and a search may now find them elsewhere. Files that left make
+            // way for the next one meanwhile, as in a folder; arrivals the
+            // list still holds are selected once it is read.
+            if !left.isEmpty {
+                model.removeEntries(Set(left))
+                if let next, model.entry(for: next) != nil { model.select(next) }
+            }
             model.reload(thenSelect: arrived)
             sidebarFolderChanged(Array(Set((arrived + left).map { $0.deletingLastPathComponent() })))
             return
@@ -293,6 +300,7 @@ extension BrowserWindowController {
             }
             Self.invalidateCaches(pairs, trashed)
             done(!undone.isEmpty || !restored.isEmpty)
+            if isMove { model.followMoves(undone.map { ($0.to, $0.from) }) }
             showTransferred(arrived: (isMove ? undone.map(\.from) : []) + restored.map(\.from),
                             left: undone.map(\.to), thenSelect: nil)
             if undone.count < pairs.count || restored.count < trashed.count {
@@ -322,6 +330,7 @@ extension BrowserWindowController {
             record.trashed = retrashed
             Self.invalidateCaches(pairs, trashed)
             done(!redone.isEmpty)
+            if isMove { model.followMoves(redone.map { ($0.from, $0.to) }) }
             showTransferred(arrived: redone.map(\.to), left: isMove ? redone.map(\.from) : [], thenSelect: nil)
             if redone.count < pairs.count { present(message: "Some items couldn’t be moved or copied again.") }
         }

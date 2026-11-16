@@ -1072,6 +1072,15 @@ nonisolated struct FolderSnapshot: Sendable {
                 files.append(url)
             }
         }
+        // A list watches no folder: a file the viewer or Compare trashed or
+        // moved (the catalog names both of its paths) leaves it here.
+        if list != nil {
+            let gone = files.filter { !FileManager.default.fileExists(atPath: $0.path) }
+            if !gone.isEmpty {
+                removeEntries(Set(gone))
+                files.removeAll { gone.contains($0) }
+            }
+        }
         var changed = Set<String>()
         var unread: [URL] = []
         if !files.isEmpty {
@@ -1467,6 +1476,28 @@ nonisolated struct FolderSnapshot: Sendable {
     /// are found by name, so only an entry at the very path given goes: a
     /// namesake in a subfolder (a duplicate trashed from Find Duplicates)
     /// leaves the shown folder's own file in place.
+    /// A list of fixed files (a Duplicates group, `.files`) keeps the files
+    /// minivu itself renamed or moved, here and in Back and Forward: it is
+    /// read again from its paths, and would otherwise drop them.
+    func followMoves(_ moves: [(from: URL, to: URL)]) {
+        guard !moves.isEmpty else { return }
+        var moved: [String: URL] = [:]
+        for move in moves { moved[move.from.standardizedFileURL.path] = move.to }
+        func follow(_ list: VirtualList?) -> VirtualList? {
+            guard var list, case .files(let urls) = list.kind else { return list }
+            list.kind = .files(urls.map { moved[$0.standardizedFileURL.path] ?? $0 })
+            return list
+        }
+        func follow(_ location: Location) -> Location {
+            var location = location
+            location.list = follow(location.list)
+            return location
+        }
+        list = follow(list)
+        backStack = backStack.map(follow)
+        forwardStack = forwardStack.map(follow)
+    }
+
     func removeEntries(_ urls: Set<URL>) {
         let matched = Set(urls.compactMap { url in entry(for: url).flatMap { Self.samePath($0.url, url) ? $0.url : nil } })
         guard !matched.isEmpty, snapshot != nil else { return }

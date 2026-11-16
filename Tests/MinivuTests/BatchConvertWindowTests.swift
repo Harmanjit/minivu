@@ -110,6 +110,33 @@ extension AppWindowTests {
             #expect(try Data(contentsOf: t.url.appendingPathComponent("late.jpg")) == Data("arrived meanwhile".utf8))
         }
 
+        /// In the flat view, outputs written beside originals in a subfolder
+        /// show at once, selected, as after Batch Rename.
+        @Test func flatViewShowsOutputsInSubfolders() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let sub = try t.folder("Sub")
+            let source = sub.appendingPathComponent("a.png")
+            try FileManager.default.moveItem(at: try t.jpeg("a.png", width: 40, height: 30), to: source)
+            let controller = BrowserWindowController(catalog: catalog)
+            _ = controller.grid.view
+            defer { controller.window?.close() }
+            controller.preview.isVisible = false
+            controller.open(folder: t.url)
+            await controller.model.work?.value
+            controller.toggleFlatView(nil)
+            await controller.model.work?.value
+            #expect(controller.model.entries.map(\.name) == ["a.png"])
+
+            let settings = BatchConvertSettings(options: .defaults(for: .jpeg))
+            // The listing's own entry (its path as the tree walk gives it).
+            controller.runBatchConvert([try #require(controller.model.entries.first)], settings: settings)
+            await controller.batchWork?.value
+            await TestTiming.waitUntil { controller.model.selection.count == 1 }
+            #expect(controller.model.entries.map(\.name).sorted() == ["a.jpg", "a.png"])
+            #expect(controller.model.selection.map(\.lastPathComponent) == ["a.jpg"])
+        }
+
         /// Remove location (on by default) is for copies: an original
         /// replaced by its own conversion keeps its GPS position and place
         /// names, as Save keeps them; a new file beside it leaves them out.

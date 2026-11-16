@@ -203,6 +203,84 @@ extension AppWindowTests {
             #expect(!FileManager.default.fileExists(atPath: a.path))
         }
 
+        /// A Duplicates list (fixed files) keeps a file minivu renames or
+        /// moves, selected at its new path, and Undo brings it back.
+        @Test func aListOfFilesFollowsRenamesAndMoves() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let sub = try t.folder("Sub")
+            let a = try t.file("a.jpg"), b = try t.file("b.jpg")
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(list: VirtualList(kind: .files([a, b]), title: "2 copies"))
+            await settle(controller)
+            controller.model.select(a)
+
+            controller.transfer([a], to: sub, move: true)
+            await controller.transferWork?.value
+            await TestTiming.waitUntil { controller.model.lead?.deletingLastPathComponent().lastPathComponent == "Sub" }
+            let moved = sub.appendingPathComponent("a.jpg")
+            #expect(Set(controller.model.entries.map(\.url.path)) == [moved.path, b.path])
+
+            let undo = try #require(controller.window?.undoManager)
+            undo.undo()
+            await TestTiming.waitUntil(seconds: 30) { controller.model.entries.contains { $0.url.path == a.path } }
+            #expect(controller.model.entries.count == 2)
+
+            let renamed = t.url.appendingPathComponent("keep.jpg")
+            controller.model.followMoves([(b, renamed)])
+            try FileManager.default.moveItem(at: b, to: renamed)
+            controller.model.reload()
+            await settle(controller)
+            #expect(Set(controller.model.entries.map(\.name)) == ["a.jpg", "keep.jpg"])
+        }
+
+        /// Move To out of a search list selects the next image, as in a
+        /// folder, so culling goes on.
+        @Test func moveOutOfAListSelectsTheNextImage() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let shown = try t.folder("Shown"), away = try t.folder("Away")
+            try t.file("a.jpg", in: shown); try t.file("b.jpg", in: shown)
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(list: VirtualList(kind: .search(SearchQuery(scope: shown)), title: "Found"))
+            await settle(controller)
+            #expect(controller.model.entries.count == 2)
+            // The search's own paths (symlinks resolved), as the grid gives them.
+            let listed = try #require(controller.model.entries.first { $0.name == "a.jpg" }?.url)
+            controller.model.select(listed)
+
+            controller.transfer([listed], to: away, move: true)
+            await controller.transferWork?.value
+            await settle(controller)
+            await TestTiming.waitUntil { controller.model.entries.count == 1 }
+            #expect(controller.model.lead?.lastPathComponent == "b.jpg")
+        }
+
+        /// A file trashed or moved elsewhere (the viewer, Compare) leaves a
+        /// list, which watches no folder, once the catalog names it.
+        @Test func aListDropsAFileMovedElsewhere() async throws {
+            _ = NSApplication.shared
+            let t = try ScratchFolder()
+            let away = try t.folder("Away")
+            try t.file("a.jpg"); try t.file("b.jpg")
+            let controller = makeController()
+            defer { controller.window?.close() }
+            controller.open(list: VirtualList(kind: .search(SearchQuery(scope: t.url, includeSubfolders: false)),
+                                              title: "Found"))
+            await settle(controller)
+            #expect(controller.model.entries.count == 2)
+
+            // The search's own paths (symlinks resolved), as the viewer gets them.
+            let listed = try #require(controller.model.entries.first { $0.name == "a.jpg" }?.url)
+            let gone = away.appendingPathComponent("a.jpg")
+            try FileManager.default.moveItem(at: listed, to: gone)
+            catalog.fileMoved(from: listed, to: gone)
+            await TestTiming.waitUntil { controller.model.entries.count == 1 }
+            #expect(controller.model.entries.map(\.name) == ["b.jpg"])
+        }
+
         /// Copies from elsewhere arrive selected; Undo sends them to the Trash.
         @Test func copyInSelectsArrivals() async throws {
             _ = NSApplication.shared
