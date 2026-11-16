@@ -10,18 +10,18 @@ public struct ImageStripSettings: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .horizontal: "Side by Side"
-            case .vertical: "One Above Another"
-            case .grid: "Grid"
+            case .horizontal: localized(.init("Side by Side", comment: "Image strip arrangement"))
+            case .vertical: localized(.init("One Above Another", comment: "Image strip arrangement"))
+            case .grid: localized(.init("Grid", comment: "Arrangement of pictures in rows and columns"))
             }
         }
 
         /// What `size` measures, for the sheet's label.
         public var sizeTitle: String {
             switch self {
-            case .horizontal: "Height"
-            case .vertical: "Width"
-            case .grid: "Cell height"
+            case .horizontal: localized("Height")
+            case .vertical: localized("Width")
+            case .grid: localized(.init("Cell height", comment: "Height of each picture in an image strip's grid"))
             }
         }
     }
@@ -143,12 +143,10 @@ public struct ImageStripLayout: Equatable, Sendable {
     /// strip is one bitmap at four bytes a pixel, eight at 16 bits), or nil.
     public func problem(byteLimit: Int, bytesPerPixel: Int = 4) -> String? {
         if width > Self.maximumSide || height > Self.maximumSide {
-            return "The strip would be \(width.formatted()) × \(height.formatted()) pixels; "
-                + "the most minivu makes is \(Self.maximumSide.formatted()) on a side."
+            return localized("The strip would be \(width) × \(height) pixels; the most minivu makes is \(Self.maximumSide) on a side.")
         }
         if Double(width) * Double(height) * Double(bytesPerPixel) > Double(byteLimit) {
-            return "The strip would be \(width.formatted()) × \(height.formatted()) pixels, "
-                + "more than this Mac can hold at once. Choose a smaller size."
+            return localized("The strip would be \(width) × \(height) pixels, more than this Mac can hold at once. Choose a smaller size.")
         }
         return nil
     }
@@ -167,7 +165,7 @@ public enum ImageStripRenderer {
         public var errorDescription: String? {
             switch self {
             case .tooLarge(let reason): reason
-            case .nothingToDraw: "None of the images could be read."
+            case .nothingToDraw: localized("None of the images could be read.")
             }
         }
     }
@@ -196,7 +194,7 @@ public enum ImageStripRenderer {
         guard let context = CGContext(data: nil, width: layout.width, height: layout.height,
                                       bitsPerComponent: deep ? 16 : 8, bytesPerRow: 0,
                                       space: CGColorSpace(name: CGColorSpace.displayP3)!, bitmapInfo: bitmap) else {
-            throw Failure.tooLarge("The strip couldn’t be made: not enough memory.")
+            throw Failure.tooLarge(localized("The strip couldn’t be made: not enough memory."))
         }
         let height = CGFloat(layout.height)
         if let background = settings.background {
@@ -222,7 +220,7 @@ public enum ImageStripRenderer {
         }
         if cancel.isCancelled { throw CancellationError() }
         guard failed.count < layout.frames.filter({ !$0.isEmpty }).count else { throw Failure.nothingToDraw }
-        guard let image = context.makeImage() else { throw Failure.tooLarge("The strip couldn’t be made.") }
+        guard let image = context.makeImage() else { throw Failure.tooLarge(localized("The strip couldn’t be made.")) }
         return (image, failed)
     }
 }

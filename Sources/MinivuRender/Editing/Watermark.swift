@@ -23,7 +23,7 @@ public struct Watermark: Codable, Hashable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
         case text, image
 
-        public var title: String { self == .text ? "Text" : "Image" }
+        public var title: String { self == .text ? localized("Text") : localized("Image") }
     }
 
     public var kind = Kind.text

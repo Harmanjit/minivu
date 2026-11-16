@@ -156,8 +156,10 @@ public enum FileOperations {
         // The destination is checked once for the whole batch.
         let folderInfo = info(folder.path, followingLinks: true)
         let folderProblem: String? =
-            if folderInfo?.isDirectory != true { "The destination folder can’t be found." }
-            else if !environment.isAllowedVolume(folder) { "minivu works only with folders on this Mac’s internal storage." }
+            if folderInfo?.isDirectory != true { localized("The destination folder can’t be found.") }
+            else if !environment.isAllowedVolume(folder) {
+                localized("minivu works only with folders on this Mac’s internal storage.")
+            }
             else { nil }
         if let folderProblem {
             result.failed = urls.map { ($0, folderProblem) }
@@ -173,11 +175,12 @@ public enum FileOperations {
             defer { progress?(i + 1, total) }
             let name = url.lastPathComponent
             guard let source = info(url.path, followingLinks: false) else {
-                result.failed.append((url, "“\(name)” can’t be found."))
+                result.failed.append((url, localized("“\(name)” can’t be found.")))
                 continue
             }
             if source.isDirectory && destinationChain.contains(source.identity) {
-                result.failed.append((url, "“\(name)” can’t be \(move ? "moved" : "copied") into itself."))
+                result.failed.append((url, move ? localized("“\(name)” can’t be moved into itself.")
+                                                 : localized("“\(name)” can’t be copied into itself.")))
                 continue
             }
             let parent = info(url.deletingLastPathComponent().path, followingLinks: true)
@@ -205,12 +208,12 @@ public enum FileOperations {
                     }
                     if existing.isDirectory != source.isDirectory {
                         result.failed.append((url, existing.isDirectory
-                            ? "The folder “\(name)” can’t be replaced by a file."
-                            : "The file “\(name)” can’t be replaced by a folder."))
+                            ? localized("The folder “\(name)” can’t be replaced by a file.")
+                            : localized("The file “\(name)” can’t be replaced by a folder.")))
                         continue
                     }
                     if existing.isDirectory && ancestorChain(of: url.deletingLastPathComponent()).contains(existing.identity) {
-                        result.failed.append((url, "“\(name)” can’t replace the folder it’s in."))
+                        result.failed.append((url, localized("“\(name)” can’t replace the folder it’s in.")))
                         continue
                     }
                     do {
@@ -315,26 +318,27 @@ public enum FileOperations {
         let destination = folder.appendingPathComponent(name)
         guard let existing = info(destination.path, followingLinks: false) else { return nil }
         if let excluding, info(excluding.path, followingLinks: false)?.identity == existing.identity { return nil }
-        return "The name “\(name)” is already taken. Please choose a different name."
+        return localized("The name “\(name)” is already taken. Please choose a different name.")
     }
 
     /// The rules for a name in itself, whatever folder it goes in.
     static func nameProblem(_ name: String) -> String? {
-        if name.trimmingCharacters(in: .whitespaces).isEmpty { return "The name can’t be empty." }
-        if name.contains("/") || name.contains(":") { return "The name can’t contain “/” or “:”." }
+        if name.trimmingCharacters(in: .whitespaces).isEmpty { return localized("The name can’t be empty.") }
+        if name.contains("/") || name.contains(":") { return localized("The name can’t contain “/” or “:”.") }
         if name.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7F }) {
-            return "The name can’t contain control characters."
+            return localized("The name can’t contain control characters.")
         }
-        if name.hasPrefix(".") { return "Names that begin with a dot “.” are reserved for the system." }
+        if name.hasPrefix(".") { return localized("Names that begin with a dot “.” are reserved for the system.") }
         // APFS allows 255 bytes of UTF-8 in a name.
-        if name.utf8.count > 255 { return "The name is too long." }
+        if name.utf8.count > 255 { return localized("The name is too long.") }
         return nil
     }
 
     // MARK: - New folders and unique names
 
     /// Creates "untitled folder" (or "untitled folder 2"…) in `folder`.
-    public static func createFolder(in folder: URL, name: String = "untitled folder") throws -> URL {
+    public static func createFolder(in folder: URL, name: String? = nil) throws -> URL {
+        let name = name ?? localized(.init("untitled folder", comment: "Name of a new folder, as Finder names it"))
         if let problem = nameProblem(name) {
             throw CocoaError(.fileWriteInvalidFileName, userInfo: [NSLocalizedDescriptionKey: problem])
         }

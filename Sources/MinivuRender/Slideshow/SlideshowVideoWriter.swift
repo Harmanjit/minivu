@@ -30,8 +30,9 @@ public enum SlideshowVideoWriter {
 
         public var description: String {
             switch self {
-            case .noSlides: "There are no pictures to put in the video."
-            case .cannotEncode(let detail): "The video couldn’t be encoded: \(detail)"
+            case .noSlides: localized("There are no pictures to put in the video.")
+            case .cannotEncode(let detail):
+                localized(.init("The video couldn’t be encoded: \(detail)", comment: "%@ is the system's reason"))
             }
         }
     }

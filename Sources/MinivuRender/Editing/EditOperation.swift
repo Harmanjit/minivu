@@ -13,15 +13,15 @@ public enum ResampleFilter: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .box: "Box"
-        case .triangle: "Triangle (Bilinear)"
+        case .box: localized(.init("Box", comment: "Resampling filter"))
+        case .triangle: localized(.init("Triangle (Bilinear)", comment: "Resampling filter"))
         case .hermite: "Hermite"
-        case .bell: "Bell"
+        case .bell: localized(.init("Bell", comment: "Resampling filter"))
         case .bSpline: "B-Spline"
         case .mitchell: "Mitchell"
         case .catmullRom: "Catmull-Rom"
-        case .cosine: "Cosine"
-        case .quadratic: "Quadratic"
+        case .cosine: localized(.init("Cosine", comment: "Resampling filter"))
+        case .quadratic: localized(.init("Quadratic", comment: "Resampling filter"))
         case .lanczos3: "Lanczos 3"
         case .lanczos8: "Lanczos 8"
         }
@@ -214,44 +214,48 @@ public enum EditOperation: Codable, Hashable, Sendable {
     /// For the Edit menu's "Undo Crop" and the history list.
     public var title: String {
         switch self {
-        case .resize: "Resize"
+        case .resize: localized(.init("Resize", comment: "Name of an edit, as in “Undo Resize”"))
         case .rotate90(let turns):
             switch Self.normalizedTurns(turns) {
-            case 1: "Rotate Right"
-            case 3: "Rotate Left"
-            default: "Rotate 180°"
+            case 1: localized(.init("Rotate Right", comment: "Name of an edit, as in “Undo Rotate Right”"))
+            case 3: localized(.init("Rotate Left", comment: "Name of an edit, as in “Undo Rotate Left”"))
+            default: localized(.init("Rotate 180°", comment: "Name of an edit, as in “Undo Rotate 180°”"))
             }
-        case .rotate: "Rotate"
-        case .flip(let horizontal): horizontal ? "Flip Horizontal" : "Flip Vertical"
-        case .crop: "Crop"
-        case .sharpen: "Sharpen"
-        case .blur: "Blur"
-        case .lighting: "Lighting"
-        case .colors: "Colors"
-        case .rgbAdjust: "RGB Adjust"
-        case .curves: "Curves"
-        case .levels: "Levels"
-        case .grayscale: "Grayscale"
-        case .sepia: "Sepia"
-        case .negative: "Negative"
-        case .dropShadow: "Drop Shadow"
-        case .frame: "Frame"
-        case .bumpMap: "Bump Map"
-        case .sketch: "Sketch"
-        case .oilPaint: "Oil Painting"
-        case .lens: "Lens"
-        case .annotations: "Drawing"
+        case .rotate: localized(.init("Rotate", comment: "Name of an edit, as in “Undo Rotate”"))
+        case .flip(let horizontal):
+            horizontal ? localized(.init("Flip Horizontal", comment: "Name of an edit, as in “Undo Flip Horizontal”"))
+                : localized(.init("Flip Vertical", comment: "Name of an edit, as in “Undo Flip Vertical”"))
+        case .crop: localized(.init("Crop", comment: "Name of an edit, as in “Undo Crop”"))
+        case .sharpen: localized(.init("Sharpen", comment: "Name of an edit, as in “Undo Sharpen”"))
+        case .blur: localized(.init("Blur", comment: "Name of an edit, as in “Undo Blur”"))
+        case .lighting: localized(.init("Lighting", comment: "Name of an edit, as in “Undo Lighting”"))
+        case .colors: localized(.init("Colors", comment: "Name of an edit: colour adjustments"))
+        case .rgbAdjust: localized(.init("RGB Adjust", comment: "Name of an edit, as in “Undo RGB Adjust”"))
+        case .curves: localized(.init("Curves", comment: "Name of an edit, as in “Undo Curves”"))
+        case .levels: localized(.init("Levels", comment: "Name of an edit, as in “Undo Levels”"))
+        case .grayscale: localized(.init("Grayscale", comment: "Name of an edit, as in “Undo Grayscale”"))
+        case .sepia: localized(.init("Sepia", comment: "Name of an edit, as in “Undo Sepia”"))
+        case .negative: localized(.init("Negative", comment: "Name of an edit: inverted colours"))
+        case .dropShadow: localized(.init("Drop Shadow", comment: "Name of an edit, as in “Undo Drop Shadow”"))
+        case .frame: localized(.init("Frame", comment: "Name of an edit: a frame drawn around the image"))
+        case .bumpMap: localized(.init("Bump Map", comment: "Name of an edit, as in “Undo Bump Map”"))
+        case .sketch: localized(.init("Sketch", comment: "Name of an edit: the image as a pencil drawing"))
+        case .oilPaint: localized(.init("Oil Painting", comment: "Name of an edit, as in “Undo Oil Painting”"))
+        case .lens: localized(.init("Lens", comment: "Name of an edit: a magnifying-lens effect"))
+        case .annotations: localized(.init("Drawing", comment: "Name of an edit: text and shapes drawn on the image"))
         case .retouch(let strokes):
-            strokes.allSatisfy { $0.mode == .clone } ? "Clone Stamp" : "Healing Brush"
-        case .redEye: "Red-Eye Removal"
-        case .autoEnhance: "Auto Enhance"
-        case .noiseReduction: "Noise Reduction"
-        case .vignette: "Vignette"
-        case .perspective: "Perspective"
-        case .canvasSize: "Canvas Size"
-        case .watermark: "Watermark"
-        case .rawDevelop: "RAW Adjustments"
-        case .removeBackground: "Remove Background"
+            strokes.allSatisfy { $0.mode == .clone }
+                ? localized(.init("Clone Stamp", comment: "Name of an edit, as in “Undo Clone Stamp”"))
+                : localized(.init("Healing Brush", comment: "Name of an edit, as in “Undo Healing Brush”"))
+        case .redEye: localized(.init("Red-Eye Removal", comment: "Name of an edit, as in “Undo Red-Eye Removal”"))
+        case .autoEnhance: localized(.init("Auto Enhance", comment: "Name of an edit, as in “Undo Auto Enhance”"))
+        case .noiseReduction: localized(.init("Noise Reduction", comment: "Name of an edit, as in “Undo Noise Reduction”"))
+        case .vignette: localized(.init("Vignette", comment: "Name of an edit, as in “Undo Vignette”"))
+        case .perspective: localized(.init("Perspective", comment: "Name of an edit, as in “Undo Perspective”"))
+        case .canvasSize: localized(.init("Canvas Size", comment: "Name of an edit, as in “Undo Canvas Size”"))
+        case .watermark: localized(.init("Watermark", comment: "Name of an edit, as in “Undo Watermark”"))
+        case .rawDevelop: localized(.init("RAW Adjustments", comment: "Name of an edit, as in “Undo RAW Adjustments”"))
+        case .removeBackground: localized(.init("Remove Background", comment: "Name of an edit, as in “Undo Remove Background”"))
         }
     }
 

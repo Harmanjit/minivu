@@ -25,9 +25,9 @@ public enum BatchFileWriter {
 
         public var title: String {
             switch self {
-            case .skip: "Skip"
-            case .keepBoth: "Keep Both"
-            case .replace: "Replace (Move Old to Trash)"
+            case .skip: localized(.init("Skip", comment: "Conflict choice: don't write a file whose name is taken"))
+            case .keepBoth: localized(.init("Keep Both", comment: "Conflict choice: write the new file under a numbered name"))
+            case .replace: localized(.init("Replace (Move Old to Trash)", comment: "Conflict choice"))
             }
         }
     }
@@ -116,7 +116,7 @@ public enum BatchFileWriter {
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             throw CocoaError(.fileWriteFileExists, userInfo: [
-                NSLocalizedDescriptionKey: "A folder named “\(url.lastPathComponent)” is in the way.",
+                NSLocalizedDescriptionKey: localized("A folder named “\(url.lastPathComponent)” is in the way."),
                 NSFilePathErrorKey: url.path,
             ])
         }
@@ -127,7 +127,7 @@ public enum BatchFileWriter {
             if (try? FileOperations.moveExclusively(trashed, to: url)) == nil {
                 // Still safe in the Trash; say where.
                 throw CocoaError(.fileWriteUnknown, userInfo: [
-                    NSLocalizedDescriptionKey: "“\(url.lastPathComponent)” couldn’t be replaced, and the old file is in the Trash.",
+                    NSLocalizedDescriptionKey: localized("“\(url.lastPathComponent)” couldn’t be replaced, and the old file is in the Trash."),
                     NSUnderlyingErrorKey: error,
                 ])
             }

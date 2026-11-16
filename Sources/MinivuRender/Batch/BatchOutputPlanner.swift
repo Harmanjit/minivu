@@ -145,9 +145,9 @@ public enum BatchOutputPlanner {
             case .separate(let range):
                 let pages = range.indices(count: count)
                 if count == 1 {
-                    items.append((source, .primary, "It has only one page."))
+                    items.append((source, .primary, localized("It has only one page.")))
                 } else if pages.isEmpty {
-                    items.append((source, .primary, "It has only \(count.formatted()) pages."))
+                    items.append((source, .primary, localized("It has only \(count) pages.")))
                 } else {
                     for page in pages { items.append((source.page(page, of: count), .page(index: page, of: count), nil)) }
                 }
@@ -196,13 +196,13 @@ public enum BatchOutputPlanner {
                 destination = numbered()
             } else if let existing {
                 if existing.isDirectory && settings.existingFiles == .replace {
-                    action = .fail(reason: "A folder named “\(name)” is in the way.")
+                    action = .fail(reason: localized("A folder named “\(name)” is in the way."))
                 } else {
                     switch settings.existingFiles {
                     case .skip:
                         action = .skip(reason: isOwnSource
-                            ? "It would replace the original."
-                            : "An item named “\(name)” already exists.")
+                            ? localized("It would replace the original.")
+                            : localized("An item named “\(name)” already exists."))
                     case .keepBoth:
                         destination = numbered()
                     case .replace:

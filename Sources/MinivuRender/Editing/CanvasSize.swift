@@ -27,15 +27,15 @@ public enum EditAnchor: String, Codable, CaseIterable, Sendable {
     /// For the anchor grid's VoiceOver labels and menus.
     public var title: String {
         switch self {
-        case .topLeft: "Top Left"
-        case .top: "Top"
-        case .topRight: "Top Right"
-        case .left: "Left"
-        case .center: "Center"
-        case .right: "Right"
-        case .bottomLeft: "Bottom Left"
-        case .bottom: "Bottom"
-        case .bottomRight: "Bottom Right"
+        case .topLeft: localized(.init("Top Left", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .top: localized(.init("Top", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .topRight: localized(.init("Top Right", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .left: localized(.init("Left", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .center: localized(.init("Center", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .right: localized(.init("Right", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .bottomLeft: localized(.init("Bottom Left", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .bottom: localized(.init("Bottom", comment: "Canvas anchor: where the picture sits on the new canvas"))
+        case .bottomRight: localized(.init("Bottom Right", comment: "Canvas anchor: where the picture sits on the new canvas"))
         }
     }
 }

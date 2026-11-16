@@ -50,9 +50,9 @@ public enum SlideshowVideoQuality: String, Codable, CaseIterable, Sendable, Iden
 
     public var title: String {
         switch self {
-        case .low: "Low"
-        case .medium: "Medium"
-        case .high: "High"
+        case .low: localized(.init("Low", comment: "Video quality"))
+        case .medium: localized(.init("Medium", comment: "Video quality"))
+        case .high: localized(.init("High", comment: "Video quality"))
         }
     }
 
@@ -79,7 +79,7 @@ public enum SlideshowVideoResolution: String, Codable, CaseIterable, Sendable, I
         case .hd720: "720p (1280 × 720)"
         case .hd1080: "1080p (1920 × 1080)"
         case .uhd4K: "4K (3840 × 2160)"
-        case .screen: "Screen size"
+        case .screen: localized(.init("Screen size", comment: "Video resolution: the screen's own size"))
         }
     }
 

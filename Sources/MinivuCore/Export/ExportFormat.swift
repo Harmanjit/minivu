@@ -176,7 +176,7 @@ public enum ExportColorProfile: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .original: "Keep original"
+        case .original: localized(.init("Keep original", comment: "Colour profile choice: keep the image's own profile"))
         case .sRGB: "sRGB"
         case .displayP3: "Display P3"
         case .adobeRGB: "Adobe RGB (1998)"
@@ -190,7 +190,7 @@ public enum TIFFCompression: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .none: "None"
+        case .none: localized(.init("export.compression.none", defaultValue: "None", comment: "TIFF compression: none"))
         case .lzw: "LZW"
         case .packBits: "PackBits"
         }

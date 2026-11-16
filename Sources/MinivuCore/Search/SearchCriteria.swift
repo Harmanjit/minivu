@@ -111,7 +111,7 @@ public enum FileTypeGroup: String, CaseIterable, Sendable, Codable {
     public var title: String {
         switch self {
         case .jpeg: "JPEG"
-        case .heif: "HEIF and AVIF"
+        case .heif: localized(.init("HEIF and AVIF", comment: "File type group: two format names"))
         case .png: "PNG"
         case .raw: "RAW"
         case .tiff: "TIFF"
@@ -120,8 +120,8 @@ public enum FileTypeGroup: String, CaseIterable, Sendable, Codable {
         case .psd: "Photoshop"
         case .pdf: "PDF"
         case .svg: "SVG"
-        case .video: "Video"
-        case .other: "Other"
+        case .video: localized("Video")
+        case .other: localized(.init("search.type.other", defaultValue: "Other", comment: "File type group: every other type"))
         }
     }
 
@@ -176,9 +176,9 @@ public enum ShapeFilter: String, CaseIterable, Sendable, Codable {
 
     public var title: String {
         switch self {
-        case .landscape: "Landscape"
-        case .portrait: "Portrait"
-        case .square: "Square"
+        case .landscape: localized(.init("Landscape", comment: "Picture shape: wider than tall"))
+        case .portrait: localized(.init("Portrait", comment: "Picture shape: taller than wide"))
+        case .square: localized(.init("Square", comment: "Picture shape"))
         }
     }
 }
