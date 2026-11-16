@@ -2,10 +2,10 @@
   "sourceLanguage" : "en",
   "strings" : {
     "" : {
-
+      "shouldTranslate" : false
     },
     "%" : {
-
+      "shouldTranslate" : false
     },
     "%@  %@" : {
       "localizations" : {
@@ -15,7 +15,8 @@
             "value" : "%1$@  %2$@"
           }
         }
-      }
+      },
+      "shouldTranslate" : false
     },
     "%@ Pictures are written in sRGB; HDR photos are shown as on a standard display." : {
 
@@ -66,7 +67,7 @@
       }
     },
     "%lld" : {
-
+      "shouldTranslate" : false
     },
     "%lld bits per channel" : {
 
@@ -106,7 +107,7 @@
 
     },
     "180°" : {
-
+      "shouldTranslate" : false
     },
     "90° Left" : {
 
@@ -127,7 +128,7 @@
 
     },
     "AVIF" : {
-
+      "shouldTranslate" : false
     },
     "About minivu" : {
 
@@ -241,7 +242,7 @@
 
     },
     "BMP" : {
-
+      "shouldTranslate" : false
     },
     "Back" : {
       "comment" : "Go back to the previous folder"
@@ -769,7 +770,7 @@
 
     },
     "GIF" : {
-
+      "shouldTranslate" : false
     },
     "Gallery" : {
 
@@ -811,7 +812,7 @@
 
     },
     "HEIC" : {
-
+      "shouldTranslate" : false
     },
     "Has a location" : {
 
@@ -856,7 +857,7 @@
 
     },
     "ICO" : {
-
+      "shouldTranslate" : false
     },
     "Identical Files" : {
 
@@ -907,10 +908,10 @@
 
     },
     "JPEG" : {
-
+      "shouldTranslate" : false
     },
     "JPEG 2000" : {
-
+      "shouldTranslate" : false
     },
     "JPEG Comment" : {
 
@@ -1279,7 +1280,7 @@
 
     },
     "PNG" : {
-
+      "shouldTranslate" : false
     },
     "PNG, TIFF and HEIC keep a transparent canvas; other formats fill it when saving." : {
 
@@ -1827,10 +1828,10 @@
       "comment" : "Theme: follow the system's appearance"
     },
     "TGA" : {
-
+      "shouldTranslate" : false
     },
     "TIFF" : {
-
+      "shouldTranslate" : false
     },
     "Tag" : {
       "comment" : "Verb: menu command that tags the image (marks it, like a flag)"
@@ -2055,7 +2056,7 @@
 
     },
     "px" : {
-
+      "shouldTranslate" : false
     },
     "start" : {
 
@@ -2076,7 +2077,7 @@
 
     },
     "×" : {
-
+      "shouldTranslate" : false
     },
     "— %@" : {
 
@@ -2085,7 +2086,7 @@
 
     },
     "⌘E" : {
-
+      "shouldTranslate" : false
     }
   },
   "version" : "1.0"
