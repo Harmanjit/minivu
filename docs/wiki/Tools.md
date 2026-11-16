@@ -369,6 +369,8 @@ minivu adds actions to Apple's Shortcuts app (search for "minivu" in its action 
 
 Convert and Resize never write beside the originals: they hand the new files back to the shortcut, whose next action (Save File, for example) puts them where you want. Rename works only in your Pictures folder and folders added to minivu's sidebar, and renames nothing if any file is elsewhere. Files on external drives, memory cards and network shares are refused, as everywhere in minivu. These actions take images only, not videos. Convert Images, Resize Images and Open in minivu are also offered as ready-made shortcuts under minivu in the Shortcuts app.
 
+**While minivu is closed.** Running one of these actions starts minivu without a window or Dock icon, and it quits a minute after the last action, once everything it wrote is on disk. Open in minivu opens its windows as usual, and so does clicking minivu in the Dock or Launchpad within that minute. If minivu is already open, the actions just run.
+
 To use one from Finder, make a shortcut that receives images, turn on **Use as Quick Action** in the shortcut's details, and it appears under **Quick Actions** in Finder's right-click menu.
 
 To run a shortcut from a script, type `shortcuts run "Shortcut Name" --input-path photo.jpg` in Terminal, or use Automator's **Run Shortcut** action. minivu has no AppleScript dictionary of its own.

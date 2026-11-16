@@ -95,7 +95,7 @@ An honest list. Some are design decisions, some are unfinished work, some are th
 
 ## Shortcuts
 
-- **Running a shortcut while minivu is closed opens minivu,** with its browser window and Dock icon, and minivu stays open afterwards.
+- **A shortcut run while minivu is closed starts it without a window,** and minivu quits a minute after the last action. Its Dock icon may show for a moment as it starts. If macOS activates minivu for a shortcut, it opens its browser window as before.
 - **Rename Images works only in Pictures and the folders in minivu's sidebar.** A set that includes a file elsewhere is refused whole.
 - **Set Rating rates the file the shortcut passes.** If an earlier step handed on a temporary copy, the copy is rated.
 - **Convert Images and Resize Images use Batch Convert's defaults,** not the options you last chose in the Batch Convert sheet, so a shortcut does the same on every Mac.

@@ -436,25 +436,95 @@ Intents:
   reads them from the compiler's records, not by running the code.
 - `scripts/make_app.sh`: the processor step, after the resources are
   copied and before signing.
+- `IntentLaunch.swift`: the launch decision and idle quit (see
+  "Launched by a shortcut"); `IntentLaunchTests` drive it with a
+  scheduler fired by hand.
 - Tests: `AutomationTests` (engine on real files, data-only files, each
   intent's `perform()`, the volume refusal, a read-only folder among
   writable ones renaming nothing, a shortcut's rename waiting behind one
   under way), under `.batchToolsReset`, which now also resets
   `Automation` and the rename queue.
 
+### Launched by a shortcut (decided 2026-11-16)
+
+Formerly a Limit: a shortcut run while minivu was quit launched it with
+its browser window and Dock icon, and it stayed open. Harman decided that
+a launch made only to run an action must not open the browser.
+
+**Behaviour.**
+
+- A normal launch (Dock, Finder, Launchpad, `open -a`, opening files or
+  folders, Open in minivu) shows the browser as before. So do a Dock or
+  Finder click on a running minivu and any intent while minivu already
+  runs normally.
+- A launch for any other action (Convert, Resize, Rename, Set Rating,
+  Set Colour Label, which leave `openAppWhenRun` false) shows no window
+  and leaves the Dock (`.accessory`) as soon as the action starts. The
+  Dock icon shows while minivu starts, until then: the activation policy
+  is still `.regular` from main.swift, kept so that a normal launch is
+  exactly as before (starting `.accessory` and switching would risk the
+  menu bar of every normal launch for a flash on these).
+- Such a minivu quits 60 s after its last action ends, through
+  `NSApp.terminate`, so the normal quit waits for queued writes
+  (`FileWriteQueue`, ratings, renames) exactly as ⌘Q does. Another action
+  within the 60 s cancels the quit; the period starts again when it ends.
+  60 s: a shortcut's steps, or the same Quick Action used on a few
+  selections in a row, come seconds apart, and each would otherwise pay a
+  fresh launch (catalog, Metal); an idle windowless process costs little
+  for a minute.
+- Opening minivu meanwhile (clicking it in the Dock, Finder or
+  Launchpad, opening a file in it, Open in minivu) makes it an ordinary
+  app: Dock icon, browser window, no quit.
+
+**Telling the launch apart: the evidence.**
+
+- *App Intents (macOS 27.2 SDK, AppIntents.swiftinterface).* No launch
+  reason reaches the app. `openAppWhenRun` (deprecated in 26 for
+  `supportedModes`), `IntentModes` and
+  `IntentSystemContext.currentMode` (26+) describe the intent, and are
+  readable only inside `perform()`, after launch has finished.
+  `AppDependencyManager` registers dependencies; nothing about launch.
+- *AppKit.* `NSApplicationLaunchIsDefaultLaunchKey` is documented as NO
+  for opening or printing files, a Services action, restored state "or
+  if the app launch was in some other sense not a default launch". An
+  intent launch is not listed, so it can't be relied on either way.
+- *Apple events.* `kAEOpenApplication` is the event for any launch
+  without documents. The public keys (`keyAELaunchedAsLogInItem`,
+  `keyAELaunchedAsServiceItem`, `keyAERestoreAppState`) don't cover
+  intents. LaunchServices does have private ones: the shared cache holds
+  `_kLSOpenOptionBackgroundLaunchKey`,
+  `_kLSOpenOptionBackgroundLaunchReasonKey` and
+  `_LSOpenExtractBackgroundLaunchReasonFromAppleEvent`, so a background
+  launch reason travels in the launch Apple event, under an undocumented
+  keyword. Not used: private, and unverifiable without running Shortcuts.
+- *What is public, and used:* a launch the user makes activates the app
+  (LaunchServices activates it; `applicationDidBecomeActive` follows
+  `didFinishLaunching`); a launch for an `openAppWhenRun = false` action
+  is meant not to, and its `perform()` runs instead. Agents can't run
+  Shortcuts, so this is unverified here; the hand check's log line
+  confirms it.
+
+**The decision (`IntentLaunch`, Automation/IntentLaunch.swift).** In
+`applicationDidFinishLaunching`, with files to open, the app already
+active or the snapshot harness asked for, the browser shows at once.
+Otherwise minivu waits up to 300 ms (`decisionWindow`) for whichever comes
+first: an activation, a reopen or a file shows the browser; an action's
+`perform()` (each one but Open in minivu's runs in `IntentLaunch.run`)
+makes the launch intent-only; the timeout shows the browser. An action
+that started, or even finished, before launching finished counts. It fails
+safe: when unsure, the window shows, as before. The cost to a normal
+launch is the time until the activation event, one run-loop turn in
+practice, and 300 ms when nothing activates the app (`open -g`, a bare
+executable started from Terminal).
+
+For the hand check, launch logs one line (subsystem com.minivu.app,
+"launch: event …, default …, active …") with the launch Apple event and
+its parameters, `launchIsDefault` and whether minivu was active. If a
+Shortcuts launch turns out to activate minivu, it shows the window (as
+before) and the line says why.
+
 ### Limits
 
-- **A shortcut run while minivu isn't open launches minivu with its
-  normal browser window and Dock icon**, and minivu stays running
-  afterwards. The intents (other than Open in minivu) declare
-  `openAppWhenRun = false`, but they run in the app's own process, and
-  the app opens its browser window at every launch. So a Finder Quick
-  Action that converts photos becomes a visible app launch the first
-  time. Not a correctness problem; **a decision for Harman**: whether a
-  launch made only to run an intent should skip the browser window (and
-  perhaps quit after a while). It was left as is because telling such a
-  launch apart reliably needs testing in Shortcuts, which agents can't
-  run.
 - Rename can't reach folders outside Pictures and the sidebar, by design
   of the sandbox; it refuses the whole set up front when any file is in
   such a folder.
@@ -485,8 +555,24 @@ Intents:
   the tests can only show with POSIX permissions.)
 - Run a shortcut's rename while a browser window's Batch Rename of other
   files runs: both finish, one after the other.
-- With minivu quit, run Convert from a Finder Quick Action: minivu
-  launches with its browser window (see Limits) and the action completes.
+- **Launch by a shortcut** (see "Launched by a shortcut"). Keep Console
+  open, filtered on `launch:`, and note each logged line.
+  - With minivu quit, run a Convert shortcut from the Shortcuts app: no
+    window appears, the Dock icon shows at most briefly, the converted
+    files arrive, and minivu quits about 60 s later (Activity Monitor).
+  - The same as a Finder Quick Action on two photos: the same result.
+  - Run Convert twice within a minute: the second run doesn't relaunch
+    minivu (same process ID in Activity Monitor) and the minute starts
+    again after it.
+  - With minivu quit, run Open in minivu: the browser and viewer open as
+    before, and minivu stays open.
+  - Run Convert with minivu quit, then within the 60 s click minivu in
+    the Dock (or Launchpad, or double-click it in Applications): the
+    browser opens, the Dock icon stays, and minivu doesn't quit.
+  - Launch minivu from the Dock, Finder and `open -a minivu`: the browser
+    appears as quickly as before.
+  - Run Convert on a large set and, while it runs, nothing else: minivu
+    quits only after the files are handed back.
 
 ### Quick Look extension: assessed, not built
 

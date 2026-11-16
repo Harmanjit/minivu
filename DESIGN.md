@@ -1204,6 +1204,16 @@ Convert, Resize and Open in minivu are also ready App Shortcuts. Rules:
   `openAppWhenRun = true`; the others leave it at its default, false.
 - There is no Apple Events interface beyond AppKit's open-documents event,
   and no scripting dictionary.
+- A launch made only to run an action shows no window
+  (`IntentLaunch`): with nothing to open and minivu not active when
+  launching finishes, it waits up to 300 ms. An activation, a reopen or a
+  file shows the browser; an action's `perform()` (every one but Open in
+  minivu's runs in `IntentLaunch.run`) keeps minivu windowless and
+  `.accessory`; the timeout shows the browser (fail safe). Windowless, it
+  quits through `NSApp.terminate`, so after queued writes, 60 s after the
+  last action ends; the user opening minivu meanwhile cancels that.
+  macOS gives no documented launch reason for intents
+  (feature-notes/sys.md, "Launched by a shortcut").
 
 ### 4.9 Search, the flat view and lists
 
