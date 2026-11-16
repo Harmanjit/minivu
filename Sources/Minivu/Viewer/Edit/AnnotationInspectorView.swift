@@ -218,14 +218,14 @@ struct AnnotationSliderRow: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text(verbatim: String(format: "%.\(decimals)f", value) + (unit == "%" || unit == "×" ? unit : " \(unit)"))
+                Text(verbatim: unitText(value, decimals: decimals, unit: unit))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
             Slider(value: Binding(get: { min(max(value, range.lowerBound), range.upperBound) }, set: { setValue($0) }), in: range)
                 .controlSize(.small)
                 .accessibilityLabel(title)
-                .accessibilityValue(String(format: "%.\(decimals)f", value) + unit)
+                .accessibilityValue(unitText(value, decimals: decimals, unit: unit))
         }
     }
 }

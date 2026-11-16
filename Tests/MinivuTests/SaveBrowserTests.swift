@@ -43,7 +43,7 @@ import MinivuCore
         let skipped = LosslessBatch.Outcome(transformed: [file("a.jpg")], skipped: [file("b.nef"), file("c.gif")])
         let message = try #require(LosslessBatch.message(for: skipped, kind: .rotateCounterclockwise))
         #expect(message.title == "1 file was rotated.")
-        #expect(message.detail == "2 files can’t be rotated without re-encoding (RAW, GIF).")
+        #expect(message.detail == "2 files can’t be rotated without re-encoding (RAW and GIF).")
 
         let one = LosslessBatch.Outcome(skipped: [file("c.bmp")])
         #expect(LosslessBatch.message(for: one, kind: .flipVertical)?.detail == "1 file can’t be flipped without re-encoding (BMP).")
@@ -57,7 +57,7 @@ import MinivuCore
 
     @Test func typeListNamesTheCommonestFirst() {
         let urls = ["a.gif", "b.nef", "c.cr3", "d.bmp", "e.tga", "f.bmp", "g.bmp"].map { URL(fileURLWithPath: "/x/\($0)") }
-        #expect(LosslessBatch.typeList(urls) == "BMP, RAW, GIF, …")
+        #expect(LosslessBatch.typeList(urls) == "BMP, RAW, GIF, and 1 more")
         #expect(LosslessBatch.typeList([URL(fileURLWithPath: "/x/readme")]) == "no extension")
     }
 

@@ -54,7 +54,7 @@
       "comment" : "Suggested preset name: a photo's name, then Edits"
     },
     "%@ Pictures are written in sRGB; HDR photos are shown as on a standard display." : {
-
+      "comment" : "%@ is a whole sentence about the chosen format; this second sentence follows it"
     },
     "%@ Slideshow" : {
       "comment" : "Suggested video file name: the pictures' folder, then Slideshow"
@@ -64,17 +64,6 @@
     },
     "%@ The ratings are kept in minivu all the same. Later failures in this session aren’t reported." : {
       "comment" : "Alert detail; %@ is the reason the first write failed, a sentence"
-    },
-    "%@ and %@" : {
-      "comment" : "A list: names separated by commas, and the last name",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ and %2$@"
-          }
-        }
-      }
     },
     "%@ aren’t among the images being converted, but converted files would take their names." : {
       "comment" : "%@ is a list of file names in quotation marks"
@@ -929,7 +918,27 @@
       }
     },
     "%lld more" : {
-      "comment" : "End of a list of file names: how many more files"
+      "comment" : "End of a list of names: how many more",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld more"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld of %lld" : {
       "comment" : "A number out of a total",
@@ -1109,7 +1118,26 @@
       }
     },
     "%lld percent" : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld percent"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld percent"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "%lld pictures" : {
       "localizations" : {
@@ -1293,6 +1321,17 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld × %lld px  ·  %@ MP" : {
+      "comment" : "Width × height in pixels, then megapixels such as 24.0",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld × %2$lld px  ·  %3$@ MP"
           }
         }
       }
@@ -1749,9 +1788,21 @@
       "comment" : "The number of pages, then the contact sheet's name",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Choose a folder for the %1$lld pages of “%2$@”."
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder for the %1$lld page of “%2$@”."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder for the %1$lld pages of “%2$@”."
+                }
+              }
+            }
           }
         }
       }
@@ -2477,6 +2528,9 @@
     "Entire Screen" : {
       "comment" : "Screen capture of the whole screen"
     },
+    "Esc" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
     "Estimated size" : {
 
     },
@@ -2907,6 +2961,12 @@
     },
     "Histogram" : {
       "comment" : "Show or hide the histogram panel"
+    },
+    "Home" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Home, End" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Horizontal" : {
 
@@ -3666,7 +3726,26 @@
 
     },
     "Only the first %lld images were compared, to keep memory in hand." : {
-
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Only the first %lld image was compared, to keep memory in hand."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Only the first %lld images were compared, to keep memory in hand."
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Only the first page of a PDF or multi-page TIFF, and the first frame of an animation, is converted." : {
 
@@ -3820,6 +3899,9 @@
     },
     "Page 1" : {
       "comment" : "Preview caption: the first page"
+    },
+    "Page Down, Page Up" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Page Number" : {
       "comment" : "Rename token: the page or frame number"
@@ -4403,10 +4485,16 @@
     "Retry" : {
       "comment" : "Verb: button that tries again"
     },
+    "Return" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
     "Return or F" : {
       "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Return or double-click" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Return, Esc" : {
       "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Reveal in Finder" : {
@@ -4515,6 +4603,9 @@
       "comment" : "Noun: how pictures are scaled to their print cell"
     },
     "Scatter the photos another way" : {
+
+    },
+    "Screen capture is off in snapshot runs." : {
 
     },
     "Screen size (%@ × %@)" : {
@@ -4797,6 +4888,9 @@
     "Source" : {
       "comment" : "Noun: where the clone stamp copies from"
     },
+    "Space" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
     "Spacing" : {
       "comment" : "Noun: gap between pictures"
     },
@@ -4895,6 +4989,9 @@
     },
     "TIFF" : {
       "shouldTranslate" : false
+    },
+    "Tab, ⇧Tab" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Tag" : {
       "comment" : "Verb: menu command that tags the image (marks it, like a flag)"
@@ -5014,12 +5111,15 @@
 
     },
     "The file couldn’t be rewritten (%@)." : {
-      "comment" : "%@ is the system's reason"
+      "comment" : "%@ is a technical detail in English"
     },
     "The file is shared as it was last saved, without the edits made here. To share the edits, save them first." : {
 
     },
     "The first editor opens with ⌘E. The images open as saved; when the editor saves one, minivu shows the change." : {
+
+    },
+    "The folder doesn’t exist." : {
 
     },
     "The gallery is a folder with index.html, a page for each picture and a style sheet. It needs nothing from the internet, and opens from disk in any browser." : {
@@ -5591,7 +5691,6 @@
     },
     "duplicates.none-found" : {
       "comment" : "Find Duplicates found nothing: how many images were compared",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -5660,6 +5759,18 @@
     },
     "height" : {
       "comment" : "Placeholder: minimum height in pixels"
+    },
+    "help.key.end" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "End"
+          }
+        }
+      }
     },
     "help.shortcuts.compare" : {
       "comment" : "Noun: the window that shows images side by side",
@@ -5840,7 +5951,6 @@
     },
     "replace.files" : {
       "comment" : "Part of “Replace 2 originals and 5 files?”: other files being replaced",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -5864,7 +5974,6 @@
     },
     "replace.originals" : {
       "comment" : "Part of “Replace 2 originals and 5 files?”: the original images being replaced",
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -6032,6 +6141,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "min"
+          }
+        }
+      }
+    },
+    "unit.value" : {
+      "comment" : "A number and its unit symbol, such as “2.5 px”, “0.50 EV” or “5500 K”",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
           }
         }
       }
@@ -6205,7 +6326,36 @@
 
     },
     "…and %lld more." : {
-      "comment" : "Last line of a list of file names that was cut short"
+      "comment" : "Last line of a list of file names that was cut short",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "…and %lld more."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "…and %lld more."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "← ↑ Page Up" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "→ ↓ Page Down" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "→ ↓ Space" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "⇧ with an arrow" : {
       "comment" : "Keys or gesture; keep key names as the keyboard shows them"
@@ -6220,6 +6370,9 @@
       "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "⌥-click" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "⌥Page Down, ⌥Page Up" : {
       "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     }
   },

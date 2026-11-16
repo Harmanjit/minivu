@@ -634,7 +634,7 @@ nonisolated struct FolderSnapshot: Sendable {
         do {
             return try lister(folder, hidden)
         } catch FolderListingError.notAllowed(let url) where !FileManager.default.fileExists(atPath: url.path) {
-            throw FolderListingError.unreadable(url, "The folder doesn’t exist.")
+            throw FolderListingError.unreadable(url, localized("The folder doesn’t exist."))
         }
     }
 
@@ -1616,7 +1616,7 @@ nonisolated struct FolderSnapshot: Sendable {
         }
         if videos > 0 { parts.append(localized(.init("\(videos) videos", comment: "Status bar and window subtitle"))) }
         if folders > 0 { parts.append(localized(.init("\(folders) folders", comment: "Status bar and window subtitle"))) }
-        return parts.joined(separator: ", ")
+        return parts.formatted(.list(type: .and, width: .narrow))
     }
 
     /// Status bar: "12 of 340 selected — 84.1 MB", or the counts when

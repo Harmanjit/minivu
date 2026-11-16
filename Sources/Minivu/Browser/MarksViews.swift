@@ -184,7 +184,7 @@ final class TagDotsView: NSView {
 
     override func accessibilityLabel() -> String? {
         guard !tags.isEmpty else { return nil }
-        let names = tags.map(\.name).joined(separator: ", ")
+        let names = tags.map(\.name).formatted(.list(type: .and, width: .narrow))
         return localized(.init("Finder tags: \(names)", comment: "VoiceOver: the file's Finder tags, by name"))
     }
 }

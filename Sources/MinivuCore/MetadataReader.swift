@@ -160,10 +160,11 @@ public enum MetadataReader {
             items.add("Dimensions", "\(w) × \(h)")
             // In Double: the product of two sizes a file declared can be
             // past what an Int holds.
-            items.add("Megapixels", String(format: "%.1f MP", Double(w) * Double(h) / 1_000_000))
+            let megapixels = (Double(w) * Double(h) / 1_000_000).formatted(.number.precision(.fractionLength(1)))
+            items.add("Megapixels", localized(.init("\(megapixels) MP", comment: "Megapixels")))
         }
         items.add("Bit depth", localized("\(info.bitDepth) bits per channel"))
-        items.add("Color model", info.colorModel)
+        items.add("Color model", info.colorModel.map { $0 == "Gray" ? localized(.init("Grayscale", comment: "Colour model")) : $0 })
         items.add(.init("Profile", comment: "Colour profile"), info.profileName)
         if info.kind == .raster || info.kind == .raw {
             items.add("Orientation", orientationName(info.orientation))
@@ -188,7 +189,7 @@ public enum MetadataReader {
         let w = Int(saturating: info.pixelSize.width), h = Int(saturating: info.pixelSize.height)
         items.add("Dimensions", "\(w) × \(h)")
         items.add("Duration", VideoFrames.durationText(info.duration))
-        items.add("Frame rate", info.frameRate.map { "\(trimmed(($0 * 100).rounded() / 100)) fps" })
+        items.add("Frame rate", info.frameRate.map { localized(.init("\(measured(($0 * 100).rounded() / 100)) fps", comment: "Frames per second")) })
         items.add("Codec", info.codec)
         items.add("Data rate", metadata?.dataRate.map(formatDataRate))
         items.add("Audio", info.hasAudio ? localized(.init("Yes", comment: "Info panel value")) : localized(.init("No", comment: "Info panel value")))
@@ -200,9 +201,11 @@ public enum MetadataReader {
     /// "12.4 Mbit/s" or "850 kbit/s", in decimal units as QuickTime Player
     /// gives them.
     static func formatDataRate(_ bitsPerSecond: Double) -> String {
-        guard bitsPerSecond.isFinite, bitsPerSecond > 0 else { return "0 kbit/s" }
-        if bitsPerSecond >= 1_000_000 { return "\(trimmed(bitsPerSecond / 1_000_000)) Mbit/s" }
-        return "\(Int((bitsPerSecond / 1000).rounded())) kbit/s"
+        if bitsPerSecond.isFinite, bitsPerSecond >= 1_000_000 {
+            return localized(.init("\(measured(bitsPerSecond / 1_000_000)) Mbit/s", comment: "Megabits per second"))
+        }
+        let kilobits = bitsPerSecond.isFinite && bitsPerSecond > 0 ? (bitsPerSecond / 1000).rounded() : 0
+        return localized(.init("\(Int(kilobits).formatted()) kbit/s", comment: "Kilobits per second"))
     }
 
     static func videoCameraItems(_ m: VideoMetadata) -> [MetadataItem] {
@@ -230,7 +233,8 @@ public enum MetadataReader {
         items.add("Latitude", formatCoordinate(location.latitude, ref: nil, positive: "N", negative: "S"))
         items.add("Longitude", formatCoordinate(location.longitude, ref: nil, positive: "E", negative: "W"))
         if let altitude = location.altitude {
-            items.add("Altitude", altitude < 0 ? localized("\(trimmed(-altitude)) m below sea level") : "\(trimmed(altitude)) m")
+            items.add("Altitude", altitude < 0 ? localized("\(measured(-altitude)) m below sea level")
+                                               : localized(.init("\(measured(altitude)) m", comment: "Altitude in metres above sea level")))
         }
         return items.list
     }
@@ -298,7 +302,8 @@ public enum MetadataReader {
         }
         if let altitude = p.double(p.gps, kCGImagePropertyGPSAltitude) {
             let below = p.int(p.gps, kCGImagePropertyGPSAltitudeRef) == 1
-            items.add("Altitude", below ? localized("\(trimmed(altitude)) m below sea level") : "\(trimmed(altitude)) m")
+            items.add("Altitude", below ? localized("\(measured(altitude)) m below sea level")
+                                        : localized(.init("\(measured(altitude)) m", comment: "Altitude in metres above sea level")))
         }
         if let direction = p.double(p.gps, kCGImagePropertyGPSImgDirection) {
             items.add(.init("Direction", comment: "Compass direction the camera faced"), "\(trimmed(direction))°")
@@ -409,12 +414,29 @@ public enum MetadataReader {
         // Work in tenths of a second so rounding carries into minutes and
         // degrees (59.96″ becomes 1′ 0.0″, never 60.0″).
         guard let tenths = Int(exactly: (abs(value) * 36_000).rounded()) else {
-            return "\(trimmed(value))° \(hemisphere)"   // a corrupt, absurdly large value
+            return "\(trimmed(value))° \(hemisphereName(hemisphere))"   // a corrupt, absurdly large value
         }
         let degrees = tenths / 36_000
         let minutes = (tenths % 36_000) / 600
         let seconds = Double(tenths % 600) / 10
-        return "\(degrees)° \(minutes)′ \(String(format: "%.1f", seconds))″ \(hemisphere)"
+        return "\(degrees)° \(minutes)′ \(String(format: "%.1f", seconds))″ \(hemisphereName(hemisphere))"
+    }
+
+    /// The compass letter shown for an EXIF one ("W" is "O" in French).
+    static func hemisphereName(_ letter: String) -> String {
+        switch letter {
+        case "N": localized(.init("metadata.hemisphere.north", defaultValue: "N", comment: "Compass point after a latitude: north"))
+        case "S": localized(.init("metadata.hemisphere.south", defaultValue: "S", comment: "Compass point after a latitude: south"))
+        case "E": localized(.init("metadata.hemisphere.east", defaultValue: "E", comment: "Compass point after a longitude: east"))
+        case "W": localized(.init("metadata.hemisphere.west", defaultValue: "W", comment: "Compass point after a longitude: west"))
+        default: letter
+        }
+    }
+
+    /// One decimal at most, in the user's style ("24.2", German "24,2"), for
+    /// measurements; photographic notation (f/2.8, 1/250 s) uses `trimmed`.
+    static func measured(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...1)))
     }
 
     /// One decimal, without a trailing ".0". Locale-independent on purpose.
@@ -506,8 +528,8 @@ public enum MetadataReader {
         "jpg": "JPEG", "jpeg": "JPEG", "jpe": "JPEG", "jfif": "JPEG", "png": "PNG", "apng": "APNG", "gif": "GIF",
         "heic": "HEIC", "heif": "HEIF", "hif": "HEIF", "avif": "AVIF", "webp": "WebP", "jxl": "JPEG XL",
         "jp2": "JPEG 2000", "j2k": "JPEG 2000", "jpf": "JPEG 2000", "jpx": "JPEG 2000", "tif": "TIFF",
-        "tiff": "TIFF", "bmp": "BMP", "dib": "BMP", "tga": "TGA", "ico": "Windows icon", "cur": "Windows cursor",
-        "psd": "Photoshop", "exr": "OpenEXR", "icns": "Apple icon", "pdf": "PDF", "svg": "SVG",
+        "tiff": "TIFF", "bmp": "BMP", "dib": "BMP", "tga": "TGA", "ico": localized(.init("Windows icon", comment: "File format")), "cur": localized(.init("Windows cursor", comment: "File format")),
+        "psd": "Photoshop", "exr": "OpenEXR", "icns": localized(.init("Apple icon", comment: "File format")), "pdf": "PDF", "svg": "SVG",
         "cr2": "Canon CR2", "cr3": "Canon CR3", "crw": "Canon CRW", "nef": "Nikon NEF", "nrw": "Nikon NRW",
         "pef": "Pentax PEF", "raf": "Fujifilm RAF", "rwl": "Leica RWL", "mrw": "Minolta MRW",
         "orf": "Olympus ORF", "srw": "Samsung SRW", "arw": "Sony ARW", "sr2": "Sony SR2", "srf": "Sony SRF",

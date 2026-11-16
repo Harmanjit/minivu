@@ -272,7 +272,7 @@ private struct DuplicateRow: View {
         parts.append(localized(.init("in \(FileManager.default.displayName(atPath: file.url.deletingLastPathComponent().path))",
                                      comment: "VoiceOver: the folder a file is in")))
         if isKeeper { parts.append(localized(.init("suggested to keep", comment: "VoiceOver: the file suggested to keep in a group of duplicates"))) }
-        return parts.joined(separator: ", ")
+        return parts.formatted(.list(type: .and, width: .narrow))
     }
 }
 

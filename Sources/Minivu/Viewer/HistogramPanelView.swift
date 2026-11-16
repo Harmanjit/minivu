@@ -516,8 +516,6 @@ struct HistogramPanelView: View {
     /// "0%", "0.4%", "12%".
     nonisolated static func percent(_ fraction: Double) -> String {
         let value = fraction * 100
-        if value == 0 { return "0%" }
-        if value < 10 { return String(format: "%.1f%%", value) }
-        return String(format: "%.0f%%", value)
+        return percentText(value, decimals: value > 0 && value < 10 ? 1 : 0)
     }
 }

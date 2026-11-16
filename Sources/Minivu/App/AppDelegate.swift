@@ -307,7 +307,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private func explain(_ urls: [URL], _ reason: String) {
         let alert = NSAlert()
         alert.alertStyle = .informational
-        let names = urls.map { "“\($0.lastPathComponent)”" }.formatted(.list(type: .and))
+        let names = urls.map {
+            localized(.init("“\($0.lastPathComponent)”", comment: "A name or text in quotation marks"))
+        }.formatted(.list(type: .and))
         alert.messageText = localized(.init("minivu can’t open \(names)", comment: "Alert title; %@ is a list of quoted file or folder names"))
         alert.informativeText = reason
         present(alert)

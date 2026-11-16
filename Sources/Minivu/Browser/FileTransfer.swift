@@ -242,8 +242,7 @@ final class FileTransfer {
         } else {
             alert.messageText = isMove ? localized("\(count) items couldn’t be moved.")
                 : localized("\(count) items couldn’t be copied.")
-            let names = outcome.failed.prefix(8).map(\.url.lastPathComponent)
-            alert.informativeText = names.joined(separator: ", ") + (outcome.failed.count > 8 ? "…" : "")
+            alert.informativeText = listText(outcome.failed.map(\.url.lastPathComponent), limit: 8)
         }
         if let window, window.attachedSheet == nil {
             alert.beginSheetModal(for: window)

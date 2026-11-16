@@ -85,10 +85,12 @@ final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizin
 /// locale uses them.
 nonisolated enum PrintLength {
     static func text(points: Double, locale: Locale = .current) -> String {
-        if locale.measurementSystem == .us {
-            return (points / 72).formatted(.number.precision(.fractionLength(0...2)).locale(locale)) + " in"
-        }
-        return (points / 72 * 25.4).formatted(.number.precision(.fractionLength(0...1)).locale(locale)) + " mm"
+        let inches = locale.measurementSystem == .us
+        let length = inches ? Measurement(value: points / 72, unit: UnitLength.inches)
+                            : Measurement(value: points / 72 * 25.4, unit: UnitLength.millimeters)
+        return length.formatted(.measurement(width: .abbreviated, usage: .asProvided,
+                                             numberFormatStyle: .number.precision(.fractionLength(0...(inches ? 2 : 1))))
+                                .locale(locale))
     }
 }
 

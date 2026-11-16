@@ -94,7 +94,7 @@ nonisolated enum ContactSheetRenderer {
         let pointsPerPixel = settings.pdfPointsPerPixel
         var mediaBox = CGRect(x: 0, y: 0, width: layout.pageSize.width * pointsPerPixel,
                               height: layout.pageSize.height * pointsPerPixel)
-        let info: [CFString: Any] = [kCGPDFContextCreator: "minivu", kCGPDFContextTitle: header ?? "Contact Sheet"]
+        let info: [CFString: Any] = [kCGPDFContextCreator: "minivu", kCGPDFContextTitle: header ?? localized("Contact Sheet")]
         guard let context = CGContext(url as CFURL, mediaBox: &mediaBox, info as CFDictionary) else {
             throw Failure.cannotCreatePage
         }

@@ -129,7 +129,7 @@ final class ViewerHUD: NSVisualEffectView {
     /// Whole percents, with one decimal below 10% so tiny zooms don't all
     /// read "3%".
     nonisolated static func zoomText(_ percent: Double) -> String {
-        percent < 9.95 ? String(format: "%.1f%%", percent) : "\(Int(percent.rounded()))%"
+        percent < 9.95 ? percentText(percent, decimals: 1) : percentText(percent.rounded())
     }
 
     // MARK: - Showing

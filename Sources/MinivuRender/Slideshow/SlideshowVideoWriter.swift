@@ -24,15 +24,18 @@ import MinivuCore
 ///   removed; the caller writes to a scratch file and moves it into place
 ///   only when this returns.
 public enum SlideshowVideoWriter {
-    public enum Failure: Error, CustomStringConvertible {
+    public enum Failure: LocalizedError, CustomStringConvertible {
         case noSlides
+        /// What went wrong, already localized.
         case cannotEncode(String)
+
+        public var errorDescription: String? { description }
 
         public var description: String {
             switch self {
             case .noSlides: localized("There are no pictures to put in the video.")
             case .cannotEncode(let detail):
-                localized(.init("The video couldn’t be encoded: \(detail)", comment: "%@ is the system's reason"))
+                localized(.init("The video couldn’t be encoded: \(detail)", comment: "%@ says what went wrong, such as “the writer failed”"))
             }
         }
     }
@@ -79,7 +82,7 @@ public enum SlideshowVideoWriter {
             kCVPixelBufferHeightKey as String: format.height,
             kCVPixelBufferIOSurfacePropertiesKey as String: [String: Any](),
         ])
-        guard writer.canAdd(videoInput) else { throw Failure.cannotEncode("no \(format.codec.title) encoder") }
+        guard writer.canAdd(videoInput) else { throw Failure.cannotEncode(localized(.init("there is no \(format.codec.title) encoder", comment: "Ends “The video couldn’t be encoded: %@”"))) }
         writer.add(videoInput)
 
         let music = plan.music.isEmpty ? nil : try await SlideshowVideoMusic.make(plan.music, duration: timeline.duration)
@@ -96,7 +99,7 @@ public enum SlideshowVideoWriter {
         let frames = try SlideshowVideoFrames(format: format, gpu: gpu)
         let slides = SlideshowVideoSlides(plan: plan, size: format.pixelSize, decode: decode, isCancelled: isCancelled)
         guard writer.startWriting() else {
-            throw writer.error ?? Failure.cannotEncode("the writer wouldn’t start")
+            throw writer.error ?? Failure.cannotEncode(localized(.init("the writer wouldn’t start", comment: "Ends “The video couldn’t be encoded: %@”")))
         }
         writer.startSession(atSourceTime: .zero)
 
@@ -118,10 +121,10 @@ public enum SlideshowVideoWriter {
         if let error = video.error ?? audio?.error { throw error }
         // Failed while a track waited (a full disk, an encoder error): the
         // watchdog ended the pumps, and there is nothing to finish.
-        if writer.status == .failed { throw writer.error ?? Failure.cannotEncode("the writer failed") }
+        if writer.status == .failed { throw writer.error ?? Failure.cannotEncode(localized(.init("the writer failed", comment: "Ends “The video couldn’t be encoded: %@”"))) }
         await writer.finishWriting()
         guard writer.status == .completed else {
-            throw writer.error ?? Failure.cannotEncode("the file wasn’t finished")
+            throw writer.error ?? Failure.cannotEncode(localized(.init("the file wasn’t finished", comment: "Ends “The video couldn’t be encoded: %@”")))
         }
         progress(1)
     }
@@ -234,7 +237,7 @@ private final class VideoPump: @unchecked Sendable {
                 last = (moment, buffer)
                 let time = CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(timeline.frameRate))
                 guard Perf.measure("video.append", { adaptor.append(buffer, withPresentationTime: time) }) else {
-                    throw SlideshowVideoWriter.Failure.cannotEncode("a frame was refused")
+                    throw SlideshowVideoWriter.Failure.cannotEncode(localized(.init("a frame was refused", comment: "Ends “The video couldn’t be encoded: %@”")))
                 }
             } catch {
                 self.error = error
@@ -248,7 +251,7 @@ private final class VideoPump: @unchecked Sendable {
 
     private func draw(_ moment: SlideshowVideoTimeline.Moment) throws -> CVPixelBuffer {
         guard let pool = adaptor.pixelBufferPool else {
-            throw SlideshowVideoWriter.Failure.cannotEncode("no pixel buffers")
+            throw SlideshowVideoWriter.Failure.cannotEncode(localized(.init("no pixel buffers", comment: "Ends “The video couldn’t be encoded: %@”")))
         }
         var made: CVPixelBuffer?
         CVPixelBufferPoolCreatePixelBuffer(nil, pool, &made)
@@ -297,7 +300,7 @@ private final class AudioPump: @unchecked Sendable {
         self.input = input
         self.isCancelled = isCancelled
         guard reader.startReading() else {
-            throw reader.error ?? SlideshowVideoWriter.Failure.cannotEncode("the music couldn’t be read")
+            throw reader.error ?? SlideshowVideoWriter.Failure.cannotEncode(localized(.init("the music couldn’t be read", comment: "Ends “The video couldn’t be encoded: %@”")))
         }
     }
 
@@ -337,7 +340,7 @@ private final class AudioPump: @unchecked Sendable {
                 return true
             }
             guard input.append(sample) else {
-                error = SlideshowVideoWriter.Failure.cannotEncode("the music was refused")
+                error = SlideshowVideoWriter.Failure.cannotEncode(localized(.init("the music was refused", comment: "Ends “The video couldn’t be encoded: %@”")))
                 return true
             }
         }
@@ -468,7 +471,7 @@ final class SlideshowVideoMusic {
                                                  audioSettings: Self.readerSettings)
         output.audioMix = mix
         reader.timeRange = CMTimeRange(start: .zero, duration: duration)
-        guard reader.canAdd(output) else { throw SlideshowVideoWriter.Failure.cannotEncode("the music’s format") }
+        guard reader.canAdd(output) else { throw SlideshowVideoWriter.Failure.cannotEncode(localized(.init("the music’s format isn’t supported", comment: "Ends “The video couldn’t be encoded: %@”"))) }
         reader.add(output)
         return (reader, output)
     }

@@ -185,13 +185,15 @@ public struct MultiPageSettings: Codable, Hashable, Sendable {
     public var problem: String? {
         if format.isAnimation {
             if !(frameDelay.isFinite && frameDelay >= Self.shortestFrameDelay && frameDelay <= 60) {
-                return localized("The frame delay must be between 0.02 and 60 seconds.")
+                return localized(.init("The frame delay must be between \(Self.shortestFrameDelay.formatted()) and \(60.formatted()) seconds.",
+                                       comment: "The shortest delay (0.02) and the longest (60), as numbers"))
             }
             if format.keepsLoopCount, loopCount < 0 || loopCount > 65535 {
-                return localized("The number of loops must be between 0 and 65,535.")
+                return localized(.init("The number of loops must be between \(0.formatted()) and \(65535.formatted()).",
+                                       comment: "The fewest loops (0) and the most (65,535), as numbers"))
             }
             if let frameSize, !(16...Self.largestFrameSize).contains(frameSize) {
-                return localized("The frame size must be between 16 and \(Self.largestFrameSize) pixels.")
+                return localized("The frame size must be between 16 and \(Self.largestFrameSize) px.")
             }
         }
         if format == .pdf, pdfPageSize != .image, !(pdfMargin.isFinite && pdfMargin >= 0 && pdfMargin <= 144) {

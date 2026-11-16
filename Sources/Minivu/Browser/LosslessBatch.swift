@@ -77,7 +77,7 @@ nonisolated enum LosslessBatch {
         switch error {
         case LosslessTransform.Error.unreadable: localized("The file couldn’t be read.")
         case LosslessTransform.Error.copyFailed(let detail):
-            localized(.init("The file couldn’t be rewritten (\(detail)).", comment: "%@ is the system's reason"))
+            localized(.init("The file couldn’t be rewritten (\(detail)).", comment: "%@ is a technical detail in English"))
         default: error.localizedDescription
         }
     }
@@ -128,7 +128,7 @@ nonisolated enum LosslessBatch {
             if firstSeen[key] == nil { firstSeen[key] = index }
         }
         let names = counts.keys.sorted { counts[$0]! != counts[$1]! ? counts[$0]! > counts[$1]! : firstSeen[$0]! < firstSeen[$1]! }
-        return names.count > 3 ? names.prefix(3).joined(separator: ", ") + ", …" : names.joined(separator: ", ")
+        return listText(names, limit: 3)
     }
 }
 

@@ -39,7 +39,7 @@ public enum MultiPageBuilder {
             case .tooManyFrames(let frames, let width, let height):
                 localized(.init("""
                     The frames are more than this Mac can hold while the file is made (frames: \(frames), \
-                    frame size: \(width) × \(height) pixels). Choose a smaller frame size or fewer images.
+                    frame size: \(width) × \(height) px). Choose a smaller frame size or fewer images.
                     """, comment: "Error: an animation needs too much memory"))
             case .nothingToWrite:
                 localized("None of the images could be read.")

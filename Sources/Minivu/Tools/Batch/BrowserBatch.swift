@@ -444,16 +444,9 @@ extension BrowserWindowController {
                                         : localized("The converted files take the originals’ names."))
         }
         if !others.isEmpty {
-            let shown = 3
-            var names = others.prefix(shown).map {
+            let list = listText(others.map {
                 localized(.init("“\($0.lastPathComponent)”", comment: "A name or text in quotation marks"))
-            }
-            if others.count > shown {
-                names.append(localized(.init("\(others.count - shown) more", comment: "End of a list of file names: how many more files")))
-            }
-            let list = names.count == 1 ? names[0]
-                : localized(.init("\(names.dropLast().joined(separator: ", ")) and \(names[names.count - 1])",
-                                  comment: "A list: names separated by commas, and the last name"))
+            }, limit: 3)
             parts.append(others.count == 1
                 ? localized(.init("\(list) isn’t one of the images being converted, but a converted file would take its name.",
                                   comment: "%@ is a file name in quotation marks"))

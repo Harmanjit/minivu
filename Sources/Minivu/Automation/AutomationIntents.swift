@@ -206,7 +206,7 @@ struct SetRatingIntent: AppIntent {
     var rating: Int
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Rate \(\.$images) \(\.$rating) stars")
+        Summary("Set the rating of \(\.$images) to \(\.$rating)")
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {

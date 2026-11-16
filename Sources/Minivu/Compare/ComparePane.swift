@@ -393,8 +393,8 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
         summaryTask = Task { [weak self] in
             let info = await BlockingWork.run { VideoFrames.info(for: url) }
             guard !Task.isCancelled, let self, self.entry?.url == url, let info else { return }
-            self.detailLabel.stringValue = "\(Int(info.pixelSize.width)) × \(Int(info.pixelSize.height))  ·  "
-                + Self.fileSizeText(entry.fileSize)
+            self.detailLabel.stringValue = ["\(Int(info.pixelSize.width)) × \(Int(info.pixelSize.height))",
+                                            Self.fileSizeText(entry.fileSize)].joined(separator: "  ·  ")
             let length = VideoFrames.durationText(info.duration)
             self.exposureLabel.stringValue = localized(.init("Video, \(length)", comment: "A video and its length, such as 1:05"))
         }

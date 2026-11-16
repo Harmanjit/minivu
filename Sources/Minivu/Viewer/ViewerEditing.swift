@@ -10,7 +10,7 @@ enum OpenEditTool {
     case levels(LevelsToolState)
     case crop(CropToolState)
     /// Rotate & Flip or Color Effects: buttons that apply at once, no state.
-    case immediate(title: String)
+    case immediate(title: String, opener: Selector)
     /// A tool added in its own file (Phase 6 effects, drawing, retouching):
     /// any state, shown through `presentTool(_:inspector:overlay:)`.
     case custom(any EditToolState)
@@ -26,7 +26,7 @@ enum OpenEditTool {
         }
     }
 
-    var title: String { state?.title ?? { if case .immediate(let title) = self { title } else { "" } }() }
+    var title: String { state?.title ?? { if case .immediate(let title, _) = self { title } else { "" } }() }
     var hasPendingChanges: Bool { state?.hasPendingChanges ?? false }
 }
 
@@ -506,7 +506,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
     }
 
     @objc func showRotateFlipTool(_ sender: Any?) {
-        if case .immediate(let title)? = activeTool, title == localized("Rotate & Flip") { return }
+        if case .immediate(_, #selector(showRotateFlipTool(_:)))? = activeTool { return }
         guard beginOpeningTool(replacing: true) != nil else { return }
         let actions = [
             ImmediateAction(title: localized("Rotate Left"), symbol: "rotate.left", action: .rotateLeft),
@@ -517,12 +517,12 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
                             action: .flipVertical),
             ImmediateAction(title: localized("Straighten…"), symbol: "level", action: .straightenImage),
         ]
-        presentImmediate(title: localized("Rotate & Flip"), actions: actions,
+        presentImmediate(title: localized("Rotate & Flip"), opener: #selector(showRotateFlipTool(_:)), actions: actions,
                          footer: localized("Each turn or flip is one step to undo."))
     }
 
     @objc func showColorEffectsTool(_ sender: Any?) {
-        if case .immediate(let title)? = activeTool, title == localized("Color Effects") { return }
+        if case .immediate(_, #selector(showColorEffectsTool(_:)))? = activeTool { return }
         guard beginOpeningTool(replacing: true) != nil else { return }
         let actions = [
             ImmediateAction(title: localized("Grayscale"), symbol: "circle.lefthalf.filled", action: .applyGrayscale),
@@ -530,7 +530,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
             ImmediateAction(title: localized(.init("Negative", comment: "Effect: invert the colours")),
                 symbol: "plusminus.circle", action: .applyNegative),
         ]
-        presentImmediate(title: localized("Color Effects"), actions: actions,
+        presentImmediate(title: localized("Color Effects"), opener: #selector(showColorEffectsTool(_:)), actions: actions,
                          footer: localized("Effects apply to the whole image at once."))
     }
 
@@ -611,7 +611,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
                          apply: { [weak self] in self?.closeTool(applying: true) })
     }
 
-    private func presentImmediate(title: String, actions: [ImmediateAction], footer: String) {
+    private func presentImmediate(title: String, opener: Selector, actions: [ImmediateAction], footer: String) {
         let view = ImmediateActionsInspectorView(
             title: title, actions: actions, footer: footer,
             back: { [weak self] in self?.closeTool() },
@@ -619,7 +619,7 @@ extension ViewerWindowController: EditCanvas, ViewerEditUndoTarget {
                 guard let self else { return }
                 NSApp.sendAction(action, to: self, from: nil)
             })
-        present(.immediate(title: title), inspector: view)
+        present(.immediate(title: title, opener: opener), inspector: view)
     }
 
     /// Shows a tool's inspector in the tools panel, pinned open and widened,

@@ -313,7 +313,7 @@ import MinivuCore
                                               mode: .similar, maximumSimilarImages: 1, workers: 1, store: nil)
         let capped = DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }
         #expect(capped.similarImages.count == 1)
-        #expect(capped.note?.contains("first 1 images") == true)
+        #expect(capped.note?.contains("first 1 image was") == true)
         request.mode = .exact
         #expect(DuplicatesModel.find(request, cancel: CancellationFlag()) { _ in }.exactGroups.isEmpty)
     }

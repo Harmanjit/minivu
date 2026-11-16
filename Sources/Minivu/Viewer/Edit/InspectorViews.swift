@@ -121,8 +121,7 @@ struct AdjustmentSliderRow: View {
             ResettableSlider(value: slider.position(for: value), range: slider.positionRange,
                              onChange: { setValue(slider.value(forPosition: $0)) }, onReset: reset,
                              label: slider.title,
-                             valueText: String(format: "%.\(slider.decimals)f", value * slider.displayScale)
-                                 + slider.unit)
+                             valueText: unitText(value * slider.displayScale, decimals: slider.decimals, unit: slider.unit))
                 .help("Double-click to reset")
         }
     }

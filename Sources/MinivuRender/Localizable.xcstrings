@@ -322,9 +322,12 @@
 
     },
     "The video couldn’t be encoded: %@" : {
-      "comment" : "%@ is the system's reason"
+      "comment" : "%@ says what went wrong, such as “the writer failed”"
     },
     "There are no pictures to put in the video." : {
+
+    },
+    "There isn’t enough memory to render the image." : {
 
     },
     "Top" : {
@@ -351,6 +354,9 @@
     "Wipe" : {
       "comment" : "Slideshow transition"
     },
+    "a frame was refused" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
     "font.weight.medium" : {
       "comment" : "Font weight",
       "extractionState" : "extracted_with_value",
@@ -362,6 +368,30 @@
           }
         }
       }
+    },
+    "no pixel buffers" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "the file wasn’t finished" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "the music couldn’t be read" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "the music was refused" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "the music’s format isn’t supported" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "the writer failed" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "the writer wouldn’t start" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
+    },
+    "there is no %@ encoder" : {
+      "comment" : "Ends “The video couldn’t be encoded: %@”"
     },
     "transition.slide" : {
       "comment" : "Slideshow transition: the new picture slides in",

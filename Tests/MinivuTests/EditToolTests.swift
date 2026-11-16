@@ -248,7 +248,7 @@ private func close(_ a: CGRect, _ b: CGRect, _ tolerance: CGFloat = 0.01) -> Boo
         #expect(model.width == ResizeModel.maximumSide)
         model.setWidthPercent(.nan)
         #expect(model.width == ResizeModel.maximumSide)
-        #expect(ResizeModel.sizeText(width: 6000, height: 4000) == "6000 × 4000 px  ·  24.0 MP")
+        #expect(ResizeModel.sizeText(width: 6000, height: 4000) == "6,000 × 4,000 px  ·  24.0 MP")
         #expect(ResampleFilter.allCases.count == 11)
     }
 }

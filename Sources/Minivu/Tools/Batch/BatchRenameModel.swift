@@ -137,7 +137,7 @@ import MinivuCore
     var statusText: String {
         guard let plan else { return localized("Checking names…") }
         if !plan.unknownTokens.isEmpty {
-            let list = plan.unknownTokens.prefix(3).joined(separator: ", ")
+            let list = plan.unknownTokens.prefix(3).formatted(.list(type: .and, width: .narrow))
             return localized(.init("The pattern has \(plan.unknownTokens.count) unknown tokens: \(list).",
                                    comment: "The count, then up to three tokens such as {nmae}, separated by commas"))
         }

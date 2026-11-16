@@ -96,11 +96,11 @@ enum KeyboardShortcutsPage {
         case MainMenu.Key.down: "↓"
         case MainMenu.Key.left: "←"
         case MainMenu.Key.right: "→"
-        case MainMenu.Key.home: "Home"
-        case MainMenu.Key.end: "End"
+        case MainMenu.Key.home: localized(.init("Home", comment: "Keys or gesture; keep key names as the keyboard shows them"))
+        case MainMenu.Key.end: localized(.init("help.key.end", defaultValue: "End", comment: "Keys or gesture; keep key names as the keyboard shows them"))
         case MainMenu.Key.backspace: "⌫"
         case MainMenu.Key.f2: "F2"
-        case " ": "Space"
+        case " ": localized(.init("Space", comment: "Keys or gesture; keep key names as the keyboard shows them"))
         default: key.uppercased()
         }
     }
@@ -111,8 +111,8 @@ enum KeyboardShortcutsPage {
     /// `ViewerKeyCommand`, `CompareKeyCommand` and the slideshow's and
     /// tools' key handlers.
     ///
-    /// Titles, notes and worded keys are localized; key names and symbols
-    /// stay as the keys show them.
+    /// Titles, notes and worded keys (Return, Page Down…) are localized; key
+    /// symbols stay as the keys show them.
     static let directKeySections: [ShortcutSection] = [
         ShortcutSection(title: localized(.init("Browser", comment: "The window with the folder list and the thumbnail grid")),
                         note: localized("In the thumbnail grid."), rows: [
@@ -132,11 +132,11 @@ enum KeyboardShortcutsPage {
         ]),
         ShortcutSection(title: localized(.init("Viewer", comment: "The window that shows one image")), note: localized("When the image is larger than the window, the arrows pan it instead."),
                         rows: [
-            ShortcutRow(title: localized("Next image"), keys: "→ ↓ Space"),
+            ShortcutRow(title: localized("Next image"), keys: localized(.init("→ ↓ Space", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Previous image"), keys: "← ↑ ⌫"),
-            ShortcutRow(title: localized("First or last image"), keys: "Home, End"),
-            ShortcutRow(title: localized("Next or previous page, then image"), keys: "Page Down, Page Up"),
-            ShortcutRow(title: localized("Next or previous page only"), keys: "⌥Page Down, ⌥Page Up"),
+            ShortcutRow(title: localized("First or last image"), keys: localized(.init("Home, End", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
+            ShortcutRow(title: localized("Next or previous page, then image"), keys: localized(.init("Page Down, Page Up", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
+            ShortcutRow(title: localized("Next or previous page only"), keys: localized(.init("⌥Page Down, ⌥Page Up", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Zoom in or out"), keys: "+ −"),
             ShortcutRow(title: localized("Actual size"), keys: "/"),
             ShortcutRow(title: localized("Fit to window"), keys: "*"),
@@ -146,8 +146,8 @@ enum KeyboardShortcutsPage {
             ShortcutRow(title: localized("Keep the info overlay up"), keys: "I"),
             ShortcutRow(title: localized("Keep the filmstrip open"), keys: "F"),
             ShortcutRow(title: localized("Play or pause an animation"), keys: "P"),
-            ShortcutRow(title: localized("Switch between window and full screen"), keys: "Return"),
-            ShortcutRow(title: localized("Back to the browser"), keys: "Esc"),
+            ShortcutRow(title: localized("Switch between window and full screen"), keys: localized(.init("Return", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
+            ShortcutRow(title: localized("Back to the browser"), keys: localized(.init("Esc", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
         ]),
         ShortcutSection(title: localized(.init("Viewer Mouse and Trackpad", comment: "Heading: what the mouse and trackpad do in the viewer")), rows: [
             ShortcutRow(title: localized("Fit or actual size at that point"),
@@ -165,20 +165,20 @@ enum KeyboardShortcutsPage {
         ]),
         ShortcutSection(title: localized(.init("help.shortcuts.compare", defaultValue: "Compare", comment: "Noun: the window that shows images side by side")), rows: [
             ShortcutRow(title: localized("Choose a pane"), keys: "⌘1–⌘4"),
-            ShortcutRow(title: localized("Next or previous pane"), keys: "Tab, ⇧Tab"),
+            ShortcutRow(title: localized("Next or previous pane"), keys: localized(.init("Tab, ⇧Tab", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Previous or next image in the pane"), keys: "← →"),
             ShortcutRow(title: localized("Rate (0 clears)"), keys: "0–5"),
             ShortcutRow(title: localized("Tag or untag"), keys: "T"),
             ShortcutRow(title: localized("Move to Trash"), keys: "⌫"),
             ShortcutRow(title: localized("Full screen"),
                         keys: localized(.init("Return or F", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
-            ShortcutRow(title: localized("Close"), keys: "Esc"),
+            ShortcutRow(title: localized("Close"), keys: localized(.init("Esc", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
         ]),
         ShortcutSection(title: localized("Slideshow"), rows: [
-            ShortcutRow(title: localized("Pause or resume"), keys: "Space"),
-            ShortcutRow(title: localized("Next slide"), keys: "→ ↓ Page Down"),
-            ShortcutRow(title: localized("Previous slide"), keys: "← ↑ Page Up"),
-            ShortcutRow(title: localized("End the show"), keys: "Esc"),
+            ShortcutRow(title: localized("Pause or resume"), keys: localized(.init("Space", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
+            ShortcutRow(title: localized("Next slide"), keys: localized(.init("→ ↓ Page Down", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
+            ShortcutRow(title: localized("Previous slide"), keys: localized(.init("← ↑ Page Up", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
+            ShortcutRow(title: localized("End the show"), keys: localized(.init("Esc", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
         ]),
         ShortcutSection(title: localized("Editing Tools"), rows: [
             ShortcutRow(title: localized("Clone Stamp, Healing Brush: set the source"),
@@ -187,9 +187,9 @@ enum KeyboardShortcutsPage {
             ShortcutRow(title: localized("Text and Shapes: nudge the selection"),
                         keys: localized(.init("Arrows, ⇧ for more", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Text and Shapes: duplicate"), keys: "⌘D"),
-            ShortcutRow(title: localized("Text and Shapes: deselect"), keys: "Esc"),
+            ShortcutRow(title: localized("Text and Shapes: deselect"), keys: localized(.init("Esc", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
             ShortcutRow(title: localized("Text and Shapes, Red-Eye: delete the selection"), keys: "⌫"),
-            ShortcutRow(title: localized("Capture Selection: capture or cancel"), keys: "Return, Esc"),
+            ShortcutRow(title: localized("Capture Selection: capture or cancel"), keys: localized(.init("Return, Esc", comment: "Keys or gesture; keep key names as the keyboard shows them"))),
         ]),
     ]
 }

@@ -143,10 +143,10 @@ public struct ImageStripLayout: Equatable, Sendable {
     /// strip is one bitmap at four bytes a pixel, eight at 16 bits), or nil.
     public func problem(byteLimit: Int, bytesPerPixel: Int = 4) -> String? {
         if width > Self.maximumSide || height > Self.maximumSide {
-            return localized("The strip would be \(width) × \(height) pixels; the most minivu makes is \(Self.maximumSide) on a side.")
+            return localized("The strip would be \(width) × \(height) px; the most minivu makes is \(Self.maximumSide) px on a side.")
         }
         if Double(width) * Double(height) * Double(bytesPerPixel) > Double(byteLimit) {
-            return localized("The strip would be \(width) × \(height) pixels, more than this Mac can hold at once. Choose a smaller size.")
+            return localized("The strip would be \(width) × \(height) px, more than this Mac can hold at once. Choose a smaller size.")
         }
         return nil
     }

@@ -35,6 +35,23 @@
         }
       }
     },
+    "%@ It is now named “%@”." : {
+      "comment" : "%1$@ is an error message; the file got a numbered name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ It is now named “%2$@”."
+          }
+        }
+      }
+    },
+    "%@ MP" : {
+      "comment" : "Megapixels"
+    },
+    "%@ Mbit/s" : {
+      "comment" : "Megabits per second"
+    },
     "%@ contains no image minivu can decode." : {
 
     },
@@ -55,11 +72,20 @@
     "%@ could not be read: permission denied" : {
 
     },
+    "%@ fps" : {
+      "comment" : "Frames per second"
+    },
     "%@ is not on this Mac's internal storage." : {
 
     },
     "%@ is too large to decode." : {
 
+    },
+    "%@ kbit/s" : {
+      "comment" : "Kilobits per second"
+    },
+    "%@ m" : {
+      "comment" : "Altitude in metres above sea level"
     },
     "%@ m below sea level" : {
 
@@ -121,6 +147,9 @@
     },
     "Aperture priority" : {
 
+    },
+    "Apple icon" : {
+      "comment" : "File format"
     },
     "Artist" : {
       "comment" : "Image creator (metadata)"
@@ -369,6 +398,9 @@
         }
       }
     },
+    "Grayscale" : {
+      "comment" : "Colour model"
+    },
     "Green" : {
       "comment" : "Colour label",
       "localizations" : {
@@ -451,9 +483,6 @@
     },
     "Image" : {
       "comment" : "Info panel section: the picture's properties"
-    },
-    "It is now named “%@”." : {
-      "comment" : "Follows an error message: the file got a numbered name"
     },
     "Keep Both" : {
       "comment" : "Conflict choice: write the new file under a numbered name"
@@ -919,19 +948,27 @@
     "The folder “%@” can’t be replaced by a file." : {
 
     },
-    "The frame delay must be between 0.02 and 60 seconds." : {
+    "The frame delay must be between %@ and %@ seconds." : {
+      "comment" : "The shortest delay (0.02) and the longest (60), as numbers",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The frame delay must be between %1$@ and %2$@ seconds."
+          }
+        }
+      }
+    },
+    "The frame size must be between 16 and %lld px." : {
 
     },
-    "The frame size must be between 16 and %lld pixels." : {
-
-    },
-    "The frames are more than this Mac can hold while the file is made (frames: %lld, frame size: %lld × %lld pixels). Choose a smaller frame size or fewer images." : {
+    "The frames are more than this Mac can hold while the file is made (frames: %lld, frame size: %lld × %lld px). Choose a smaller frame size or fewer images." : {
       "comment" : "Error: an animation needs too much memory",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "The frames are more than this Mac can hold while the file is made (frames: %1$lld, frame size: %2$lld × %3$lld pixels). Choose a smaller frame size or fewer images."
+            "value" : "The frames are more than this Mac can hold while the file is made (frames: %1$lld, frame size: %2$lld × %3$lld px). Choose a smaller frame size or fewer images."
           }
         }
       }
@@ -969,8 +1006,16 @@
     "The new %@ didn’t take, so the file was left as it was." : {
       "comment" : "%@ is a metadata field in lower case, such as “title” or “keywords”"
     },
-    "The number of loops must be between 0 and 65,535." : {
-
+    "The number of loops must be between %@ and %@." : {
+      "comment" : "The fewest loops (0) and the most (65,535), as numbers",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The number of loops must be between %1$@ and %2$@."
+          }
+        }
+      }
     },
     "The pages couldn’t be joined into one TIFF file." : {
 
@@ -984,22 +1029,22 @@
     "The strip couldn’t be made: not enough memory." : {
 
     },
-    "The strip would be %lld × %lld pixels, more than this Mac can hold at once. Choose a smaller size." : {
+    "The strip would be %lld × %lld px, more than this Mac can hold at once. Choose a smaller size." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "The strip would be %1$lld × %2$lld pixels, more than this Mac can hold at once. Choose a smaller size."
+            "value" : "The strip would be %1$lld × %2$lld px, more than this Mac can hold at once. Choose a smaller size."
           }
         }
       }
     },
-    "The strip would be %lld × %lld pixels; the most minivu makes is %lld on a side." : {
+    "The strip would be %lld × %lld px; the most minivu makes is %lld px on a side." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "The strip would be %1$lld × %2$lld pixels; the most minivu makes is %3$lld on a side."
+            "value" : "The strip would be %1$lld × %2$lld px; the most minivu makes is %3$lld px on a side."
           }
         }
       }
@@ -1033,6 +1078,12 @@
     },
     "Width" : {
       "comment" : "Noun: size in pixels"
+    },
+    "Windows cursor" : {
+      "comment" : "File format"
+    },
+    "Windows icon" : {
+      "comment" : "File format"
     },
     "Yellow" : {
       "comment" : "Colour label",
@@ -1233,6 +1284,54 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "title"
+          }
+        }
+      }
+    },
+    "metadata.hemisphere.east" : {
+      "comment" : "Compass point after a longitude: east",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "E"
+          }
+        }
+      }
+    },
+    "metadata.hemisphere.north" : {
+      "comment" : "Compass point after a latitude: north",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "N"
+          }
+        }
+      }
+    },
+    "metadata.hemisphere.south" : {
+      "comment" : "Compass point after a latitude: south",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "S"
+          }
+        }
+      }
+    },
+    "metadata.hemisphere.west" : {
+      "comment" : "Compass point after a longitude: west",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "W"
           }
         }
       }

@@ -70,7 +70,9 @@ nonisolated struct ResizeModel: Equatable, Sendable {
     /// "6000 × 4000 px · 24.0 MP".
     static func sizeText(width: Int, height: Int) -> String {
         let mp = Double(width) * Double(height) / 1_000_000
-        return "\(width) × \(height) px  ·  \(String(format: mp < 0.1 ? "%.2f" : "%.1f", mp)) MP"
+        let megapixels = mp.formatted(.number.precision(.fractionLength(mp < 0.1 ? 2 : 1)))
+        return localized(.init("\(width) × \(height) px  ·  \(megapixels) MP",
+                               comment: "Width × height in pixels, then megapixels such as 24.0"))
     }
 
     private static func clamp(_ value: Int) -> Int { min(max(value, 1), maximumSide) }

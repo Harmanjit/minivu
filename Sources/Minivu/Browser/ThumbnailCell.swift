@@ -218,11 +218,11 @@ final class ThumbnailCellView: NSView {
             if isTagged { parts.append(localized(.init("tagged", comment: "VoiceOver, in a thumbnail's description: it has minivu's tag (a mark, like a flag)"))) }
         }
         if !finderTags.isEmpty {
-            let names = finderTags.joined(separator: ", ")
+            let names = finderTags.formatted(.list(type: .and, width: .narrow))
             parts.append(localized(.init("Finder tags: \(names)", comment: "VoiceOver: the file's Finder tags, by name")))
         }
         if !dimensions.isEmpty { parts.append(dimensions) }
-        return parts.joined(separator: ", ")
+        return parts.formatted(.list(type: .and, width: .narrow))
     }
 
     /// The outline a selected cell gets with Increase Contrast, where a tinted

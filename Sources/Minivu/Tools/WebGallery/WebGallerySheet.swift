@@ -134,7 +134,8 @@ struct WebGalleryView: View {
                 } header: {
                     Text("File")
                 } footer: {
-                    Text("\(model.formatNote) Pictures are written in sRGB; HDR photos are shown as on a standard display.")
+                    Text("\(model.formatNote) Pictures are written in sRGB; HDR photos are shown as on a standard display.",
+                         comment: "%@ is a whole sentence about the chosen format; this second sentence follows it")
                         .paragraphFooter()
                 }
             }
