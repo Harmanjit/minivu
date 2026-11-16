@@ -157,8 +157,9 @@ unsaved edits of that file in minivu, it asks whether to keep them or reload.
 minivu adds actions to the Shortcuts app: **Convert Images**, **Resize
 Images**, **Rename Images**, **Set Rating**, **Set Colour Label** and **Open
 in minivu**. Search for “minivu” in the Shortcuts app’s actions to use them
-in your own shortcuts. Running such a shortcut opens minivu if it isn’t
-open. The actions work only on files on your Mac’s internal storage.
+in your own shortcuts. If minivu isn’t open, a shortcut starts it without
+a window, and it quits a minute after the last action; **Open in minivu**
+opens its windows as usual. The actions work only on files on your Mac’s internal storage.
 **Rename Images** works only in your Pictures folder and folders in
 minivu’s sidebar; if any file is elsewhere, it renames none of them.
 

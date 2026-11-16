@@ -308,7 +308,12 @@ panel and the filters pay for.
   (`viewerSharesEditSlot`), so the whole app renders one RAW at a time
   there. Batch Convert renders RAW through the editor's path and shares it.
   RAW Adjustments keeps the file open in the engine for the document
-  (`RawDevelopFilter`), freed with the document's original.
+  (`RawDevelopFilter`), freed with the document's original. Its lock is
+  held from setting the engine's parameters until the render of its output
+  has finished (`withImage`, taken inside a slot, never the reverse), so
+  renders of one file never overlap: a preview can wait behind a full
+  render of the same file, which measured no slower than the two
+  overlapping (the engine's renders don't run side by side).
 - The RAW Core Image context uses a 512 MB memory limit on Macs with 8 GB
   or less: footprint 20-26% lower, full render about 10% slower; lower
   limits cost much more time, 1024 MB saves nothing.
@@ -1204,6 +1209,17 @@ Convert, Resize and Open in minivu are also ready App Shortcuts. Rules:
   `openAppWhenRun = true`; the others leave it at its default, false.
 - There is no Apple Events interface beyond AppKit's open-documents event,
   and no scripting dictionary.
+- A launch made only to run an action shows no window
+  (`IntentLaunch`): with nothing to open and minivu not active when
+  launching finishes, it waits up to 300 ms. An activation, a reopen or a
+  file shows the browser; an action's `perform()` (every one but Open in
+  minivu's runs in `IntentLaunch.run`) keeps minivu windowless and
+  `.accessory`; the timeout shows the browser (fail safe). Windowless, it
+  quits through `NSApp.terminate`, so after queued writes, 60 s after the
+  last action ends; the user opening minivu meanwhile cancels that, and
+  so does an action that begins while that quit waits for writes.
+  macOS gives no documented launch reason for intents
+  (feature-notes/sys.md, "Launched by a shortcut").
 
 ### 4.9 Search, the flat view and lists
 

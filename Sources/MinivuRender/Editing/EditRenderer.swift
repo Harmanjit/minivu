@@ -168,7 +168,8 @@ final class EditStage: @unchecked Sendable {
 /// highlights above white and measures its own headroom. Engine renders take
 /// one of the editor's RAW slots (`RawRenderer.withEditRenderSlot`: one at a
 /// time on 8 GB Macs, shared there with the viewer's RAW renders) and run on
-/// the RAW context, with its memory limit.
+/// the RAW context, with its memory limit; renders from the document's
+/// `RawDevelopFilter` hold its lock too, inside the slot (`withImage`).
 ///
 /// **Measured** on M4, release build, 6032 x 4032 JPEG (`EditBenchmark`):
 ///

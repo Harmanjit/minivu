@@ -379,9 +379,9 @@ import Metal
         renderer.release(doc)
     }
 
-    /// One engine filter, two settings rendered at once from two threads:
-    /// each comes out as it does alone (the editor's two RAW slots on
-    /// larger Macs let a preview and a full render overlap).
+    /// One engine filter, two settings asked for at once from eight threads
+    /// (the editor's two RAW slots on larger Macs let a preview and a full
+    /// render ask together): each comes out as it does alone.
     @Test(.enabled(if: RawRendererTests.hasAssets))
     nonisolated func oneFilterRendersTwoSettingsAtOnceWithoutMixingThem() throws {
         let filter = try #require(RawDevelopFilter(url: Self.nef))
@@ -409,6 +409,32 @@ import Metal
             let value = try #require(results.values[index])
             #expect(abs(value - expected) < expected * 0.02, "render \(index): \(value), alone \(expected)")
         }
+    }
+
+    /// Renders of one filter never overlap: the filter stays locked from
+    /// setting the parameters until the render given its image returns, so
+    /// no image is rendered while another thread changes the filter.
+    @Test(.enabled(if: RawRendererTests.hasAssets))
+    nonisolated func rendersOfOneFilterNeverOverlap() throws {
+        let filter = try #require(RawDevelopFilter(url: Self.nef))
+        let context = RawRenderer.context(for: .shared)
+        final class Overlap: @unchecked Sendable {
+            let lock = NSLock()
+            var active = 0, most = 0, rendered = 0
+        }
+        let overlap = Overlap()
+        DispatchQueue.concurrentPerform(iterations: 6) { index in
+            filter.withImage(develop: RawDevelop(exposure: Double(index % 2)), scale: 0.1, hdr: false,
+                             headroom: 1) { image in
+                overlap.lock.withLock { overlap.active += 1; overlap.most = max(overlap.most, overlap.active) }
+                if let image, context.createCGImage(image, from: image.extent) != nil {
+                    overlap.lock.withLock { overlap.rendered += 1 }
+                }
+                overlap.lock.withLock { overlap.active -= 1 }
+            }
+        }
+        #expect(overlap.rendered == 6)
+        #expect(overlap.most == 1, "\(overlap.most) renders of one filter at once")
     }
 
     /// A save renders with the committed settings, even from a document
