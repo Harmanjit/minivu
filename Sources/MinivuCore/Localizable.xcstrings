@@ -10,16 +10,16 @@
             "value" : "Blau"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Bleu"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Azul"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Bleu"
           }
         },
         "it" : {
@@ -28,10 +28,16 @@
             "value" : "Blu"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Azul"
+            "value" : "ブルー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "파란색"
           }
         },
         "nl" : {
@@ -46,22 +52,16 @@
             "value" : "Niebieski"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ブルー"
+            "value" : "Azul"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "蓝色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "파란색"
           }
         }
       }
@@ -75,13 +75,13 @@
             "value" : "Grau"
           }
         },
-        "fr" : {
+        "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Gris"
           }
         },
-        "es" : {
+        "fr" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Gris"
@@ -93,10 +93,16 @@
             "value" : "Grigio"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Cinza"
+            "value" : "グレイ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "회색"
           }
         },
         "nl" : {
@@ -111,22 +117,16 @@
             "value" : "Szary"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "グレイ"
+            "value" : "Cinza"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "灰色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "회색"
           }
         }
       }
@@ -140,16 +140,16 @@
             "value" : "Grün"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Vert"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Verde"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Vert"
           }
         },
         "it" : {
@@ -158,10 +158,16 @@
             "value" : "Verde"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Verde"
+            "value" : "グリーン"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "초록색"
           }
         },
         "nl" : {
@@ -176,22 +182,16 @@
             "value" : "Zielony"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "グリーン"
+            "value" : "Verde"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "绿色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "초록색"
           }
         }
       }
@@ -205,16 +205,16 @@
             "value" : "Keine"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Aucune"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Ninguna"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Aucune"
           }
         },
         "it" : {
@@ -223,10 +223,16 @@
             "value" : "Nessuna"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Nenhuma"
+            "value" : "なし"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "없음"
           }
         },
         "nl" : {
@@ -241,22 +247,16 @@
             "value" : "Brak"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "なし"
+            "value" : "Nenhuma"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "无"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "없음"
           }
         }
       }
@@ -270,16 +270,16 @@
             "value" : "Orange"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Orange"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Naranja"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Orange"
           }
         },
         "it" : {
@@ -288,10 +288,16 @@
             "value" : "Arancione"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Laranja"
+            "value" : "オレンジ"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "주황색"
           }
         },
         "nl" : {
@@ -306,22 +312,16 @@
             "value" : "Pomarańczowy"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "オレンジ"
+            "value" : "Laranja"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "橙色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "주황색"
           }
         }
       }
@@ -335,16 +335,16 @@
             "value" : "Lila"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Violet"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Morado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Violet"
           }
         },
         "it" : {
@@ -353,10 +353,16 @@
             "value" : "Viola"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Roxo"
+            "value" : "パープル"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "보라색"
           }
         },
         "nl" : {
@@ -371,22 +377,16 @@
             "value" : "Fioletowy"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "パープル"
+            "value" : "Roxo"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "紫色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "보라색"
           }
         }
       }
@@ -400,16 +400,16 @@
             "value" : "Rot"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Rouge"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Rojo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Rouge"
           }
         },
         "it" : {
@@ -418,10 +418,16 @@
             "value" : "Rosso"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Vermelho"
+            "value" : "レッド"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "빨간색"
           }
         },
         "nl" : {
@@ -436,22 +442,16 @@
             "value" : "Czerwony"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "レッド"
+            "value" : "Vermelho"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "红色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "빨간색"
           }
         }
       }
@@ -465,16 +465,16 @@
             "value" : "Gelb"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Jaune"
-          }
-        },
         "es" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Amarillo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Jaune"
           }
         },
         "it" : {
@@ -483,10 +483,16 @@
             "value" : "Giallo"
           }
         },
-        "pt-BR" : {
+        "ja" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Amarelo"
+            "value" : "イエロー"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "노란색"
           }
         },
         "nl" : {
@@ -501,22 +507,16 @@
             "value" : "Żółty"
           }
         },
-        "ja" : {
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "イエロー"
+            "value" : "Amarelo"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "黄色"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "노란색"
           }
         }
       }
