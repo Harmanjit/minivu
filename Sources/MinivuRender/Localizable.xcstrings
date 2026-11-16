@@ -1,7 +1,395 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld bits per component can't be exported (8 or 16 can)." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bit per component can't be exported (8 or 16 can)."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bits per component can't be exported (8 or 16 can)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A folder named “%@” is in the way." : {
 
+    },
+    "An item named “%@” already exists." : {
+
+    },
+    "Arrow" : {
+      "comment" : "Drawing shape"
+    },
+    "Auto Enhance" : {
+      "comment" : "Name of an edit, as in “Undo Auto Enhance”"
+    },
+    "Bell" : {
+      "comment" : "Resampling filter"
+    },
+    "Bevel" : {
+      "comment" : "Frame style: a raised moulding"
+    },
+    "Blur" : {
+      "comment" : "Name of an edit, as in “Undo Blur”"
+    },
+    "Bold" : {
+      "comment" : "Font weight"
+    },
+    "Bottom" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Bottom Left" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Bottom Right" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Box" : {
+      "comment" : "Resampling filter"
+    },
+    "Brush strokes are painted on this photo’s content." : {
+
+    },
+    "Bump Map" : {
+      "comment" : "Name of an edit, as in “Undo Bump Map”"
+    },
+    "Callout" : {
+      "comment" : "Drawing shape: a speech bubble"
+    },
+    "Canvas Size" : {
+      "comment" : "Name of an edit, as in “Undo Canvas Size”"
+    },
+    "Center" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Charcoal" : {
+      "comment" : "Sketch style"
+    },
+    "Clone Stamp" : {
+      "comment" : "Name of an edit, as in “Undo Clone Stamp”"
+    },
+    "Colored Pencil" : {
+      "comment" : "Sketch style"
+    },
+    "Colors" : {
+      "comment" : "Name of an edit: colour adjustments"
+    },
+    "Cosine" : {
+      "comment" : "Resampling filter"
+    },
+    "Crop" : {
+      "comment" : "Name of an edit, as in “Undo Crop”"
+    },
+    "Cross-Fade" : {
+      "comment" : "Slideshow transition"
+    },
+    "Curves" : {
+      "comment" : "Name of an edit, as in “Undo Curves”"
+    },
+    "Dissolve" : {
+      "comment" : "Slideshow transition"
+    },
+    "Don’t Resize" : {
+
+    },
+    "Drawing" : {
+      "comment" : "Name of an edit: text and shapes drawn on the image"
+    },
+    "Drop Shadow" : {
+      "comment" : "Name of an edit, as in “Undo Drop Shadow”"
+    },
+    "Fade Through Black" : {
+      "comment" : "Slideshow transition"
+    },
+    "Flip Horizontal" : {
+      "comment" : "Name of an edit, as in “Undo Flip Horizontal”"
+    },
+    "Flip Vertical" : {
+      "comment" : "Name of an edit, as in “Undo Flip Vertical”"
+    },
+    "Frame" : {
+      "comment" : "Name of an edit: a frame drawn around the image"
+    },
+    "Grayscale" : {
+      "comment" : "Name of an edit, as in “Undo Grayscale”"
+    },
+    "Healing Brush" : {
+      "comment" : "Name of an edit, as in “Undo Healing Brush”"
+    },
+    "Heavy" : {
+      "comment" : "Font weight"
+    },
+    "Height" : {
+      "comment" : "Noun: size in pixels"
+    },
+    "High" : {
+      "comment" : "Video quality"
+    },
+    "Highlight" : {
+      "comment" : "Drawing shape: a translucent marker stroke"
+    },
+    "Image" : {
+      "comment" : "Noun: a picture used as a watermark"
+    },
+    "Iris" : {
+      "comment" : "Slideshow transition: a circle opens on the new picture"
+    },
+    "It has only %lld pages." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "It has only %lld page."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "It has only %lld pages."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "It has only one page." : {
+
+    },
+    "It is a size in pixels for this photo. Use Batch Convert’s Resize, which works from each photo’s own size." : {
+
+    },
+    "It is a size in pixels, which would give every photo the same canvas." : {
+
+    },
+    "It was placed on the canvas Canvas Size made, which stays behind, so on another photo it would land elsewhere." : {
+
+    },
+    "It would replace the original." : {
+
+    },
+    "Left" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Lens" : {
+      "comment" : "Name of an edit: a magnifying-lens effect"
+    },
+    "Levels" : {
+      "comment" : "Name of an edit, as in “Undo Levels”"
+    },
+    "Light" : {
+      "comment" : "Font weight"
+    },
+    "Lighting" : {
+      "comment" : "Name of an edit, as in “Undo Lighting”"
+    },
+    "Line" : {
+      "comment" : "Drawing shape"
+    },
+    "Long Side" : {
+      "comment" : "Resize by the longer of width and height"
+    },
+    "Low" : {
+      "comment" : "Video quality"
+    },
+    "Matte" : {
+      "comment" : "Frame style: a mat board around the picture"
+    },
+    "Measured again on each photo." : {
+
+    },
+    "Medium" : {
+      "comment" : "Video quality"
+    },
+    "Negative" : {
+      "comment" : "Name of an edit: inverted colours"
+    },
+    "Noise Reduction" : {
+      "comment" : "Name of an edit, as in “Undo Noise Reduction”"
+    },
+    "Oil Painting" : {
+      "comment" : "Name of an edit, as in “Undo Oil Painting”"
+    },
+    "Oval" : {
+      "comment" : "Drawing shape"
+    },
+    "Pencil" : {
+      "comment" : "Sketch style"
+    },
+    "Percentage" : {
+      "comment" : "Resize by a percentage of the size"
+    },
+    "Perspective" : {
+      "comment" : "Name of an edit, as in “Undo Perspective”"
+    },
+    "Push" : {
+      "comment" : "Slideshow transition: the new picture pushes the old one out"
+    },
+    "Quadratic" : {
+      "comment" : "Resampling filter"
+    },
+    "RAW Adjustments" : {
+      "comment" : "Name of an edit, as in “Undo RAW Adjustments”"
+    },
+    "RAW files only; other photos ignore it." : {
+
+    },
+    "RGB Adjust" : {
+      "comment" : "Name of an edit, as in “Undo RGB Adjust”"
+    },
+    "Rectangle" : {
+      "comment" : "Drawing shape"
+    },
+    "Red-Eye Removal" : {
+      "comment" : "Name of an edit, as in “Undo Red-Eye Removal”"
+    },
+    "Regular" : {
+      "comment" : "Font weight"
+    },
+    "Remove Background" : {
+      "comment" : "Name of an edit, as in “Undo Remove Background”"
+    },
+    "Resize" : {
+      "comment" : "Name of an edit, as in “Undo Resize”"
+    },
+    "Right" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Rotate" : {
+      "comment" : "Name of an edit, as in “Undo Rotate”"
+    },
+    "Rotate 180°" : {
+      "comment" : "Name of an edit, as in “Undo Rotate 180°”"
+    },
+    "Rotate Left" : {
+      "comment" : "Name of an edit, as in “Undo Rotate Left”"
+    },
+    "Rotate Right" : {
+      "comment" : "Name of an edit, as in “Undo Rotate Right”"
+    },
+    "Screen size" : {
+      "comment" : "Video resolution: the screen's own size"
+    },
+    "Semibold" : {
+      "comment" : "Font weight"
+    },
+    "Sepia" : {
+      "comment" : "Name of an edit, as in “Undo Sepia”"
+    },
+    "Sharpen" : {
+      "comment" : "Name of an edit, as in “Undo Sharpen”"
+    },
+    "Sketch" : {
+      "comment" : "Name of an edit: the image as a pencil drawing"
+    },
+    "Solid" : {
+      "comment" : "Frame style: one plain colour"
+    },
+    "Text" : {
+      "comment" : "Noun: a text annotation or text watermark"
+    },
+    "Text and shapes are placed on this photo’s content." : {
+
+    },
+    "The edited image could not be rendered." : {
+
+    },
+    "The same corners on each photo, as fractions of its size." : {
+
+    },
+    "The same part of each photo, as a fraction of its size." : {
+
+    },
+    "The spots are placed on the eyes in this photo." : {
+
+    },
+    "The subject’s outline was found in this photo and fits no other." : {
+
+    },
+    "The video couldn’t be encoded: %@" : {
+      "comment" : "%@ is the system's reason"
+    },
+    "There are no pictures to put in the video." : {
+
+    },
+    "Top" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Top Left" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Top Right" : {
+      "comment" : "Canvas anchor: where the picture sits on the new canvas"
+    },
+    "Triangle (Bilinear)" : {
+      "comment" : "Resampling filter"
+    },
+    "Vignette" : {
+      "comment" : "Name of an edit, as in “Undo Vignette”"
+    },
+    "Watermark" : {
+      "comment" : "Name of an edit, as in “Undo Watermark”"
+    },
+    "Width" : {
+      "comment" : "Noun: size in pixels"
+    },
+    "Wipe" : {
+      "comment" : "Slideshow transition"
+    },
+    "font.weight.medium" : {
+      "comment" : "Font weight",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Medium"
+          }
+        }
+      }
+    },
+    "transition.slide" : {
+      "comment" : "Slideshow transition: the new picture slides in",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Slide"
+          }
+        }
+      }
+    },
+    "transition.zoom" : {
+      "comment" : "Slideshow transition: the new picture zooms in",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Zoom"
+          }
+        }
+      }
+    },
+    "“%@” changed on disk after editing began, so the edits can’t be applied to it again. Reopen the image to keep editing." : {
+
+    }
   },
   "version" : "1.0"
 }

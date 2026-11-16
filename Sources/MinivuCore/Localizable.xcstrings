@@ -1,6 +1,154 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (%@ in 35 mm)" : {
+      "comment" : "A focal length, then its 35 mm film equivalent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@ in 35 mm)"
+          }
+        }
+      }
+    },
+    "%@ (%lld bytes)" : {
+      "comment" : "File size: rounded, then exact",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@ (%lld byte)"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@ (%lld bytes)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@ contains no image minivu can decode." : {
+
+    },
+    "%@ could not be opened." : {
+
+    },
+    "%@ could not be read: %@" : {
+      "comment" : "First %@ is a folder name, second the system's reason",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ could not be read: %2$@"
+          }
+        }
+      }
+    },
+    "%@ could not be read: permission denied" : {
+
+    },
+    "%@ is not on this Mac's internal storage." : {
+
+    },
+    "%@ is too large to decode." : {
+
+    },
+    "%@ m below sea level" : {
+
+    },
+    "%@, red-eye reduction" : {
+      "comment" : "%@ is the flash's mode, such as “On, fired”"
+    },
+    "%lld bits per channel" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bit per channel"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bits per channel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A folder named “%@” is in the way." : {
+
+    },
+    "A page couldn’t be added to the TIFF file." : {
+
+    },
+    "Action" : {
+      "comment" : "Camera exposure program: sports"
+    },
+    "Alpha" : {
+      "comment" : "Info panel: whether the image has a transparency channel"
+    },
+    "Altitude" : {
+
+    },
+    "An item with this name already exists." : {
+
+    },
+    "Animated GIF" : {
+      "comment" : "File format"
+    },
+    "Animated HEIC" : {
+      "comment" : "File format"
+    },
+    "Another file would get the same name." : {
+
+    },
+    "Aperture" : {
+
+    },
+    "Aperture priority" : {
+
+    },
+    "Artist" : {
+      "comment" : "Image creator (metadata)"
+    },
+    "As Shown" : {
+      "comment" : "Sort order: the order the browser shows"
+    },
+    "Audio" : {
+      "comment" : "Info panel: the video's sound track"
+    },
+    "Auto" : {
+      "comment" : "Camera setting: automatic"
+    },
+    "Auto, did not fire" : {
+      "comment" : "Camera flash"
+    },
+    "Auto, fired" : {
+      "comment" : "Camera flash"
+    },
+    "Automatic" : {
+      "comment" : "Appearance: follows the viewer's light or dark setting"
+    },
+    "Average" : {
+      "comment" : "Camera metering mode"
+    },
+    "Bit depth" : {
+
+    },
     "Blue" : {
       "comment" : "Colour label",
       "localizations" : {
@@ -65,6 +213,96 @@
           }
         }
       }
+    },
+    "Camera" : {
+      "comment" : "Info panel section: the camera that took the photo"
+    },
+    "Cell height" : {
+      "comment" : "Height of each picture in an image strip's grid"
+    },
+    "Center-weighted" : {
+
+    },
+    "Codec" : {
+      "comment" : "Info panel: the video's compression format"
+    },
+    "Color model" : {
+
+    },
+    "Comment" : {
+      "comment" : "Image comment (metadata)"
+    },
+    "Copyright" : {
+
+    },
+    "Created" : {
+      "comment" : "Date the file was created"
+    },
+    "Creative" : {
+      "comment" : "Camera exposure program"
+    },
+    "DPI" : {
+
+    },
+    "Dark" : {
+      "comment" : "Appearance: dark colours"
+    },
+    "Data rate" : {
+
+    },
+    "Date Modified" : {
+
+    },
+    "Date Taken" : {
+
+    },
+    "Dates" : {
+      "comment" : "Info panel section: when the image was taken and changed"
+    },
+    "Description" : {
+      "comment" : "Noun: the image's caption (info panel section and field)"
+    },
+    "Did not fire" : {
+      "comment" : "Camera flash"
+    },
+    "Digitized" : {
+      "comment" : "Date the photo was digitized"
+    },
+    "Dimensions" : {
+      "comment" : "Info panel: width × height in pixels"
+    },
+    "Direction" : {
+      "comment" : "Compass direction the camera faced"
+    },
+    "Duration" : {
+      "comment" : "Info panel: length of a video"
+    },
+    "Exposure" : {
+      "comment" : "Info panel section: camera exposure settings"
+    },
+    "Exposure bias" : {
+
+    },
+    "File" : {
+      "comment" : "Info panel section: the file itself (name, size, dates)"
+    },
+    "Fired" : {
+      "comment" : "Camera flash"
+    },
+    "Flash" : {
+      "comment" : "Info panel: whether and how the camera flash fired"
+    },
+    "Focal length" : {
+
+    },
+    "Frame rate" : {
+
+    },
+    "Frames" : {
+      "comment" : "Info panel label: frames in an animation"
+    },
+    "GPS" : {
+
     },
     "Gray" : {
       "comment" : "Colour label",
@@ -196,6 +434,117 @@
         }
       }
     },
+    "Grid" : {
+      "comment" : "Arrangement of pictures in rows and columns"
+    },
+    "HDR" : {
+      "comment" : "Info panel: whether the image is high dynamic range"
+    },
+    "HEIF and AVIF" : {
+      "comment" : "File type group: two format names"
+    },
+    "Height" : {
+      "comment" : "Noun: size in pixels"
+    },
+    "ISO" : {
+
+    },
+    "Image" : {
+      "comment" : "Info panel section: the picture's properties"
+    },
+    "It is now named “%@”." : {
+      "comment" : "Follows an error message: the file got a numbered name"
+    },
+    "Keep Both" : {
+      "comment" : "Conflict choice: write the new file under a numbered name"
+    },
+    "Keep original" : {
+      "comment" : "Colour profile choice: keep the image's own profile"
+    },
+    "Keywords" : {
+
+    },
+    "Kind" : {
+      "comment" : "File format"
+    },
+    "Landscape" : {
+      "comment" : "Picture shape: wider than tall"
+    },
+    "Latitude" : {
+
+    },
+    "Lens" : {
+      "comment" : "Info panel: the camera lens model"
+    },
+    "Lens make" : {
+
+    },
+    "Lens serial number" : {
+
+    },
+    "Light" : {
+      "comment" : "Appearance: light colours"
+    },
+    "Longitude" : {
+
+    },
+    "Make" : {
+      "comment" : "Camera or lens maker"
+    },
+    "Manual" : {
+      "comment" : "Camera setting"
+    },
+    "Matrix" : {
+      "comment" : "Camera metering mode (also called evaluative or pattern)"
+    },
+    "Megapixels" : {
+
+    },
+    "Metadata can’t be written for this kind of file." : {
+
+    },
+    "Metering" : {
+      "comment" : "Info panel: the camera's light metering mode"
+    },
+    "Mirrored horizontally" : {
+
+    },
+    "Mirrored horizontally, rotated 270° clockwise" : {
+
+    },
+    "Mirrored horizontally, rotated 90° clockwise" : {
+
+    },
+    "Mirrored vertically" : {
+
+    },
+    "Model" : {
+      "comment" : "Camera model"
+    },
+    "Modified" : {
+      "comment" : "Date the file was last changed"
+    },
+    "Mosaic" : {
+      "comment" : "Montage layout: rows of photos of the same height"
+    },
+    "Multi-Page TIFF" : {
+      "comment" : "File format: a TIFF file with several pages"
+    },
+    "Multi-spot" : {
+
+    },
+    "Name" : {
+      "comment" : "Noun: a file name (info panel label, web gallery sort order)"
+    },
+    "Names that begin with a dot “.” are reserved for the system." : {
+
+    },
+    "No" : {
+      "comment" : "Info panel value"
+    },
+    "No flash function" : {
+      "comment" : "Camera flash"
+    },
     "None" : {
       "comment" : "Colour label: no label",
       "localizations" : {
@@ -261,6 +610,27 @@
         }
       }
     },
+    "None of the images could be read." : {
+
+    },
+    "Normal" : {
+      "comment" : "Image orientation: not rotated"
+    },
+    "Off, did not fire" : {
+      "comment" : "Camera flash"
+    },
+    "Off, fired" : {
+      "comment" : "Camera flash"
+    },
+    "On, did not fire" : {
+      "comment" : "Camera flash"
+    },
+    "On, fired" : {
+      "comment" : "Camera flash"
+    },
+    "One Above Another" : {
+      "comment" : "Image strip arrangement"
+    },
     "Orange" : {
       "comment" : "Colour label",
       "localizations" : {
@@ -325,6 +695,30 @@
           }
         }
       }
+    },
+    "Orientation" : {
+      "comment" : "Info panel: how the image is rotated or flipped"
+    },
+    "Original" : {
+      "comment" : "Date the photo was taken"
+    },
+    "Pages" : {
+      "comment" : "Info panel: number of pages in the file"
+    },
+    "Partial" : {
+      "comment" : "Camera metering mode"
+    },
+    "Playable" : {
+      "comment" : "Info panel: whether macOS can play the video"
+    },
+    "Portrait" : {
+      "comment" : "Picture shape: taller than wide"
+    },
+    "Profile" : {
+      "comment" : "Colour profile"
+    },
+    "Program" : {
+      "comment" : "Camera exposure program"
     },
     "Purple" : {
       "comment" : "Colour label",
@@ -456,6 +850,190 @@
         }
       }
     },
+    "Replace (Move Old to Trash)" : {
+      "comment" : "Conflict choice"
+    },
+    "Rotated 180°" : {
+      "comment" : "Image orientation"
+    },
+    "Rotated 270° clockwise" : {
+
+    },
+    "Rotated 90° clockwise" : {
+
+    },
+    "Same as Each Image" : {
+      "comment" : "PDF page size: each page the size of its image"
+    },
+    "Scattered" : {
+      "comment" : "Montage layout: prints tossed on a table"
+    },
+    "Serial number" : {
+
+    },
+    "Shutter priority" : {
+
+    },
+    "Shutter speed" : {
+
+    },
+    "Side by Side" : {
+      "comment" : "Image strip arrangement"
+    },
+    "Sidecar" : {
+      "comment" : "XMP sidecar file name"
+    },
+    "Size" : {
+      "comment" : "Noun: a file's size in bytes"
+    },
+    "Skip" : {
+      "comment" : "Conflict choice: don't write a file whose name is taken"
+    },
+    "Software" : {
+      "comment" : "Info panel: the app that made or last saved the file"
+    },
+    "Spot" : {
+      "comment" : "Camera metering mode"
+    },
+    "Square" : {
+      "comment" : "Picture shape"
+    },
+    "The TIFF file would be larger than 4 GB, the most a TIFF file can hold." : {
+
+    },
+    "The destination folder can’t be found." : {
+
+    },
+    "The file can’t be found." : {
+
+    },
+    "The file couldn’t be read." : {
+
+    },
+    "The file “%@” can’t be replaced by a folder." : {
+
+    },
+    "The first page must be 1 or more." : {
+
+    },
+    "The folder “%@” can’t be replaced by a file." : {
+
+    },
+    "The frame delay must be between 0.02 and 60 seconds." : {
+
+    },
+    "The frame size must be between 16 and %lld pixels." : {
+
+    },
+    "The frames are more than this Mac can hold while the file is made (frames: %lld, frame size: %lld × %lld pixels). Choose a smaller frame size or fewer images." : {
+      "comment" : "Error: an animation needs too much memory",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The frames are more than this Mac can hold while the file is made (frames: %1$lld, frame size: %2$lld × %3$lld pixels). Choose a smaller frame size or fewer images."
+          }
+        }
+      }
+    },
+    "The image couldn't be encoded as %@." : {
+      "comment" : "%@ is a format name such as JPEG"
+    },
+    "The image's pixels couldn't be converted for saving." : {
+
+    },
+    "The last page must not come before the first." : {
+
+    },
+    "The margin must be between 0 and 144 points." : {
+
+    },
+    "The metadata couldn’t be written (%@)." : {
+      "comment" : "%@ is a technical detail in English"
+    },
+    "The name can’t be empty." : {
+
+    },
+    "The name can’t contain control characters." : {
+
+    },
+    "The name can’t contain “/” or “:”." : {
+
+    },
+    "The name is too long." : {
+
+    },
+    "The name “%@” is already taken. Please choose a different name." : {
+
+    },
+    "The new %@ didn’t take, so the file was left as it was." : {
+      "comment" : "%@ is a metadata field in lower case, such as “title” or “keywords”"
+    },
+    "The number of loops must be between 0 and 65,535." : {
+
+    },
+    "The pages couldn’t be joined into one TIFF file." : {
+
+    },
+    "The sidecar “%@” isn’t readable XMP, so it was left as it was." : {
+      "comment" : "%@ is the file name of an XMP sidecar"
+    },
+    "The strip couldn’t be made." : {
+
+    },
+    "The strip couldn’t be made: not enough memory." : {
+
+    },
+    "The strip would be %lld × %lld pixels, more than this Mac can hold at once. Choose a smaller size." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The strip would be %1$lld × %2$lld pixels, more than this Mac can hold at once. Choose a smaller size."
+          }
+        }
+      }
+    },
+    "The strip would be %lld × %lld pixels; the most minivu makes is %lld on a side." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The strip would be %1$lld × %2$lld pixels; the most minivu makes is %3$lld on a side."
+          }
+        }
+      }
+    },
+    "This Mac can't write %@ files." : {
+      "comment" : "%@ is a format name such as JPEG"
+    },
+    "Title" : {
+      "comment" : "Image title (metadata)"
+    },
+    "Title Case" : {
+      "comment" : "Letter case choice: each word capitalised, written in that case"
+    },
+    "UPPERCASE" : {
+      "comment" : "Letter case choice, written in that case"
+    },
+    "US Letter" : {
+      "comment" : "Paper size"
+    },
+    "Unchanged" : {
+      "comment" : "Letter case choice: leave the name's letter case as it is"
+    },
+    "Unknown" : {
+      "comment" : "Image orientation"
+    },
+    "Video" : {
+      "comment" : "Noun: a video file (info panel section, file type in Find)"
+    },
+    "White balance" : {
+
+    },
+    "Width" : {
+      "comment" : "Noun: size in pixels"
+    },
     "Yellow" : {
       "comment" : "Colour label",
       "localizations" : {
@@ -520,6 +1098,201 @@
           }
         }
       }
+    },
+    "Yes" : {
+      "comment" : "Info panel value"
+    },
+    "export.compression.none" : {
+      "comment" : "TIFF compression: none",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "lowercase" : {
+      "comment" : "Letter case choice, written in that case"
+    },
+    "metadata.field.caption" : {
+      "comment" : "Metadata field, in a sentence",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "caption"
+          }
+        }
+      }
+    },
+    "metadata.field.copyright" : {
+      "comment" : "Metadata field, in a sentence",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "copyright"
+          }
+        }
+      }
+    },
+    "metadata.field.creator" : {
+      "comment" : "Metadata field, in a sentence",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "creator"
+          }
+        }
+      }
+    },
+    "metadata.field.date" : {
+      "comment" : "Metadata field, in a sentence",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "date taken"
+          }
+        }
+      }
+    },
+    "metadata.field.keywords" : {
+      "comment" : "Metadata field, in a sentence",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "keywords"
+          }
+        }
+      }
+    },
+    "metadata.field.label" : {
+      "comment" : "Metadata field, in a sentence: the colour label",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "label"
+          }
+        }
+      }
+    },
+    "metadata.field.location" : {
+      "comment" : "Metadata change, in a sentence: the GPS location was removed",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "location removal"
+          }
+        }
+      }
+    },
+    "metadata.field.rating" : {
+      "comment" : "Metadata field, in a sentence: star rating",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "rating"
+          }
+        }
+      }
+    },
+    "metadata.field.tag" : {
+      "comment" : "Metadata field, in a sentence: the image's tagged (picked) mark",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "tag"
+          }
+        }
+      }
+    },
+    "metadata.field.title" : {
+      "comment" : "Metadata field, in a sentence",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "title"
+          }
+        }
+      }
+    },
+    "metadata.program.landscape" : {
+      "comment" : "Camera exposure program: landscape mode",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Landscape"
+          }
+        }
+      }
+    },
+    "metadata.program.portrait" : {
+      "comment" : "Camera exposure program: portrait mode",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Portrait"
+          }
+        }
+      }
+    },
+    "minivu works only with folders on this Mac’s internal storage." : {
+
+    },
+    "search.type.other" : {
+      "comment" : "File type group: every other type",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Other"
+          }
+        }
+      }
+    },
+    "untitled folder" : {
+      "comment" : "Name of a new folder, as Finder names it"
+    },
+    "“%@” can’t be copied into itself." : {
+
+    },
+    "“%@” can’t be found." : {
+
+    },
+    "“%@” can’t be moved into itself." : {
+
+    },
+    "“%@” can’t replace the folder it’s in." : {
+
+    },
+    "“%@” couldn’t be replaced, and the old file is in the Trash." : {
+
     }
   },
   "version" : "1.0"

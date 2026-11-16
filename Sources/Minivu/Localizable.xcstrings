@@ -4,43 +4,210 @@
     "" : {
       "shouldTranslate" : false
     },
+    " — limit reached, not every image is shown" : {
+      "comment" : "Appended to the status bar text: keep the leading space and dash"
+    },
     "%" : {
       "shouldTranslate" : false
     },
-    "%@  %@" : {
+    "%@ %@" : {
+      "comment" : "Two sentences, one after the other",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@  %2$@"
-          }
-        }
-      },
-      "shouldTranslate" : false
-    },
-    "%@ Pictures are written in sRGB; HDR photos are shown as on a standard display." : {
-
-    },
-    "%@ colors" : {
-
-    },
-    "%@ of %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ %2$@"
           }
         }
       }
     },
+    "%@ (coming soon)" : {
+      "comment" : "Tooltip: %@ is a tool not available yet"
+    },
+    "%@ (stored in %lld segments)" : {
+      "comment" : "Length of a long JPEG comment; %1$@ is a byte count such as “70,000 bytes”, %2$lld the number of JPEG COM segments",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@ (stored in %lld segment)"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@ (stored in %lld segments)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%@ Contact Sheet" : {
+      "comment" : "Suggested file name: a folder's name or the header, then Contact Sheet"
+    },
+    "%@ Edits" : {
+      "comment" : "Suggested preset name: a photo's name, then Edits"
+    },
+    "%@ Pictures are written in sRGB; HDR photos are shown as on a standard display." : {
+
+    },
+    "%@ Slideshow" : {
+      "comment" : "Suggested video file name: the pictures' folder, then Slideshow"
+    },
+    "%@ Strip" : {
+      "comment" : "Suggested file name: the first picture's name, then Strip"
+    },
+    "%@ The ratings are kept in minivu all the same. Later failures in this session aren’t reported." : {
+      "comment" : "Alert detail; %@ is the reason the first write failed, a sentence"
+    },
+    "%@ and %@" : {
+      "comment" : "A list: names separated by commas, and the last name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ and %2$@"
+          }
+        }
+      }
+    },
+    "%@ aren’t among the images being converted, but converted files would take their names." : {
+      "comment" : "%@ is a list of file names in quotation marks"
+    },
+    "%@ at quality %lld" : {
+      "comment" : "%1$@ is a file format such as JPEG, %2$lld a quality from 1 to 100",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ at quality %2$lld"
+          }
+        }
+      }
+    },
+    "%@ by %@" : {
+      "comment" : "VoiceOver: width by height in pixels",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ by %2$@"
+          }
+        }
+      }
+    },
+    "%@ couldn’t open the images." : {
+      "comment" : "%@ is an application's name"
+    },
+    "%@ frame %@" : {
+      "comment" : "File name for a still from a video; %1$@ is the video's name, %2$@ the time, such as 0.12",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ frame %2$@"
+          }
+        }
+      }
+    },
+    "%@ holds one picture, so each page of a PDF, multi-page TIFF or animation becomes a file of its own, numbered." : {
+      "comment" : "%@ is a format such as JPEG"
+    },
+    "%@ in memory" : {
+      "comment" : "%@ is a size such as “48 MB”"
+    },
+    "%@ isn’t one of the images being converted, but a converted file would take its name." : {
+      "comment" : "%@ is a file name in quotation marks"
+    },
+    "%@ opens the file as it was last saved, without the edits made here." : {
+      "comment" : "%@ is an application's name"
+    },
     "%@ or More" : {
       "comment" : "Rating filter: images with at least these stars (★ characters)"
     },
-    "%@ pages" : {
-
+    "%@ quality %lld" : {
+      "comment" : "%1$@ is a file format such as JPEG, %2$lld a quality from 1 to 100",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ quality %2$lld"
+          }
+        }
+      }
+    },
+    "%@ s" : {
+      "comment" : "A number of seconds with one decimal, abbreviated"
+    },
+    "%@ seconds" : {
+      "comment" : "A number of seconds with one decimal, such as 0.5"
+    },
+    "%@ times" : {
+      "comment" : "VoiceOver value: magnification; %@ is a number such as 2.5"
+    },
+    "%@ × %@ pixels" : {
+      "comment" : "Width × height",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ × %2$@ pixels"
+          }
+        }
+      }
+    },
+    "%@ × %@ px" : {
+      "comment" : "Width × height in pixels",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ × %2$@ px"
+          }
+        }
+      }
+    },
+    "%@ — searching…" : {
+      "comment" : "Status bar: the counts so far, while a search runs"
+    },
+    "%@, across" : {
+      "comment" : "VoiceOver: %@ is a corner, such as Top left; across is its x position"
+    },
+    "%@, captions: %@" : {
+      "comment" : "Slideshow video: the order (In order, Shuffled), then the captions",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, captions: %2$@"
+          }
+        }
+      }
+    },
+    "%@, collection" : {
+      "comment" : "VoiceOver: a sidebar row"
+    },
+    "%@, down" : {
+      "comment" : "VoiceOver: %@ is a corner, such as Top left; down is its y position"
+    },
+    "%@, in %@" : {
+      "comment" : "VoiceOver: a file name, then the folder it is in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, in %2$@"
+          }
+        }
+      }
     },
     "%@, left out: %@" : {
+      "comment" : "VoiceOver: an edit, then why it can't be part of the preset",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -51,12 +218,33 @@
       }
     },
     "%@, maximum" : {
-
+      "comment" : "VoiceOver: the highest value of the field named"
     },
     "%@, minimum" : {
-
+      "comment" : "VoiceOver: the lowest value of the field named"
+    },
+    "%@, page %lld: %@" : {
+      "comment" : "A file name, a page number, then what went wrong with that page",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, page %2$lld: %3$@"
+          }
+        }
+      }
+    },
+    "%@, smart folder" : {
+      "comment" : "VoiceOver: a sidebar row"
+    },
+    "%@, with subfolders" : {
+      "comment" : "Window subtitle in the flat view: the counts, then this note"
+    },
+    "%@. Fields that differ show as mixed; only fields you change are written." : {
+      "comment" : "Metadata editor header; %@ is a number of images, such as “12 images”"
     },
     "%@: %@" : {
+      "comment" : "A file name, then what went wrong with it",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -69,45 +257,1076 @@
     "%lld" : {
       "shouldTranslate" : false
     },
-    "%lld bits per channel" : {
-
-    },
-    "%lld fps" : {
-
-    },
-    "%lld percent" : {
-
-    },
-    "%lld points" : {
-
-    },
-    "%lld pt" : {
-
-    },
-    "%lld seconds" : {
-
-    },
-    "%lld%%" : {
-
-    },
-    "%lld: %@%@" : {
+    "%lld Pictures" : {
+      "comment" : "Print job title",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld: %2$@%3$@"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Picture"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Pictures"
+                }
+              }
+            }
           }
         }
       }
     },
-    "1 color" : {
+    "%lld bits per channel" : {
 
     },
-    "1 page" : {
+    "%lld bytes" : {
+      "comment" : "Length of a JPEG comment",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld byte"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld bytes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld colors" : {
+      "comment" : "Histogram: the number of unique colours in the image",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld color"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld colors"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files can’t be flipped without re-encoding (%@)." : {
+      "comment" : "%@ lists file types",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file can’t be flipped without re-encoding (%@)."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files can’t be flipped without re-encoding (%@)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files can’t be found any more." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file can’t be found any more."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files can’t be found any more."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files can’t be rotated without re-encoding (%@)." : {
+      "comment" : "%@ lists file types",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file can’t be rotated without re-encoding (%@)."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files can’t be rotated without re-encoding (%@)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files can’t have the new name: %@" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file can’t have the new name: %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files can’t have the new name: %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files converted." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file converted."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files converted."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files couldn’t be converted." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file couldn’t be converted."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files couldn’t be converted."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files couldn’t be flipped: %@" : {
+      "comment" : "%@ is the first file's reason",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file couldn’t be flipped: %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files couldn’t be flipped: %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files couldn’t be renamed." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file couldn’t be renamed."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files couldn’t be renamed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files couldn’t be rotated: %@" : {
+      "comment" : "%@ is the first file's reason",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file couldn’t be rotated: %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files couldn’t be rotated: %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files couldn’t be updated." : {
+      "comment" : "Alert title after editing metadata",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file couldn’t be updated."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files couldn’t be updated."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files updated." : {
+      "comment" : "Alert detail after editing metadata",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file updated."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files updated."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files were flipped." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file was flipped."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files were flipped."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files were rotated." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file was rotated."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files were rotated."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files were skipped." : {
+      "comment" : "Alert title after editing metadata",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file was skipped."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files were skipped."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files will be renamed." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file will be renamed."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files will be renamed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files would share a name with another file. Every file needs a name of its own." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file would share a name with another file. Every file needs a name of its own."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files would share a name with another file. Every file needs a name of its own."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld files would take the name of an item that isn’t being renamed." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file would take the name of an item that isn’t being renamed."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files would take the name of an item that isn’t being renamed."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld folders" : {
+      "comment" : "Status bar and window subtitle",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld folder"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld folders"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld fps" : {
 
+    },
+    "%lld frames" : {
+      "comment" : "Frames of an animation",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frame"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld frames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld groups, similarity %@" : {
+      "comment" : "VoiceOver: how many groups of duplicates, then the similarity threshold, such as 0.35",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld group, similarity %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld groups, similarity %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld identical files, %@ each" : {
+      "comment" : "A group of duplicates: how many, then the size of each, such as 2.4 MB",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld identical file, %@ each"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld identical files, %@ each"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld images" : {
+      "comment" : "A number of images",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld image"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld images"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld images were left out." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld image was left out."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld images were left out."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld items couldn’t be copied." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item couldn’t be copied."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items couldn’t be copied."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld items couldn’t be moved." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item couldn’t be moved."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items couldn’t be moved."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld items selected" : {
+      "comment" : "Preview pane",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item selected"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items selected"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld marked, %@" : {
+      "comment" : "How many files are marked for the Trash, then their total size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld marked, %2$@"
+          }
+        }
+      }
+    },
+    "%lld more" : {
+      "comment" : "End of a list of file names: how many more files"
+    },
+    "%lld of %lld" : {
+      "comment" : "A number out of a total",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld files will be renamed; the others keep their names." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld files will be renamed; the others keep their names."
+          }
+        }
+      }
+    },
+    "%lld of %lld selected" : {
+      "comment" : "Status bar",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld selected"
+          }
+        }
+      }
+    },
+    "%lld of %lld selected — %@" : {
+      "comment" : "Status bar; %@ is the selected files' total size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld selected — %3$@"
+          }
+        }
+      }
+    },
+    "%lld of %lld shown" : {
+      "comment" : "Status bar while a filter hides some images",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld shown"
+          }
+        }
+      }
+    },
+    "%lld of %lld: %@" : {
+      "comment" : "Batch progress: the file being converted, of how many, then its name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld: %3$@"
+          }
+        }
+      }
+    },
+    "%lld of them can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside each." : {
+      "comment" : "Metadata editor header, after the number of images being edited",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of them can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside it."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of them can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside each."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld of these images have a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else." : {
+      "comment" : "Metadata editor, Location section",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of these images has a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld of these images have a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld original files were left out of the gallery." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld original file was left out of the gallery."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld original files were left out of the gallery."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pages" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld page"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pages"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pages were left out." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld page was left out."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pages were left out."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld percent" : {
+
+    },
+    "%lld pictures" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld picture"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pictures"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pictures were left out of the gallery." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld picture was left out of the gallery."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pictures were left out of the gallery."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pictures · %@ · %@ × %@" : {
+      "comment" : "Slideshow video: number of pictures, length (1:05), then width × height in pixels",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld picture · %@ · %@ × %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pictures · %@ · %@ × %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld points" : {
+      "comment" : "VoiceOver value: a size in typographic points",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld point"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld points"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld pt" : {
+      "comment" : "A size in typographic points, abbreviated"
+    },
+    "%lld s" : {
+      "comment" : "A number of seconds, abbreviated"
+    },
+    "%lld seconds" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld second"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld seconds"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld similar images" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld similar image"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld similar images"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld stars" : {
+      "comment" : "VoiceOver, in a thumbnail's description: its star rating",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld star"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld stars"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld videos" : {
+      "comment" : "Status bar and window subtitle",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld video"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld videos"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+      "comment" : "A percentage"
+    },
+    "%lld: %@" : {
+      "comment" : "VoiceOver: position, then file name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld: %2$@"
+          }
+        }
+      }
+    },
+    "%lld: %@, %@" : {
+      "comment" : "VoiceOver: position, file name, then its number of pages",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld: %2$@, %3$@"
+          }
+        }
+      }
     },
     "180°" : {
       "shouldTranslate" : false
+    },
+    "4K Display" : {
+      "comment" : "Contact sheet page size: the size of a 4K screen"
     },
     "90° Left" : {
 
@@ -118,8 +1337,54 @@
     "A canvas smaller than the image crops it about the anchor." : {
 
     },
-    "A collage of %@ at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture." : {
+    "A collage of %lld photos at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture." : {
+      "comment" : "“minivu Wallpapers” is the folder's name on disk: keep it in English",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "A collage of %lld photo at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "A collage of %lld photos at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A folder can’t be put inside itself." : {
 
+    },
+    "A folder limit was reached: not every image was compared." : {
+
+    },
+    "A montage uses at most %lld photos: the first %lld of the %lld selected." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A montage uses at most %1$lld photos: the first %2$lld of the %3$lld selected."
+          }
+        }
+      }
+    },
+    "A montage uses at most %lld photos: the first %lld of the %lld shown." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "A montage uses at most %1$lld photos: the first %2$lld of the %3$lld shown."
+          }
+        }
+      }
     },
     "A name no other preset has." : {
 
@@ -127,28 +1392,52 @@
     "A range" : {
 
     },
+    "A4 at 300 dpi" : {
+      "comment" : "Contact sheet page size"
+    },
     "AVIF" : {
       "shouldTranslate" : false
     },
+    "AVIF shows in current Safari, Chrome, Firefox and Edge." : {
+
+    },
+    "About %@" : {
+      "comment" : "Estimated file size; %@ is a size such as “2.4 MB”"
+    },
     "About minivu" : {
+
+    },
+    "Across and down, as percentages of the image. Drag the corners on the canvas onto the corners of something that should be rectangular." : {
 
     },
     "Actual Size" : {
       "comment" : "Zoom: show the image at 100%"
     },
-    "Add %@" : {
+    "Actual Size (/)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Actual size" : {
 
     },
+    "Add" : {
+      "comment" : "Open panel button: adds the chosen items"
+    },
+    "Add %@" : {
+      "comment" : "Tooltip: add the app named as an external editor"
+    },
     "Add %@ to every image" : {
-
+      "comment" : "VoiceOver; %@ is a keyword"
+    },
+    "Add Folder" : {
+      "comment" : "Button under the sidebar: adds a folder to Favorites"
     },
     "Add Folder to Sidebar…" : {
 
     },
-    "Add Keywords" : {
+    "Add Watermark" : {
 
     },
-    "Add Watermark" : {
+    "Add a folder to the sidebar" : {
 
     },
     "Add keywords" : {
@@ -167,16 +1456,16 @@
 
     },
     "Add…" : {
-
+      "comment" : "Button: adds a watermark"
     },
     "Adjust" : {
       "comment" : "Submenu of colour and tone adjustments"
     },
     "After" : {
-
+      "comment" : "Table column: the name after renaming"
     },
     "Aligned" : {
-
+      "comment" : "Clone stamp option: the source moves with the brush"
     },
     "Alignment" : {
 
@@ -187,6 +1476,9 @@
     "All Files" : {
       "comment" : "File type filter"
     },
+    "All of these images have a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else." : {
+
+    },
     "All of these, comma separated" : {
 
     },
@@ -196,11 +1488,34 @@
     "Amount" : {
 
     },
-    "Anchor" : {
+    "An item named “%@” already exists in this location." : {
 
     },
-    "Any" : {
+    "An item named “%@” already exists." : {
 
+    },
+    "Analysing images… %lld of %lld" : {
+      "comment" : "Progress: images analysed so far, of how many",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Analysing images… %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Anchor" : {
+      "comment" : "Noun: where the image sits in the new canvas"
+    },
+    "Angle" : {
+
+    },
+    "Another display" : {
+      "comment" : "Choice of where the full-screen viewer opens"
+    },
+    "Any" : {
+      "comment" : "No restriction (rating, shape and similar filters)"
     },
     "Any camera" : {
 
@@ -211,14 +1526,23 @@
     "Any name" : {
 
     },
+    "Aperture (f/)" : {
+      "comment" : "Search field: the lens aperture, as an f-number"
+    },
     "Apply" : {
+      "comment" : "Verb: button that applies the edit"
+    },
+    "Apply to All" : {
 
     },
     "Arrange" : {
-
+      "comment" : "Verb: how the pictures are laid out"
     },
     "Arrowheads" : {
 
+    },
+    "Arrows, ⇧ for more" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Ascending" : {
       "comment" : "Sort direction"
@@ -227,18 +1551,30 @@
 
     },
     "Aspect" : {
+      "comment" : "Noun: aspect ratio"
+    },
+    "At 0% color the relief shows alone, in gray." : {
 
     },
     "At least" : {
-
+      "comment" : "Before the minimum width and height fields"
     },
     "Auto" : {
-
+      "comment" : "Button: detect the corners automatically"
+    },
+    "Auto (one page)" : {
+      "comment" : "Contact sheet rows: as many as fit one page"
     },
     "Auto Detect" : {
 
     },
     "Auto Enhance" : {
+
+    },
+    "Auto looks for the most prominent rectangle: a document, a screen, a window or a building’s face." : {
+
+    },
+    "Auto-Rotate" : {
 
     },
     "BMP" : {
@@ -250,8 +1586,14 @@
     "Back to Tools" : {
 
     },
-    "Background" : {
+    "Back to the browser" : {
 
+    },
+    "Back/Forward" : {
+      "comment" : "Toolbar item: the Back and Forward buttons"
+    },
+    "Background" : {
+      "comment" : "Noun: background colour"
     },
     "Background color" : {
 
@@ -272,28 +1614,49 @@
 
     },
     "Before" : {
-
+      "comment" : "Table column: the name before renaming"
     },
     "Beside the originals" : {
 
     },
     "Best" : {
-
+      "comment" : "Highest quality end of a slider"
+    },
+    "Black" : {
+      "comment" : "Viewer background colour"
     },
     "Blue" : {
+
+    },
+    "Blur" : {
 
     },
     "Blur…" : {
 
     },
-    "Border" : {
+    "Boost" : {
+      "comment" : "RAW: how much of the camera's contrast curve is applied"
+    },
+    "Boost is how much of the RAW engine’s contrast curve is applied; lower is flatter." : {
 
     },
+    "Border" : {
+      "comment" : "Noun: colour of the outline around text"
+    },
     "Both" : {
+      "comment" : "Arrowheads at both ends of the line"
+    },
+    "Bottom left" : {
+
+    },
+    "Bottom right" : {
 
     },
     "Bright" : {
       "comment" : "Theme"
+    },
+    "Brightness" : {
+
     },
     "Bring All to Front" : {
 
@@ -301,11 +1664,26 @@
     "Bring to Front" : {
 
     },
+    "Browser" : {
+      "comment" : "The window with the folder list and the thumbnail grid"
+    },
+    "Brush size" : {
+
+    },
+    "Brush size is in pixels of the full image; zoom to 100% to judge it. Fewer levels paint flatter patches." : {
+
+    },
+    "Bump Map" : {
+
+    },
     "Bump Map…" : {
       "comment" : "Effect: embossed relief"
     },
     "Camera" : {
-
+      "comment" : "Noun: the camera that took the photo"
+    },
+    "Camera and exposure" : {
+      "comment" : "Slideshow captions"
     },
     "Camera model" : {
 
@@ -313,8 +1691,11 @@
     "Cancel" : {
 
     },
-    "Canvas" : {
+    "Canceling…" : {
 
+    },
+    "Canvas" : {
+      "comment" : "Noun: section heading for the area around the photo in the drop shadow effect"
     },
     "Canvas Size" : {
 
@@ -322,23 +1703,35 @@
     "Canvas Size…" : {
       "comment" : "The size of the canvas around the image"
     },
+    "Caption" : {
+      "comment" : "Metadata field: the image's description"
+    },
     "Captions" : {
-
+      "comment" : "Noun: text under each picture"
     },
     "Capture" : {
       "comment" : "Noun: submenu of screen captures"
     },
-    "Center" : {
+    "Capture Selection: capture or cancel" : {
 
     },
+    "Center" : {
+      "comment" : "Text alignment"
+    },
     "Change" : {
-
+      "comment" : "Noun: label of a choice of how to change the date taken"
     },
     "Channel" : {
 
     },
     "Channels" : {
 
+    },
+    "Checking names…" : {
+
+    },
+    "Choose" : {
+      "comment" : "Open panel button: confirms the chosen item"
     },
     "Choose Another…" : {
 
@@ -352,14 +1745,87 @@
     "Choose a Topic" : {
 
     },
+    "Choose a folder for the %lld pages of “%@”." : {
+      "comment" : "The number of pages, then the contact sheet's name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Choose a folder for the %1$lld pages of “%2$@”."
+          }
+        }
+      }
+    },
+    "Choose a folder to copy %lld items to." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder to copy %lld item to."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder to copy %lld items to."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Choose a folder to move %lld items to." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder to move %lld item to."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Choose a folder to move %lld items to."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Choose a pane" : {
+
+    },
+    "Choose a picture to use as the watermark." : {
+
+    },
+    "Choose applications to open images in." : {
+
+    },
+    "Choose songs, or folders of songs, to play during slideshows." : {
+
+    },
+    "Choose the folder for the converted images." : {
+
+    },
     "Choose where to look and what to find, then click Find." : {
 
+    },
+    "Choose where to put the folder “%@”." : {
+      "comment" : "%@ is a folder name"
     },
     "Choose…" : {
 
     },
     "Clear" : {
-
+      "comment" : "TEST manual comment"
     },
     "Clear Marks" : {
 
@@ -370,22 +1836,64 @@
     "Clear Thumbnail Cache" : {
 
     },
+    "Click" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Click an object to select it. Double-click text to edit it." : {
+
+    },
+    "Click or drag to add text." : {
+
+    },
     "Click the preview to play it" : {
+
+    },
+    "Click to add a point. Drag a point off the grid or double-click it to remove it." : {
+
+    },
+    "Click to play" : {
+
+    },
+    "Clone Stamp" : {
+
+    },
+    "Clone Stamp, Healing Brush: brush size" : {
+
+    },
+    "Clone Stamp, Healing Brush: set the source" : {
 
     },
     "Clone Stamp…" : {
 
     },
+    "Close" : {
+      "comment" : "Verb: close the window (keyboard shortcuts page)"
+    },
     "Close Window" : {
 
     },
     "Codec" : {
-
+      "comment" : "Noun: video compression format"
+    },
+    "Collections" : {
+      "comment" : "Sidebar section header"
     },
     "Color" : {
+      "comment" : "Noun"
+    },
+    "Color Effects" : {
+
+    },
+    "Color Noise" : {
+
+    },
+    "Color and RGB changes apply as separate steps." : {
 
     },
     "Color profile" : {
+
+    },
+    "Colors" : {
 
     },
     "Colors…" : {
@@ -398,7 +1906,13 @@
 
     },
     "Compare" : {
-
+      "comment" : "Verb: open the selected images side by side"
+    },
+    "Compare 2 to 4 selected images (⌥⌘K)" : {
+      "comment" : "Tooltip; keep the shortcut"
+    },
+    "Compare Quality" : {
+      "comment" : "Window title: the original beside the image as it will be saved"
     },
     "Compare Selected" : {
       "comment" : "Show the selected images side by side"
@@ -407,6 +1921,20 @@
 
     },
     "Compare…" : {
+
+    },
+    "Comparing files of the same size… %lld of %lld" : {
+      "comment" : "Progress: files compared so far, of how many",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Comparing files of the same size… %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Comparing images with each other…" : {
 
     },
     "Compression" : {
@@ -418,17 +1946,89 @@
     "Contact Sheet…" : {
 
     },
-    "Convert" : {
+    "Contrast" : {
 
+    },
+    "Convert" : {
+      "comment" : "Button: converts the images"
+    },
+    "Convert %lld Images" : {
+      "comment" : "Batch Convert sheet title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Convert %lld Image"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Convert %lld Images"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Convert Images" : {
 
+    },
+    "Converting %lld Images to %@" : {
+      "comment" : "Progress sheet title: how many images, then a format such as HEIC",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Converting %lld Image to %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Converting %lld Images to %@"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Converts images to another format with minivu, optionally making them smaller and leaving out where they were taken. The originals are not changed; the converted images are passed on." : {
 
     },
     "Copy" : {
       "comment" : "Verb: copy to the clipboard"
+    },
+    "Copy %lld Items" : {
+      "comment" : "Undo action name: files copied to another folder",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Copy %lld Item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Copy %lld Items"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Copy Frame" : {
       "comment" : "Copy the video frame on screen as a picture"
@@ -442,8 +2042,40 @@
     "Copy To" : {
       "comment" : "Verb: copy the selected files to a folder chosen in the submenu"
     },
-    "Corners" : {
+    "Copy the files you drop" : {
 
+    },
+    "Copying %lld items to “%@”" : {
+      "comment" : "Progress sheet title; %@ is the folder",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Copying %lld item to “%@”"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Copying %lld items to “%@”"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Copyright" : {
+      "comment" : "Metadata field: the copyright notice"
+    },
+    "Corner radius" : {
+
+    },
+    "Corners" : {
+      "comment" : "Noun: section heading for the four perspective corners"
     },
     "Couldn’t count colors" : {
 
@@ -452,16 +2084,19 @@
 
     },
     "Count" : {
-
+      "comment" : "Verb: button that counts the image's colours"
     },
     "Count Colors" : {
 
     },
     "Counter" : {
-
+      "comment" : "Rename token: a number that counts up"
     },
     "Counter Starts At" : {
 
+    },
+    "Counter, 3 Digits" : {
+      "comment" : "Rename token"
     },
     "Counting colors…" : {
 
@@ -469,7 +2104,39 @@
     "Counting reads every pixel at full size, which needs more memory than this image leaves" : {
 
     },
+    "Create" : {
+      "comment" : "Verb: button that creates the collection"
+    },
+    "Create Gallery" : {
+
+    },
+    "Create Multi-Page File from %lld Images" : {
+      "comment" : "Sheet title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Create Multi-Page File from %lld Image"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Create Multi-Page File from %lld Images"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Create Multi-Page File…" : {
+
+    },
+    "Create Web Gallery" : {
 
     },
     "Create Web Gallery…" : {
@@ -477,6 +2144,12 @@
     },
     "Create…" : {
 
+    },
+    "Creator" : {
+      "comment" : "Metadata field: who made the image"
+    },
+    "Crop" : {
+      "comment" : "Verb: crop the image"
     },
     "Crop…" : {
       "comment" : "Verb: crop the image"
@@ -487,20 +2160,29 @@
     "Curve for %@" : {
 
     },
+    "Curves" : {
+
+    },
     "Curves…" : {
 
+    },
+    "Custom" : {
+      "comment" : "Contact sheet page size: width and height typed in"
     },
     "Custom Order" : {
       "comment" : "Sort key"
     },
     "Cut" : {
-
+      "comment" : "Verb: Edit menu command"
     },
     "Dark" : {
       "comment" : "Theme"
     },
+    "Dark gray" : {
+      "comment" : "Viewer background colour"
+    },
     "Dashed" : {
-
+      "comment" : "Line style"
     },
     "Date Created" : {
       "comment" : "Sort key"
@@ -509,7 +2191,10 @@
       "comment" : "Sort key"
     },
     "Date Taken" : {
-
+      "comment" : "Rename token"
+    },
+    "Date and Time Taken" : {
+      "comment" : "Rename token"
     },
     "Date and time" : {
 
@@ -517,41 +2202,71 @@
     "Date taken" : {
 
     },
+    "Days" : {
+      "comment" : "VoiceOver: field for a number of days"
+    },
     "Delete" : {
+      "comment" : "Verb: button that deletes the collection or smart folder"
+    },
+    "Delete %@" : {
+      "comment" : "Undo step: %@ is the kind of object, such as Arrow"
+    },
+    "Delete Collection…" : {
 
     },
     "Delete Preset…" : {
 
     },
+    "Delete Smart Folder…" : {
+
+    },
     "Delete the preset “%@”?" : {
 
+    },
+    "Delete “%@”?" : {
+      "comment" : "%@ is a collection or smart folder"
     },
     "Descending" : {
       "comment" : "Sort direction"
     },
     "Description" : {
-
+      "comment" : "Noun: the image's caption"
     },
     "Destination" : {
-
+      "comment" : "Noun: folder the files are written to"
     },
     "Direction" : {
-
+      "comment" : "Noun: whether dates move earlier or later"
     },
     "Display" : {
-
+      "comment" : "Noun: the screen the montage is made for"
     },
     "Display HDR photos in HDR" : {
 
     },
+    "Do you want to replace it with the one you’re copying?" : {
+
+    },
+    "Do you want to replace it with the one you’re moving?" : {
+
+    },
+    "Do you want to revert “%@” to the saved version?" : {
+      "comment" : "%@ is a file name"
+    },
+    "Do you want to save the changes made to “%@”?" : {
+      "comment" : "%@ is a file name"
+    },
     "Done" : {
+      "comment" : "Button: leave the tool"
+    },
+    "Don’t Save" : {
 
     },
     "Don’t add %@" : {
-
+      "comment" : "VoiceOver; %@ is a keyword"
     },
     "Don’t add %@ to every image" : {
-
+      "comment" : "VoiceOver; %@ is a keyword"
     },
     "Don’t add it to the other images" : {
 
@@ -559,20 +2274,69 @@
     "Don’t add this keyword" : {
 
     },
+    "Don’t ask again" : {
+
+    },
     "Don’t enlarge smaller images" : {
 
     },
     "Dotted" : {
-
+      "comment" : "Line style"
     },
     "Double-click to reset" : {
+
+    },
+    "Drag" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Drag each corner onto a corner of something that should be rectangular, or set them in the tools panel." : {
+
+    },
+    "Drag inside the circle to move the lens, or its edge to resize it. Below 1× the lens pinches." : {
+
+    },
+    "Drag the handles or draw a new rectangle. Return crops." : {
 
     },
     "Drag to change the order." : {
 
     },
+    "Drag to draw a callout, then drag its yellow handle to point." : {
+
+    },
+    "Drag to draw. Shift keeps it to 45°." : {
+
+    },
+    "Drag to draw. Shift makes a circle." : {
+
+    },
+    "Drag to draw. Shift makes a square." : {
+
+    },
+    "Draw" : {
+      "comment" : "Heading of the drawing tools"
+    },
+    "Drawing montage %lld of %lld…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Drawing montage %1$lld of %2$lld…"
+          }
+        }
+      }
+    },
+    "Drawing montage…" : {
+
+    },
+    "Drop Shadow" : {
+
+    },
     "Drop Shadow…" : {
 
+    },
+    "Duplicate %@" : {
+      "comment" : "Undo step: %@ is the kind of object, such as Arrow"
     },
     "Duplicate (⌘D)" : {
 
@@ -580,14 +2344,54 @@
     "Duplicate groups" : {
 
     },
+    "Duplicates" : {
+      "comment" : "Title of a list of duplicate files"
+    },
     "Duration" : {
-
+      "comment" : "Noun: length of time"
+    },
+    "Each image opens in %@ on its own." : {
+      "comment" : "%@ is an application's name"
     },
     "Each image’s own date taken moves by the same amount." : {
 
     },
-    "Earlier" : {
+    "Each page keeps its size and colour profile. Metadata isn’t carried over, and HDR photos come out SDR." : {
 
+    },
+    "Each page of a PDF or multi-page TIFF, or each frame of an animation, is written as a file of its own. Files with one page are skipped." : {
+
+    },
+    "Each picture is fitted into its cell, centred. Cells take the pictures’ middle shape." : {
+
+    },
+    "Each slide for %lld s, %@ transitions of %@ s" : {
+      "comment" : "Slideshow video: seconds per slide, a transition such as Push, then its length in seconds",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Each slide for %1$lld s, %2$@ transitions of %3$@ s"
+          }
+        }
+      }
+    },
+    "Each slide for %lld s, Random transitions of %@ s" : {
+      "comment" : "Slideshow video: seconds per slide, then the transitions' length in seconds",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Each slide for %1$lld s, Random transitions of %2$@ s"
+          }
+        }
+      }
+    },
+    "Each turn or flip is one step to undo." : {
+
+    },
+    "Earlier" : {
+      "comment" : "Shift the dates earlier in time"
     },
     "Edit" : {
       "comment" : "Menu bar menu"
@@ -604,22 +2408,61 @@
     "Edit Metadata…" : {
 
     },
+    "Edit Search…" : {
+
+    },
     "Edit Watermark" : {
 
     },
+    "Edited" : {
+      "comment" : "HUD: the image has unsaved edits"
+    },
+    "Edited  ·  Undo %@" : {
+      "comment" : "HUD: the image has unsaved edits; %@ names the last one, such as Crop"
+    },
+    "Editing" : {
+      "comment" : "Help page about editing images"
+    },
+    "Editing Tools" : {
+
+    },
+    "Editors" : {
+      "comment" : "Settings pane: external apps that edit images"
+    },
     "Edits" : {
+      "comment" : "Noun: section heading for the edits Batch Convert applies"
+    },
+    "Edits are applied to every image first, then the size and orientation below. The watermark is stamped last, at the converted size." : {
 
     },
     "Edit…" : {
-
+      "comment" : "Button: edits the watermark"
     },
     "Effects" : {
       "comment" : "Submenu of image effects"
+    },
+    "Effects & Retouching" : {
+      "comment" : "Help page"
+    },
+    "Effects apply to the whole image at once." : {
+
+    },
+    "Elevation" : {
+      "comment" : "Angle of the light above the image"
+    },
+    "Embedded preview (faster)" : {
+      "comment" : "Choice of how RAW files are shown: the JPEG preview the camera stored"
     },
     "Enclosing Folder" : {
       "comment" : "Go to the folder that holds this one"
     },
     "End" : {
+      "comment" : "Arrowheads at the end of the line (also the End key)"
+    },
+    "End Slideshow (Esc)" : {
+      "comment" : "Slideshow button tooltip; keep the key in parentheses at the end, after a space"
+    },
+    "End the show" : {
 
     },
     "Enlarge Smaller Images" : {
@@ -637,29 +2480,114 @@
     "Estimated size" : {
 
     },
+    "Estimating…" : {
+      "comment" : "Estimated file size: being worked out"
+    },
+    "Every frame is fitted into one size, centred. Animated HEIC files play once, and the last frame shows as long as the one before it. HDR photos come out SDR." : {
+
+    },
+    "Every frame is fitted into one size, centred. Frames of animations keep their own timing." : {
+
+    },
     "Every page" : {
 
     },
     "Every page of a PDF or multi-page TIFF, and every frame of an animation, goes in, not only the first." : {
 
     },
+    "Every picture is scaled to the same height." : {
+
+    },
+    "Every picture is scaled to the same width." : {
+
+    },
+    "Exit Full Screen" : {
+
+    },
+    "Export Slideshow Video" : {
+
+    },
     "Export Slideshow Video…" : {
 
+    },
+    "Exporting “%@”…" : {
+      "comment" : "%@ is a file name"
     },
     "Export…" : {
 
     },
-    "Extension" : {
+    "Exposure" : {
+      "comment" : "Noun: image brightness adjustment"
+    },
+    "Extend the selection" : {
 
     },
+    "Extension" : {
+      "comment" : "Noun: file name extension"
+    },
     "Extract" : {
-
+      "comment" : "Button: extracts the pages"
+    },
+    "Extract Pages from %lld Files" : {
+      "comment" : "Sheet title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Extract Pages from %lld File"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Extract Pages from %lld Files"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Extract Pages…" : {
 
     },
+    "Extracting Pages from %lld Files as %@" : {
+      "comment" : "Progress sheet title: how many files, then a format such as PNG",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Extracting Pages from %lld File as %@"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Extracting Pages from %lld Files as %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Eye %lld" : {
+      "comment" : "Red-eye removal: the circle on one eye, numbered"
+    },
     "Eyes" : {
-
+      "comment" : "Noun: section heading for the detected eyes"
+    },
+    "Favorites" : {
+      "comment" : "Sidebar section header, as in Finder's sidebar"
+    },
+    "Feather" : {
+      "comment" : "Noun: how soft the vignette's edge is"
     },
     "File" : {
       "comment" : "Menu bar menu"
@@ -668,28 +2596,49 @@
 
     },
     "File name" : {
-
+      "comment" : "Slideshow captions"
+    },
+    "File name and date" : {
+      "comment" : "Slideshow captions"
     },
     "Fill" : {
-
+      "comment" : "Print scaling: the picture fills its cell, cropping as needed"
     },
     "Fill Cell" : {
+
+    },
+    "Fill Color" : {
 
     },
     "Filter" : {
       "comment" : "Noun: submenu that shows only some images"
     },
+    "Filter by Name" : {
+      "comment" : "Search field placeholder: show only files whose name contains the text"
+    },
     "Find" : {
+      "comment" : "Verb: button that runs the search"
+    },
+    "Find Duplicates" : {
 
     },
     "Find Duplicates…" : {
+
+    },
+    "Find Images" : {
 
     },
     "Find the most prominent rectangle in the photo" : {
 
     },
     "Find:" : {
-
+      "comment" : "Label: what kind of duplicates to look for"
+    },
+    "Finder Tags" : {
+      "comment" : "Section header: the tags Finder shows (colour tags)"
+    },
+    "Finder tags: %@" : {
+      "comment" : "VoiceOver: the file's Finder tags, by name"
     },
     "Finding the subject…" : {
 
@@ -700,6 +2649,9 @@
     "First Image" : {
 
     },
+    "First or last image" : {
+
+    },
     "First page" : {
 
     },
@@ -707,6 +2659,9 @@
 
     },
     "Fit" : {
+      "comment" : "Print scaling: the whole picture fits in its cell"
+    },
+    "Fit Height" : {
 
     },
     "Fit height to text" : {
@@ -715,14 +2670,26 @@
     "Fit in Cell" : {
 
     },
+    "Fit or actual size at that point" : {
+
+    },
+    "Fit the window" : {
+      "comment" : "Web gallery columns: as many as fit the browser window"
+    },
     "Fit to Window" : {
       "comment" : "Zoom: scale the image to fit the window"
+    },
+    "Fit to Window (*)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Fit to window" : {
+
     },
     "Flat View" : {
       "comment" : "List the images of every subfolder together"
     },
     "Flip" : {
-
+      "comment" : "Verb: label of the flip choices in Batch Convert"
     },
     "Flip Horizontal" : {
 
@@ -730,26 +2697,66 @@
     "Flip Vertical" : {
 
     },
-    "Font" : {
+    "Focal length (mm)" : {
 
+    },
+    "Folder" : {
+      "comment" : "Noun: the kind of item selected"
+    },
+    "Font" : {
+      "comment" : "Noun: typeface"
     },
     "For JPEG, HEIC, AVIF and JPEG 2000: 1 to 100." : {
 
     },
     "Forever" : {
-
+      "comment" : "An animation loops without end"
     },
     "Format" : {
-
+      "comment" : "Noun: file format"
     },
     "Forward" : {
       "comment" : "Go forward to the next folder"
     },
     "Found %lld red eyes" : {
+      "comment" : "Red-eye removal: eyes found by Auto Detect",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Found %lld red eye"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Found %lld red eyes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Four images in a row or a 2 × 2 grid" : {
 
     },
-    "Found 1 red eye" : {
-
+    "Frame" : {
+      "comment" : "Effect: a picture frame (border) around the image, not a video frame"
+    },
+    "Frame %lld / %lld" : {
+      "comment" : "HUD: the animation frame showing, of how many (not a picture frame)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Frame %1$lld / %2$lld"
+          }
+        }
+      }
     },
     "Frame delay" : {
 
@@ -763,7 +2770,16 @@
     "Frame…" : {
       "comment" : "Effect: a picture frame (border) around the image, not a video frame"
     },
+    "Free" : {
+      "comment" : "Crop aspect ratio: any shape"
+    },
     "From" : {
+      "comment" : "Start of a range (dates, pages)"
+    },
+    "Full Screen (Return)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Full screen" : {
 
     },
     "Full-screen viewer opens on" : {
@@ -773,10 +2789,16 @@
       "shouldTranslate" : false
     },
     "Gallery" : {
-
+      "comment" : "Default title of a web gallery"
     },
     "Gamma" : {
 
+    },
+    "General" : {
+      "comment" : "Settings pane"
+    },
+    "Getting Started" : {
+      "comment" : "Help page"
     },
     "Gives images 0 to 5 stars in minivu's catalog (0 clears the rating). The files themselves are not changed." : {
 
@@ -800,10 +2822,16 @@
 
     },
     "Grid" : {
-
+      "comment" : "Layout: the compared images in a 2 × 2 grid"
     },
     "HDR %@ above SDR white" : {
 
+    },
+    "HDR photos are written SDR at %lld bits: a gain map holds 8." : {
+      "comment" : "Bits per colour channel"
+    },
+    "HDR photos are written SDR in %@: a gain map needs Display P3." : {
+      "comment" : "%@ is a colour profile, such as sRGB"
     },
     "HDR photos keep their highlights, written with a gain map" : {
 
@@ -814,28 +2842,52 @@
     "HEIC" : {
       "shouldTranslate" : false
     },
+    "HEIC shows in Safari only (macOS 14, iOS 17 and later)." : {
+
+    },
+    "Hardness" : {
+      "comment" : "Brush edge hardness"
+    },
     "Has a location" : {
 
     },
     "Has no location" : {
 
     },
-    "Header" : {
+    "Head Size" : {
 
     },
+    "Head size" : {
+
+    },
+    "Header" : {
+      "comment" : "Noun: text at the top of each contact sheet page"
+    },
     "Header text" : {
+
+    },
+    "Healing Brush" : {
 
     },
     "Healing Brush…" : {
 
     },
     "Height" : {
-
+      "comment" : "Rename token: the image's height in pixels"
     },
     "Help" : {
       "comment" : "Menu bar menu"
     },
+    "Hide Edit Tools" : {
+
+    },
+    "Hide Info" : {
+
+    },
     "Hide Others" : {
+
+    },
+    "Hide Preview Pane" : {
 
     },
     "Hide minivu" : {
@@ -847,6 +2899,9 @@
     "Highlight clipping" : {
 
     },
+    "Highlights" : {
+      "comment" : "Noun: the brightest parts of the image"
+    },
     "Highlights brighter than white show on HDR screens: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Other screens show HDR photos tone mapped." : {
 
     },
@@ -854,6 +2909,12 @@
       "comment" : "Show or hide the histogram panel"
     },
     "Horizontal" : {
+
+    },
+    "Hours" : {
+      "comment" : "VoiceOver: field for a number of hours"
+    },
+    "Hue" : {
 
     },
     "ICO" : {
@@ -871,16 +2932,71 @@
     "Image Format" : {
 
     },
+    "Image Strip of %lld Images" : {
+      "comment" : "Sheet title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Image Strip of %lld Image"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Image Strip of %lld Images"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Image Strip…" : {
       "comment" : "Join images into one long strip"
     },
     "Images" : {
-
+      "comment" : "Noun: images (heading, Shortcuts category)"
+    },
+    "Images Shown" : {
+      "comment" : "Find Duplicates: where to look, the images the browser shows"
     },
     "Images or Folder" : {
 
     },
     "Images per page" : {
+
+    },
+    "In %lld groups every file is marked, so no copy of them will be left here. You can put them back from the Trash in Finder." : {
+      "comment" : "Before moving duplicates to the Trash",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld group every file is marked, so no copy of it will be left here. You can put them back from the Trash in Finder."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld groups every file is marked, so no copy of them will be left here. You can put them back from the Trash in Finder."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "In order" : {
+      "comment" : "Slideshow order: the browser's order"
+    },
+    "In the thumbnail grid." : {
 
     },
     "Include every page of multi-page files" : {
@@ -893,10 +3009,10 @@
 
     },
     "Included" : {
-
+      "comment" : "Section heading: the edits a preset includes"
     },
     "Input" : {
-
+      "comment" : "Levels editor: input range"
     },
     "Input / Output" : {
 
@@ -905,6 +3021,9 @@
 
     },
     "Invert Selection" : {
+
+    },
+    "It may have been moved or deleted. Add it again in Settings > Editors." : {
 
     },
     "JPEG" : {
@@ -916,28 +3035,49 @@
     "JPEG Comment" : {
 
     },
-    "Keep" : {
+    "JPEG shows in every browser." : {
 
+    },
+    "Keep" : {
+      "comment" : "Badge on the file suggested to keep"
     },
     "Keep %@" : {
-
+      "comment" : "VoiceOver: undo removing a keyword; %@ is the keyword"
+    },
+    "Keep Both" : {
+      "comment" : "Button: keep both files, renaming the one arriving"
     },
     "Keep HDR" : {
+
+    },
+    "Keep My Edits" : {
 
     },
     "Keep aspect ratio" : {
 
     },
-    "Keep each file’s %@" : {
+    "Keep each file’s own caption" : {
 
     },
-    "Keep each file’s own %@" : {
+    "Keep each file’s own copyright" : {
+
+    },
+    "Keep each file’s own creator" : {
+
+    },
+    "Keep each file’s own title" : {
 
     },
     "Keep metadata" : {
 
     },
     "Keep metadata (EXIF, GPS, IPTC, XMP)" : {
+
+    },
+    "Keep the filmstrip open" : {
+
+    },
+    "Keep the info overlay up" : {
 
     },
     "Keep the original names" : {
@@ -947,24 +3087,30 @@
 
     },
     "Keep:" : {
-
+      "comment" : "Label: which file of each duplicate group to keep"
     },
     "Keyboard Shortcuts" : {
 
+    },
+    "Keyline" : {
+      "comment" : "Frame effect: a thin line between the photo and the mat"
     },
     "Keyline color" : {
 
     },
     "Keywords" : {
-
+      "comment" : "Info panel section heading"
     },
     "Kind" : {
-
+      "comment" : "Noun: text or picture watermark"
     },
     "Label" : {
       "comment" : "Noun: submenu of colour labels (Finder's colour tags)"
     },
     "Landscape" : {
+      "comment" : "Page orientation"
+    },
+    "Large picture size" : {
 
     },
     "Large pictures" : {
@@ -980,13 +3126,13 @@
 
     },
     "Later" : {
-
+      "comment" : "Shift the dates later in time"
     },
     "Layout" : {
-
+      "comment" : "Noun: arrangement of the pictures"
     },
     "Least" : {
-
+      "comment" : "Smallest file, lowest quality end of a slider"
     },
     "Leave out the GPS position and IPTC place names, keeping the rest. A file written over its original keeps them." : {
 
@@ -1004,19 +3150,36 @@
 
     },
     "Left" : {
-
+      "comment" : "Text alignment"
     },
     "Left Out" : {
 
     },
     "Lens" : {
-
+      "comment" : "Noun: camera lens model"
     },
     "Lens…" : {
       "comment" : "Effect: magnifying-lens distortion"
     },
     "Letter case" : {
 
+    },
+    "Level" : {
+      "comment" : "Noun: how strongly noise is removed"
+    },
+    "Level %lld   %@" : {
+      "comment" : "Histogram readout: the level (0-255) under the pointer, then the pixel counts at it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Level %1$lld   %2$@"
+          }
+        }
+      }
+    },
+    "Levels" : {
+      "comment" : "Adjustment: black point, white point and gamma"
     },
     "Levels for %@" : {
 
@@ -1025,43 +3188,82 @@
 
     },
     "Light" : {
+      "comment" : "Noun: section heading for the light source of the bump map effect"
+    },
+    "Lighting" : {
 
     },
     "Lighting…" : {
       "comment" : "Adjustment: exposure, highlights and shadows"
     },
+    "Lightness" : {
+
+    },
     "Line" : {
+      "comment" : "Noun: the line style of a shape (solid, dashed, dotted)"
+    },
+    "Line Style" : {
+
+    },
+    "Line width" : {
+
+    },
+    "Listing images…" : {
 
     },
     "Live Text" : {
       "comment" : "Apple's feature name: use the name Apple uses in this language"
     },
-    "Location" : {
+    "Loading photos…" : {
 
+    },
+    "Location" : {
+      "comment" : "Noun: where the photo was taken"
     },
     "Long Side" : {
 
     },
+    "Long side" : {
+      "comment" : "The frame's longest side, in pixels"
+    },
     "Look in:" : {
+
+    },
+    "Looking for a rectangle…" : {
 
     },
     "Looking…" : {
 
     },
     "Looser" : {
-
+      "comment" : "Similarity slider end: finds more, less alike pictures"
     },
     "Lossless (larger file)" : {
+
+    },
+    "Luminance" : {
+
+    },
+    "Luminance Noise" : {
 
     },
     "MP3, AAC, WAV and AIFF files, or folders of them. The music fades in when a slideshow starts, pauses with it, and fades out when it ends." : {
 
     },
+    "Magnification" : {
+      "comment" : "Noun: how much the lens effect enlarges"
+    },
+    "Magnifier" : {
+      "comment" : "The loupe that magnifies part of the image"
+    },
+    "Making “%@”…" : {
+      "comment" : "%@ is the name of the file or folder being made"
+    },
     "Margin" : {
-
+      "comment" : "Noun: empty space around the pictures"
     },
     "Margins" : {
-
+      "comment" : "Noun: space around the page"
     },
     "Mark %@ for the Trash" : {
 
@@ -1073,19 +3275,22 @@
 
     },
     "Mat" : {
-
+      "comment" : "Noun: colour of the picture frame's mat (mount board)"
     },
     "Match case" : {
 
     },
     "Matte" : {
-
+      "comment" : "Noun: section heading for the frame's mat (mount board) options"
     },
     "Maximum" : {
 
     },
-    "Minimize" : {
+    "Metadata can’t be written for these files:" : {
 
+    },
+    "Minimize" : {
+      "comment" : "Verb: Window menu command"
     },
     "Minimum" : {
 
@@ -1099,6 +3304,15 @@
     "Minimum width in pixels" : {
 
     },
+    "Minutes" : {
+      "comment" : "VoiceOver: field for a number of minutes"
+    },
+    "Mixed" : {
+      "comment" : "A field whose value differs between the files being edited"
+    },
+    "Mixed (some files have none)" : {
+      "comment" : "Date taken of several files that differ"
+    },
     "Montage Wallpaper" : {
 
     },
@@ -1111,6 +3325,57 @@
     "Mouse wheel" : {
 
     },
+    "Move" : {
+      "comment" : "Undo step: moving an object"
+    },
+    "Move %@" : {
+      "comment" : "Undo step: %@ is the kind of object, such as Arrow"
+    },
+    "Move %lld Items" : {
+      "comment" : "Undo action name: files moved to another folder",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld Item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld Items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Move %lld files to the Trash?" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld file to the Trash?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld files to the Trash?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Move Down" : {
 
     },
@@ -1120,20 +3385,81 @@
     "Move Up" : {
 
     },
+    "Move the files you drop" : {
+
+    },
+    "Move the selection" : {
+
+    },
     "Move to Next Display" : {
       "comment" : "Move the window to the next screen"
     },
     "Move to Trash" : {
 
     },
+    "Move to Trash (⌫)" : {
+      "comment" : "Tooltip; ⌫ is its key"
+    },
     "Move to Trash…" : {
 
+    },
+    "Moving %lld items to “%@”" : {
+      "comment" : "Progress sheet title; %@ is the folder",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Moving %lld item to “%@”"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Moving %lld items to “%@”"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Multi-page files" : {
 
     },
     "Music" : {
-
+      "comment" : "Noun: slideshow music"
+    },
+    "Music: %@" : {
+      "comment" : "%@ is a song or folder name"
+    },
+    "Music: %lld items" : {
+      "comment" : "Songs or folders of songs",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Music: %lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Music: %lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Mute Music" : {
+      "comment" : "Slideshow button tooltip"
     },
     "Mute Video" : {
 
@@ -1141,23 +3467,35 @@
     "Name" : {
       "comment" : "Sort key"
     },
+    "Name and Date" : {
+      "comment" : "Captions under pictures"
+    },
+    "Name and Dimensions" : {
+      "comment" : "Captions under pictures"
+    },
     "Name contains" : {
 
     },
-    "Names" : {
+    "Name the new collection:" : {
 
     },
+    "Names" : {
+      "comment" : "Noun: how the converted files are named"
+    },
     "Names are made from the pattern for each file, in the order shown." : {
+
+    },
+    "Names, separated by semicolons" : {
 
     },
     "Negative" : {
       "comment" : "Effect: invert the colours"
     },
     "New" : {
-
+      "comment" : "Label of the date taken the images will have"
     },
     "New %@" : {
-
+      "comment" : "Inspector heading: the kind of annotation to be drawn"
     },
     "New Collection…" : {
 
@@ -1168,34 +3506,85 @@
     "New size" : {
 
     },
+    "Next (→)" : {
+      "comment" : "Slideshow button tooltip; keep the key in parentheses at the end, after a space"
+    },
     "Next Image" : {
 
+    },
+    "Next Image (→)" : {
+      "comment" : "Tooltip: keep the key in brackets"
     },
     "Next Page" : {
       "comment" : "Next page of a multi-page file (PDF, TIFF)"
     },
+    "Next Page (⌥→)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Next image" : {
+
+    },
+    "Next image or zoom (Settings › Viewer)" : {
+
+    },
+    "Next or previous page only" : {
+
+    },
+    "Next or previous page, then image" : {
+
+    },
+    "Next or previous pane" : {
+
+    },
+    "Next slide" : {
+
+    },
     "No Image" : {
 
+    },
+    "No Images" : {
+      "comment" : "Empty grid: the folder has no images"
     },
     "No Label" : {
 
     },
+    "No Matches" : {
+      "comment" : "Empty grid: a filter hides every image"
+    },
     "No Selection" : {
-
-    },
-    "No duplicates among %@ images." : {
-
-    },
-    "No duplicates: 1 image was compared." : {
 
     },
     "No editors yet" : {
 
     },
+    "No files were converted." : {
+
+    },
+    "No files were flipped." : {
+
+    },
+    "No files were rotated." : {
+
+    },
+    "No files were updated." : {
+
+    },
     "No keywords." : {
 
     },
+    "No label was set. minivu may not change these files (a colour label is written into the file’s Finder tags):" : {
+
+    },
+    "No label was set. minivu may not change this file (a colour label is written into the file’s Finder tags):" : {
+
+    },
+    "No music" : {
+
+    },
     "No music chosen" : {
+
+    },
+    "No rectangle stood out. Drag the corners instead." : {
 
     },
     "No red eyes found" : {
@@ -1211,6 +3600,12 @@
 
     },
     "None" : {
+      "comment" : "No item is chosen"
+    },
+    "None of these edits can be used on other photos, so there is nothing to save." : {
+
+    },
+    "None of these images has a location." : {
 
     },
     "None of these images has keywords." : {
@@ -1219,17 +3614,44 @@
     "None ticked shows every type." : {
 
     },
+    "Not Tagged" : {
+      "comment" : "VoiceOver: the image doesn't have minivu's tag (a mark, like a flag)"
+    },
     "Nothing" : {
+      "comment" : "No edits are included"
+    },
+    "Nothing was renamed. minivu can rename files only in folders it may change: Pictures and the folders in its sidebar (File > Add Folder to Sidebar…). It may not change:" : {
+      "comment" : "Shortcuts error, followed by a list of folders. File > Add Folder to Sidebar… is a menu command"
+    },
+    "Nothing was renamed:" : {
 
     },
     "Now" : {
+      "comment" : "Label of the date taken the images have now"
+    },
+    "OK" : {
+
+    },
+    "Off" : {
+      "comment" : "A setting is turned off"
+    },
+    "Offset X" : {
+
+    },
+    "Offset Y" : {
+
+    },
+    "Oil Painting" : {
 
     },
     "Oil Painting…" : {
 
     },
     "Oldest" : {
-
+      "comment" : "Keep the oldest file of each group"
+    },
+    "On" : {
+      "comment" : "A setting is turned on"
     },
     "One PDF with every page; pictures are embedded at the size of their cells." : {
 
@@ -1240,8 +3662,55 @@
     "One picture file." : {
 
     },
+    "One picture per page. Metadata isn’t carried over." : {
+
+    },
+    "Only the first %lld images were compared, to keep memory in hand." : {
+
+    },
+    "Only the first page of a PDF or multi-page TIFF, and the first frame of an animation, is converted." : {
+
+    },
+    "Only the saved search is deleted." : {
+      "comment" : "Deleting a smart folder"
+    },
+    "Opacity" : {
+
+    },
+    "Open" : {
+      "comment" : "Button: opens the images in the editor"
+    },
+    "Open %lld images in %@?" : {
+      "comment" : "The number of images, then an application's name",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Open %lld image in %@?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Open %lld images in %@?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Open Folder…" : {
       "comment" : "Verb: choose a folder to browse"
+    },
+    "Open Saved File" : {
+
+    },
+    "Open System Settings" : {
+
     },
     "Open in External Editor" : {
 
@@ -1252,47 +3721,108 @@
     "Open in minivu" : {
 
     },
+    "Open in the viewer" : {
+
+    },
     "Open viewer in full screen" : {
 
     },
     "Opens an image in minivu's viewer with its folder in the browser, or a folder in the browser." : {
 
     },
+    "Option-click on clean texture, then paint over the blemish: the texture is copied and matched to the surroundings. ⌘Z removes the last stroke." : {
+
+    },
+    "Option-click to set" : {
+      "comment" : "Clone source: not set yet"
+    },
+    "Option-click where to copy from, then paint. ⌘Z removes the last stroke." : {
+
+    },
     "Options" : {
+      "comment" : "Noun: settings"
+    },
+    "Or drag a circle over each red pupil, or click one. Only red pixels inside a circle change; the catchlight stays." : {
 
     },
     "Orange" : {
 
     },
     "Order" : {
-
+      "comment" : "Noun: the order of the pictures"
     },
     "Orientation" : {
+      "comment" : "Noun: portrait or landscape"
+    },
+    "Original" : {
+      "comment" : "Noun: the image before it is saved, beside the saved result"
+    },
+    "Original Extension" : {
+      "comment" : "Rename token: the file name extension"
+    },
+    "Original Name" : {
+      "comment" : "Rename token: the file's name"
+    },
+    "Other Folder" : {
 
     },
     "Outer band" : {
 
     },
     "Outline" : {
+      "comment" : "Noun: the outline around text"
+    },
+    "Outline Color" : {
 
     },
     "Output" : {
-
+      "comment" : "Levels editor: output range"
+    },
+    "PDFs, multi-page TIFFs and animations become one %@ file with all their pages." : {
+      "comment" : "%@ is a format such as TIFF"
     },
     "PNG" : {
       "shouldTranslate" : false
     },
+    "PNG or HEIC pictures with transparency work best. minivu remembers the file, so a saved watermark finds it again; if it moves, choose it again." : {
+
+    },
     "PNG, TIFF and HEIC keep a transparent canvas; other formats fill it when saving." : {
 
     },
-    "Page" : {
+    "PNG, TIFF and HEIC keep the transparency; saving as JPEG fills it with Save As’s background colour." : {
 
+    },
+    "Page" : {
+      "comment" : "Noun: section heading for the printed page options"
+    },
+    "Page %lld of %lld" : {
+      "comment" : "HUD: the page showing of a multi-page file",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Page %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Page %lld: %@" : {
+      "comment" : "Why a page of a multi-page file was skipped or failed: page number, then the reason",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Page %1$lld: %2$@"
+          }
+        }
+      }
     },
     "Page 1" : {
-
+      "comment" : "Preview caption: the first page"
     },
-    "Page 1 of %lld" : {
-
+    "Page Number" : {
+      "comment" : "Rename token: the page or frame number"
     },
     "Page Setup…" : {
 
@@ -1307,13 +3837,25 @@
 
     },
     "Pages" : {
+      "comment" : "Noun: the pages of a file"
+    },
+    "Pages follow this order; the browser’s order to start with." : {
 
+    },
+    "Pan" : {
+      "comment" : "Verb: move a zoomed image around in the window"
     },
     "Paste" : {
-
+      "comment" : "Verb: Edit menu command and its undo step"
     },
     "Pattern" : {
-
+      "comment" : "Noun: rename pattern"
+    },
+    "Pause (P)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Pause (Space)" : {
+      "comment" : "Slideshow button tooltip; keep the key in parentheses at the end, after a space"
     },
     "Pause Animation" : {
 
@@ -1321,10 +3863,19 @@
     "Pause Video" : {
 
     },
-    "Percent" : {
+    "Pause or resume" : {
 
     },
+    "Percent" : {
+      "comment" : "Unit for resizing"
+    },
     "Percentage" : {
+
+    },
+    "Perspective" : {
+
+    },
+    "Perspective corners" : {
 
     },
     "Perspective…" : {
@@ -1334,16 +3885,32 @@
       "comment" : "File type filter"
     },
     "Picture" : {
-
+      "comment" : "A watermark that is an image"
+    },
+    "Picture %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Picture %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Picture Layout" : {
+      "comment" : "Print panel pane: how pictures are laid out on the page"
     },
     "Pictures" : {
-
+      "comment" : "The user's Pictures folder: use the name Finder shows"
+    },
+    "Pinch" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Pixelated zoom above 200%" : {
 
     },
     "Pixels" : {
-
+      "comment" : "Unit for resizing"
     },
     "Pixels brighter than SDR white, which an SDR screen or file would clip" : {
 
@@ -1352,28 +3919,55 @@
 
     },
     "Placement" : {
-
+      "comment" : "Noun: section heading for where the watermark goes"
     },
     "Play" : {
-
+      "comment" : "Verb: label of how many times an animation plays"
+    },
+    "Play (P)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Play (Space)" : {
+      "comment" : "Slideshow button tooltip; keep the key in parentheses at the end, after a space"
     },
     "Play Animation" : {
 
     },
+    "Play Music" : {
+      "comment" : "Slideshow button tooltip"
+    },
     "Play Video" : {
 
+    },
+    "Play Video (Space)" : {
+      "comment" : "Tooltip: keep the key in brackets"
     },
     "Play music" : {
 
     },
-    "Portrait" : {
+    "Play or pause an animation" : {
 
     },
+    "Please choose a different name." : {
+
+    },
+    "Pointer to an edge" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Portrait" : {
+      "comment" : "Page orientation"
+    },
     "Position" : {
+      "comment" : "Noun: where the item sits on the image"
+    },
+    "Preparing image…" : {
+
+    },
+    "Preparing “%@” for printing…" : {
 
     },
     "Preset" : {
-
+      "comment" : "Noun: saved settings"
     },
     "Preset Actions" : {
 
@@ -1381,31 +3975,61 @@
     "Preset name" : {
 
     },
+    "Press and hold" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
     "Press and hold on an image in the viewer to show the magnifier." : {
 
     },
     "Preview" : {
-
+      "comment" : "Toolbar button: the browser's preview pane"
+    },
+    "Previous (←)" : {
+      "comment" : "Slideshow button tooltip; keep the key in parentheses at the end, after a space"
+    },
+    "Previous / next image" : {
+      "comment" : "Choice of what the mouse wheel does"
     },
     "Previous Image" : {
 
     },
+    "Previous Image (←)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
     "Previous Page" : {
       "comment" : "Previous page of a multi-page file (PDF, TIFF)"
+    },
+    "Previous Page (⌥←)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Previous image" : {
+
+    },
+    "Previous or next image in the pane" : {
+
+    },
+    "Previous slide" : {
+
     },
     "Print…" : {
 
     },
+    "Privacy" : {
+      "comment" : "Help page"
+    },
     "Progressive" : {
-
+      "comment" : "JPEG option: the image loads in passes"
     },
     "Purple" : {
 
     },
     "Quality" : {
-
+      "comment" : "Noun: compression quality"
     },
     "Quit minivu" : {
+
+    },
+    "RAW Adjustments" : {
 
     },
     "RAW Adjustments…" : {
@@ -1414,8 +4038,11 @@
     "RAW files" : {
 
     },
-    "Random" : {
+    "Radius" : {
 
+    },
+    "Random" : {
+      "comment" : "Slideshow transition chosen at random"
     },
     "Rate %lld Stars" : {
       "comment" : "Menu command: give the image this many stars",
@@ -1440,8 +4067,83 @@
         }
       }
     },
+    "Rate %lld stars" : {
+      "comment" : "VoiceOver: a star button",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rate %lld star"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rate %lld stars"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Rate %lld stars (click again to clear)" : {
+      "comment" : "Tooltip of a star button",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rate %lld star (click again to clear)"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rate %lld stars (click again to clear)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Rate (0 clears)" : {
+
+    },
+    "Rate the selection (0 clears)" : {
+
+    },
     "Rating" : {
       "comment" : "Noun: star rating"
+    },
+    "Ratings couldn’t be written into %lld files." : {
+      "comment" : "Alert title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ratings couldn’t be written into %lld file."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ratings couldn’t be written into %lld files."
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Recover highlights" : {
 
@@ -1449,22 +4151,40 @@
     "Red" : {
 
     },
+    "Red-Eye Circle" : {
+      "comment" : "Undo step: a circle marking a red pupil"
+    },
+    "Red-Eye Removal" : {
+
+    },
     "Red-Eye Removal…" : {
 
     },
     "Redo" : {
+      "comment" : "Verb: Edit menu command"
+    },
+    "Redo %@" : {
+      "comment" : "Edit menu: %@ names the edit, such as Crop"
+    },
+    "Relief size" : {
+
+    },
+    "Reload" : {
+      "comment" : "Button: reloads the file from disk, discarding edits"
+    },
+    "Reload shows the version saved there and discards your edits. If you keep your edits, saving them asks for a name, so the other version isn’t replaced." : {
 
     },
     "Remove" : {
-
+      "comment" : "Button: removes the watermark"
     },
     "Remove %@" : {
-
-    },
-    "Remove %@ from every file" : {
-
+      "comment" : "VoiceOver and tooltip: remove the item named"
     },
     "Remove %@ from every image" : {
+      "comment" : "VoiceOver; %@ is a keyword"
+    },
+    "Remove Background" : {
 
     },
     "Remove Background…" : {
@@ -1485,6 +4205,9 @@
     "Remove from Collection" : {
 
     },
+    "Remove from Sidebar" : {
+
+    },
     "Remove from every image" : {
 
     },
@@ -1494,10 +4217,22 @@
     "Remove location" : {
 
     },
-    "Remove the %@ from every file" : {
+    "Remove the caption from every file" : {
+
+    },
+    "Remove the copyright from every file" : {
+
+    },
+    "Remove the creator from every file" : {
+
+    },
+    "Remove the title from every file" : {
 
     },
     "Remove “%@”" : {
+      "comment" : "Tooltip: remove the keyword"
+    },
+    "Removed from every file" : {
 
     },
     "Removes the GPS position and IPTC place names, keeping the rest" : {
@@ -1505,6 +4240,29 @@
     },
     "Rename" : {
       "comment" : "Verb: rename the selected file"
+    },
+    "Rename %lld Items" : {
+      "comment" : "Batch rename sheet title and Undo menu action",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rename %lld Item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rename %lld Items"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Rename Images" : {
 
@@ -1515,29 +4273,111 @@
     "Rename Preset…" : {
 
     },
+    "Rename “%@” to:" : {
+      "comment" : "%@ is a collection or smart folder"
+    },
     "Renames images in place with a pattern: {name}, {#} or {###} for a counter, {date} or {date:yyyyMMdd} for the date taken, {modified}, {width}, {height}, {ext}. Works in Pictures and in folders added to minivu's sidebar. Ratings follow the files." : {
 
+    },
+    "Rename…" : {
+      "comment" : "Verb: rename the collection or smart folder"
+    },
+    "Render RAW data" : {
+      "comment" : "Choice of how RAW files are shown"
     },
     "Render RAW files with extended dynamic range" : {
 
     },
     "Replace" : {
+      "comment" : "Verb: button that replaces the existing file"
+    },
+    "Replace %@ and %@?" : {
+      "comment" : "Both counts come from separate strings: “Replace 2 originals and 5 files?”",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Replace %1$@ and %2$@?"
+          }
+        }
+      }
+    },
+    "Replace %lld existing files?" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Replace %lld existing file?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Replace %lld existing files?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Replace %lld originals with the converted files?" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Replace %lld original with the converted file?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Replace %lld originals with the converted files?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Replace the original with the converted file?" : {
 
+    },
+    "Replace the original “%@”?" : {
+      "comment" : "Alert title; %@ is a file name"
     },
     "Replace with" : {
 
     },
+    "Replace “%@”?" : {
+      "comment" : "%@ is a file name"
+    },
+    "Replaced files go to the Trash. Keep Both gives the converted files numbered names instead." : {
+
+    },
     "Replacement" : {
+      "comment" : "Placeholder: the text that replaces the found text"
+    },
+    "Replaces the edits of the preset “%@”." : {
 
     },
     "Resampling" : {
 
     },
     "Reset" : {
-
+      "comment" : "Verb: button that undoes the tool's changes"
     },
     "Resize" : {
-
+      "comment" : "Verb: resize the image"
+    },
+    "Resize %@" : {
+      "comment" : "Undo step: %@ is the kind of object, such as Arrow"
     },
     "Resize By" : {
 
@@ -1561,24 +4401,39 @@
       "comment" : "Submenu of retouching tools"
     },
     "Retry" : {
-
+      "comment" : "Verb: button that tries again"
+    },
+    "Return or F" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Return or double-click" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "Reveal in Finder" : {
 
     },
     "Reverse" : {
-
+      "comment" : "Verb: button that reverses the order"
     },
     "Reverse Order" : {
 
+    },
+    "Revert" : {
+      "comment" : "Verb: alert button that goes back to the saved file"
     },
     "Revert to Saved" : {
 
     },
     "Right" : {
-
+      "comment" : "Text alignment"
     },
     "Rotate" : {
+      "comment" : "Verb: label of the rotation choices in Batch Convert"
+    },
+    "Rotate %@" : {
+      "comment" : "Undo step: %@ is the kind of object, such as Arrow"
+    },
+    "Rotate & Flip" : {
 
     },
     "Rotate Left" : {
@@ -1590,14 +4445,23 @@
     "Rotate pictures to fill the cells" : {
 
     },
+    "Row" : {
+      "comment" : "Layout: the compared images side by side in one row"
+    },
     "Rows" : {
 
     },
     "Same as the first image" : {
 
     },
-    "Save" : {
+    "Saturation" : {
 
+    },
+    "Save" : {
+      "comment" : "Verb: button or menu command"
+    },
+    "Save As:" : {
+      "comment" : "Save panel: label of the file name field"
     },
     "Save As…" : {
 
@@ -1611,16 +4475,25 @@
     "Save Frame As…" : {
       "comment" : "Save the video frame on screen as a picture"
     },
+    "Save Pages" : {
+
+    },
     "Save Preset" : {
 
     },
     "Save Preset…" : {
 
     },
+    "Save a photo’s edits as a preset in the viewer with File > Save Edits as Preset…, or save this sheet as it is." : {
+
+    },
     "Save as Smart Folder…" : {
 
     },
     "Save the comment (⌘Return)" : {
+
+    },
+    "Save the search as a smart folder named:" : {
 
     },
     "Save to" : {
@@ -1630,22 +4503,57 @@
 
     },
     "Save…" : {
-
+      "comment" : "Verb: button or menu command that opens a save panel"
+    },
+    "Saving “%@”…" : {
+      "comment" : "Progress title; %@ is a file name"
     },
     "Scale" : {
-
+      "comment" : "Noun: resize by a percentage"
     },
     "Scaling" : {
-
+      "comment" : "Noun: how pictures are scaled to their print cell"
     },
     "Scatter the photos another way" : {
 
     },
+    "Screen size (%@ × %@)" : {
+      "comment" : "Video resolution: width × height in pixels",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Screen size (%1$@ × %2$@)"
+          }
+        }
+      }
+    },
+    "Scroll" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
     "Search" : {
-
+      "comment" : "Placeholder of the help search field"
     },
     "Search in" : {
 
+    },
+    "Search in %@" : {
+      "comment" : "Window title of search results; %@ is a folder"
+    },
+    "Searching…" : {
+      "comment" : "Status bar"
+    },
+    "Seconds" : {
+      "comment" : "Noun: unit of time"
+    },
+    "See folders you viewed next" : {
+
+    },
+    "See folders you viewed previously" : {
+
+    },
+    "Select" : {
+      "comment" : "Drawing tool: the arrow that selects objects"
     },
     "Select All" : {
 
@@ -1653,8 +4561,14 @@
     "Select Tagged" : {
       "comment" : "Select the tagged images (minivu's tag is a mark, like a flag)"
     },
-    "Selected %@" : {
+    "Select a file by name" : {
 
+    },
+    "Selected %@" : {
+      "comment" : "Inspector heading: the kind of annotation selected"
+    },
+    "Selected Images (%lld)" : {
+      "comment" : "Find Duplicates: where to look, with how many"
     },
     "Selection…" : {
       "comment" : "Screen capture of a selected area"
@@ -1669,7 +4583,7 @@
 
     },
     "Services" : {
-
+      "comment" : "macOS Services menu"
     },
     "Set Colour Label" : {
 
@@ -1686,19 +4600,51 @@
     "Set to" : {
 
     },
+    "Settings" : {
+      "comment" : "Window title"
+    },
     "Settings…" : {
 
     },
     "Shadow" : {
-
+      "comment" : "Noun: drop shadow (heading and toggle)"
     },
     "Shadow clipping" : {
 
     },
+    "Shadows" : {
+      "comment" : "Noun: the darkest parts of the image"
+    },
+    "Shadows %@   Highlights %@" : {
+      "comment" : "Histogram readout: the share of pixels clipped to black and to white",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Shadows %1$@   Highlights %2$@"
+          }
+        }
+      }
+    },
+    "Share" : {
+      "comment" : "Verb: toolbar button that shares the selected files"
+    },
+    "Share Saved File" : {
+
+    },
+    "Share the selected images with AirDrop, Messages, Mail and more" : {
+      "comment" : "AirDrop, Messages and Mail are Apple's names: use the names Apple uses in this language"
+    },
     "Share…" : {
       "comment" : "Verb: share the selected files"
     },
+    "Sharpen" : {
+      "comment" : "Image adjustment"
+    },
     "Sharpen…" : {
+
+    },
+    "Sharpness" : {
 
     },
     "Shift by" : {
@@ -1710,7 +4656,13 @@
     "Show All" : {
       "comment" : "Rating filter: no filter"
     },
+    "Show Edit Tools" : {
+
+    },
     "Show Hidden Files" : {
+
+    },
+    "Show Info" : {
 
     },
     "Show Preview Pane" : {
@@ -1718,6 +4670,9 @@
     },
     "Show Sidebar" : {
       "comment" : "AppKit retitles it Hide Sidebar itself"
+    },
+    "Show a panel" : {
+
     },
     "Show each slide for" : {
 
@@ -1728,7 +4683,19 @@
     "Show in Browser" : {
 
     },
+    "Show in a Window (Return)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Show only rated or tagged images" : {
+
+    },
+    "Show or hide the preview pane" : {
+
+    },
     "Show result" : {
+
+    },
+    "Show the enclosing folder" : {
 
     },
     "Shown at one-third size" : {
@@ -1741,7 +4708,10 @@
 
     },
     "Shuffle" : {
-
+      "comment" : "Verb: put in random order"
+    },
+    "Shuffled" : {
+      "comment" : "Slideshow order: random"
     },
     "Similar Images" : {
 
@@ -1750,7 +4720,7 @@
 
     },
     "Similarity:" : {
-
+      "comment" : "Label of the duplicate similarity slider"
     },
     "Size" : {
       "comment" : "Sort key"
@@ -1758,10 +4728,31 @@
     "Size and Orientation" : {
 
     },
+    "Size and margin are percentages of the photo’s short side, so the watermark covers the same share of any photo. Spacing is in watermark heights." : {
+
+    },
+    "Sizes are percentages of the photo’s short side. A transparent background is kept by PNG, TIFF and HEIC." : {
+
+    },
+    "Sketch" : {
+      "comment" : "Effect: pencil drawing"
+    },
     "Sketch…" : {
       "comment" : "Effect: pencil drawing"
     },
+    "Skip" : {
+      "comment" : "Verb: button that leaves this file where it is"
+    },
+    "Skipped:\n%@" : {
+      "comment" : "Heading over a list of skipped files"
+    },
+    "Skipped: %@" : {
+      "comment" : "Why the file will be skipped"
+    },
     "Slideshow" : {
+      "comment" : "Noun"
+    },
+    "Slideshow Settings" : {
 
     },
     "Slideshow Settings…" : {
@@ -1770,47 +4761,107 @@
     "Slideshows play full screen on the display chosen for the full-screen viewer in Viewer settings." : {
 
     },
+    "Smart Folder" : {
+      "comment" : "Name offered for a new smart folder"
+    },
+    "Smart Folders" : {
+      "comment" : "Sidebar section header"
+    },
     "Solid" : {
+      "comment" : "Line style"
+    },
+    "Some files couldn’t be labelled; the others were. Their Finder tags couldn’t be read or written:" : {
 
+    },
+    "Some files couldn’t be renamed; the others were." : {
+
+    },
+    "Some items couldn’t be moved or copied again." : {
+
+    },
+    "Some items couldn’t be put back." : {
+
+    },
+    "Soon" : {
+      "comment" : "Badge on a tool not available yet"
+    },
+    "Sort" : {
+      "comment" : "Verb: toolbar menu of the orders the files can be listed in"
     },
     "Sort By" : {
       "comment" : "Submenu: the order the files are listed in"
     },
+    "Sort by" : {
+      "comment" : "Tooltip of the Sort toolbar menu"
+    },
     "Source" : {
-
+      "comment" : "Noun: where the clone stamp copies from"
     },
     "Spacing" : {
+      "comment" : "Noun: gap between pictures"
+    },
+    "Spacing and margin must be between 0 and 1,000 pixels." : {
 
     },
     "Stars, the tag and colour labels are also written into each photo as XMP, so Lightroom, Bridge, digiKam and other apps see them. Camera RAW files and formats minivu can’t rewrite get an XMP sidecar beside them instead. Ratings from those apps always show in minivu, for photos you haven’t rated here." : {
 
     },
+    "Start" : {
+      "comment" : "Noun: the counter's first number in a rename pattern"
+    },
     "Start Slideshow" : {
 
+    },
+    "Start Slideshow (⇧⌘F)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Start a slideshow of the selected images, or of the folder (⇧⌘F)" : {
+      "comment" : "Tooltip; keep the shortcut"
     },
     "Start again after the last slide" : {
 
     },
-    "Steps" : {
+    "Starts at the white balance the camera recorded. Higher temperatures make the picture warmer; positive tint adds magenta." : {
 
     },
+    "Step" : {
+      "comment" : "Noun: how much the counter goes up by in a rename pattern"
+    },
+    "Steps" : {
+      "comment" : "Noun: the edits in a preset, in order"
+    },
     "Stop" : {
+      "comment" : "Verb: button that stops the search"
+    },
+    "Stopped before the end: only the images compared so far are grouped." : {
 
+    },
+    "Stopping…" : {
+
+    },
+    "Straighten" : {
+      "comment" : "Image adjustment: rotate to level the horizon"
     },
     "Straighten…" : {
 
     },
-    "Stricter" : {
+    "Strength" : {
 
     },
+    "Stricter" : {
+      "comment" : "Similarity slider end: finds only very alike pictures"
+    },
     "Stroke" : {
+      "comment" : "Noun: colour of a shape's outline"
+    },
+    "Stroke Color" : {
 
     },
     "Strokes" : {
-
+      "comment" : "Noun: the brush strokes made so far"
     },
     "Style" : {
-
+      "comment" : "Noun: the kind of frame or effect"
     },
     "Subject found" : {
 
@@ -1819,13 +4870,25 @@
 
     },
     "Suggestions" : {
-
+      "comment" : "Noun: apps suggested as external editors"
     },
     "Swap Width and Height" : {
 
     },
+    "Switch between window and full screen" : {
+
+    },
+    "Sync" : {
+      "comment" : "Toggle button: zoom and pan the compared images together"
+    },
+    "Sync Zoom" : {
+      "comment" : "Toolbar item: zoom and pan the compared images together"
+    },
     "System" : {
       "comment" : "Theme: follow the system's appearance"
+    },
+    "T or `" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     },
     "TGA" : {
       "shouldTranslate" : false
@@ -1835,6 +4898,18 @@
     },
     "Tag" : {
       "comment" : "Verb: menu command that tags the image (marks it, like a flag)"
+    },
+    "Tag (T)" : {
+      "comment" : "Tooltip: tag the image (a mark, like a flag); T is its key"
+    },
+    "Tag or untag" : {
+
+    },
+    "Tag or untag the selection" : {
+
+    },
+    "Tagged" : {
+      "comment" : "VoiceOver: the image has minivu's tag (a mark, like a flag)"
     },
     "Tagged Only" : {
 
@@ -1848,11 +4923,38 @@
     "Taken on or before" : {
 
     },
+    "Temperature" : {
+
+    },
     "Text" : {
+      "comment" : "Noun: text (section heading, watermark text)"
+    },
+    "Text Color" : {
+
+    },
+    "Text Size" : {
+
+    },
+    "Text and Shapes" : {
+
+    },
+    "Text and Shapes, Red-Eye: delete the selection" : {
+
+    },
+    "Text and Shapes: deselect" : {
+
+    },
+    "Text and Shapes: duplicate" : {
+
+    },
+    "Text and Shapes: nudge the selection" : {
 
     },
     "Text and Shapes…" : {
       "comment" : "Draw text, arrows and shapes on the image"
+    },
+    "Text in the image" : {
+
     },
     "Text size" : {
 
@@ -1860,7 +4962,61 @@
     "The application is no longer where it was added." : {
 
     },
+    "The bottom is three and a half times as deep. Widths are percentages of the photo’s short side." : {
+
+    },
+    "The comment couldn’t be saved." : {
+
+    },
+    "The contact sheet couldn’t be saved." : {
+
+    },
+    "The contact sheet was canceled." : {
+
+    },
+    "The converted file takes the original’s name." : {
+
+    },
+    "The converted files take the originals’ names." : {
+
+    },
+    "The corners are cropped away as the image turns." : {
+
+    },
+    "The corners are on the rectangle found. Adjust them if needed." : {
+
+    },
+    "The destination folder can’t be found." : {
+
+    },
+    "The destination folder can’t be found. Choose it again in Batch Convert." : {
+
+    },
+    "The display is no longer connected." : {
+
+    },
+    "The display with the browser" : {
+      "comment" : "Choice of where the full-screen viewer opens"
+    },
+    "The edited image is saved over the file as %@, in HDR with a new gain map. This can’t be undone." : {
+      "comment" : "Save confirmation; %@ is a format, such as “PNG” or “JPEG at quality 30”"
+    },
+    "The edited image is saved over the file as %@, in SDR: minivu can’t write this kind of HDR file, so its highlights are tone mapped. This can’t be undone." : {
+      "comment" : "Save confirmation; %@ is a format, such as “PNG” or “JPEG at quality 30”"
+    },
+    "The edited image is saved over the file as %@. This can’t be undone." : {
+      "comment" : "Save confirmation; %@ is a format, such as “PNG” or “JPEG at quality 30”"
+    },
     "The embedded preview is the JPEG the camera saved with the photo. It shows at once; where it is too small for the screen or the zoom, the RAW data is rendered instead. Extended dynamic range always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen." : {
+
+    },
+    "The file couldn’t be read." : {
+
+    },
+    "The file couldn’t be rewritten (%@)." : {
+      "comment" : "%@ is the system's reason"
+    },
+    "The file is shared as it was last saved, without the edits made here. To share the edits, save them first." : {
 
     },
     "The first editor opens with ⌘E. The images open as saved; when the editor saves one, minivu shows the change." : {
@@ -1872,32 +5028,204 @@
     "The image stays at full size; the anchor is where it sits on the new canvas." : {
 
     },
+    "The images in it stay where they are." : {
+      "comment" : "Deleting a collection"
+    },
+    "The item may have been moved or deleted, or minivu may not have permission to read it." : {
+
+    },
+    "The location was removed from the XMP sidecar, but stays in these camera raw files, which minivu never modifies:" : {
+
+    },
+    "The location was removed from the XMP sidecar, but stays in this camera raw file, which minivu never modifies:" : {
+
+    },
     "The longest side in pixels. Leave empty to keep the size; smaller images are never enlarged." : {
 
     },
-    "The preset keeps %@. Saving under a name already used replaces that preset." : {
+    "The metadata of %lld files was updated." : {
+      "comment" : "Alert title after editing metadata",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The metadata of %lld file was updated."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The metadata of %lld files was updated."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "The metadata was updated." : {
+
+    },
+    "The montage couldn’t be made." : {
+
+    },
+    "The name doesn’t change." : {
+
+    },
+    "The names wouldn’t change." : {
+
+    },
+    "The number of columns must be between 1 and 100." : {
+
+    },
+    "The old one was damaged and couldn’t be read, so the stars, tags and Custom Order you had set are no longer shown. The damaged file could not be set aside for you to recover." : {
+      "comment" : "Alert detail at launch, under “minivu started a new ratings database”"
+    },
+    "The old one was damaged and couldn’t be read, so the stars, tags and Custom Order you had set are no longer shown. The damaged file has been kept beside the new one as “%@”, in case it can be recovered." : {
+      "comment" : "Alert detail at launch, under “minivu started a new ratings database”; %@ is a file name"
+    },
+    "The original files keep all their metadata, including where each photo was taken." : {
+
+    },
+    "The page couldn’t be created. It may be too large for the memory available." : {
+
+    },
+    "The pattern has %lld unknown tokens: %@." : {
+      "comment" : "The count, then up to three tokens such as {nmae}, separated by commas",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The pattern has an unknown token: %2$@."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The pattern has %lld unknown tokens: %@."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "The pattern has a token minivu doesn’t know: %@. Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}." : {
+      "comment" : "Shortcuts error; %@ is a rename pattern token such as {nmae}. Keep the {…} tokens as they are"
+    },
+    "The pattern has tokens minivu doesn’t know: %@. Use {name}, {#}, {date}, {modified}, {width}, {height} or {ext}." : {
+      "comment" : "Shortcuts error; %@ is a list of rename pattern tokens such as {nmae}. Keep the {…} tokens as they are"
+    },
+    "The preset keeps the edits and every option below. Saving under a name already used replaces that preset." : {
+
+    },
+    "The preset keeps the pattern, counter and letter case. Saving under a name already used replaces that preset." : {
+
+    },
+    "The rating couldn’t be written into “%@”." : {
+      "comment" : "Alert title; %@ is a file name"
+    },
+    "The ratings database couldn’t be opened, so the stars, tags and Custom Order you set now last only until minivu quits. The reason given was “%@”. Freeing up space on the disk and opening minivu again usually puts it right." : {
+      "comment" : "Alert detail at launch; %@ is the system's reason, such as “disk is full”. Custom Order is the name of a sort order"
+    },
+    "The scale must be between 0 and 1000%." : {
+
+    },
+    "The screen couldn’t be captured." : {
+
+    },
+    "The shortcuts in the menus, then the keys the browser, viewer and tools use directly. Menu commands act on the window in front." : {
+
+    },
+    "The size must be between 1 and %@ pixels." : {
+
+    },
+    "The size must be between 16 and %@ pixels." : {
+
+    },
+    "The slideshow video couldn’t be exported." : {
+
+    },
+    "The smart folder couldn’t be saved." : {
 
     },
     "The source follows the brush at the same distance for every stroke." : {
 
     },
+    "The strip is saved as a new file and opens in the viewer, where it can be edited like any photo. HDR photos come out SDR: a strip keeps no gain map." : {
+
+    },
     "The video plays as a slideshow would: the first picture fades in from black and the last fades out. HDR photos are shown as on a standard display. Transitions play as chosen, even with Reduce Motion on." : {
+
+    },
+    "The web gallery couldn’t be created." : {
 
     },
     "Theme" : {
       "comment" : "Noun: submenu of colour schemes"
     },
+    "There were no images to work on." : {
+
+    },
+    "These files can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside each." : {
+
+    },
+    "These files have no date taken to shift:" : {
+
+    },
+    "These settings change how Apple’s RAW engine develops the file, before every other edit, so they can be changed again at any time. Reset returns to the camera’s settings." : {
+
+    },
+    "This Mac can’t write %@ files, so nothing was converted. Choose another format." : {
+      "comment" : "Shortcuts error; %@ is a file format such as AVIF"
+    },
     "This can’t be undone. Images already converted or renamed aren’t affected." : {
+
+    },
+    "This collection has been deleted." : {
+
+    },
+    "This file can’t be rewritten (camera raw, or a format ImageIO can’t rewrite), so the metadata goes in an XMP sidecar beside it." : {
+
+    },
+    "This file has no date taken to shift:" : {
+
+    },
+    "This folder can’t be used." : {
 
     },
     "This help page couldn’t be read from the app." : {
 
     },
+    "This image has a location. Removing it takes out the GPS position and the IPTC place names, and keeps everything else." : {
+
+    },
+    "This image has no location." : {
+
+    },
+    "This smart folder has been deleted." : {
+
+    },
+    "This works best on a photo with a clear subject, such as a person, a pet or an object, standing out from its background." : {
+
+    },
+    "Thumbnail Size" : {
+
+    },
     "Thumbnail cache" : {
 
     },
+    "Thumbnail size" : {
+      "comment" : "Tooltip of the thumbnail size slider"
+    },
     "Thumbnails" : {
-
+      "comment" : "Settings pane"
     },
     "Thumbnails are rebuilt from the original files the next time a folder is shown." : {
 
@@ -1905,14 +5233,20 @@
     "Tile across the photo" : {
 
     },
+    "Times" : {
+      "comment" : "How many times an animation plays"
+    },
+    "Tint" : {
+      "comment" : "Colour balance: green to magenta"
+    },
     "Title" : {
-
+      "comment" : "Metadata field: the image's title"
     },
     "Title and caption from the metadata" : {
 
     },
     "To" : {
-
+      "comment" : "End of a range of dates"
     },
     "Too large to count colors" : {
 
@@ -1920,26 +5254,82 @@
     "Tools" : {
       "comment" : "Menu bar menu"
     },
-    "Transition" : {
+    "Top left" : {
 
     },
+    "Top right" : {
+
+    },
+    "Transition" : {
+      "comment" : "Noun: slideshow effect between pictures"
+    },
     "Transparent" : {
+      "comment" : "Adjective: no background colour"
+    },
+    "Turn on minivu in System Settings > Privacy & Security > Screen & System Audio Recording, then quit and reopen minivu." : {
 
     },
     "Type" : {
       "comment" : "Sort key"
     },
+    "Type its name" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "Typing" : {
+      "comment" : "Undo step: typing text"
+    },
+    "US Letter at 300 dpi" : {
+      "comment" : "Contact sheet page size"
+    },
+    "Unavailable" : {
+      "comment" : "Estimated file size: can't be worked out"
+    },
     "Undo" : {
-
+      "comment" : "Verb: Edit menu command"
+    },
+    "Undo %@" : {
+      "comment" : "Edit menu: %@ names the edit, such as Crop"
     },
     "Unique colors" : {
 
     },
     "Unit" : {
-
+      "comment" : "Noun: unit of measure"
+    },
+    "Unknown token %@" : {
+      "comment" : "%@ is a pattern token such as {nmae}"
     },
     "Unmute Video" : {
 
+    },
+    "Untitled" : {
+      "comment" : "Name for a new file that has none"
+    },
+    "Untitled Collection" : {
+      "comment" : "Name offered for a new collection"
+    },
+    "Updating the Metadata of %lld Images" : {
+      "comment" : "Progress sheet title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Updating the Metadata of %lld Image"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Updating the Metadata of %lld Images"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "Use a pattern" : {
 
@@ -1948,7 +5338,13 @@
 
     },
     "Video" : {
+      "comment" : "Noun: the file is a video"
+    },
+    "Video player" : {
 
+    },
+    "Video, %@" : {
+      "comment" : "A video and its length, such as 1:05"
     },
     "Videos Only" : {
       "comment" : "File type filter"
@@ -1956,11 +5352,20 @@
     "View" : {
       "comment" : "Menu bar menu"
     },
+    "Viewer" : {
+      "comment" : "The window that shows one image"
+    },
+    "Viewer Mouse and Trackpad" : {
+      "comment" : "Heading: what the mouse and trackpad do in the viewer"
+    },
+    "Vignette" : {
+
+    },
     "Vignette…" : {
 
     },
     "Volume" : {
-
+      "comment" : "Noun: sound volume"
     },
     "Waiting for the images' dimensions" : {
 
@@ -1974,19 +5379,43 @@
     "Watermark…" : {
 
     },
+    "Web Gallery" : {
+      "comment" : "Folder name of a web gallery whose title can't name a folder"
+    },
     "Weight" : {
-
+      "comment" : "Font weight"
     },
     "What happens to PDFs, multi-page TIFFs and animations" : {
+
+    },
+    "When the image is larger than the window, the arrows pan it instead." : {
+
+    },
+    "Where each photo was taken is removed from the original files too; they keep their other metadata. An original it can’t be removed from, such as a camera raw file, is left out." : {
+
+    },
+    "Where these photos were taken couldn’t be removed from their original files, so only their large pictures are in the gallery:" : {
+
+    },
+    "Where this photo was taken couldn’t be removed from its original file, so only its large picture is in the gallery:" : {
 
     },
     "Which file of each group is suggested to keep" : {
 
     },
+    "White" : {
+      "comment" : "Viewer background colour"
+    },
     "White Balance" : {
 
     },
+    "Wider lines pick up softer edges." : {
+
+    },
     "Width" : {
+      "comment" : "Rename token: the image's width in pixels"
+    },
+    "Widths are percentages of the photo’s short side." : {
 
     },
     "Window" : {
@@ -2004,10 +5433,22 @@
     "Write ratings into files (XMP)" : {
 
     },
+    "Writing the pages" : {
+
+    },
     "Written into “%@” without re-encoding the image." : {
 
     },
     "Yellow" : {
+
+    },
+    "You can put them back from the Trash in Finder." : {
+
+    },
+    "Your changes will be lost if you don’t save them." : {
+
+    },
+    "Your current changes will be lost." : {
 
     },
     "Zoom" : {
@@ -2016,77 +5457,770 @@
     "Zoom In" : {
 
     },
+    "Zoom In (+)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
     "Zoom Out" : {
+
+    },
+    "Zoom Out (−)" : {
+      "comment" : "Tooltip: keep the key in brackets"
+    },
+    "Zoom and pan all images together" : {
 
     },
     "Zoom both sides (⌘= and ⌘-)" : {
 
     },
-    "adding to all" : {
+    "Zoom in / out" : {
+      "comment" : "Choice of what the mouse wheel does: zoom the image"
+    },
+    "Zoom in or out" : {
 
+    },
+    "[ and ] change the size." : {
+
+    },
+    "adding to all" : {
+      "comment" : "Beside a keyword only some images have: it will be added to every image"
+    },
+    "annotation.font.system" : {
+      "comment" : "Font menu: the system font",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "System"
+          }
+        }
+      }
+    },
+    "annotation.undo.add" : {
+      "comment" : "Undo step: %@ is the kind of object, such as Arrow",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Add %@"
+          }
+        }
+      }
+    },
+    "automation.file.untitled" : {
+      "comment" : "File name for an image a shortcut passed without one",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "batch.resize.size" : {
+      "comment" : "Noun: resize to a number of pixels",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Size"
+          }
+        }
+      }
+    },
+    "batch.watermark.none" : {
+      "comment" : "Batch Convert: no watermark",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "canvas.fill" : {
+      "comment" : "Noun: the colour of the added canvas area",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Fill"
+          }
+        }
+      }
+    },
+    "compare.window.title" : {
+      "comment" : "Noun: title of the window that shows images side by side",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compare"
+          }
+        }
+      }
+    },
+    "crop.aspect.original" : {
+      "comment" : "Crop aspect ratio: the image's own",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Original"
+          }
+        }
+      }
+    },
+    "days" : {
+      "comment" : "Unit after a number of days"
     },
     "digit minimum" : {
-
+      "comment" : "Label after a stepper showing 1: the counter's minimum number of digits"
     },
     "digits minimum" : {
-
+      "comment" : "Label after a stepper showing 2 to 9: the counter's minimum number of digits"
+    },
+    "duplicates.none-found" : {
+      "comment" : "Find Duplicates found nothing: how many images were compared",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No duplicates: %lld image was compared."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "No duplicates among %lld images."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "edit.size" : {
+      "comment" : "Label: the size of a brush, text or watermark",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Size"
+          }
+        }
+      }
+    },
+    "effect.lens" : {
+      "comment" : "Effect: magnifying-lens distortion",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Lens"
+          }
+        }
+      }
+    },
+    "effects.oilpaint.levels" : {
+      "comment" : "Oil painting: how many steps of colour the paint uses",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Levels"
+          }
+        }
+      }
     },
     "extension" : {
-
+      "comment" : "Label after the letter case picker for the file name extension"
+    },
+    "folder" : {
+      "comment" : "VoiceOver, in a thumbnail's description: the item is a folder"
+    },
+    "h" : {
+      "comment" : "Abbreviation of hours, after a number"
     },
     "height" : {
-
+      "comment" : "Placeholder: minimum height in pixels"
+    },
+    "help.shortcuts.compare" : {
+      "comment" : "Noun: the window that shows images side by side",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Compare"
+          }
+        }
+      }
+    },
+    "image.zoom.verb" : {
+      "comment" : "Verb: make the image larger or smaller",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Zoom"
+          }
+        }
+      }
+    },
+    "in %@" : {
+      "comment" : "VoiceOver: the folder a file is in"
+    },
+    "levels.black" : {
+      "comment" : "Levels: the black point",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Black"
+          }
+        }
+      }
+    },
+    "levels.white" : {
+      "comment" : "Levels: the white point",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "White"
+          }
+        }
+      }
     },
     "max" : {
-
+      "comment" : "Placeholder: highest value of a range"
+    },
+    "metadata.date.none" : {
+      "comment" : "Date taken: no file has one",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
     },
     "min" : {
-
+      "comment" : "Placeholder: lowest value of a range"
     },
     "minivu Help" : {
+      "comment" : "Window title"
+    },
+    "minivu can’t display “%@”." : {
+      "comment" : "%@ is a file name"
+    },
+    "minivu can’t keep your ratings this time" : {
 
+    },
+    "minivu can’t open %@" : {
+      "comment" : "Alert title; %@ is a list of quoted file or folder names"
+    },
+    "minivu doesn’t have permission to open “%@”. To give it access, choose File > Open Folder… and select the folder." : {
+      "comment" : "File > Open Folder… is the menu command: use its translated names"
+    },
+    "minivu isn’t allowed to record the screen." : {
+
+    },
+    "minivu needs permission to capture the screen" : {
+
+    },
+    "minivu only works with files on this Mac’s internal storage. Copy the photos from the external drive, memory card or network share to a folder on this Mac first." : {
+
+    },
+    "minivu only works with folders on this Mac’s internal storage." : {
+
+    },
+    "minivu started a new ratings database" : {
+
+    },
+    "minivu works only with folders on this Mac’s internal storage." : {
+
+    },
+    "multipage.unit.seconds" : {
+      "comment" : "Unit after the frame delay field",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "seconds"
+          }
+        }
+      }
+    },
+    "multipage.unit.times" : {
+      "comment" : "Unit after the number of times an animation plays",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "times"
+          }
+        }
+      }
     },
     "name" : {
-
+      "comment" : "Label after the letter case picker for the file name"
     },
     "new" : {
-
+      "comment" : "Beside a keyword that will be added to the images"
+    },
+    "no extension" : {
+      "comment" : "In a list of file types: a file with no extension"
+    },
+    "panel.add-folder.prompt" : {
+      "comment" : "Open panel button: adds the chosen folder to the sidebar",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Add"
+          }
+        }
+      }
+    },
+    "panel.open-folder.prompt" : {
+      "comment" : "Open panel button: opens the chosen folder",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Open"
+          }
+        }
+      }
     },
     "pixels" : {
-
+      "comment" : "After the minimum width and height fields"
+    },
+    "print.caption.none" : {
+      "comment" : "Captions under printed pictures: none",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
     },
     "px" : {
       "shouldTranslate" : false
     },
+    "replace.files" : {
+      "comment" : "Part of “Replace 2 originals and 5 files?”: other files being replaced",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "replace.originals" : {
+      "comment" : "Part of “Replace 2 originals and 5 files?”: the original images being replaced",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld original"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld originals"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "retouch.source.set" : {
+      "comment" : "Clone source: chosen, not used yet",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Set"
+          }
+        }
+      }
+    },
+    "retouch.stroke" : {
+      "comment" : "Undo step: one brush stroke",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stroke"
+          }
+        }
+      }
+    },
+    "s" : {
+      "comment" : "Abbreviation of seconds, after a number"
+    },
+    "search.filter.apply" : {
+      "comment" : "Verb: button that applies the filters",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Filter"
+          }
+        }
+      }
+    },
+    "slideshow.caption.exif.inline" : {
+      "comment" : "Within “In order, captions: camera and exposure”",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "camera and exposure"
+          }
+        }
+      }
+    },
+    "slideshow.caption.name-and-date.inline" : {
+      "comment" : "Within “In order, captions: file name and date”",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "file name and date"
+          }
+        }
+      }
+    },
+    "slideshow.caption.name.inline" : {
+      "comment" : "Within “In order, captions: file name”",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "file name"
+          }
+        }
+      }
+    },
+    "slideshow.caption.none" : {
+      "comment" : "Slideshow captions: no caption",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "slideshow.caption.none.inline" : {
+      "comment" : "Within “In order, captions: none”",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "none"
+          }
+        }
+      }
+    },
     "start" : {
-
+      "comment" : "Label after the counter's first number"
     },
     "step" : {
-
+      "comment" : "Label after the number the counter goes up by"
+    },
+    "suggested to keep" : {
+      "comment" : "VoiceOver: the file suggested to keep in a group of duplicates"
+    },
+    "tagged" : {
+      "comment" : "VoiceOver, in a thumbnail's description: it has minivu's tag (a mark, like a flag)"
     },
     "to" : {
-
+      "comment" : "Between the lowest and highest value of a range"
+    },
+    "transfer.button.copy" : {
+      "comment" : "Verb: button that copies the files into the chosen folder",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copy"
+          }
+        }
+      }
+    },
+    "transfer.button.move" : {
+      "comment" : "Verb: button that moves the files into the chosen folder",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move"
+          }
+        }
+      }
+    },
+    "unit.minutes.short" : {
+      "comment" : "Abbreviation of minutes, after a number",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "min"
+          }
+        }
+      }
+    },
+    "up to %@ px" : {
+      "comment" : "The largest picture size in pixels"
+    },
+    "video" : {
+      "comment" : "VoiceOver, in a thumbnail's description: the file is a video"
+    },
+    "viewer.background.gray" : {
+      "comment" : "Viewer background colour",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Gray"
+          }
+        }
+      }
+    },
+    "viewer.tools.title" : {
+      "comment" : "Title of the viewer's panel of editing tools",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Tools"
+          }
+        }
+      }
+    },
+    "watermark.picture.none" : {
+      "comment" : "No picture chosen",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "None"
+          }
+        }
+      }
     },
     "width" : {
-
+      "comment" : "Placeholder: minimum width in pixels"
     },
     "with" : {
-
+      "comment" : "Between the text to find and its replacement: replace … with …"
+    },
+    "zoom.magnification" : {
+      "comment" : "Noun: how much the image is magnified",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Zoom"
+          }
+        }
+      }
     },
     "{name}" : {
-
+      "comment" : "Placeholder: a rename pattern token, keep the braces and the word as they are"
     },
     "×" : {
       "shouldTranslate" : false
     },
     "— %@" : {
+      "comment" : "A detail after a dash, such as a file size"
+    },
+    "“%@”" : {
+      "comment" : "A name or text in quotation marks"
+    },
+    "“%@” and Subfolders" : {
+      "comment" : "Find Duplicates: where to look, a folder's name in quotation marks"
+    },
+    "“%@” can’t be found." : {
+      "comment" : "%@ is an application's name"
+    },
+    "“%@” can’t be opened. It may have been moved or deleted, or minivu may not have permission to read it." : {
 
+    },
+    "“%@” can’t be replaced by an item inside it." : {
+
+    },
+    "“%@” couldn’t be copied." : {
+
+    },
+    "“%@” couldn’t be flipped: %@" : {
+      "comment" : "A file name, then the reason",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "“%1$@” couldn’t be flipped: %2$@"
+          }
+        }
+      }
+    },
+    "“%@” couldn’t be made." : {
+      "comment" : "%@ is a file name"
+    },
+    "“%@” couldn’t be moved to the Trash." : {
+      "comment" : "%@ is a file name"
+    },
+    "“%@” couldn’t be moved." : {
+
+    },
+    "“%@” couldn’t be prepared for printing." : {
+
+    },
+    "“%@” couldn’t be read." : {
+
+    },
+    "“%@” couldn’t be renamed." : {
+
+    },
+    "“%@” couldn’t be rotated: %@" : {
+      "comment" : "A file name, then the reason",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "“%1$@” couldn’t be rotated: %2$@"
+          }
+        }
+      }
+    },
+    "“%@” couldn’t be saved." : {
+      "comment" : "Alert title; %@ is a file name"
+    },
+    "“%@” couldn’t be set as the desktop picture." : {
+
+    },
+    "“%@” has edits that aren’t saved." : {
+
+    },
+    "“%@” in %@" : {
+      "comment" : "Window title of a name search; the text searched for, then the folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "“%1$@” in %2$@"
+          }
+        }
+      }
+    },
+    "“%@” isn’t a file in a folder on this Mac, so minivu can’t rename or rate it. Pass files from Finder instead." : {
+      "comment" : "Shortcuts error; %@ is a file name"
+    },
+    "“%@” isn’t on this Mac’s internal storage, so minivu did nothing. minivu only works with files on this Mac’s internal storage. Copy the photos from the external drive, memory card or network share to a folder on this Mac first." : {
+      "comment" : "Shortcuts error; %@ is a file name"
+    },
+    "“%@” isn’t on this Mac’s internal storage. minivu only writes to folders on this Mac’s internal storage." : {
+      "comment" : "Error; %@ is a folder name"
+    },
+    "“%@” was changed by another application after you started editing it, so it wasn’t replaced. Use Save As to keep your edits in a new file." : {
+      "comment" : "Error; %@ is a file name. Save As is a menu command"
+    },
+    "“%@” was changed by another application." : {
+
+    },
+    "“%@”, written without re-encoding the image." : {
+      "comment" : "Metadata editor header; %@ is a file name"
     },
     "“Another display” keeps the browser’s display free: browse on one display and view full screen on another. With one display connected, the viewer opens on it. Slideshows open where the viewer does, and Window > Move to Next Display moves either." : {
 
     },
+    "…and %lld more." : {
+      "comment" : "Last line of a list of file names that was cut short"
+    },
+    "⇧ with an arrow" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "⌘ while dropping" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
     "⌘E" : {
       "shouldTranslate" : false
+    },
+    "⌥ while dropping" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
+    },
+    "⌥-click" : {
+      "comment" : "Keys or gesture; keep key names as the keyboard shows them"
     }
   },
   "version" : "1.0"
