@@ -24,7 +24,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var title: String { objectKind?.title ?? "Select" }
+    var title: String { objectKind?.title ?? localized(.init("Select", comment: "Drawing tool: the arrow that selects objects")) }
 
     var symbol: String {
         switch self {
@@ -152,7 +152,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
 
     // MARK: - EditToolState
 
-    var title: String { "Text and Shapes" }
+    var title: String { localized("Text and Shapes") }
 
     /// A drawing being edited again counts even unchanged: its operation is
     /// off the document while the tool is open, so closing without Apply
@@ -179,7 +179,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
     func reset() {
         guard objects != original else { return }
         endTextEditing()
-        recordUndo("Reset")
+        recordUndo(localized("Reset"))
         objects = original
         selectedID = nil
         changed()
@@ -214,7 +214,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
     /// Adds `a` on top and selects it; `live` while a drag is still sizing it.
     func add(_ a: Annotation, live: Bool = false) {
         endTextEditing()
-        recordUndo("Add \(a.kind.title)")
+        recordUndo(Self.addStepName(a.kind))
         objects.append(a)
         selectedID = a.id
         if live { liveIDs.insert(a.id) }
@@ -248,7 +248,8 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
 
     func deleteSelection() {
         guard let id = selectedID, let index = objects.firstIndex(where: { $0.id == id }) else { return }
-        recordUndo("Delete \(objects[index].kind.title)")
+        let kind = objects[index].kind.title
+        recordUndo(localized(.init("Delete \(kind)", comment: "Undo step: %@ is the kind of object, such as Arrow")))
         if editingID == id { editingID = nil }
         objects.remove(at: index)
         liveIDs.remove(id)
@@ -262,7 +263,8 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
         endTextEditing()
         var copy = AnnotationGeometry.moved(a, by: offsetForCopies, in: imageSize)
         copy.id = UUID()
-        recordUndo("Duplicate \(a.kind.title)")
+        let kind = a.kind.title
+        recordUndo(localized(.init("Duplicate \(kind)", comment: "Undo step: %@ is the kind of object, such as Arrow")))
         objects.append(copy)
         selectedID = copy.id
         changed()
@@ -283,7 +285,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
     func paste() {
         guard !Self.clipboard.isEmpty else { return }
         endTextEditing()
-        recordUndo("Paste")
+        recordUndo(localized("Paste"))
         var last: UUID?
         for original in Self.clipboard {
             let clash = objects.contains { $0.frame == original.frame && $0.start == original.start && $0.kind == original.kind }
@@ -300,7 +302,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
     /// second are one undo step.
     func nudge(dx: CGFloat, dy: CGFloat) {
         guard let a = selected else { return }
-        recordUndo("Move", coalescing: "nudge-\(a.id)")
+        recordUndo(localized(.init("Move", comment: "Undo step: moving an object")), coalescing: "nudge-\(a.id)")
         replace(AnnotationGeometry.moved(a, by: CGSize(width: dx, height: dy), in: imageSize))
     }
 
@@ -308,7 +310,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
     func arrangeSelection(toFront: Bool) {
         guard let id = selectedID, let index = objects.firstIndex(where: { $0.id == id }) else { return }
         guard toFront ? index < objects.count - 1 : index > 0 else { return }
-        recordUndo(toFront ? "Bring to Front" : "Send to Back")
+        recordUndo(toFront ? localized("Bring to Front") : localized("Send to Back"))
         let a = objects.remove(at: index)
         if toFront { objects.append(a) } else { objects.insert(a, at: 0) }
         changed()
@@ -348,7 +350,7 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
     func beginTextEditing(_ id: UUID) {
         guard let a = object(id), a.kind.hasText, editingID != id else { return }
         endTextEditing()
-        recordUndo("Typing")
+        recordUndo(Self.typingStepName)
         selectedID = id
         editingID = id
         liveIDs.insert(id)
@@ -380,9 +382,10 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
                 guard let step else { return false }
                 return step.objects.first { $0.id == id }.map { $0.text.isEmpty } ?? true
             }
-            if undoStack.last?.name == "Typing", hadNoText(undoStack.last) {
+            if undoStack.last?.name == Self.typingStepName, hadNoText(undoStack.last) {
                 undoStack.removeLast()
-                if let last = undoStack.last, last.name.hasPrefix("Add "), !last.objects.contains(where: { $0.id == id }) {
+                if let last = undoStack.last, last.name == Self.addStepName(.text),
+                   !last.objects.contains(where: { $0.id == id }) {
                     undoStack.removeLast()
                 }
             }
@@ -407,6 +410,14 @@ nonisolated enum AnnotationToolKind: Int, CaseIterable, Identifiable, Sendable {
 
     /// Remembers the objects before a change. Changes sharing `key` within a
     /// second of each other are one step.
+    /// Undo step names; `endTextEditing` looks for these two.
+    private static var typingStepName: String { localized(.init("Typing", comment: "Undo step: typing text")) }
+    private static func addStepName(_ kind: Annotation.Kind) -> String {
+        let kind = kind.title
+        return localized(.init("annotation.undo.add", defaultValue: "Add \(kind)",
+                               comment: "Undo step: %@ is the kind of object, such as Arrow"))
+    }
+
     func recordUndo(_ name: String, coalescing key: String? = nil) {
         let now = ProcessInfo.processInfo.systemUptime
         defer { coalescing = key.map { ($0, now) } }

@@ -63,12 +63,12 @@ struct AnnotationInspectorView: View {
 
     private var hint: String {
         switch state.tool {
-        case .select: "Click an object to select it. Double-click text to edit it."
-        case .text: "Click or drag to add text."
-        case .callout: "Drag to draw a callout, then drag its yellow handle to point."
-        case .line, .arrow: "Drag to draw. Shift keeps it to 45°."
-        case .highlight, .rectangle: "Drag to draw. Shift makes a square."
-        case .oval: "Drag to draw. Shift makes a circle."
+        case .select: localized("Click an object to select it. Double-click text to edit it.")
+        case .text: localized("Click or drag to add text.")
+        case .callout: localized("Drag to draw a callout, then drag its yellow handle to point.")
+        case .line, .arrow: localized("Drag to draw. Shift keeps it to 45°.")
+        case .highlight, .rectangle: localized("Drag to draw. Shift makes a square.")
+        case .oval: localized("Drag to draw. Shift makes a circle.")
         }
     }
 
@@ -81,13 +81,13 @@ struct AnnotationInspectorView: View {
         let kind = style.kind
         if kind != .highlight {
             ColorPicker(kind == .text ? "Border" : "Stroke",
-                        selection: colorBinding(\.strokeColor, name: "Stroke Color"), supportsOpacity: true)
-            AnnotationSliderRow(title: "Width", value: style.strokeWidth * shortSide,
+                        selection: colorBinding(\.strokeColor, name: localized("Stroke Color")), supportsOpacity: true)
+            AnnotationSliderRow(title: localized("Width"), value: style.strokeWidth * shortSide,
                                 range: 0...max(4, (shortSide * 0.04).rounded()), unit: "px", decimals: shortSide < 1000 ? 1 : 0) {
-                value in state.updateStyle("Width") { $0.strokeWidth = value / max(shortSide, 1) }
+                value in state.updateStyle(localized("Width")) { $0.strokeWidth = value / max(shortSide, 1) }
             }
             Picker("Line", selection: Binding(get: { style.dash },
-                                              set: { v in state.updateStyle("Line Style") { $0.dash = v } })) {
+                                              set: { v in state.updateStyle(localized("Line Style")) { $0.dash = v } })) {
                 Text("Solid").tag(Annotation.Dash.solid)
                 Text("Dashed").tag(Annotation.Dash.dashed)
                 Text("Dotted").tag(Annotation.Dash.dotted)
@@ -96,76 +96,77 @@ struct AnnotationInspectorView: View {
         }
         if kind.isLine {
             Picker("Arrowheads", selection: Binding(get: { style.arrowheads },
-                                                    set: { v in state.updateStyle("Arrowheads") { $0.arrowheads = v } })) {
+                                                    set: { v in state.updateStyle(localized("Arrowheads")) { $0.arrowheads = v } })) {
                 Text("None").tag(Annotation.Arrowheads.none)
                 Text("End").tag(Annotation.Arrowheads.end)
                 Text("Both").tag(Annotation.Arrowheads.both)
             }
             .pickerStyle(.segmented)
             if style.arrowheads != .none {
-                AnnotationSliderRow(title: "Head size", value: style.arrowheadSize, range: 2...12, unit: "×", decimals: 1) {
-                    value in state.updateStyle("Head Size") { $0.arrowheadSize = value }
+                AnnotationSliderRow(title: localized("Head size"), value: style.arrowheadSize, range: 2...12, unit: "×", decimals: 1) {
+                    value in state.updateStyle(localized("Head Size")) { $0.arrowheadSize = value }
                 }
             }
         } else {
             if kind == .highlight {
-                ColorPicker("Color", selection: colorBinding(\.fillColor, name: "Color"), supportsOpacity: false)
+                ColorPicker("Color", selection: colorBinding(\.fillColor, name: localized("Color")), supportsOpacity: false)
             } else {
                 LabeledContent(kind == .text ? "Background" : "Fill") {
                     HStack(spacing: 8) {
                         Toggle("", isOn: Binding(get: { style.fillColor.alpha > 0 }, set: { on in
-                            state.updateStyle("Fill") { $0.fillColor.alpha = on ? 1 : 0 }
+                            state.updateStyle(localized("Fill")) { $0.fillColor.alpha = on ? 1 : 0 }
                         }))
                         .labelsHidden()
-                        ColorPicker("", selection: colorBinding(\.fillColor, name: "Fill Color"), supportsOpacity: true)
+                        ColorPicker("", selection: colorBinding(\.fillColor, name: localized("Fill Color")), supportsOpacity: true)
                             .labelsHidden()
                             .disabled(style.fillColor.alpha <= 0)
                     }
                 }
             }
         }
-        AnnotationSliderRow(title: "Opacity", value: style.opacity * 100, range: 5...100, unit: "%", decimals: 0) {
-            value in state.updateStyle("Opacity") { $0.opacity = value / 100 }
+        AnnotationSliderRow(title: localized("Opacity"), value: style.opacity * 100, range: 5...100, unit: "%", decimals: 0) {
+            value in state.updateStyle(localized("Opacity")) { $0.opacity = value / 100 }
         }
-        Toggle("Shadow", isOn: Binding(get: { style.shadow }, set: { on in state.updateStyle("Shadow") { $0.shadow = on } }))
+        Toggle("Shadow", isOn: Binding(get: { style.shadow }, set: { on in state.updateStyle(localized("Shadow")) { $0.shadow = on } }))
     }
 
     @ViewBuilder private func textRows(_ style: Annotation) -> some View {
         LabeledContent("Font") {
             FontFamilyPopUp(family: style.fontFamily) { family in
-                state.updateStyle("Font") { $0.fontFamily = family }
+                state.updateStyle(localized("Font")) { $0.fontFamily = family }
             }
         }
         Picker("Weight", selection: Binding(get: { style.fontWeight },
-                                            set: { v in state.updateStyle("Weight") { $0.fontWeight = v } })) {
+                                            set: { v in state.updateStyle(localized("Weight")) { $0.fontWeight = v } })) {
             ForEach(Annotation.FontWeight.allCases, id: \.self) { Text($0.title).tag($0) }
         }
-        AnnotationSliderRow(title: "Size", value: style.fontSize * imageHeight,
+        AnnotationSliderRow(title: localized(.init("edit.size", defaultValue: "Size", comment: "Label: the size of a brush, text or watermark")),
+            value: style.fontSize * imageHeight,
                             range: max(4, (imageHeight * 0.01).rounded())...max(16, (imageHeight * 0.25).rounded()),
                             unit: "px", decimals: 0) { value in
-            state.updateStyle("Text Size") { $0.fontSize = value / max(imageHeight, 1) }
+            state.updateStyle(localized("Text Size")) { $0.fontSize = value / max(imageHeight, 1) }
         }
         Picker("Alignment", selection: Binding(get: { style.alignment },
-                                               set: { v in state.updateStyle("Alignment") { $0.alignment = v } })) {
+                                               set: { v in state.updateStyle(localized("Alignment")) { $0.alignment = v } })) {
             Image(systemName: "text.alignleft").tag(Annotation.Alignment.left).accessibilityLabel("Left")
             Image(systemName: "text.aligncenter").tag(Annotation.Alignment.center).accessibilityLabel("Center")
             Image(systemName: "text.alignright").tag(Annotation.Alignment.right).accessibilityLabel("Right")
         }
         .pickerStyle(.segmented)
-        ColorPicker("Color", selection: colorBinding(\.textColor, name: "Text Color"), supportsOpacity: true)
+        ColorPicker("Color", selection: colorBinding(\.textColor, name: localized("Text Color")), supportsOpacity: true)
         LabeledContent("Outline") {
             HStack(spacing: 8) {
                 Toggle("", isOn: Binding(get: { style.textOutlineColor.alpha > 0 }, set: { on in
-                    state.updateStyle("Outline") { $0.textOutlineColor.alpha = on ? 1 : 0 }
+                    state.updateStyle(localized("Outline")) { $0.textOutlineColor.alpha = on ? 1 : 0 }
                 }))
                 .labelsHidden()
-                ColorPicker("", selection: colorBinding(\.textOutlineColor, name: "Outline Color"), supportsOpacity: true)
+                ColorPicker("", selection: colorBinding(\.textOutlineColor, name: localized("Outline Color")), supportsOpacity: true)
                     .labelsHidden()
                     .disabled(style.textOutlineColor.alpha <= 0)
             }
         }
         Toggle("Fit height to text", isOn: Binding(get: { style.autoresizesHeight }, set: { on in
-            state.updateStyle("Fit Height") { $0.autoresizesHeight = on }
+            state.updateStyle(localized("Fit Height")) { $0.autoresizesHeight = on }
         }))
     }
 
@@ -239,7 +240,8 @@ struct FontFamilyPopUp: NSViewRepresentable {
         let button = NSPopUpButton(frame: .zero, pullsDown: false)
         button.controlSize = .small
         button.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        button.addItem(withTitle: "System")
+        button.addItem(withTitle: localized(.init("annotation.font.system", defaultValue: "System",
+                                                  comment: "Font menu: the system font")))
         button.lastItem?.representedObject = Annotation.systemFontFamily
         button.menu?.addItem(.separator())
         for name in NSFontManager.shared.availableFontFamilies where !name.hasPrefix(".") {
