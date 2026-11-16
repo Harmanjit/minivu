@@ -62,6 +62,11 @@ strip -x "$APP/Contents/MacOS/minivu"
 for target in MinivuCore MinivuRender Minivu; do
   cp -R ".build/release/minivu_$target.bundle" "$APP/Contents/Resources/"
 done
+# SwiftUI's Text("…"), Button("…") and the like look their keys up in
+# Bundle.main, so the app target's compiled strings go there as well.
+for lproj in .build/release/minivu_Minivu.bundle/Contents/Resources/*.lproj; do
+  if [ -d "$lproj" ]; then cp -R "$lproj" "$APP/Contents/Resources/"; fi
+done
 cp Assets/AppIcon.icns "$APP/Contents/Resources/"
 
 # Shortcuts actions (App Intents). Shortcuts learns what an app offers from
@@ -143,11 +148,11 @@ else
 fi
 
 # The languages minivu ships (docs/feature-notes/l10n.md). The main bundle
-# has no .lproj folders of its own, so this list is what makes it choose
-# one of them: the resource bundles follow the main bundle's choice (without
-# the list they stay in English whatever the user's language), and AppKit's
-# own items (Services, the Window menu's additions, standard panels) follow
-# it too.
+# has .lproj folders only for the languages translated so far, so this list
+# is what lets it choose any of them. The resource bundles follow the main
+# bundle's choice (without the list they stay in English whatever the
+# user's language), and so do AppKit's own items (Services, the Window
+# menu's additions, standard panels).
 LOCALIZATIONS=""
 for lang in en de fr es it pt-BR nl pl ja zh-Hans ko; do
   LOCALIZATIONS+=$'\n    '"<string>$lang</string>"

@@ -14,7 +14,7 @@ final class CollectionsMenu: NSObject, NSMenuDelegate {
 
     /// A submenu that keeps its delegate alive, as `RecentDestinationsMenu` does.
     static func make(catalog: Catalog = .shared) -> NSMenu {
-        let menu = NSMenu(title: "Add to Collection")
+        let menu = NSMenu(title: localized("Add to Collection"))
         let delegate = CollectionsMenu(catalog: catalog)
         objc_setAssociatedObject(menu, &delegateKey, delegate, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         menu.delegate = delegate
@@ -39,7 +39,7 @@ final class CollectionsMenu: NSObject, NSMenuDelegate {
             menu.addItem(item)
         }
         if !collections.isEmpty { menu.addItem(.separator()) }
-        menu.addItem(NSMenuItem(title: "New Collection…", action: .newCollection, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: localized("New Collection…"), action: .newCollection, keyEquivalent: ""))
     }
 }
 

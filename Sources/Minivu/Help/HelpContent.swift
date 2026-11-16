@@ -65,15 +65,24 @@ nonisolated enum HelpPage: String, CaseIterable, Identifiable, Sendable {
 
 /// Reads the bundled pages.
 nonisolated enum HelpLibrary {
-    /// The resource folder (Package.swift copies it whole).
+    /// The resource folder (Package.swift copies it whole). English pages
+    /// are at its top; a translation is in a folder named for its language,
+    /// as the bundle's .lproj folders are (HelpPages/de/Browser.md,
+    /// HelpPages/pt-BR/Browser.md).
     static let folder = "HelpPages"
 
     /// The Markdown text of `page`, or nil for the generated page or a file
     /// that is missing. Small files, but still file I/O: callers read them
     /// through `BlockingWork`.
-    static func markdown(for page: HelpPage, bundle: Bundle = .minivuHelp) -> String? {
-        guard let name = page.resourceName,
-              let url = bundle.url(forResource: name, withExtension: "md", subdirectory: folder) else { return nil }
+    ///
+    /// In the first of `languages` that has the page, otherwise in English.
+    /// By default those are the bundle's preferred localizations: the
+    /// language the menus are in, so a page and the menus it names agree.
+    static func markdown(for page: HelpPage, bundle: Bundle = .minivuHelp, languages: [String]? = nil) -> String? {
+        guard let name = page.resourceName else { return nil }
+        let folders = (languages ?? bundle.preferredLocalizations).map { "\(folder)/\($0)" } + [folder]
+        guard let url = folders.lazy.compactMap({ bundle.url(forResource: name, withExtension: "md", subdirectory: $0) })
+            .first else { return nil }
         return try? String(contentsOf: url, encoding: .utf8)
     }
 

@@ -1,7 +1,2092 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
 
+    },
+    "%" : {
+
+    },
+    "%@  %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@  %2$@"
+          }
+        }
+      }
+    },
+    "%@ Pictures are written in sRGB; HDR photos are shown as on a standard display." : {
+
+    },
+    "%@ colors" : {
+
+    },
+    "%@ of %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of %2$@"
+          }
+        }
+      }
+    },
+    "%@ or More" : {
+      "comment" : "Rating filter: images with at least these stars (★ characters)"
+    },
+    "%@ pages" : {
+
+    },
+    "%@, left out: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, left out: %2$@"
+          }
+        }
+      }
+    },
+    "%@, maximum" : {
+
+    },
+    "%@, minimum" : {
+
+    },
+    "%@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld bits per channel" : {
+
+    },
+    "%lld fps" : {
+
+    },
+    "%lld percent" : {
+
+    },
+    "%lld points" : {
+
+    },
+    "%lld pt" : {
+
+    },
+    "%lld seconds" : {
+
+    },
+    "%lld%%" : {
+
+    },
+    "%lld: %@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld: %2$@%3$@"
+          }
+        }
+      }
+    },
+    "1 color" : {
+
+    },
+    "1 page" : {
+
+    },
+    "180°" : {
+
+    },
+    "90° Left" : {
+
+    },
+    "90° Right" : {
+
+    },
+    "A canvas smaller than the image crops it about the anchor." : {
+
+    },
+    "A collage of %@ at the size of the display, saved to Pictures › minivu Wallpapers and set as its desktop picture." : {
+
+    },
+    "A name no other preset has." : {
+
+    },
+    "A range" : {
+
+    },
+    "AVIF" : {
+
+    },
+    "About minivu" : {
+
+    },
+    "Actual Size" : {
+      "comment" : "Zoom: show the image at 100%"
+    },
+    "Add %@" : {
+
+    },
+    "Add %@ to every image" : {
+
+    },
+    "Add Folder to Sidebar…" : {
+
+    },
+    "Add Keywords" : {
+
+    },
+    "Add Watermark" : {
+
+    },
+    "Add keywords" : {
+
+    },
+    "Add keywords, separated by commas" : {
+
+    },
+    "Add to Collection" : {
+
+    },
+    "Add to every image" : {
+
+    },
+    "Adds a token at the end of the pattern" : {
+
+    },
+    "Add…" : {
+
+    },
+    "Adjust" : {
+      "comment" : "Submenu of colour and tone adjustments"
+    },
+    "After" : {
+
+    },
+    "Aligned" : {
+
+    },
+    "Alignment" : {
+
+    },
+    "All Displays" : {
+
+    },
+    "All Files" : {
+      "comment" : "File type filter"
+    },
+    "All of these, comma separated" : {
+
+    },
+    "All pages" : {
+
+    },
+    "Amount" : {
+
+    },
+    "Anchor" : {
+
+    },
+    "Any" : {
+
+    },
+    "Any camera" : {
+
+    },
+    "Any lens" : {
+
+    },
+    "Any name" : {
+
+    },
+    "Apply" : {
+
+    },
+    "Arrange" : {
+
+    },
+    "Arrowheads" : {
+
+    },
+    "Ascending" : {
+      "comment" : "Sort direction"
+    },
+    "Ask before saving over the original" : {
+
+    },
+    "Aspect" : {
+
+    },
+    "At least" : {
+
+    },
+    "Auto" : {
+
+    },
+    "Auto Detect" : {
+
+    },
+    "Auto Enhance" : {
+
+    },
+    "BMP" : {
+
+    },
+    "Back" : {
+      "comment" : "Go back to the previous folder"
+    },
+    "Back to Tools" : {
+
+    },
+    "Background" : {
+
+    },
+    "Background color" : {
+
+    },
+    "Background colour" : {
+
+    },
+    "Background for transparency" : {
+
+    },
+    "Batch Convert applies the preset to other images: choose it under Preset in Tools > Batch Convert…." : {
+
+    },
+    "Batch Convert…" : {
+
+    },
+    "Batch Rename…" : {
+
+    },
+    "Before" : {
+
+    },
+    "Beside the originals" : {
+
+    },
+    "Best" : {
+
+    },
+    "Blue" : {
+
+    },
+    "Blur…" : {
+
+    },
+    "Border" : {
+
+    },
+    "Both" : {
+
+    },
+    "Bright" : {
+      "comment" : "Theme"
+    },
+    "Bring All to Front" : {
+
+    },
+    "Bring to Front" : {
+
+    },
+    "Bump Map…" : {
+      "comment" : "Effect: embossed relief"
+    },
+    "Camera" : {
+
+    },
+    "Camera model" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Canvas" : {
+
+    },
+    "Canvas Size" : {
+
+    },
+    "Canvas Size…" : {
+      "comment" : "The size of the canvas around the image"
+    },
+    "Captions" : {
+
+    },
+    "Capture" : {
+      "comment" : "Noun: submenu of screen captures"
+    },
+    "Center" : {
+
+    },
+    "Change" : {
+
+    },
+    "Channel" : {
+
+    },
+    "Channels" : {
+
+    },
+    "Choose Another…" : {
+
+    },
+    "Choose Folder…" : {
+
+    },
+    "Choose Picture…" : {
+
+    },
+    "Choose a Topic" : {
+
+    },
+    "Choose where to look and what to find, then click Find." : {
+
+    },
+    "Choose…" : {
+
+    },
+    "Clear" : {
+
+    },
+    "Clear Marks" : {
+
+    },
+    "Clear Rating" : {
+      "comment" : "Menu command: remove the image's star rating"
+    },
+    "Clear Thumbnail Cache" : {
+
+    },
+    "Click the preview to play it" : {
+
+    },
+    "Clone Stamp…" : {
+
+    },
+    "Close Window" : {
+
+    },
+    "Codec" : {
+
+    },
+    "Color" : {
+
+    },
+    "Color profile" : {
+
+    },
+    "Colors…" : {
+      "comment" : "Adjustment: saturation, temperature and tint"
+    },
+    "Colour Label" : {
+
+    },
+    "Columns" : {
+
+    },
+    "Compare" : {
+
+    },
+    "Compare Selected" : {
+      "comment" : "Show the selected images side by side"
+    },
+    "Compare the original with the saved result at 100%" : {
+
+    },
+    "Compare…" : {
+
+    },
+    "Compression" : {
+
+    },
+    "Contact Sheet" : {
+
+    },
+    "Contact Sheet…" : {
+
+    },
+    "Convert" : {
+
+    },
+    "Convert Images" : {
+
+    },
+    "Converts images to another format with minivu, optionally making them smaller and leaving out where they were taken. The originals are not changed; the converted images are passed on." : {
+
+    },
+    "Copy" : {
+      "comment" : "Verb: copy to the clipboard"
+    },
+    "Copy Frame" : {
+      "comment" : "Copy the video frame on screen as a picture"
+    },
+    "Copy Subject" : {
+      "comment" : "Copy the image's subject without its background"
+    },
+    "Copy Text" : {
+      "comment" : "Copy the text Live Text found in the image"
+    },
+    "Copy To" : {
+      "comment" : "Verb: copy the selected files to a folder chosen in the submenu"
+    },
+    "Corners" : {
+
+    },
+    "Couldn’t count colors" : {
+
+    },
+    "Couldn’t look for faces" : {
+
+    },
+    "Count" : {
+
+    },
+    "Count Colors" : {
+
+    },
+    "Counter" : {
+
+    },
+    "Counter Starts At" : {
+
+    },
+    "Counting colors…" : {
+
+    },
+    "Counting reads every pixel at full size, which needs more memory than this image leaves" : {
+
+    },
+    "Create Multi-Page File…" : {
+
+    },
+    "Create Web Gallery…" : {
+
+    },
+    "Create…" : {
+
+    },
+    "Crop…" : {
+      "comment" : "Verb: crop the image"
+    },
+    "Current size" : {
+
+    },
+    "Curve for %@" : {
+
+    },
+    "Curves…" : {
+
+    },
+    "Custom Order" : {
+      "comment" : "Sort key"
+    },
+    "Cut" : {
+
+    },
+    "Dark" : {
+      "comment" : "Theme"
+    },
+    "Dashed" : {
+
+    },
+    "Date Created" : {
+      "comment" : "Sort key"
+    },
+    "Date Modified" : {
+      "comment" : "Sort key"
+    },
+    "Date Taken" : {
+
+    },
+    "Date and time" : {
+
+    },
+    "Date taken" : {
+
+    },
+    "Delete" : {
+
+    },
+    "Delete Preset…" : {
+
+    },
+    "Delete the preset “%@”?" : {
+
+    },
+    "Descending" : {
+      "comment" : "Sort direction"
+    },
+    "Description" : {
+
+    },
+    "Destination" : {
+
+    },
+    "Direction" : {
+
+    },
+    "Display" : {
+
+    },
+    "Display HDR photos in HDR" : {
+
+    },
+    "Done" : {
+
+    },
+    "Don’t add %@" : {
+
+    },
+    "Don’t add %@ to every image" : {
+
+    },
+    "Don’t add it to the other images" : {
+
+    },
+    "Don’t add this keyword" : {
+
+    },
+    "Don’t enlarge smaller images" : {
+
+    },
+    "Dotted" : {
+
+    },
+    "Double-click to reset" : {
+
+    },
+    "Drag to change the order." : {
+
+    },
+    "Drop Shadow…" : {
+
+    },
+    "Duplicate (⌘D)" : {
+
+    },
+    "Duplicate groups" : {
+
+    },
+    "Duration" : {
+
+    },
+    "Each image’s own date taken moves by the same amount." : {
+
+    },
+    "Earlier" : {
+
+    },
+    "Edit" : {
+      "comment" : "Menu bar menu"
+    },
+    "Edit Comment…" : {
+      "comment" : "Edit the image's comment (JPEG/EXIF comment)"
+    },
+    "Edit Editor List…" : {
+
+    },
+    "Edit Metadata" : {
+
+    },
+    "Edit Metadata…" : {
+
+    },
+    "Edit Watermark" : {
+
+    },
+    "Edits" : {
+
+    },
+    "Edit…" : {
+
+    },
+    "Effects" : {
+      "comment" : "Submenu of image effects"
+    },
+    "Enclosing Folder" : {
+      "comment" : "Go to the folder that holds this one"
+    },
+    "End" : {
+
+    },
+    "Enlarge Smaller Images" : {
+
+    },
+    "Enlarge small images to fit" : {
+
+    },
+    "Enter Full Screen" : {
+      "comment" : "AppKit retitles it Exit Full Screen itself"
+    },
+    "Entire Screen" : {
+      "comment" : "Screen capture of the whole screen"
+    },
+    "Estimated size" : {
+
+    },
+    "Every page" : {
+
+    },
+    "Every page of a PDF or multi-page TIFF, and every frame of an animation, goes in, not only the first." : {
+
+    },
+    "Export Slideshow Video…" : {
+
+    },
+    "Export…" : {
+
+    },
+    "Extension" : {
+
+    },
+    "Extract" : {
+
+    },
+    "Extract Pages…" : {
+
+    },
+    "Eyes" : {
+
+    },
+    "File" : {
+      "comment" : "Menu bar menu"
+    },
+    "File Names" : {
+
+    },
+    "File name" : {
+
+    },
+    "Fill" : {
+
+    },
+    "Fill Cell" : {
+
+    },
+    "Filter" : {
+      "comment" : "Noun: submenu that shows only some images"
+    },
+    "Find" : {
+
+    },
+    "Find Duplicates…" : {
+
+    },
+    "Find the most prominent rectangle in the photo" : {
+
+    },
+    "Find:" : {
+
+    },
+    "Finding the subject…" : {
+
+    },
+    "Find…" : {
+      "comment" : "Verb: search for images"
+    },
+    "First Image" : {
+
+    },
+    "First page" : {
+
+    },
+    "First page only" : {
+
+    },
+    "Fit" : {
+
+    },
+    "Fit height to text" : {
+
+    },
+    "Fit in Cell" : {
+
+    },
+    "Fit to Window" : {
+      "comment" : "Zoom: scale the image to fit the window"
+    },
+    "Flat View" : {
+      "comment" : "List the images of every subfolder together"
+    },
+    "Flip" : {
+
+    },
+    "Flip Horizontal" : {
+
+    },
+    "Flip Vertical" : {
+
+    },
+    "Font" : {
+
+    },
+    "For JPEG, HEIC, AVIF and JPEG 2000: 1 to 100." : {
+
+    },
+    "Forever" : {
+
+    },
+    "Format" : {
+
+    },
+    "Forward" : {
+      "comment" : "Go forward to the next folder"
+    },
+    "Found %lld red eyes" : {
+
+    },
+    "Found 1 red eye" : {
+
+    },
+    "Frame delay" : {
+
+    },
+    "Frame rate" : {
+
+    },
+    "Frame size" : {
+
+    },
+    "Frame…" : {
+      "comment" : "Effect: a picture frame (border) around the image, not a video frame"
+    },
+    "From" : {
+
+    },
+    "Full-screen viewer opens on" : {
+
+    },
+    "GIF" : {
+
+    },
+    "Gallery" : {
+
+    },
+    "Gamma" : {
+
+    },
+    "Gives images 0 to 5 stars in minivu's catalog (0 clears the rating). The files themselves are not changed." : {
+
+    },
+    "Gives images a colour label: the standard Finder colour tag, so Finder and Spotlight see it too. Other tags are kept; None removes the colour label." : {
+
+    },
+    "Glass rim" : {
+
+    },
+    "Go" : {
+      "comment" : "Menu bar menu: moving between images and folders"
+    },
+    "Gray" : {
+      "comment" : "Theme"
+    },
+    "Grayscale" : {
+
+    },
+    "Green" : {
+
+    },
+    "Grid" : {
+
+    },
+    "HDR %@ above SDR white" : {
+
+    },
+    "HDR photos keep their highlights, written with a gain map" : {
+
+    },
+    "HDR photos keep their highlights, written with a gain map. Off, they are tone mapped to SDR." : {
+
+    },
+    "HEIC" : {
+
+    },
+    "Has a location" : {
+
+    },
+    "Has no location" : {
+
+    },
+    "Header" : {
+
+    },
+    "Header text" : {
+
+    },
+    "Healing Brush…" : {
+
+    },
+    "Height" : {
+
+    },
+    "Help" : {
+      "comment" : "Menu bar menu"
+    },
+    "Hide Others" : {
+
+    },
+    "Hide minivu" : {
+
+    },
+    "Highest Resolution" : {
+
+    },
+    "Highlight clipping" : {
+
+    },
+    "Highlights brighter than white show on HDR screens: the Liquid Retina XDR display of a MacBook Pro, Pro Display XDR, and external displays with HDR turned on. Other screens show HDR photos tone mapped." : {
+
+    },
+    "Histogram" : {
+      "comment" : "Show or hide the histogram panel"
+    },
+    "Horizontal" : {
+
+    },
+    "ICO" : {
+
+    },
+    "Identical Files" : {
+
+    },
+    "If a file exists" : {
+
+    },
+    "Image" : {
+      "comment" : "Menu bar menu"
+    },
+    "Image Format" : {
+
+    },
+    "Image Strip…" : {
+      "comment" : "Join images into one long strip"
+    },
+    "Images" : {
+
+    },
+    "Images or Folder" : {
+
+    },
+    "Images per page" : {
+
+    },
+    "Include every page of multi-page files" : {
+
+    },
+    "Include subfolders" : {
+
+    },
+    "Include the original files" : {
+
+    },
+    "Included" : {
+
+    },
+    "Input" : {
+
+    },
+    "Input / Output" : {
+
+    },
+    "Insert Token" : {
+
+    },
+    "Invert Selection" : {
+
+    },
+    "JPEG" : {
+
+    },
+    "JPEG 2000" : {
+
+    },
+    "JPEG Comment" : {
+
+    },
+    "Keep" : {
+
+    },
+    "Keep %@" : {
+
+    },
+    "Keep HDR" : {
+
+    },
+    "Keep aspect ratio" : {
+
+    },
+    "Keep each file’s %@" : {
+
+    },
+    "Keep each file’s own %@" : {
+
+    },
+    "Keep metadata" : {
+
+    },
+    "Keep metadata (EXIF, GPS, IPTC, XMP)" : {
+
+    },
+    "Keep the original names" : {
+
+    },
+    "Keep this keyword" : {
+
+    },
+    "Keep:" : {
+
+    },
+    "Keyboard Shortcuts" : {
+
+    },
+    "Keyline color" : {
+
+    },
+    "Keywords" : {
+
+    },
+    "Kind" : {
+
+    },
+    "Label" : {
+      "comment" : "Noun: submenu of colour labels (Finder's colour tags)"
+    },
+    "Landscape" : {
+
+    },
+    "Large pictures" : {
+
+    },
+    "Largest File" : {
+
+    },
+    "Last Image" : {
+
+    },
+    "Last page" : {
+
+    },
+    "Later" : {
+
+    },
+    "Layout" : {
+
+    },
+    "Least" : {
+
+    },
+    "Leave out the GPS position and IPTC place names, keeping the rest. A file written over its original keeps them." : {
+
+    },
+    "Leave out the GPS position and place names, keeping the rest of the metadata." : {
+
+    },
+    "Leave this step out of the batch" : {
+
+    },
+    "Leave unchanged" : {
+
+    },
+    "Leaves out the GPS position and place names, keeping the rest of the metadata" : {
+
+    },
+    "Left" : {
+
+    },
+    "Left Out" : {
+
+    },
+    "Lens" : {
+
+    },
+    "Lens…" : {
+      "comment" : "Effect: magnifying-lens distortion"
+    },
+    "Letter case" : {
+
+    },
+    "Levels for %@" : {
+
+    },
+    "Levels…" : {
+
+    },
+    "Light" : {
+
+    },
+    "Lighting…" : {
+      "comment" : "Adjustment: exposure, highlights and shadows"
+    },
+    "Line" : {
+
+    },
+    "Live Text" : {
+      "comment" : "Apple's feature name: use the name Apple uses in this language"
+    },
+    "Location" : {
+
+    },
+    "Long Side" : {
+
+    },
+    "Look in:" : {
+
+    },
+    "Looking…" : {
+
+    },
+    "Looser" : {
+
+    },
+    "Lossless (larger file)" : {
+
+    },
+    "MP3, AAC, WAV and AIFF files, or folders of them. The music fades in when a slideshow starts, pauses with it, and fades out when it ends." : {
+
+    },
+    "Margin" : {
+
+    },
+    "Margins" : {
+
+    },
+    "Mark %@ for the Trash" : {
+
+    },
+    "Mark Suggested" : {
+
+    },
+    "Marks every file but the one suggested to keep in each group" : {
+
+    },
+    "Mat" : {
+
+    },
+    "Match case" : {
+
+    },
+    "Matte" : {
+
+    },
+    "Maximum" : {
+
+    },
+    "Minimize" : {
+
+    },
+    "Minimum" : {
+
+    },
+    "Minimum digits" : {
+
+    },
+    "Minimum height in pixels" : {
+
+    },
+    "Minimum width in pixels" : {
+
+    },
+    "Montage Wallpaper" : {
+
+    },
+    "Montage Wallpaper…" : {
+      "comment" : "Make a desktop picture from several images"
+    },
+    "More Filters…" : {
+
+    },
+    "Mouse wheel" : {
+
+    },
+    "Move Down" : {
+
+    },
+    "Move To" : {
+      "comment" : "Verb: move the selected files to a folder chosen in the submenu"
+    },
+    "Move Up" : {
+
+    },
+    "Move to Next Display" : {
+      "comment" : "Move the window to the next screen"
+    },
+    "Move to Trash" : {
+
+    },
+    "Move to Trash…" : {
+
+    },
+    "Multi-page files" : {
+
+    },
+    "Music" : {
+
+    },
+    "Mute Video" : {
+
+    },
+    "Name" : {
+      "comment" : "Sort key"
+    },
+    "Name contains" : {
+
+    },
+    "Names" : {
+
+    },
+    "Names are made from the pattern for each file, in the order shown." : {
+
+    },
+    "Negative" : {
+      "comment" : "Effect: invert the colours"
+    },
+    "New" : {
+
+    },
+    "New %@" : {
+
+    },
+    "New Collection…" : {
+
+    },
+    "New Folder" : {
+
+    },
+    "New size" : {
+
+    },
+    "Next Image" : {
+
+    },
+    "Next Page" : {
+      "comment" : "Next page of a multi-page file (PDF, TIFF)"
+    },
+    "No Image" : {
+
+    },
+    "No Label" : {
+
+    },
+    "No Selection" : {
+
+    },
+    "No duplicates among %@ images." : {
+
+    },
+    "No duplicates: 1 image was compared." : {
+
+    },
+    "No editors yet" : {
+
+    },
+    "No keywords." : {
+
+    },
+    "No music chosen" : {
+
+    },
+    "No red eyes found" : {
+
+    },
+    "No subject found" : {
+
+    },
+    "Noise Reduction" : {
+
+    },
+    "Noise Reduction…" : {
+
+    },
+    "None" : {
+
+    },
+    "None of these images has keywords." : {
+
+    },
+    "None ticked shows every type." : {
+
+    },
+    "Nothing" : {
+
+    },
+    "Now" : {
+
+    },
+    "Oil Painting…" : {
+
+    },
+    "Oldest" : {
+
+    },
+    "One PDF with every page; pictures are embedded at the size of their cells." : {
+
+    },
+    "One file per page, saved into a folder you choose." : {
+
+    },
+    "One picture file." : {
+
+    },
+    "Open Folder…" : {
+      "comment" : "Verb: choose a folder to browse"
+    },
+    "Open in External Editor" : {
+
+    },
+    "Open in Viewer" : {
+      "comment" : "Open the selected image in the viewer window"
+    },
+    "Open in minivu" : {
+
+    },
+    "Open viewer in full screen" : {
+
+    },
+    "Opens an image in minivu's viewer with its folder in the browser, or a folder in the browser." : {
+
+    },
+    "Options" : {
+
+    },
+    "Orange" : {
+
+    },
+    "Order" : {
+
+    },
+    "Orientation" : {
+
+    },
+    "Outer band" : {
+
+    },
+    "Outline" : {
+
+    },
+    "Output" : {
+
+    },
+    "PNG" : {
+
+    },
+    "PNG, TIFF and HEIC keep a transparent canvas; other formats fill it when saving." : {
+
+    },
+    "Page" : {
+
+    },
+    "Page 1" : {
+
+    },
+    "Page 1 of %lld" : {
+
+    },
+    "Page Setup…" : {
+
+    },
+    "Page Unavailable" : {
+
+    },
+    "Page numbers" : {
+
+    },
+    "Page size" : {
+
+    },
+    "Pages" : {
+
+    },
+    "Paste" : {
+
+    },
+    "Pattern" : {
+
+    },
+    "Pause Animation" : {
+
+    },
+    "Pause Video" : {
+
+    },
+    "Percent" : {
+
+    },
+    "Percentage" : {
+
+    },
+    "Perspective…" : {
+      "comment" : "Correct the image's perspective"
+    },
+    "Photos Only" : {
+      "comment" : "File type filter"
+    },
+    "Picture" : {
+
+    },
+    "Pictures" : {
+
+    },
+    "Pixelated zoom above 200%" : {
+
+    },
+    "Pixels" : {
+
+    },
+    "Pixels brighter than SDR white, which an SDR screen or file would clip" : {
+
+    },
+    "Pixels, or a percentage when resizing by percentage." : {
+
+    },
+    "Placement" : {
+
+    },
+    "Play" : {
+
+    },
+    "Play Animation" : {
+
+    },
+    "Play Video" : {
+
+    },
+    "Play music" : {
+
+    },
+    "Portrait" : {
+
+    },
+    "Position" : {
+
+    },
+    "Preset" : {
+
+    },
+    "Preset Actions" : {
+
+    },
+    "Preset name" : {
+
+    },
+    "Press and hold on an image in the viewer to show the magnifier." : {
+
+    },
+    "Preview" : {
+
+    },
+    "Previous Image" : {
+
+    },
+    "Previous Page" : {
+      "comment" : "Previous page of a multi-page file (PDF, TIFF)"
+    },
+    "Print…" : {
+
+    },
+    "Progressive" : {
+
+    },
+    "Purple" : {
+
+    },
+    "Quality" : {
+
+    },
+    "Quit minivu" : {
+
+    },
+    "RAW Adjustments…" : {
+
+    },
+    "RAW files" : {
+
+    },
+    "Random" : {
+
+    },
+    "Rate %lld Stars" : {
+      "comment" : "Menu command: give the image this many stars",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rate %lld Star"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Rate %lld Stars"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Rating" : {
+      "comment" : "Noun: star rating"
+    },
+    "Recover highlights" : {
+
+    },
+    "Red" : {
+
+    },
+    "Red-Eye Removal…" : {
+
+    },
+    "Redo" : {
+
+    },
+    "Remove" : {
+
+    },
+    "Remove %@" : {
+
+    },
+    "Remove %@ from every file" : {
+
+    },
+    "Remove %@ from every image" : {
+
+    },
+    "Remove Background…" : {
+
+    },
+    "Remove Location" : {
+
+    },
+    "Remove Tag" : {
+      "comment" : "Menu command: remove minivu's tag (a mark, like a flag)"
+    },
+    "Remove This Circle" : {
+
+    },
+    "Remove Watermark" : {
+
+    },
+    "Remove from Collection" : {
+
+    },
+    "Remove from every image" : {
+
+    },
+    "Remove keyword %@" : {
+
+    },
+    "Remove location" : {
+
+    },
+    "Remove the %@ from every file" : {
+
+    },
+    "Remove “%@”" : {
+
+    },
+    "Removes the GPS position and IPTC place names, keeping the rest" : {
+
+    },
+    "Rename" : {
+      "comment" : "Verb: rename the selected file"
+    },
+    "Rename Images" : {
+
+    },
+    "Rename Preset" : {
+
+    },
+    "Rename Preset…" : {
+
+    },
+    "Renames images in place with a pattern: {name}, {#} or {###} for a counter, {date} or {date:yyyyMMdd} for the date taken, {modified}, {width}, {height}, {ext}. Works in Pictures and in folders added to minivu's sidebar. Ratings follow the files." : {
+
+    },
+    "Render RAW files with extended dynamic range" : {
+
+    },
+    "Replace" : {
+
+    },
+    "Replace with" : {
+
+    },
+    "Replacement" : {
+
+    },
+    "Resampling" : {
+
+    },
+    "Reset" : {
+
+    },
+    "Resize" : {
+
+    },
+    "Resize By" : {
+
+    },
+    "Resize Image" : {
+
+    },
+    "Resize Images" : {
+
+    },
+    "Resize/Resample…" : {
+
+    },
+    "Resizes images with minivu's Lanczos resampling, keeping each one's format where minivu can write it (otherwise JPEG). The originals are not changed; the resized images are passed on." : {
+
+    },
+    "Resolution" : {
+
+    },
+    "Retouch" : {
+      "comment" : "Submenu of retouching tools"
+    },
+    "Retry" : {
+
+    },
+    "Reveal in Finder" : {
+
+    },
+    "Reverse" : {
+
+    },
+    "Reverse Order" : {
+
+    },
+    "Revert to Saved" : {
+
+    },
+    "Right" : {
+
+    },
+    "Rotate" : {
+
+    },
+    "Rotate Left" : {
+
+    },
+    "Rotate Right" : {
+
+    },
+    "Rotate pictures to fill the cells" : {
+
+    },
+    "Rows" : {
+
+    },
+    "Same as the first image" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save As…" : {
+
+    },
+    "Save Edits as Preset" : {
+
+    },
+    "Save Edits as Preset…" : {
+
+    },
+    "Save Frame As…" : {
+      "comment" : "Save the video frame on screen as a picture"
+    },
+    "Save Preset" : {
+
+    },
+    "Save Preset…" : {
+
+    },
+    "Save as Smart Folder…" : {
+
+    },
+    "Save the comment (⌘Return)" : {
+
+    },
+    "Save to" : {
+
+    },
+    "Save, rename or delete presets" : {
+
+    },
+    "Save…" : {
+
+    },
+    "Scale" : {
+
+    },
+    "Scaling" : {
+
+    },
+    "Scatter the photos another way" : {
+
+    },
+    "Search" : {
+
+    },
+    "Search in" : {
+
+    },
+    "Select All" : {
+
+    },
+    "Select Tagged" : {
+      "comment" : "Select the tagged images (minivu's tag is a mark, like a flag)"
+    },
+    "Selected %@" : {
+
+    },
+    "Selection…" : {
+      "comment" : "Screen capture of a selected area"
+    },
+    "Send to Back" : {
+
+    },
+    "Separate keywords with commas, then press Return." : {
+
+    },
+    "Sepia" : {
+
+    },
+    "Services" : {
+
+    },
+    "Set Colour Label" : {
+
+    },
+    "Set Rating" : {
+
+    },
+    "Set as Desktop Picture" : {
+
+    },
+    "Set as Wallpaper" : {
+
+    },
+    "Set to" : {
+
+    },
+    "Settings…" : {
+
+    },
+    "Shadow" : {
+
+    },
+    "Shadow clipping" : {
+
+    },
+    "Share…" : {
+      "comment" : "Verb: share the selected files"
+    },
+    "Sharpen…" : {
+
+    },
+    "Shift by" : {
+
+    },
+    "Show %@ files" : {
+
+    },
+    "Show All" : {
+      "comment" : "Rating filter: no filter"
+    },
+    "Show Hidden Files" : {
+
+    },
+    "Show Preview Pane" : {
+
+    },
+    "Show Sidebar" : {
+      "comment" : "AppKit retitles it Hide Sidebar itself"
+    },
+    "Show each slide for" : {
+
+    },
+    "Show hidden files" : {
+
+    },
+    "Show in Browser" : {
+
+    },
+    "Show result" : {
+
+    },
+    "Shown at one-third size" : {
+
+    },
+    "Shows 2 to 4 selected files side by side" : {
+
+    },
+    "Shows the selected files, or every file found, in the browser" : {
+
+    },
+    "Shuffle" : {
+
+    },
+    "Similar Images" : {
+
+    },
+    "Similarity threshold" : {
+
+    },
+    "Similarity:" : {
+
+    },
+    "Size" : {
+      "comment" : "Sort key"
+    },
+    "Size and Orientation" : {
+
+    },
+    "Sketch…" : {
+      "comment" : "Effect: pencil drawing"
+    },
+    "Slideshow" : {
+
+    },
+    "Slideshow Settings…" : {
+
+    },
+    "Slideshows play full screen on the display chosen for the full-screen viewer in Viewer settings." : {
+
+    },
+    "Solid" : {
+
+    },
+    "Sort By" : {
+      "comment" : "Submenu: the order the files are listed in"
+    },
+    "Source" : {
+
+    },
+    "Spacing" : {
+
+    },
+    "Stars, the tag and colour labels are also written into each photo as XMP, so Lightroom, Bridge, digiKam and other apps see them. Camera RAW files and formats minivu can’t rewrite get an XMP sidecar beside them instead. Ratings from those apps always show in minivu, for photos you haven’t rated here." : {
+
+    },
+    "Start Slideshow" : {
+
+    },
+    "Start again after the last slide" : {
+
+    },
+    "Steps" : {
+
+    },
+    "Stop" : {
+
+    },
+    "Straighten…" : {
+
+    },
+    "Stricter" : {
+
+    },
+    "Stroke" : {
+
+    },
+    "Strokes" : {
+
+    },
+    "Style" : {
+
+    },
+    "Subject found" : {
+
+    },
+    "Suggested to keep by the Keep rule" : {
+
+    },
+    "Suggestions" : {
+
+    },
+    "Swap Width and Height" : {
+
+    },
+    "System" : {
+      "comment" : "Theme: follow the system's appearance"
+    },
+    "TGA" : {
+
+    },
+    "TIFF" : {
+
+    },
+    "Tag" : {
+      "comment" : "Verb: menu command that tags the image (marks it, like a flag)"
+    },
+    "Tagged Only" : {
+
+    },
+    "Tagged only" : {
+
+    },
+    "Taken on or after" : {
+
+    },
+    "Taken on or before" : {
+
+    },
+    "Text" : {
+
+    },
+    "Text and Shapes…" : {
+      "comment" : "Draw text, arrows and shapes on the image"
+    },
+    "Text size" : {
+
+    },
+    "The application is no longer where it was added." : {
+
+    },
+    "The embedded preview is the JPEG the camera saved with the photo. It shows at once; where it is too small for the screen or the zoom, the RAW data is rendered instead. Extended dynamic range always renders the RAW data, which takes a moment per photo, and its highlights need an HDR screen." : {
+
+    },
+    "The first editor opens with ⌘E. The images open as saved; when the editor saves one, minivu shows the change." : {
+
+    },
+    "The gallery is a folder with index.html, a page for each picture and a style sheet. It needs nothing from the internet, and opens from disk in any browser." : {
+
+    },
+    "The image stays at full size; the anchor is where it sits on the new canvas." : {
+
+    },
+    "The longest side in pixels. Leave empty to keep the size; smaller images are never enlarged." : {
+
+    },
+    "The preset keeps %@. Saving under a name already used replaces that preset." : {
+
+    },
+    "The source follows the brush at the same distance for every stroke." : {
+
+    },
+    "The video plays as a slideshow would: the first picture fades in from black and the last fades out. HDR photos are shown as on a standard display. Transitions play as chosen, even with Reduce Motion on." : {
+
+    },
+    "Theme" : {
+      "comment" : "Noun: submenu of colour schemes"
+    },
+    "This can’t be undone. Images already converted or renamed aren’t affected." : {
+
+    },
+    "This help page couldn’t be read from the app." : {
+
+    },
+    "Thumbnail cache" : {
+
+    },
+    "Thumbnails" : {
+
+    },
+    "Thumbnails are rebuilt from the original files the next time a folder is shown." : {
+
+    },
+    "Tile across the photo" : {
+
+    },
+    "Title" : {
+
+    },
+    "Title and caption from the metadata" : {
+
+    },
+    "To" : {
+
+    },
+    "Too large to count colors" : {
+
+    },
+    "Tools" : {
+      "comment" : "Menu bar menu"
+    },
+    "Transition" : {
+
+    },
+    "Transparent" : {
+
+    },
+    "Type" : {
+      "comment" : "Sort key"
+    },
+    "Undo" : {
+
+    },
+    "Unique colors" : {
+
+    },
+    "Unit" : {
+
+    },
+    "Unmute Video" : {
+
+    },
+    "Use a pattern" : {
+
+    },
+    "Vertical" : {
+
+    },
+    "Video" : {
+
+    },
+    "Videos Only" : {
+      "comment" : "File type filter"
+    },
+    "View" : {
+      "comment" : "Menu bar menu"
+    },
+    "Vignette…" : {
+
+    },
+    "Volume" : {
+
+    },
+    "Waiting for the images' dimensions" : {
+
+    },
+    "Watermark" : {
+
+    },
+    "Watermark text" : {
+
+    },
+    "Watermark…" : {
+
+    },
+    "Weight" : {
+
+    },
+    "What happens to PDFs, multi-page TIFFs and animations" : {
+
+    },
+    "Which file of each group is suggested to keep" : {
+
+    },
+    "White Balance" : {
+
+    },
+    "Width" : {
+
+    },
+    "Window" : {
+      "comment" : "Menu bar menu"
+    },
+    "Window…" : {
+      "comment" : "Screen capture of one window"
+    },
+    "With Reduce Motion on in Accessibility settings, transitions that move the picture play as a cross-fade." : {
+
+    },
+    "Wrap around at end of folder" : {
+
+    },
+    "Write ratings into files (XMP)" : {
+
+    },
+    "Written into “%@” without re-encoding the image." : {
+
+    },
+    "Yellow" : {
+
+    },
+    "Zoom" : {
+      "comment" : "Window command: zoom the window, not the image"
+    },
+    "Zoom In" : {
+
+    },
+    "Zoom Out" : {
+
+    },
+    "Zoom both sides (⌘= and ⌘-)" : {
+
+    },
+    "adding to all" : {
+
+    },
+    "digit minimum" : {
+
+    },
+    "digits minimum" : {
+
+    },
+    "extension" : {
+
+    },
+    "height" : {
+
+    },
+    "max" : {
+
+    },
+    "min" : {
+
+    },
+    "minivu Help" : {
+
+    },
+    "name" : {
+
+    },
+    "new" : {
+
+    },
+    "pixels" : {
+
+    },
+    "px" : {
+
+    },
+    "start" : {
+
+    },
+    "step" : {
+
+    },
+    "to" : {
+
+    },
+    "width" : {
+
+    },
+    "with" : {
+
+    },
+    "{name}" : {
+
+    },
+    "×" : {
+
+    },
+    "— %@" : {
+
+    },
+    "“Another display” keeps the browser’s display free: browse on one display and view full screen on another. With one display connected, the viewer opens on it. Slideshows open where the viewer does, and Window > Move to Next Display moves either." : {
+
+    },
+    "⌘E" : {
+
+    }
   },
   "version" : "1.0"
 }

@@ -25,10 +25,10 @@ final class Preferences: ObservableObject {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .system: "System"
-            case .light: "Bright"
-            case .gray: "Gray"
-            case .dark: "Dark"
+            case .system: localized(.init("System", comment: "Theme: follow the system's appearance"))
+            case .light: localized(.init("Bright", comment: "Theme"))
+            case .gray: localized(.init("Gray", comment: "Theme"))
+            case .dark: localized(.init("Dark", comment: "Theme"))
             }
         }
     }

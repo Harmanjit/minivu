@@ -37,9 +37,9 @@ nonisolated enum FileTypeFilter: Int, CaseIterable, Sendable {
 
     var menuTitle: String {
         switch self {
-        case .all: "All Files"
-        case .photos: "Photos Only"
-        case .videos: "Videos Only"
+        case .all: localized(.init("All Files", comment: "File type filter"))
+        case .photos: localized(.init("Photos Only", comment: "File type filter"))
+        case .videos: localized(.init("Videos Only", comment: "File type filter"))
         }
     }
 
@@ -242,9 +242,10 @@ nonisolated enum RatingText {
     /// The filter menu's titles: "Show All", "★ or More" … "★★★★★".
     static func filterTitle(minimum: Int) -> String {
         switch minimum {
-        case ...0: "Show All"
+        case ...0: localized(.init("Show All", comment: "Rating filter: no filter"))
         case 5...: String(repeating: "★", count: 5)
-        default: String(repeating: "★", count: minimum) + " or More"
+        default: localized(.init("\(String(repeating: "★", count: minimum)) or More",
+                                 comment: "Rating filter: images with at least these stars (★ characters)"))
         }
     }
 }
