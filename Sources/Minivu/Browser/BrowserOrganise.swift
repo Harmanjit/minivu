@@ -55,10 +55,10 @@ final class CollectionsMenu: NSObject, NSMenuDelegate {
         alert.messageText = message
         let field = NSTextField(string: proposed)
         field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
-        field.setAccessibilityLabel("Name")
+        field.setAccessibilityLabel(localized("Name"))
         alert.accessoryView = field
         alert.addButton(withTitle: button)
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: localized("Cancel"))
         alert.window.initialFirstResponder = field
         alert.beginSheetModal(for: window) { response in
             let name = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -72,8 +72,8 @@ final class CollectionsMenu: NSObject, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = detail
-        alert.addButton(withTitle: "Delete")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: localized(.init("Delete", comment: "Verb: button that deletes the collection or smart folder")))
+        alert.addButton(withTitle: localized("Cancel"))
         alert.beginSheetModal(for: window) { answer($0 == .alertFirstButtonReturn) }
     }
 }
@@ -92,7 +92,7 @@ extension BrowserWindowController {
     @objc func showMoreFilters(_ sender: Any?) {
         guard let window, formSheet == nil else { return }
         let form = CriteriaFormModel(model.metadataFilter)
-        let sheet = FormSheet(title: "Filter", size: NSSize(width: 560, height: 640)) { sheet in
+        let sheet = FormSheet(title: localized(.init("Filter", comment: "Noun: submenu that shows only some images")), size: NSSize(width: 560, height: 640)) { sheet in
             FilterFormView(model: form,
                            onCancel: { [weak self] in self?.endFormSheet(sheet) },
                            onApply: { [weak self] in
@@ -119,14 +119,14 @@ extension BrowserWindowController {
     @objc func findImages(_ sender: Any?) {
         var query = lastSearch ?? SearchQuery(scope: model.folder ?? BookmarkStore.picturesFolder)
         if let folder = model.folder { query.scope = folder.standardizedFileURL.path }
-        presentSearch(query, confirmTitle: "Find") { [weak self] query in self?.runSearch(query) }
+        presentSearch(query, confirmTitle: localized(.init("Find", comment: "Verb: button that runs the search"))) { [weak self] query in self?.runSearch(query) }
     }
 
     /// The Find form, for a new search or a smart folder's.
     func presentSearch(_ query: SearchQuery, confirmTitle: String, then confirm: @escaping (SearchQuery) -> Void) {
         guard let window, formSheet == nil else { return }
         let form = SearchFormModel(query: query, scopes: Self.searchScopes(current: model.folder))
-        let sheet = FormSheet(title: "Find Images", size: NSSize(width: 580, height: 760)) { sheet in
+        let sheet = FormSheet(title: localized("Find Images"), size: NSSize(width: 580, height: 760)) { sheet in
             SearchFormView(model: form, confirmTitle: confirmTitle,
                            onCancel: { [weak self] in self?.endFormSheet(sheet) },
                            onConfirm: { [weak self] in
@@ -158,7 +158,8 @@ extension BrowserWindowController {
     nonisolated static func searchTitle(_ query: SearchQuery) -> String {
         let place = FileManager.default.displayName(atPath: query.scope)
         let name = query.name.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? "Search in \(place)" : "“\(name)” in \(place)"
+        return name.isEmpty ? localized(.init("Search in \(place)", comment: "Window title of search results; %@ is a folder"))
+            : localized(.init("“\(name)” in \(place)", comment: "Window title of a name search; the text searched for, then the folder"))
     }
 
     func open(list: VirtualList) {
@@ -172,11 +173,11 @@ extension BrowserWindowController {
     /// sidebar; it runs again whenever it is opened.
     @objc func saveAsSmartFolder(_ sender: Any?) {
         guard let window, case .search(let query)? = model.list?.kind else { return }
-        let proposed = query.name.isEmpty ? "Smart Folder" : query.name
-        OrganisePrompts.askForName(window, "Save the search as a smart folder named:", "Save", proposed) { [weak self] name in
+        let proposed = query.name.isEmpty ? localized(.init("Smart Folder", comment: "Name offered for a new smart folder")) : query.name
+        OrganisePrompts.askForName(window, localized("Save the search as a smart folder named:"), localized("Save"), proposed) { [weak self] name in
             guard let self, let name else { return }
             guard let id = self.model.catalog.saveSmartFolder(named: name, query: query) else {
-                return self.present(message: "The smart folder couldn’t be saved.")
+                return self.present(message: localized("The smart folder couldn’t be saved."))
             }
             self.model.show(list: VirtualList(kind: .smartFolder(id: id), title: name))
         }
@@ -189,7 +190,9 @@ extension BrowserWindowController {
     @objc func newCollection(_ sender: Any?) {
         guard let window else { return }
         let images = model.selectedImageURLs
-        OrganisePrompts.askForName(window, "Name the new collection:", "Create", "Untitled Collection") { [weak self] name in
+        OrganisePrompts.askForName(window, localized("Name the new collection:"),
+                                   localized(.init("Create", comment: "Verb: button that creates the collection")),
+                                   localized(.init("Untitled Collection", comment: "Name offered for a new collection"))) { [weak self] name in
             guard let self, let name else { return }
             let catalog = self.model.catalog
             BrowserModel.catalogWrites.async {
@@ -239,7 +242,7 @@ extension BrowserWindowController {
             addToCollection(id, urls: urls)
         case .editSearch(let id):
             guard let folder = catalog.smartFolder(id) else { return }
-            presentSearch(folder.query, confirmTitle: "Save") { [weak self] query in
+            presentSearch(folder.query, confirmTitle: localized("Save")) { [weak self] query in
                 catalog.updateSmartFolder(id, query: query)
                 // Showing it: run the edited search now.
                 if case .smartFolder(id)? = self?.model.list?.kind, let list = self?.model.list {
@@ -247,7 +250,8 @@ extension BrowserWindowController {
                 }
             }
         case .rename(let list):
-            OrganisePrompts.askForName(window, "Rename “\(list.title)” to:", "Rename", list.title) { [weak self] name in
+            OrganisePrompts.askForName(window, localized(.init("Rename “\(list.title)” to:", comment: "%@ is a collection or smart folder")),
+                                       localized(.init("Rename", comment: "Verb: rename the selected file")), list.title) { [weak self] name in
                 guard let name else { return }
                 switch list.kind {
                 case .smartFolder(let id): catalog.renameSmartFolder(id, to: name)
@@ -260,8 +264,10 @@ extension BrowserWindowController {
             }
         case .delete(let list):
             let isCollection = if case .collection = list.kind { true } else { false }
-            let detail = isCollection ? "The images in it stay where they are." : "Only the saved search is deleted."
-            OrganisePrompts.confirmDelete(window, "Delete “\(list.title)”?", detail) { [weak self] confirmed in
+            let detail = isCollection ? localized(.init("The images in it stay where they are.", comment: "Deleting a collection"))
+                : localized(.init("Only the saved search is deleted.", comment: "Deleting a smart folder"))
+            let message = localized(.init("Delete “\(list.title)”?", comment: "%@ is a collection or smart folder"))
+            OrganisePrompts.confirmDelete(window, message, detail) { [weak self] confirmed in
                 guard confirmed else { return }
                 switch list.kind {
                 case .smartFolder(let id): catalog.deleteSmartFolder(id)

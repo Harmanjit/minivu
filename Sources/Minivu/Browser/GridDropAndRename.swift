@@ -215,7 +215,7 @@ final class InlineRenameEditor: NSObject, NSTextFieldDelegate {
         field.cell?.wraps = false
         field.lineBreakMode = .byClipping
         field.delegate = self
-        field.setAccessibilityLabel("Name")
+        field.setAccessibilityLabel(localized("Name"))
     }
 
     func begin(in view: NSView, frame: CGRect, window: NSWindow, text: String, selectingBaseName: Bool) {
