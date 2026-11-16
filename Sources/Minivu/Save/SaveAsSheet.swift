@@ -29,8 +29,8 @@ import MinivuCore
         hostingView.sizingOptions = [.intrinsicContentSize]
 
         panel.delegate = self
-        panel.nameFieldLabel = "Save As:"
-        panel.prompt = "Save"
+        panel.nameFieldLabel = localized(.init("Save As:", comment: "Save panel: label of the file name field"))
+        panel.prompt = localized("Save")
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
         panel.canSelectHiddenExtension = true

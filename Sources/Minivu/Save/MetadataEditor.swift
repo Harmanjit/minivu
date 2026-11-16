@@ -97,7 +97,7 @@ struct MetadataKeyword: Identifiable, Equatable {
 
     /// "photo.jpg", or "12 images".
     var subject: String {
-        count == 1 ? urls[0].lastPathComponent : "\(count.formatted()) images"
+        count == 1 ? urls[0].lastPathComponent : localized(.init("\(count) images", comment: "What the metadata editor edits"))
     }
 
     /// The date every file was taken, when they agree.
@@ -110,8 +110,9 @@ struct MetadataKeyword: Identifiable, Equatable {
     var dateDescription: String {
         let dates = fields.map(\.dateTaken)
         if let date = commonDate { return WallClock.formatted(date) }
-        if dates.allSatisfy({ $0 == nil }) { return "None" }
-        return dates.contains(nil) ? "Mixed (some files have none)" : "Mixed"
+        if dates.allSatisfy({ $0 == nil }) { return localized(.init("metadata.date.none", defaultValue: "None", comment: "Date taken: no file has one")) }
+        return dates.contains(nil) ? localized(.init("Mixed (some files have none)", comment: "Date taken of several files that differ"))
+            : localized(.init("Mixed", comment: "A field whose value differs between the files being edited"))
     }
 
     var locatedCount: Int { fields.filter(\.hasLocation).count }
@@ -237,7 +238,7 @@ struct MetadataKeyword: Identifiable, Equatable {
         let progress = BatchProgress(total: urls.count)
         var sheet: BatchProgressSheet?
         if urls.count > 1, !BatchTools.hasSheet(on: window) {
-            let title = "Updating the Metadata of \(urls.count.formatted()) Images"
+            let title = localized(.init("Updating the Metadata of \(urls.count) Images", comment: "Progress sheet title"))
             sheet = BatchProgressSheet(title: title, progress: progress)
             BatchTools.beginSheet(sheet!.window, on: window)
         }
