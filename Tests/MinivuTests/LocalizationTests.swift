@@ -133,6 +133,23 @@ import MinivuRender
         #expect(MenuStateTitles.rating(0) == "Clear Rating")
     }
 
+    /// The Indic plural rules pick the right form for 0 and 1: `one` covers 0
+    /// and 1 in hi, pa, bn and gu, and only 1 in ta. Digits are left out of the
+    /// comparison, since a locale may write them in its own script.
+    @Test func indicPluralsPickTheirFormsForZeroAndOne() throws {
+        let entry = try #require(try Self.catalogs().first { $0.target == "Minivu" }?.strings["%lld files converted."])
+        func shape(_ text: String) -> String { text.replacing("%lld", with: "").filter { !$0.isNumber } }
+        for language in ["hi", "pa", "bn", "gu", "ta"] {
+            let forms = try #require(Self.forms(entry, language))
+            let locale = Locale(identifier: language)
+            func text(_ count: Int) -> String { localized("\(count) files converted.", locale: locale) }
+            let zero = language == "ta" ? "other" : "one"
+            #expect(shape(text(0)) == shape(forms[zero] ?? ""), "\(language): 0 is \"\(text(0))\"")
+            #expect(shape(text(1)) == shape(forms["one"] ?? ""), "\(language): 1 is \"\(text(1))\"")
+            #expect(shape(text(5)) == shape(forms["other"] ?? ""), "\(language): 5 is \"\(text(5))\"")
+        }
+    }
+
     /// Every shipped language resolves from each target's compiled bundle,
     /// so none silently falls back to English: a few known keys, one plural.
     @Test func everyLanguageResolvesItsOwnText() throws {

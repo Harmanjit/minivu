@@ -11,7 +11,7 @@ minivu is that kind of tool for the Mac: a lean, native replacement that treats 
 - **Non-destructive editing.** Edits are a list of steps, shown on the GPU as you make them. Nothing on disk changes until you save, and undo goes back 50 steps.
 - **Small.** The release app is a few megabytes, translations included. There is no third-party code: below the app are only Apple's frameworks, so there is nothing to vendor, update or audit.
 - **Private.** The app runs in the App Sandbox without the network entitlement, so macOS does not let it open a connection. No account, analytics, crash reporting or update check. The features that look inside your pictures (Live Text, Remove Background, red-eye detection, Find Duplicates) use Apple's frameworks on the Mac. See [Security and Privacy](Security-and-Privacy).
-- **In your language.** The menus, windows and help are in English and ten other languages, for now machine translated. See [Languages](Languages).
+- **In your language.** The menus, windows and help are in English and fifteen other languages, for now machine translated. See [Languages](Languages).
 - **Free software.** GPLv3.
 - **Apple Silicon only.** The CPU and GPU share memory, so a decoded image becomes a Metal texture without being copied between CPU and GPU memory. minivu needs the Metal 3 feature set that every M1 has, and nothing newer.
 

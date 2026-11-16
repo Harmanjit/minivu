@@ -73,7 +73,8 @@ the original until you save.
 - **Shortcuts:** Convert Images, Resize Images, Rename Images, Set Rating,
   Set Colour Label and Open in minivu actions for the Shortcuts app.
 - **Languages:** English, German, French, Spanish, Italian, Portuguese
-  (Brazil), Dutch, Polish, Japanese, Chinese (Simplified) and Korean. The
+  (Brazil), Dutch, Polish, Japanese, Chinese (Simplified), Korean, Hindi,
+  Punjabi, Bengali, Gujarati and Tamil. The
   translations are machine translations awaiting review by native
   speakers.
 - **Help:** Help > minivu Help is bundled in the app, translated, with

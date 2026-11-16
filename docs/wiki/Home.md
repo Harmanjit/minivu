@@ -4,7 +4,7 @@
 
 **A lightweight image browser, viewer and editor for Apple Silicon Macs, in the spirit of FastStone Image Viewer.**
 
-minivu opens a folder of thousands of photos without a stutter, shows every image with correct colour and real HDR, plays the videos among them, and edits without touching the original until you save. It is built natively with Swift, AppKit and Metal, uses only Apple's frameworks, and has no network access of any kind. It speaks English and ten other languages.
+minivu opens a folder of thousands of photos without a stutter, shows every image with correct colour and real HDR, plays the videos among them, and edits without touching the original until you save. It is built natively with Swift, AppKit and Metal, uses only Apple's frameworks, and has no network access of any kind. It speaks English and fifteen other languages.
 
 - **Status:** version 0.9, a review release: every planned feature is implemented and covered by over 1,500 automated tests. Download it from [Releases](https://github.com/Harmanjit/minivu/releases), and report problems as [issues](https://github.com/Harmanjit/minivu/issues/new/choose). It is young software, tried in earnest on one Mac only, so read [Limitations](Limitations) before relying on it.
 - **Licence:** GPLv3.
@@ -25,7 +25,7 @@ The app has its own, shorter help: **Help > minivu Help** (⌘?) shows bundled p
 | [Tools](Tools) | Slideshow and slideshow video, Batch Convert and presets, Batch Rename, multi-page files, Find Duplicates, printing, contact sheets, web galleries, montage wallpaper, capture, sharing, external editors, Shortcuts actions |
 | [Settings](Settings) | Every pane of Settings and what it changes |
 | [Keyboard Shortcuts](Keyboard-Shortcuts) | The full list |
-| [Languages](Languages) | The eleven languages, machine translation, and how to choose minivu's language |
+| [Languages](Languages) | The sixteen languages, machine translation, and how to choose minivu's language |
 | [Architecture](Architecture) | Modules, the decode and render paths, the catalog, localisation, Shortcuts actions, measuring, tests |
 | [Security and Privacy](Security-and-Privacy) | Sandbox, no network, crafted files, location, Shortcuts, what minivu reads and writes, and where |
 | [Accessibility](Accessibility) | Keyboard use, VoiceOver, Reduce Motion, Increase Contrast |

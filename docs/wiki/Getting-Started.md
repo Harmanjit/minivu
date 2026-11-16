@@ -6,7 +6,7 @@ If you built the app yourself, open `build/minivu.app`; a copy from another Mac 
 
 minivu opens one window, the browser, showing your Pictures folder. From then on it opens on the folder you were looking at when you quit, as long as it can still read it. There is no import step and no library to set up: minivu shows folders as they are on disk.
 
-minivu uses the language you use on your Mac, if it is one of the eleven it has, and English otherwise. [Languages](Languages) explains how to choose another.
+minivu uses the language you use on your Mac, if it is one of the sixteen it has, and English otherwise. [Languages](Languages) explains how to choose another.
 
 ## Open a folder
 
@@ -79,7 +79,7 @@ If you move to another image, go back to the browser or quit with unsaved edits,
 
 - [Tools](Tools): slideshows (⇧⌘F), Batch Convert, Batch Rename, printing, contact sheets and more.
 - [Settings](Settings): **minivu > Settings…** (⌘,).
-- [Languages](Languages): minivu in German, French, Japanese and eight more.
+- [Languages](Languages): minivu in German, French, Japanese, Hindi, Tamil and ten more.
 - [Keyboard Shortcuts](Keyboard-Shortcuts), or **Help > Keyboard Shortcuts** (⌘/) in the app.
 - **Help > minivu Help** (⌘?) has its own, shorter set of pages, with search.
 
