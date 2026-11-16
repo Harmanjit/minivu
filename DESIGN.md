@@ -308,7 +308,12 @@ panel and the filters pay for.
   (`viewerSharesEditSlot`), so the whole app renders one RAW at a time
   there. Batch Convert renders RAW through the editor's path and shares it.
   RAW Adjustments keeps the file open in the engine for the document
-  (`RawDevelopFilter`), freed with the document's original.
+  (`RawDevelopFilter`), freed with the document's original. Its lock is
+  held from setting the engine's parameters until the render of its output
+  has finished (`withImage`, taken inside a slot, never the reverse), so
+  renders of one file never overlap: a preview can wait behind a full
+  render of the same file, which measured no slower than the two
+  overlapping (the engine's renders don't run side by side).
 - The RAW Core Image context uses a 512 MB memory limit on Macs with 8 GB
   or less: footprint 20-26% lower, full render about 10% slower; lower
   limits cost much more time, 1024 MB saves nothing.

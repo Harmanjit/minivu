@@ -121,8 +121,9 @@ extension Benchmarks {
 
         /// A RAW tool preview at screen size from the document's engine
         /// filter, alone and started 5 ms after a full-resolution render of
-        /// the same filter (the full lane's developed original), which it may
-        /// have to wait for (`RawDevelopFilter.withImage`).
+        /// the same filter (the full lane's developed original), which it
+        /// waits for (`RawDevelopFilter.withImage`); and beside a full render
+        /// from a second filter of the same file, which it needn't wait for.
         @Test(.enabled(if: Bench.nef != nil)) nonisolated func rawPreviewBesideFullRender() throws {
             let filter = try #require(RawDevelopFilter(url: Bench.nef!))
             let settings = DisplaySettings(), size = filter.orientedSize
@@ -133,18 +134,22 @@ extension Benchmarks {
                 _ = try EditRenderer.renderDeveloped(filter, develop: RawDevelop(exposure: Double(step % 9) / 10),
                                                      fullSize: size, scale: scale, settings: settings, gpu: .shared)
             }
-            let full: @Sendable () throws -> Void = {
+            let other = try #require(RawDevelopFilter(url: Bench.nef!))
+            @Sendable func full(_ filter: RawDevelopFilter) throws {
                 _ = try EditRenderer.developedSource(filter, develop: RawDevelop(exposure: 0.5), settings: settings,
                                                      gpu: .shared)
             }
             try Bench.measure("edit", "rawPreview_alone", extra: "pixels=\(Self.screenEdge)") { try preview() }
-            try Bench.measure("edit", "rawFull_alone") { try full() }
-            let done = DispatchSemaphore(value: 0)
-            try Bench.measure("edit", "rawPreview_besideFull", warmups: 0, runs: Bench.runs(9),
-                              extra: "pixels=\(Self.screenEdge)", setup: {
-                DispatchQueue.global(qos: .utility).async { try? full(); done.signal() }
-                Thread.sleep(forTimeInterval: 0.005)
-            }, timing: { if !$0 { done.wait() } }) { try preview() }
+            try Bench.measure("edit", "rawFull_alone") { try full(filter) }
+            try full(other)
+            for (metric, fullFilter) in [("rawPreview_besideFull", filter), ("rawPreview_besideOtherFilterFull", other)] {
+                let done = DispatchSemaphore(value: 0)
+                try Bench.measure("edit", metric, warmups: 0, runs: Bench.runs(9), extra: "pixels=\(Self.screenEdge)",
+                                  setup: {
+                    DispatchQueue.global(qos: .utility).async { try? full(fullFilter); done.signal() }
+                    Thread.sleep(forTimeInterval: 0.005)
+                }, timing: { if !$0 { done.wait() } }) { try preview() }
+            }
         }
     }
 
