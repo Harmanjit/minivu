@@ -225,6 +225,25 @@ final class HeldTreeWalk: @unchecked Sendable {
         #expect(model.selection.map(\.lastPathComponent) == ["b.jpg"])
     }
 
+    /// Custom Order shows a collection in the order its images were added
+    /// (reversed when descending); the other keys sort it as usual.
+    @Test func customOrderShowsACollectionAsAdded() async throws {
+        let t = try ScratchFolder()
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Trip"))
+        for name in ["C.jpg", "A.jpg", "B.jpg"] { catalog.addToCollection(id, urls: [try t.file(name)]) }
+        let model = makeModel(catalog: catalog)
+        model.show(list: VirtualList(kind: .collection(id: id), title: "Trip"))
+        await model.work?.value
+        #expect(model.entries.map(\.name) == ["A.jpg", "B.jpg", "C.jpg"], "by name")
+        model.sortOrder = FileSortOrder(key: .custom, ascending: true)
+        await settle(model)
+        #expect(model.entries.map(\.name) == ["C.jpg", "A.jpg", "B.jpg"])
+        model.sortOrder = FileSortOrder(key: .custom, ascending: false)
+        await settle(model)
+        #expect(model.entries.map(\.name) == ["B.jpg", "A.jpg", "C.jpg"])
+    }
+
     @Test func aDeletedSmartFolderSaysSo() async throws {
         let catalog = Catalog.inMemory()
         let model = makeModel(catalog: catalog)

@@ -59,6 +59,19 @@ extension BrowserWindowController {
         model.leadEntry.flatMap { $0.isDirectory ? nil : $0 }
     }
 
+    /// Where an output tool's panel starts: the folder shown or, while a
+    /// list is shown, the folder of the lead (or first) image, as the
+    /// viewer's tools start in the current image's folder.
+    var toolStartFolder: URL? {
+        model.folder ?? (toolLeadImage ?? toolImages.first)?.url.deletingLastPathComponent()
+    }
+
+    /// What an output tool is titled after: the folder shown, or the list's
+    /// title (a collection's name, a smart folder's).
+    var toolTitle: String? {
+        model.folder.map { FileManager.default.displayName(atPath: $0.path) } ?? model.list?.title
+    }
+
     /// Validation for the Tools commands; nil for any other action. Cheap,
     /// because menus validate often: counts, never a walk of the folder.
     ///
@@ -69,9 +82,11 @@ extension BrowserWindowController {
     /// Rename and Convert also stay off while a batch or a copy is still
     /// running without its sheet.
     func canPerformTools(_ action: Selector) -> Bool? {
+        // Start Slideshow opens no sheet, but a full-screen show over one
+        // would leave the sheet waiting behind it.
         let opensSheet: [Selector] = [.batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip,
                                       .printImages, .makeContactSheet, .makeMontage, .exportSlideshowVideo,
-                                      .createWebGallery]
+                                      .createWebGallery, .startSlideshow]
         if opensSheet.contains(action), let window, BatchTools.hasSheet(on: window) { return false }
         let batches: [Selector] = [.batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip]
         if batches.contains(action), isRunningBatch || isTransferring { return false }

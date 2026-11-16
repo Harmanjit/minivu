@@ -45,6 +45,7 @@ public struct FilterMetadata: Sendable, Equatable {
     /// metadata, so it is read once and then fails every metadata filter.
     public static func read(from url: URL) -> FilterMetadata {
         guard let kind = ImageFormats.kind(of: url) else { return FilterMetadata() }
+        if kind == .video { return video(url) }
         guard kind == .raster || kind == .raw else {
             // PDF and SVG have a size and nothing else to search by.
             let size = ImageDecoder.info(for: url)?.pixelSize
@@ -76,6 +77,20 @@ public struct FilterMetadata: Sendable, Equatable {
             pixelHeight: size.flatMap { Int(exactly: $0.height.rounded()) })
     }
 
+    /// A video's recording date (on the camera's clock where the file keeps
+    /// its zone, otherwise this Mac's, as the info panel shows it), camera,
+    /// location and displayed size, from the container's header.
+    static func video(_ url: URL) -> FilterMetadata {
+        let size = VideoFrames.info(for: url)?.pixelSize
+        let m = VideoFrames.metadata(for: url)
+        return FilterMetadata(
+            dateTaken: m?.created.map { stamp(WallClock(date: $0.date, in: $0.timeZone ?? .current)) },
+            camera: MetadataReader.cameraName(make: m?.make, model: m?.model),
+            hasLocation: m?.location != nil,
+            pixelWidth: size.flatMap { Int(exactly: $0.width.rounded()) },
+            pixelHeight: size.flatMap { Int(exactly: $0.height.rounded()) })
+    }
+
     /// yyyymmddhhmmss.
     public static func stamp(_ clock: WallClock) -> Int64 {
         Int64(day(clock)) * 1_000_000 + Int64(clock.hour * 10_000 + clock.minute * 100 + clock.second)
@@ -91,7 +106,7 @@ public struct FilterMetadata: Sendable, Equatable {
 /// photographer thinks of as a type ("RAW", "HEIF"), not the dozens of
 /// extensions behind them.
 public enum FileTypeGroup: String, CaseIterable, Sendable, Codable {
-    case jpeg, heif, png, raw, tiff, gif, webp, psd, pdf, svg, other
+    case jpeg, heif, png, raw, tiff, gif, webp, psd, pdf, svg, video, other
 
     public var title: String {
         switch self {
@@ -105,6 +120,7 @@ public enum FileTypeGroup: String, CaseIterable, Sendable, Codable {
         case .psd: "Photoshop"
         case .pdf: "PDF"
         case .svg: "SVG"
+        case .video: "Video"
         case .other: "Other"
         }
     }
@@ -112,6 +128,7 @@ public enum FileTypeGroup: String, CaseIterable, Sendable, Codable {
     public static func of(_ url: URL) -> FileTypeGroup {
         let ext = url.pathExtension.lowercased()
         if ImageFormats.rawExtensions.contains(ext) { return .raw }
+        if ImageFormats.videoExtensions.contains(ext) { return .video }
         return switch ext {
         case "jpg", "jpeg", "jpe", "jfif": .jpeg
         case "heic", "heif", "hif", "avif": .heif
@@ -314,7 +331,7 @@ public struct SearchQuery: Sendable, Equatable, Codable {
 
 extension MetadataCriteria {
     private enum CodingKeys: String, CodingKey {
-        case fileTypes, takenFrom, takenTo, camera, lens, iso, aperture, focalLength, keywords, colorLabel,
+        case fileTypes, videoGroup, takenFrom, takenTo, camera, lens, iso, aperture, focalLength, keywords, colorLabel,
              hasLocation, shape, minimumWidth, minimumHeight
     }
 
@@ -325,6 +342,8 @@ extension MetadataCriteria {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let types = (try? c.decodeIfPresent([String].self, forKey: .fileTypes))
         fileTypes = Set((types ?? []).compactMap(FileTypeGroup.init(rawValue:)))
+        // Saved before the Video group, when Other held videos: it still does.
+        if fileTypes.contains(.other), !c.contains(.videoGroup) { fileTypes.insert(.video) }
         takenFrom = (try? c.decodeIfPresent(Int.self, forKey: .takenFrom))
         takenTo = (try? c.decodeIfPresent(Int.self, forKey: .takenTo))
         camera = (try? c.decodeIfPresent(String.self, forKey: .camera)) ?? ""
@@ -342,7 +361,10 @@ extension MetadataCriteria {
 
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        if !fileTypes.isEmpty { try c.encode(fileTypes.map(\.rawValue).sorted(), forKey: .fileTypes) }
+        if !fileTypes.isEmpty {
+            try c.encode(fileTypes.map(\.rawValue).sorted(), forKey: .fileTypes)
+            try c.encode(true, forKey: .videoGroup)
+        }
         try c.encodeIfPresent(takenFrom, forKey: .takenFrom)
         try c.encodeIfPresent(takenTo, forKey: .takenTo)
         if !camera.isEmpty { try c.encode(camera, forKey: .camera) }

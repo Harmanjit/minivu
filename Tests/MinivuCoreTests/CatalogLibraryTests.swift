@@ -74,7 +74,7 @@ import Foundation
                 """)
         }
         let catalog = try Catalog(url: url)
-        #expect(try catalog.db.userVersion() == 3)
+        #expect(try catalog.db.userVersion() == Catalog.schemaVersion)
         #expect(catalog.marks(for: URL(fileURLWithPath: "/old/one.jpg")) == Marks(rating: 3, isTagged: true))
         #expect(try catalog.db.query("SELECT overrides_file FROM files").first?.int("overrides_file") == 0)
         #expect(catalog.customOrder(in: URL(fileURLWithPath: "/old")) == ["one.jpg"])
@@ -264,6 +264,74 @@ import Foundation
         let stored = try catalog.db.query("SELECT path, missing_since FROM collection_items").first
         #expect(stored?.string("path") == Catalog.key(a))
         #expect(stored?["missing_since"] == .null)
+    }
+
+    /// Put back in Finder, a file's rows stay at its Trash path until its
+    /// folder or collection is opened. Trashing another file of that name
+    /// takes the slot; the rows go to the file they belong to, not away as
+    /// a replaced file's.
+    @Test func trashingIntoASlotAPutBackFileStillHoldsKeepsItsRows() throws {
+        let t = try TemporaryFolder()
+        _ = try t.folder("F"); _ = try t.folder("G")
+        let trash = try t.folder(".Trash")
+        let a = try t.file("F/a.jpg", bytes: 3), other = try t.file("G/a.jpg", bytes: 5)
+        let catalog = Catalog.inMemory()
+        catalog.setRating(5, for: [a])
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let slot = trash.appendingPathComponent("a.jpg")
+        try FileManager.default.moveItem(at: a, to: slot)
+        catalog.fileMoved(from: a, to: slot)
+        try FileManager.default.moveItem(at: slot, to: a)   // Finder's Put Back
+
+        try FileManager.default.moveItem(at: other, to: slot)
+        catalog.fileMoved(from: other, to: slot)
+        #expect(catalog.marks(for: a).rating == 5)
+        #expect(catalog.collectionMembers(id).map { $0.resolvingSymlinksInPath().path }
+                == [a.resolvingSymlinksInPath().path])
+    }
+
+    /// While minivu moves files and has yet to report them, opening a
+    /// collection shows a member at its new name without writing it back,
+    /// so the report finds no row at the new name to drop.
+    @Test func membersFoundDuringAMoveAreNotWrittenBack() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let renamed = t.url.appendingPathComponent("b.jpg")
+
+        catalog.pauseHealing()
+        try FileManager.default.moveItem(at: a, to: renamed)
+        #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["b.jpg"])
+        catalog.filesMoved([(a, renamed)])
+        catalog.resumeHealing()
+        #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["b.jpg"])
+        #expect(catalog.collections().first?.count == 1)
+    }
+
+    /// A folder heal's collection pass commits nothing while a move is in
+    /// flight, however late it began.
+    @Test func healingSkipsCollectionMembersDuringAMove() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.jpg")
+        let catalog = Catalog.inMemory()
+        let id = try #require(catalog.createCollection(named: "Keep"))
+        catalog.addToCollection(id, urls: [a])
+        let renamed = t.url.appendingPathComponent("b.jpg")
+        try FileManager.default.moveItem(at: a, to: renamed)
+        let fileID = try #require((try FileManager.default.attributesOfItem(atPath: renamed.path)[.systemFileNumber]
+                                   as? NSNumber)?.int64Value)
+        let volume = try renamed.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString
+
+        catalog.pauseHealing()   // after the listing below would have been read
+        let folderKey = Catalog.folderKey(t.url)
+        _ = catalog.healCollectionMembers(folder: t.url, folderKey: folderKey,
+                                          listed: ["b.jpg": .init(name: "b.jpg", fileID: fileID)], volume: volume)
+        catalog.filesMoved([(a, renamed)])
+        catalog.resumeHealing()
+        #expect(catalog.collectionMembers(id).map(\.lastPathComponent) == ["b.jpg"])
     }
 
     /// Moved to the Trash by minivu, then the Trash was emptied: the row is

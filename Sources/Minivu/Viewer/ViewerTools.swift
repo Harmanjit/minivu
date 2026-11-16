@@ -9,7 +9,7 @@ extension ViewerWindowController {
     /// leaves videos out, so a list of nothing else has none to play (G18).
     func validateToolAction(_ action: Selector?) -> Bool? {
         switch action {
-        case .startSlideshow: model.images.contains { $0.kind != .video }
+        case .startSlideshow: model.images.contains { $0.kind != .video } && window?.attachedSheet == nil
         case .exportSlideshowVideo: model.images.contains { $0.kind != .video } && window?.attachedSheet == nil
         case .printImages: model.current.map { $0.kind != .video } ?? false && window?.attachedSheet == nil
         case .setAsDesktopPicture: model.current.map { $0.kind != .video } ?? false

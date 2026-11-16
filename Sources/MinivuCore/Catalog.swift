@@ -83,6 +83,9 @@ public final class Catalog: @unchecked Sendable {
     /// Posted on the main queue after marks or custom order change. `object`
     /// is the `[URL]` of files (or the folder, for custom order) affected.
     public static let didChange = Notification.Name("MinivuCatalogDidChange")
+    /// `didChange`'s userInfo: the `[(from: URL, to: URL)]` minivu moved
+    /// or renamed, and the `[URL]` it removed (each absent when none).
+    public static let movesKey = "moves", removedKey = "removed"
 
     /// The user's catalog, except in test runs and snapshot runs (or with
     /// `MINIVU_CATALOG=memory`), which get a private one in memory: tests and
@@ -125,7 +128,7 @@ public final class Catalog: @unchecked Sendable {
     /// the folder it went to is opened in minivu.
     static let missingRetention: TimeInterval = 365 * 24 * 3600
 
-    static let schemaVersion = 3
+    static let schemaVersion = 4
 
     let db: SQLiteDatabase
     /// Fixed at construction, never afterwards: this class is `@unchecked
@@ -137,6 +140,11 @@ public final class Catalog: @unchecked Sendable {
     private var hasPrunedMetadata = false
     private var hasPrunedMembers = false
     private var movesInFlight = 0
+    /// Held from a heal's last pause check until its commit is done (the
+    /// folder's, its collection members', `collectionMembers`' write-back),
+    /// and taken by `pauseHealing`: a move can't begin between the two, so
+    /// what a heal commits was listed with no move under way.
+    let healCommit = NSLock()
     private var _mirror: (any CatalogMirror)?
     private var _fileMarksReader: (@Sendable (URL) -> Marks?)?
 
@@ -285,6 +293,14 @@ public final class Catalog: @unchecked Sendable {
                     );
                     """)
                 version = 3
+            }
+            if version < 4 {
+                // A video's metadata rows were read before the filters read
+                // its date, camera and location: empty, and current by size
+                // and date for ever. The table is a cache; every row is read
+                // again when next needed.
+                try db.executeScript("DELETE FROM metadata;")
+                version = 4
             }
             try db.setUserVersion(version)
         }
@@ -512,12 +528,13 @@ public final class Catalog: @unchecked Sendable {
         } catch {
             log.error("Moving marks failed: \(String(describing: error), privacy: .public)")
         }
-        post(moves.flatMap { [$0.from, $0.to] })
+        post(moves.flatMap { [$0.from, $0.to] }, moves: moves)
         postLibraryChange()
     }
 
     private func applyMove(from: URL, to: URL) throws {
         let f = Self.key(from), t = Self.key(to)
+        try rehomeStrayRows(at: t, movingFrom: f)
         let fParent = Self.parent(ofKey: f), tParent = Self.parent(ofKey: t)
         // ?1 source, ?2 ?3 its descendants' range; ?4 destination, ?5 ?6 its range.
         let args: [SQLiteValue] = [.text(f), .text(f + "/"), .text(f + "0"), .text(t), .text(t + "/"), .text(t + "0")]
@@ -565,6 +582,35 @@ public final class Catalog: @unchecked Sendable {
             try db.execute("UPDATE OR REPLACE folder_order SET name = ?3 WHERE folder = ?1 AND name = ?2", place)
         } else {
             try db.execute("DELETE FROM folder_order WHERE folder = ?1 AND name = ?2", Array(place.prefix(2)))
+        }
+    }
+
+    /// Rows at a move's destination are dropped as a replaced file's, unless
+    /// their file is still there under another path: one Finder put back
+    /// from the Trash keeps its rows at the Trash path until its folder is
+    /// healed, and trashing another file of the same name then takes that
+    /// slot. Such rows go to where their file is now (found by identity),
+    /// unless rows are already there.
+    private func rehomeStrayRows(at t: String, movingFrom f: String) throws {
+        // A change of letter case: the rows at the destination are the
+        // source's own (keys compare without case).
+        guard t.lowercased() != f.lowercased() else { return }
+        let rows = try db.query("""
+            SELECT volume, file_id FROM files WHERE path = ?1 AND file_id IS NOT NULL AND volume IS NOT NULL
+            UNION SELECT volume, file_id FROM collection_items
+            WHERE path = ?1 AND file_id IS NOT NULL AND volume IS NOT NULL
+            """, [.text(t)])
+        for row in rows {
+            guard let fileID = row.int("file_id"), let volume = row.string("volume"),
+                  let now = Self.path(ofFile: fileID, onVolume: volume, near: t) else { continue }
+            let p = Self.key(URL(fileURLWithPath: now))
+            guard p.lowercased() != t.lowercased(),
+                  try db.query("""
+                    SELECT 1 AS x FROM files WHERE path = ?1 UNION SELECT 1 AS x FROM collection_items WHERE path = ?1
+                    """, [.text(p)]).isEmpty
+            else { continue }
+            try applyMove(from: URL(fileURLWithPath: t), to: URL(fileURLWithPath: p))
+            return
         }
     }
 
@@ -631,7 +677,7 @@ public final class Catalog: @unchecked Sendable {
         } catch {
             log.error("Removing marks failed: \(String(describing: error), privacy: .public)")
         }
-        post([url])
+        post([url], removed: [url])
         postLibraryChange()
     }
 
@@ -745,7 +791,10 @@ public final class Catalog: @unchecked Sendable {
             }
 
             // Asked again after listing: moves may have begun meanwhile, and
-            // this listing may already show some of them.
+            // this listing may already show some of them. None can begin
+            // now until the commit is done.
+            healCommit.lock()
+            defer { healCommit.unlock() }
             guard !isHealingPaused else { return [] }
             let prunes = claimFirstPrune()
             // Marks of files that `.replace` sent to the Trash stay with them
@@ -828,7 +877,7 @@ public final class Catalog: @unchecked Sendable {
     /// nothing; the next listing heals. Calls nest; pair each with
     /// `resumeHealing`.
     public func pauseHealing() {
-        lock.withLock { movesInFlight += 1 }
+        healCommit.withLock { lock.withLock { movesInFlight += 1 } }
     }
 
     public func resumeHealing() {
@@ -1025,9 +1074,14 @@ public final class Catalog: @unchecked Sendable {
         Marks(rating: Int(row.int("rating") ?? 0), isTagged: (row.int("tagged") ?? 0) != 0)
     }
 
-    private func post(_ urls: [URL]) {
+    private func post(_ urls: [URL], moves: [(from: URL, to: URL)] = [], removed: [URL] = []) {
         Perf.count("catalog.didChange")
-        DispatchQueue.main.async { NotificationCenter.default.post(name: Self.didChange, object: urls) }
+        DispatchQueue.main.async {
+            var info: [String: Any] = [:]
+            if !moves.isEmpty { info[Self.movesKey] = moves }
+            if !removed.isEmpty { info[Self.removedKey] = removed }
+            NotificationCenter.default.post(name: Self.didChange, object: urls, userInfo: info)
+        }
     }
 }
 

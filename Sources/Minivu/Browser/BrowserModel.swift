@@ -18,9 +18,11 @@ nonisolated struct FolderSnapshot: Sendable {
     ///   - marks: ratings by file name, for sorting by rating.
     ///   - customOrder: the catalog's arrangement, for Custom Order.
     ///   - keysByPath: entries from several folders (`keysByPath`). Custom
-    ///     Order is a folder's own, so such a list shows it by name.
+    ///     Order is a folder's own, so such a list shows it by name...
+    ///   - keepsListOrder: ...unless the images come in an order of their
+    ///     own (a collection's, as they were added), which Custom Order shows.
     init(contents: FolderContents, order: FileSortOrder, marks: [String: Catalog.Marks] = [:],
-         customOrder: [String] = [], keysByPath: Bool = false) {
+         customOrder: [String] = [], keysByPath: Bool = false, keepsListOrder: Bool = false) {
         folder = contents.folder
         self.keysByPath = keysByPath
         let images: [FolderEntry]
@@ -29,6 +31,9 @@ nonisolated struct FolderSnapshot: Sendable {
         case .rating:
             images = MarksOrdering.byRating(contents.images, marks: marks, ascending: order.ascending,
                                             key: { Self.key(of: $0, byPath: keysByPath) })
+            folderOrder = FileSortOrder()
+        case .custom where keysByPath && keepsListOrder:
+            images = order.ascending ? contents.images : contents.images.reversed()
             folderOrder = FileSortOrder()
         case .custom where keysByPath:
             images = FolderListing.sorted(contents.images, by: FileSortOrder(key: .name, ascending: order.ascending))
@@ -320,6 +325,7 @@ nonisolated struct FolderSnapshot: Sendable {
     /// again when it lands; otherwise a star set during a reload would
     /// flick back until the next change.
     private var catalogChangesDuringListing: [URL] = []
+    private var catalogLeftDuringListing: [URL] = []
     /// The Finder tag read in flight: a whole listing's, or a refresh of a
     /// few files'. The next listing cancels either.
     private var finderTagRead: (cancel: CancellationFlag, isWholeFolder: Bool)?
@@ -364,7 +370,12 @@ nonisolated struct FolderSnapshot: Sendable {
         catalogObserver = NotificationCenter.default.addObserver(forName: Catalog.didChange, object: nil,
                                                                  queue: .main) { [weak self] note in
             let urls = note.object as? [URL] ?? []
-            MainActor.assumeIsolated { self?.catalogChanged(urls) }
+            let moves = note.userInfo?[Catalog.movesKey] as? [(from: URL, to: URL)] ?? []
+            let removed = note.userInfo?[Catalog.removedKey] as? [URL] ?? []
+            MainActor.assumeIsolated {
+                self?.followRenames(moves)
+                self?.catalogChanged(urls, left: moves.map(\.from) + removed)
+            }
         }
         // A collection shown changes when members are added, removed or
         // found again; a smart folder is re-run only when opened.
@@ -508,6 +519,7 @@ nonisolated struct FolderSnapshot: Sendable {
         finderTagRead = nil
         pendingSelections = []
         catalogChangesDuringListing = []
+        catalogLeftDuringListing = []
         pendingSelection = item
         parentToCheck = enclosingFolder
         if parentToCheck == nil { canGoToEnclosingFolder = false }
@@ -645,6 +657,7 @@ nonisolated struct FolderSnapshot: Sendable {
         isListing = true
         let generation = self.generation
         let list = self.list, root = self.folder, hidden = showHiddenFiles, order = sortOrder
+        let keepsListOrder = if case .collection? = list?.kind { true } else { false }
         let treeLister = self.treeLister, listLoader = self.listLoader, catalog = self.catalog
         let fileMarksCache = self.fileMarksCache
         let previous = snapshot?.keysByPath == true ? snapshot?.entries ?? [] : []
@@ -667,7 +680,7 @@ nonisolated struct FolderSnapshot: Sendable {
                         lastShown = .now
                         let partial = Perf.measure("flat.partialSort") {
                             FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
-                                           order: order, keysByPath: true)
+                                           order: order, keysByPath: true, keepsListOrder: keepsListOrder)
                         }
                         DispatchQueue.main.async {
                             MainActor.assumeIsolated { self?.showPartial(partial, generation: generation) }
@@ -690,7 +703,7 @@ nonisolated struct FolderSnapshot: Sendable {
                     let marks = Self.shownMarks(rows: rows, files: own?.marks ?? [:])
                     let snapshot = Perf.measure("folder.sort") {
                         FolderSnapshot(contents: FolderContents(folder: base, subfolders: [], images: found),
-                                       order: order, marks: marks, keysByPath: true)
+                                       order: order, marks: marks, keysByPath: true, keepsListOrder: keepsListOrder)
                     }
                     let tags = needsFinderTags ? Self.finderTagsByKey(snapshot.entries, byPath: true) : nil
                     return Listing(snapshot: snapshot, changed: Self.changedFiles(old: previous, new: snapshot.entries),
@@ -738,7 +751,10 @@ nonisolated struct FolderSnapshot: Sendable {
     /// A new order for the same listing. If a listing is still being read it
     /// simply starts again with the new order.
     private func resort() {
-        guard let snapshot, state == .loaded, !isListing else {
+        // A collection's own order lives only in the catalog: read it again
+        // (one query) rather than resorting what is shown.
+        let isCollection = if case .collection? = list?.kind { true } else { false }
+        guard let snapshot, state == .loaded, !isListing, !isCollection else {
             reload()
             return
         }
@@ -864,9 +880,10 @@ nonisolated struct FolderSnapshot: Sendable {
             Perf.milestone("launch.firstFolderListed")
         }
         if !catalogChangesDuringListing.isEmpty {
-            let urls = catalogChangesDuringListing
+            let urls = catalogChangesDuringListing, left = catalogLeftDuringListing
             catalogChangesDuringListing = []
-            catalogChanged(urls)
+            catalogLeftDuringListing = []
+            catalogChanged(urls, left: left)
         }
         readEveryFileMarksIfNeeded()
         readFilterMetadataIfNeeded()
@@ -1058,10 +1075,15 @@ nonisolated struct FolderSnapshot: Sendable {
     /// The catalog changed some files, or a folder's order. Marks of this
     /// folder's files are read again (one small read), then only what they
     /// affect is redone: the cells, the filter, or the order.
-    func catalogChanged(_ urls: [URL]) {
+    /// `left`: the paths minivu moved or removed files from, which a list
+    /// drops if they are gone.
+    func catalogChanged(_ urls: [URL], left: [URL] = []) {
         let changing = Perf.begin("browser.catalogChanged")
         defer { changing.end() }
-        if isListing { catalogChangesDuringListing += urls }
+        if isListing {
+            catalogChangesDuringListing += urls
+            catalogLeftDuringListing += left
+        }
         guard let snapshot, state == .loaded else { return }
         var files: [URL] = []
         var orderChanged = false
@@ -1070,6 +1092,20 @@ nonisolated struct FolderSnapshot: Sendable {
                 orderChanged = true
             } else if isShown(url) {
                 files.append(url)
+            }
+        }
+        // A list watches no folder: a file the viewer or Compare trashed or
+        // moved leaves it here. Only those sources are looked at on disk
+        // (one may remain, a letter-case rename): a rating names no path
+        // that left.
+        if list != nil, !left.isEmpty {
+            let sources = Set(left.map(\.standardizedFileURL.path))
+            let gone = files.filter {
+                sources.contains($0.standardizedFileURL.path) && !FileManager.default.fileExists(atPath: $0.path)
+            }
+            if !gone.isEmpty {
+                removeEntries(Set(gone))
+                files.removeAll { gone.contains($0) }
             }
         }
         var changed = Set<String>()
@@ -1467,6 +1503,46 @@ nonisolated struct FolderSnapshot: Sendable {
     /// are found by name, so only an entry at the very path given goes: a
     /// namesake in a subfolder (a duplicate trashed from Find Duplicates)
     /// leaves the shown folder's own file in place.
+    /// A list of fixed files (a Duplicates group, `.files`) keeps the files
+    /// minivu itself renamed or moved, here and in Back and Forward: it is
+    /// read again from its paths, and would otherwise drop them.
+    /// True when the list shown changed.
+    @discardableResult func followMoves(_ moves: [(from: URL, to: URL)]) -> Bool {
+        guard !moves.isEmpty else { return false }
+        var moved: [String: URL] = [:]
+        for move in moves { moved[move.from.standardizedFileURL.path] = move.to }
+        func follow(_ list: VirtualList?) -> VirtualList? {
+            guard var list, case .files(let urls) = list.kind else { return list }
+            list.kind = .files(urls.map { moved[$0.standardizedFileURL.path] ?? $0 })
+            return list
+        }
+        func follow(_ location: Location) -> Location {
+            var location = location
+            location.list = follow(location.list)
+            return location
+        }
+        let shown = list
+        list = follow(list)
+        backStack = backStack.map(follow)
+        forwardStack = forwardStack.map(follow)
+        return list != shown
+    }
+
+    /// Renames the catalog reports from anywhere (the viewer, Shortcuts, a
+    /// Batch Convert Replace that changes a name's letter case) are followed
+    /// as the browser's own are, and the list read again with them. A move
+    /// to another folder (the Trash, Move To from elsewhere) isn't: the list
+    /// drops that file (`catalogChanged`).
+    func followRenames(_ moves: [(from: URL, to: URL)]) {
+        let renames = moves.filter {
+            !Self.samePath($0.from, $0.to)
+                && Self.samePath($0.from.deletingLastPathComponent(), $0.to.deletingLastPathComponent())
+        }
+        let selected = Set(selection.map(\.standardizedFileURL.path))
+        guard followMoves(renames) else { return }
+        reload(thenSelect: renames.filter { selected.contains($0.from.standardizedFileURL.path) }.map(\.to))
+    }
+
     func removeEntries(_ urls: Set<URL>) {
         let matched = Set(urls.compactMap { url in entry(for: url).flatMap { Self.samePath($0.url, url) ? $0.url : nil } })
         guard !matched.isEmpty, snapshot != nil else { return }

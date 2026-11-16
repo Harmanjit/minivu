@@ -32,8 +32,9 @@ reads nothing.
 - Everything else works as in a folder: open in the viewer (the viewer
   steps through the whole flat list), rate, tag, label, rename, move, copy,
   trash, the batch tools, Edit Metadata, sort (Custom Order falls back to
-  name order, since an arrangement belongs to one folder). New Folder and
-  Paste go into the folder at the top of the tree.
+  name order, since an arrangement belongs to one folder). Paste goes into
+  the folder at the top of the tree. New Folder is off: the flat view
+  lists no folders, so a new one could be neither shown nor named.
 
 ### Design and why
 
@@ -70,8 +71,9 @@ reads nothing.
 
 - **View > Filter > More Filters…** (and the toolbar's Filter menu) opens a
   sheet with: **Type** (JPEG, HEIF and AVIF, PNG, RAW, TIFF, GIF, WebP,
-  Photoshop, PDF, SVG, Other; none ticked shows all), **Date Taken** (from
-  and/or to, inclusive days), **Camera model** and **Lens** (part of the
+  Photoshop, PDF, SVG, Video, Other; none ticked shows all), **Date Taken**
+  (from and/or to, inclusive days; a video's recording date, on the
+  camera's clock), **Camera model** and **Lens** (part of the
   name, case and accents ignored: "5d" finds "Canon EOS 5D Mark IV"),
   **ISO**, **Aperture (f/)** and **Focal length (mm)** ranges (either end
   open; "f/2,8" and "2.8" both read), **Keywords** (all of these, comma
@@ -197,8 +199,9 @@ then headers only for files still in the running.
   collection, then New Collection…. Images can also be dragged onto a
   collection's row in the sidebar (they join it; nothing moves).
 - Collections appear under **Collections** in the sidebar (stack symbol);
-  clicking one shows its images in the order they were added, as a list
-  like search results.
+  clicking one shows its images as a list like search results; View > Sort
+  By > Custom Order shows them in the order they were added (reversed when
+  descending).
 - **File > Remove from Collection** (and the right-click menu) while a
   collection is shown takes the selected images out of it, never out of
   their folders.

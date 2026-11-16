@@ -187,5 +187,10 @@ import MinivuCore
             == .reorder(files: [URL(fileURLWithPath: "/Photos/a.jpg")], before: nil))
         // A folder of this folder can't be reordered, and dropping it on itself does nothing.
         #expect(decide(["/Photos/Trip"], index: 0, on: true, custom: true) == nil)
+        // The flat view's own drag of a file from a folder below moves nothing up.
+        let below = URL(fileURLWithPath: "/Photos/2024/d.jpg")
+        #expect(GridDropPlan.decide(files: [below], folder: folder, entries: entries, index: 1, on: true,
+                                    customOrder: false, isImageInFolder: images.contains,
+                                    isListedFromBelow: { $0 == below }) == nil)
     }
 }

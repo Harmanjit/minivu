@@ -107,6 +107,24 @@ import Foundation
         #expect(try reopened.db.userVersion() == Catalog.schemaVersion)
     }
 
+    /// Schema 4 drops the filter metadata cached before videos had their
+    /// date, camera and location read, so those rows are read again.
+    @Test func upgradeDropsCachedFilterMetadata() throws {
+        let t = try TemporaryFolder()
+        let a = try t.file("a.mov")
+        let dbURL = t.url.appendingPathComponent("db/catalog.sqlite")
+        let entry = try #require(FolderEntry(url: a))
+        do {
+            let catalog = try Catalog(url: dbURL)
+            catalog.storeFilterMetadata([(entry, FilterMetadata(pixelWidth: 160, pixelHeight: 96))])
+            #expect(catalog.filterMetadata(for: [entry]).count == 1)
+            try catalog.db.setUserVersion(3)
+        }
+        let reopened = try Catalog(url: dbURL)
+        #expect(reopened.filterMetadata(for: [entry]).isEmpty)
+        #expect(try reopened.db.userVersion() == Catalog.schemaVersion)
+    }
+
     @Test func damagedCatalogIsSetAsideNotDeleted() throws {
         let t = try TemporaryFolder()
         let dbURL = t.url.appendingPathComponent("catalog.sqlite")

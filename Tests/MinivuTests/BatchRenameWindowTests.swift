@@ -104,7 +104,7 @@ extension AppWindowTests {
             #expect(!sheetTools.contains(where: enabled), "no second sheet while the rename sheet is up")
             // ⌘⌫ or ⌘↓ typed in the sheet's fields must not reach the selection behind it.
             #expect(!underSheet.contains(where: enabled), "no trashing or opening under the sheet")
-            #expect(enabled(.startSlideshow))
+            #expect(!enabled(.startSlideshow), "no full-screen show over the sheet")
             let host = try #require(sheet.contentView as? NSHostingView<BatchRenameView>)
             host.rootView.onCancel()
             #expect(sheets.shown.isEmpty)

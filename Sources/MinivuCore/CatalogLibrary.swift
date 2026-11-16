@@ -284,7 +284,12 @@ extension Catalog {
                 missing.append(rowID)
             }
         }
-        if !found.isEmpty || !missing.isEmpty {
+        // While minivu moves files and has yet to report them, a member found
+        // at its new name is shown there but not written back: the report
+        // would drop a row already at the new name as a replaced file's.
+        healCommit.lock()
+        defer { healCommit.unlock() }
+        if !found.isEmpty || !missing.isEmpty, !isHealingPaused {
             let now = Date().timeIntervalSince1970
             run("Updating a collection", notify: false) {
                 try db.transaction {
@@ -408,6 +413,11 @@ extension Catalog {
                 }
             }
             guard prunes || !refresh.isEmpty || !missing.isEmpty || !moves.isEmpty else { return false }
+            // As `heal` asks before its own commit: a move begun since the
+            // listing would drop the row re-homed here (`healCommit`).
+            healCommit.lock()
+            defer { healCommit.unlock() }
+            guard !isHealingPaused else { return false }
             let now = Date().timeIntervalSince1970
             try db.transaction {
                 for r in refresh {

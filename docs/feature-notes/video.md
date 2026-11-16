@@ -118,11 +118,19 @@ the control bar's edit button follow `canEditCurrent`):
   first frame as a slide would misrepresent it. From a video, the show
   starts at the next picture (wrapping to the first). A folder or
   selection of nothing but videos disables Start Slideshow.
-- **Batch Convert, Print, Contact Sheet and Montage Wallpaper skip videos**
-  (they work on `toolStills`); with only videos chosen they are disabled.
+- **Batch Convert, Extract Pages, Create Multi-Page File, Image Strip,
+  Create Web Gallery, Print, Contact Sheet and Montage Wallpaper skip
+  videos** (they work on `toolStills`), and so does Export Slideshow Video
+  in the browser and the viewer; with only videos chosen they are disabled.
   A video given to the batch converter some other way (a Convert Images or
   Resize Images shortcut) fails for that file with "contains no image
   minivu can decode", and the rest of the batch goes on.
+- **Find Duplicates: Identical Files includes videos, Similar Images
+  skips them.** Byte-identical copies of a clip are real duplicates, but a
+  poster frame would pair a Live Photo's MOV with its HEIC (or two takes of
+  one tripod scene), and the keep rule would trash the clip. A video's
+  dimensions come from `VideoFrames.info`, so Highest Resolution ranks it
+  by its real size.
 - **Batch Rename includes videos**: renaming is a file operation.
 - **Compare Selected** shows a video by its first frame (decided in part
   2; see below).

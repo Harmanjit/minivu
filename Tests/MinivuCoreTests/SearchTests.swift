@@ -120,6 +120,19 @@ import UniformTypeIdentifiers
         #expect(try SearchQuery.decoded(SearchQuery(scope: URL(fileURLWithPath: "/")).encoded()).criteria == MetadataCriteria())
     }
 
+    /// Other held videos before the Video group: a search saved then with
+    /// Other ticked still finds them. One saved since keeps what was ticked.
+    @Test func otherSavedBeforeTheVideoGroupStillMatchesVideos() throws {
+        let old = try SearchQuery.decoded(#"{"scope":"/","criteria":{"fileTypes":["other","png"]}}"#)
+        #expect(old.criteria.fileTypes == [.other, .png, .video])
+        #expect(old.criteria.passesType(URL(fileURLWithPath: "/clip.mov")))
+        #expect(try SearchQuery.decoded(#"{"scope":"/","criteria":{"fileTypes":["raw"]}}"#).criteria.fileTypes == [.raw])
+        var criteria = MetadataCriteria()
+        criteria.fileTypes = [.other]
+        let saved = SearchQuery(scope: URL(fileURLWithPath: "/"), criteria: criteria)
+        #expect(try SearchQuery.decoded(saved.encoded()).criteria.fileTypes == [.other])
+    }
+
     // MARK: - Walking a tree
 
     /// root/a.jpg, root/one/b.jpg, root/one/two/c.jpg, root/one/two/three/d.jpg,

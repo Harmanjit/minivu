@@ -22,7 +22,7 @@ import MinivuRender
 }
 
 /// Tools > Create Multi-Page File… and Image Strip… for the browser (G17),
-/// on `toolImages` in the browser's order.
+/// on `toolStills` (videos left out) in the browser's order.
 ///
 /// Both make one new file, chosen in a save panel (which asks before
 /// replacing a file of that name). The file is made in a temporary place
@@ -47,7 +47,9 @@ extension BrowserWindowController {
 
     @objc func createMultiPageFile(_ sender: Any?) {
         guard let window = canStartBatch() else { return NSSound.beep() }
-        let model = MultiPageModel(entries: toolImages, store: BatchTools.store)
+        let stills = toolStills
+        guard !stills.isEmpty else { return NSSound.beep() }
+        let model = MultiPageModel(entries: stills, store: BatchTools.store)
         MultiPageSheet(model: model).begin(on: window) { [weak self] settings, urls in
             guard let self else { return }
             Task {
@@ -94,7 +96,9 @@ extension BrowserWindowController {
 
     @objc func makeImageStrip(_ sender: Any?) {
         guard let window = canStartBatch() else { return NSSound.beep() }
-        let model = ImageStripModel(entries: toolImages, store: BatchTools.store)
+        let stills = toolStills
+        guard !stills.isEmpty else { return NSSound.beep() }
+        let model = ImageStripModel(entries: stills, store: BatchTools.store)
         ImageStripSheet(model: model).begin(on: window) { [weak self] settings, urls in
             guard let self else { return }
             Task {
@@ -141,14 +145,15 @@ extension BrowserWindowController {
     // MARK: - Shared
 
     private func chooseMultiPageDestination(name: String, type: UTType) async -> URL? {
-        if let choose = MultiPageTools.chooseDestination { return await choose(name, type, model.folder) }
+        let startFolder = toolStartFolder
+        if let choose = MultiPageTools.chooseDestination { return await choose(name, type, startFolder) }
         guard let window else { return nil }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [type]
         panel.nameFieldStringValue = name
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        if let folder = model.folder { panel.directoryURL = folder }
+        if let startFolder { panel.directoryURL = startFolder }
         let response = await withCheckedContinuation { done in
             panel.beginSheetModal(for: window) { done.resume(returning: $0) }
         }

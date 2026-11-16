@@ -78,6 +78,10 @@ extension AppWindowTests {
             #expect(Set(controller.model.entries.map(\.name)) == ["IMG_1.jpg", "IMG_2.jpg"])
             #expect(controller.validateMenuItem(item(.saveAsSmartFolder)))
             #expect(!controller.validateMenuItem(item(.newFolder)), "a list has no folder to make one in")
+            #expect(!controller.validateMenuItem(item(.revealInFinder)), "nothing selected, no folder")
+            controller.model.selectAll()
+            #expect(controller.validateMenuItem(item(.revealInFinder)), "the selection, from any folder")
+            controller.model.setSelection([], lead: nil)
 
             await answeringNames(with: "Shots") {
                 controller.saveAsSmartFolder(nil)
@@ -129,6 +133,14 @@ extension AppWindowTests {
             controller.open(list: VirtualList(kind: .collection(id: trip.id), title: "Trip"))
             await settle(controller)
             #expect(controller.model.entries.map(\.name) == ["a.jpg", "b.jpg", "c.jpg"])
+            // Output tools are titled after the collection and start near its images.
+            #expect(controller.toolTitle == "Trip")
+            #expect(controller.toolStartFolder?.lastPathComponent == t.url.lastPathComponent)
+            let window = try #require(controller.window)
+            controller.createWebGallery(nil)
+            let gallery = try #require(WebGalleryController.controller(for: window))
+            #expect(gallery.model.title == "Trip")
+            gallery.close()
             controller.model.setSelection([controller.model.entries[1].url], lead: nil)
             #expect(controller.validateMenuItem(item(.removeFromCollection)))
             controller.removeFromCollection(nil)
@@ -176,6 +188,7 @@ extension AppWindowTests {
             let cell = try #require(controller.grid.collectionView.item(at: IndexPath(item: 1, section: 0)) as? ThumbnailCell)
             #expect(cell.thumbnailView.folderName == "Sub")
             #expect(cell.thumbnailView.accessibilityLabel()?.hasPrefix("b.jpg, in Sub") == true)
+            #expect(!controller.validateMenuItem(item(.newFolder)), "the flat view could not show a new folder")
             controller.toggleFlatView(nil)
             await settle(controller)
             #expect(controller.model.entries.map(\.name) == ["Sub", "a.jpg"])
@@ -198,6 +211,8 @@ extension AppWindowTests {
             controller.endFormSheet(sheet)
             #expect(controller.model.entries.map(\.name) == ["b.nef"])
             #expect(controller.validateMenuItem(more) && more.state == .on)
+            let showAll = item(.filterByRating)
+            #expect(controller.validateMenuItem(showAll) && showAll.state == .off, "a More Filters condition hides images")
 
             // Show All clears it with the rating filters.
             controller.filterByRating(item(.filterByRating))

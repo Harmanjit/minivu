@@ -242,6 +242,7 @@ extension BrowserWindowController {
             // Only the folder shown is listed again: an undo can run after
             // the user has moved on to another folder.
             let renamed = outcome.renamed.map(\.to)
+            model.followMoves(outcome.renamed.map { ($0.from, $0.to) })
             if model.showsManyFolders {
                 // A list from many folders (G3) may hold any of them.
                 model.reload(thenSelect: renamed)
@@ -291,7 +292,9 @@ extension BrowserWindowController {
     /// images' multi-page files, or a range, as separate files.
     @objc func extractPages(_ sender: Any?) {
         guard let window = canStartBatch() else { return NSSound.beep() }
-        let entries = toolImages
+        // Videos are left out, as Batch Convert leaves them (G18).
+        let entries = toolStills
+        guard !entries.isEmpty else { return NSSound.beep() }
         let model = BatchConvertModel(entries: entries, mode: .extractPages, store: BatchTools.store)
         let sheet = BatchConvertSheet(model: model)
         sheet.begin(on: window) { [weak self] settings in
@@ -378,7 +381,11 @@ extension BrowserWindowController {
         if let presented { BatchTools.endSheet(sheet.window, on: presented) }
 
         for url in outcome.written { BrowserModel.invalidateCaches(url) }
-        if let current = model.folder {
+        if model.showsManyFolders {
+            // A list or the flat view may hold any of them (a Replace keeps
+            // its path but has a new size and date), as after Batch Rename.
+            if !outcome.written.isEmpty { model.reload(thenSelect: outcome.written) }
+        } else if let current = model.folder {
             let here = outcome.written.filter { BrowserModel.samePath($0.deletingLastPathComponent(), current) }
             if !here.isEmpty { model.reload(thenSelect: here) }
         }

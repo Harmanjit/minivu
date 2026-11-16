@@ -59,6 +59,53 @@ import CoreGraphics
         #expect(!info.isAnimated)
     }
 
+    /// Find Duplicates' Similar mode leaves a video out, so a Live Photo's
+    /// MOV never pairs with its HEIC by its poster frame; identical-file
+    /// groups still size a video, so Highest Resolution doesn't rank it 0 px.
+    @Test func duplicatesLeaveVideosOutOfSimilarAndSizeThem() async throws {
+        let clip = try await TestVideos.make(at: folder.url.appendingPathComponent("IMG_1.mov"), width: 320, height: 192)
+        let still = SyntheticScenes.write(SyntheticScenes.scene(seed: 1, width: 160, height: 96),
+                                          to: folder.url.appendingPathComponent("IMG_1.jpg"))
+        let entries = try [clip, still].map { try #require(FolderEntry(url: $0)) }
+        let made = Tally()
+        let prints = await BlockingWork.run {
+            DuplicateFinder.featurePrints(for: entries, store: nil, workers: 1, make: { entry, thumbnails in
+                made.add()
+                return FeaturePrint.make(for: entry, thumbnails: thumbnails)
+            })
+        }
+        #expect(made.count == 1 && prints[clip] == nil && prints[still] != nil)
+
+        let sizes = await BlockingWork.run { DuplicateFinder.pixelSizes(of: entries) }
+        #expect(sizes[clip] == CGSize(width: 320, height: 192))
+        #expect(KeepRule.highestResolution.keeper(of: entries, pixelSizes: sizes)?.url == clip)
+    }
+
+    /// The filters, Find and Batch Rename's {date} read a video's
+    /// recording date (on the camera's clock), camera and location, and it
+    /// files under its own type, not "Other".
+    @Test func filtersAndRenameReadAVideosDateCameraAndLocation() async throws {
+        let url = try await TestVideos.make(at: folder.url.appendingPathComponent("phone.mov"), seconds: 1, metadata: [
+            .quickTimeMetadataCreationDate: "2024-05-01T14:30:05+0200",
+            .quickTimeMetadataLocationISO6709: "+48.8584+002.2945+035.000/",
+            .quickTimeMetadataMake: "Apple",
+            .quickTimeMetadataModel: "iPhone 15 Pro",
+        ])
+        let metadata = await BlockingWork.run { FilterMetadata.read(from: url) }
+        #expect(metadata.dateTaken == 20240501143005)
+        #expect(metadata.camera?.contains("iPhone 15 Pro") == true)
+        #expect(metadata.hasLocation)
+        #expect(metadata.pixelWidth == 160 && metadata.pixelHeight == 96)
+        var criteria = MetadataCriteria()
+        criteria.fileTypes = [.video]
+        #expect(criteria.passesType(url) && !criteria.passesType(folder.url.appendingPathComponent("a.bmp")))
+        #expect(FileTypeGroup.of(URL(fileURLWithPath: "/x/clip.MP4")) == .video)
+
+        let source = await BlockingWork.run { RenameSource(url: url).withImageMetadata() }
+        let namer = RenameNamer(pattern: RenamePattern(text: "{date:yyyyMMdd-HHmmss}"))
+        #expect(namer.baseName(for: source, index: 0) == "20240501-143005", "the camera's clock, not the copy date")
+    }
+
     @Test func aFileThatIsNoMovieReadsAsNothing() async throws {
         let fake = try folder.file("broken.mov", bytes: 512)
         #expect(await BlockingWork.run { VideoFrames.info(for: fake) } == nil)

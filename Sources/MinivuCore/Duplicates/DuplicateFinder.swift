@@ -133,7 +133,11 @@ public enum DuplicateFinder {
         // Here, not only in `FeaturePrint.make`: inside the fan-out below
         // the check can't tell a cooperative caller from a GCD worker.
         BlockingWork.expectOffCooperativePool("DuplicateFinder.featurePrints(for:)")
-        let images = unique(entries).filter { !$0.isDirectory }
+        // Videos are left out: a poster frame would pair a clip with a still
+        // of the same scene (a Live Photo's HEIC and MOV), and a clip is
+        // not a picture to keep or trash for looking alike. Identical-file
+        // groups still find copies of a video.
+        let images = unique(entries).filter { !$0.isDirectory && $0.kind != .video }
         guard !images.isEmpty else { return [:] }
         let revision = FeaturePrint.currentRevision
         let identities = FileIdentity.read(images.map(\.url))
@@ -225,13 +229,16 @@ public enum DuplicateFinder {
         a.url.path.localizedStandardCompare(b.url.path) == .orderedAscending
     }
 
-    /// The oriented pixel size of each image whose header names one, for
-    /// the results' dimensions and the Highest Resolution rule.
+    /// The oriented pixel size of each image whose header names one (a
+    /// video's displayed size), for the results' dimensions and the
+    /// Highest Resolution rule.
     public static func pixelSizes(of entries: [FolderEntry], isCancelled: () -> Bool = { false }) -> [URL: CGSize] {
         var sizes: [URL: CGSize] = [:]
         for entry in entries {
             if isCancelled() { break }
-            if let size = ImageDecoder.headerPixelSize(of: entry.url) { sizes[entry.url] = size }
+            let size = entry.kind == .video ? VideoFrames.info(for: entry.url)?.pixelSize
+                                            : ImageDecoder.headerPixelSize(of: entry.url)
+            if let size { sizes[entry.url] = size }
         }
         return sizes
     }

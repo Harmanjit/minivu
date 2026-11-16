@@ -466,7 +466,9 @@ extension BrowserWindowController: MinivuActions, NSMenuItemValidation, NSToolba
         if sheetUp, sheetBlocked.contains(action) { return false }
         return switch action {
         case .openInViewer: model.leadEntry != nil && !isTypingText
-        case .revealInFinder: model.folder != nil
+        // The action reveals the selection (from any folder, so in a list
+        // too), else the folder shown.
+        case .revealInFinder: !model.selection.isEmpty || model.folder != nil
         case .moveToTrash: !model.selection.isEmpty && !isTypingText
         case .compareSelected: canCompareSelection
         case .goToEnclosingFolder: model.canGoToEnclosingFolder && !isTypingText
