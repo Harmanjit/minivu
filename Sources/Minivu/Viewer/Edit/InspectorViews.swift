@@ -285,7 +285,8 @@ struct ImmediateAction: Identifiable {
     let title: String
     let symbol: String
     let action: Selector
-    var id: String { title }
+    /// The action, not the title, which another language might repeat.
+    var id: Selector { action }
 }
 
 struct ImmediateActionsInspectorView: View {
