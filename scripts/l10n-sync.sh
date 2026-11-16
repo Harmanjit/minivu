@@ -14,8 +14,10 @@
 #   - marks keys no source uses any more "stale" (they still ship; delete
 #     them from the catalog once nobody needs their translations).
 # Run it after adding or changing user-facing strings, before translating,
-# and commit the catalogs with the code. It builds, so on a shared machine
-# run it through the build throttle.
+# and commit the catalogs with the code (in a parallel wave, only the
+# integration branch commits catalogs). It builds, so on a shared machine
+# run it through the build throttle. Translations go in with
+# scripts/l10n-merge.py.
 #
 # Mechanism and conventions: docs/feature-notes/l10n.md.
 set -euo pipefail
