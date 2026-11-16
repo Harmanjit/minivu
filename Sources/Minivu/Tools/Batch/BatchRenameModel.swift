@@ -135,32 +135,30 @@ import MinivuCore
 
     /// The line under the list: what will happen, or the first thing in the way.
     var statusText: String {
-        guard let plan else { return "Checking names…" }
+        guard let plan else { return localized("Checking names…") }
         if !plan.unknownTokens.isEmpty {
             let list = plan.unknownTokens.prefix(3).joined(separator: ", ")
-            return plan.unknownTokens.count == 1
-                ? "The pattern has an unknown token: \(list)."
-                : "The pattern has unknown tokens: \(list)."
+            return localized(.init("The pattern has \(plan.unknownTokens.count) unknown tokens: \(list).",
+                                   comment: "The count, then up to three tokens such as {nmae}, separated by commas"))
         }
         let problems = plan.problemCount
         if problems > 0 {
             let first = plan.items.first { $0.problem != nil }?.problem
             let sameKind = plan.items.lazy.filter { Self.sameKind($0.problem, first) }.count
-            let files = sameKind == 1 ? "1 file" : "\(sameKind.formatted()) files"
             switch first {
-            case .duplicate: return "\(files) would share a name with another file. Every file needs a name of its own."
-            case .taken: return "\(files) would take the name of an item that isn’t being renamed."
-            case .missing: return "\(files) can’t be found any more."
-            case .invalidName(let reason): return "\(files) can’t have the new name: \(reason)"
+            case .duplicate: return localized("\(sameKind) files would share a name with another file. Every file needs a name of its own.")
+            case .taken: return localized("\(sameKind) files would take the name of an item that isn’t being renamed.")
+            case .missing: return localized("\(sameKind) files can’t be found any more.")
+            case .invalidName(let reason): return localized("\(sameKind) files can’t have the new name: \(reason)")
             case nil: return ""
             }
         }
         let changes = plan.changeCount
-        if changes == 0 { return "The names wouldn’t change." }
+        if changes == 0 { return localized("The names wouldn’t change.") }
         let total = plan.items.count
         return changes == total
-            ? "\(total == 1 ? "1 file" : "\(total.formatted()) files") will be renamed."
-            : "\(changes.formatted()) of \(total.formatted()) files will be renamed; the others keep their names."
+            ? localized("\(total) files will be renamed.")
+            : localized("\(changes) of \(total) files will be renamed; the others keep their names.")
     }
 
     private nonisolated static func sameKind(_ a: RenamePlan.Problem?, _ b: RenamePlan.Problem?) -> Bool {
@@ -177,6 +175,6 @@ import MinivuCore
 
     /// "Rename 12 Items": the sheet's title and the Undo menu's.
     nonisolated static func actionName(count: Int) -> String {
-        "Rename \(count == 1 ? "1 Item" : "\(count.formatted()) Items")"
+        localized(.init("Rename \(count) Items", comment: "Batch rename sheet title and Undo menu action"))
     }
 }

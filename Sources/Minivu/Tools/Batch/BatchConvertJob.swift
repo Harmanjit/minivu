@@ -207,7 +207,7 @@ import MinivuRender
                 case .written(let url, let trashed):
                     results[index] = .written(url, trashed: trashed)
                 case .skipped:
-                    results[index] = .skipped("An item named “\(destination.lastPathComponent)” already exists.")
+                    results[index] = .skipped(localized("An item named “\(destination.lastPathComponent)” already exists."))
                 }
             } catch {
                 results[index] = .failed(SaveAlert.message(for: error))
@@ -220,7 +220,8 @@ import MinivuRender
     /// a multi-page original ("Page 3: …").
     nonisolated static func detail(_ reason: String, _ output: BatchOutput) -> String {
         guard case .page(let index, _) = output.pages else { return reason }
-        return "Page \(index + 1): \(reason)"
+        return localized(.init("Page \(index + 1): \(reason)",
+                               comment: "Why a page of a multi-page file was skipped or failed: page number, then the reason"))
     }
 
     nonisolated static func pathKey(_ url: URL) -> String {
@@ -233,22 +234,26 @@ import MinivuRender
     /// the user cancelled and nothing went wrong).
     nonisolated static func summary(for outcome: Outcome) -> (title: String, detail: String)? {
         guard !outcome.failed.isEmpty || !outcome.skipped.isEmpty else { return nil }
-        func files(_ count: Int) -> String { count == 1 ? "1 file" : "\(count.formatted()) files" }
         func list(_ entries: [Entry]) -> String {
             let limit = 8
-            var lines = entries.prefix(limit).map { "\($0.source.lastPathComponent): \($0.detail)" }
-            if entries.count > limit { lines.append("…and \((entries.count - limit).formatted()) more.") }
+            var lines = entries.prefix(limit).map {
+                localized(.init("\($0.source.lastPathComponent): \($0.detail)", comment: "A file name, then what went wrong with it"))
+            }
+            if entries.count > limit {
+                lines.append(localized(.init("…and \(entries.count - limit) more.", comment: "End of a list of files that is too long to show")))
+            }
             return lines.joined(separator: "\n")
         }
         let written = outcome.written.count
         let title = !outcome.failed.isEmpty
-            ? "\(files(outcome.failed.count).capitalizedFirst) couldn’t be converted."
-            : "\(files(outcome.skipped.count).capitalizedFirst) \(outcome.skipped.count == 1 ? "was" : "were") skipped."
+            ? localized("\(outcome.failed.count) files couldn’t be converted.")
+            : localized("\(outcome.skipped.count) files were skipped.")
         var parts: [String] = []
-        parts.append(written == 0 ? "No files were converted." : "\(files(written).capitalizedFirst) converted.")
+        parts.append(written == 0 ? localized("No files were converted.") : localized("\(written) files converted."))
         if !outcome.failed.isEmpty { parts.append(list(outcome.failed)) }
         if !outcome.skipped.isEmpty {
-            parts.append((outcome.failed.isEmpty ? "" : "Skipped:\n") + list(outcome.skipped))
+            parts.append(outcome.failed.isEmpty ? list(outcome.skipped)
+                         : localized(.init("Skipped:\n\(list(outcome.skipped))", comment: "Heading over a list of skipped files")))
         }
         return (title, parts.joined(separator: "\n\n"))
     }
@@ -329,7 +334,7 @@ struct BatchProgressView: View {
             ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
                 .progressViewStyle(.linear)
             HStack(alignment: .firstTextBaseline) {
-                Text(progress.isCancelled ? "Stopping…" : detail)
+                Text(progress.isCancelled ? localized("Stopping…") : detail)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -345,7 +350,10 @@ struct BatchProgressView: View {
     }
 
     private var detail: String {
-        let count = "\(min(progress.done + 1, progress.total).formatted()) of \(progress.total.formatted())"
-        return progress.currentName.isEmpty ? count : "\(count): \(progress.currentName)"
+        let current = min(progress.done + 1, progress.total)
+        return progress.currentName.isEmpty
+            ? localized(.init("\(current) of \(progress.total)", comment: "Batch progress: the file being converted, of how many"))
+            : localized(.init("\(current) of \(progress.total): \(progress.currentName)",
+                              comment: "Batch progress: the file being converted, of how many, then its name"))
     }
 }

@@ -246,10 +246,10 @@ import MinivuRender
 
     /// The watermark's line in the Edits section.
     var watermarkSummary: String {
-        guard let watermark = settings.watermark else { return "None" }
+        guard let watermark = settings.watermark else { return localized(.init("batch.watermark.none", defaultValue: "None", comment: "Batch Convert: no watermark")) }
         switch watermark.kind {
-        case .text: return "“\(watermark.text)”"
-        case .image: return watermark.imageName ?? "Picture"
+        case .text: return localized(.init("“\(watermark.text)”", comment: "A name or text in quotation marks"))
+        case .image: return watermark.imageName ?? localized(.init("Picture", comment: "A watermark that is an image"))
         }
     }
 
@@ -262,9 +262,11 @@ import MinivuRender
         guard settings.keepsHDR, ImageEncoder.canWriteGainMap(options.format),
               !ImageEncoder.canWriteGainMap(options) else { return nil }
         if options.format.supports16Bit && options.sixteenBit {
-            return "HDR photos are written SDR at \(options.format.deepBitDepth ?? 16) bits: a gain map holds 8."
+            return localized(.init("HDR photos are written SDR at \(options.format.deepBitDepth ?? 16) bits: a gain map holds 8.",
+                                   comment: "Bits per colour channel"))
         }
-        return "HDR photos are written SDR in \(options.colorProfile.title): a gain map needs Display P3."
+        return localized(.init("HDR photos are written SDR in \(options.colorProfile.title): a gain map needs Display P3.",
+                               comment: "%@ is a colour profile, such as sRGB"))
     }
 
     /// A preset's output options, as the sheet's own: the chosen folder
@@ -340,10 +342,10 @@ import MinivuRender
             return nil
         case .percent:
             return resize.percent.isFinite && resize.percent > 0 && resize.percent <= 1000
-                ? nil : "The scale must be between 0 and 1000%."
+                ? nil : localized("The scale must be between 0 and 1000%.")
         case .longSide, .width, .height:
             return (1...BatchResize.maximumSide).contains(resize.pixels)
-                ? nil : "The size must be between 1 and \(BatchResize.maximumSide.formatted()) pixels."
+                ? nil : localized("The size must be between 1 and \(BatchResize.maximumSide.formatted()) pixels.")
         }
     }
 
@@ -351,9 +353,9 @@ import MinivuRender
     var title: String {
         switch mode {
         case .convert:
-            "Convert \(entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images")"
+            localized(.init("Convert \(entries.count) Images", comment: "Batch Convert sheet title"))
         case .extractPages:
-            "Extract Pages from \(entries.count == 1 ? "1 File" : "\(entries.count.formatted()) Files")"
+            localized(.init("Extract Pages from \(entries.count) Files", comment: "Sheet title"))
         }
     }
 
@@ -377,7 +379,7 @@ import MinivuRender
             self.previewText = "\(first.name)  →  \(output.destination.lastPathComponent)"
             switch output.action {
             case .fail(let reason): self.previewProblem = reason
-            case .skip(let reason): self.previewProblem = "Skipped: \(reason)"
+            case .skip(let reason): self.previewProblem = localized(.init("Skipped: \(reason)", comment: "Why the file will be skipped"))
             default: self.previewProblem = nil
             }
         }

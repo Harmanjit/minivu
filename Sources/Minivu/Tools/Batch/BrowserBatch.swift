@@ -261,11 +261,13 @@ extension BrowserWindowController {
         let alert = NSAlert()
         alert.alertStyle = .warning
         if failures.count == 1, let failure = failures.first {
-            alert.messageText = "“\(failure.url.lastPathComponent)” couldn’t be renamed."
+            alert.messageText = localized("“\(failure.url.lastPathComponent)” couldn’t be renamed.")
             alert.informativeText = failure.message
         } else {
-            alert.messageText = "\(failures.count.formatted()) files couldn’t be renamed."
-            alert.informativeText = failures.prefix(8).map { "\($0.url.lastPathComponent): \($0.message)" }
+            alert.messageText = localized("\(failures.count) files couldn’t be renamed.")
+            alert.informativeText = failures.prefix(8).map {
+                localized(.init("\($0.url.lastPathComponent): \($0.message)", comment: "A file name, then what went wrong with it"))
+            }
                 .joined(separator: "\n") + (failures.count > 8 ? "\n…" : "")
         }
         Self.show(alert, on: window)
@@ -319,7 +321,7 @@ extension BrowserWindowController {
         var chosen: URL?
         if case .chosenFolder(let bookmark) = settings.destination {
             guard let resolved = BatchConvertModel.resolve(bookmark) else {
-                return present(message: "The destination folder can’t be found. Choose it again in Batch Convert.")
+                return present(message: localized("The destination folder can’t be found. Choose it again in Batch Convert."))
             }
             chosen = resolved
         }
@@ -368,11 +370,11 @@ extension BrowserWindowController {
         let format = settings.options.format.title
         let title: String
         if case .separate = settings.pages {
-            let count = entries.count == 1 ? "1 File" : "\(entries.count.formatted()) Files"
-            title = "Extracting Pages from \(count) as \(format)"
+            title = localized(.init("Extracting Pages from \(entries.count) Files as \(format)",
+                                    comment: "Progress sheet title: how many files, then a format such as PNG"))
         } else {
-            let count = entries.count == 1 ? "1 Image" : "\(entries.count.formatted()) Images"
-            title = "Converting \(count) to \(format)"
+            title = localized(.init("Converting \(entries.count) Images to \(format)",
+                                    comment: "Progress sheet title: how many images, then a format such as HEIC"))
         }
         let sheet = BatchProgressSheet(title: title, progress: job.progress)
         let presented = window.flatMap { BatchTools.hasSheet(on: $0) ? nil : $0 }
@@ -407,11 +409,11 @@ extension BrowserWindowController {
         alert.alertStyle = .warning
         alert.messageText = question.message
         alert.informativeText = question.detail
-        let replace = alert.addButton(withTitle: "Replace")
+        let replace = alert.addButton(withTitle: localized("Replace"))
         replace.hasDestructiveAction = true
         replace.keyEquivalent = ""
-        alert.addButton(withTitle: "Keep Both")
-        let cancel = alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: localized("Keep Both"))
+        let cancel = alert.addButton(withTitle: localized("Cancel"))
         cancel.keyEquivalent = "\r"
         let response = await withCheckedContinuation { done in
             alert.beginSheetModal(for: window) { done.resume(returning: $0) }
@@ -427,32 +429,49 @@ extension BrowserWindowController {
     /// few, and how many more), since the user may not know they are there.
     static func replaceQuestion(_ replacements: BatchReplacements) -> (message: String, detail: String) {
         let originals = replacements.originals.count, others = replacements.others
-        func files(_ count: Int) -> String { count == 1 ? "1 file" : "\(count.formatted()) files" }
         let message = switch (originals, others.count) {
-        case (1, 0): "Replace the original with the converted file?"
-        case (_, 0): "Replace \(originals.formatted()) originals with the converted files?"
-        case (0, 1): "Replace “\(others[0].lastPathComponent)”?"
-        case (0, _): "Replace \(others.count.formatted()) existing files?"
-        default: "Replace \(originals == 1 ? "1 original" : "\(originals.formatted()) originals") "
-            + "and \(files(others.count))?"
+        case (1, 0): localized("Replace the original with the converted file?")
+        case (_, 0): localized("Replace \(originals) originals with the converted files?")
+        case (0, 1): localized(.init("Replace “\(others[0].lastPathComponent)”?", comment: "%@ is a file name"))
+        case (0, _): localized("Replace \(others.count) existing files?")
+        default: localized(.init("Replace \(originalsText(originals)) and \(filesText(others.count))?",
+                                 comment: "Both counts come from separate strings: “Replace 2 originals and 5 files?”"))
         }
         var parts: [String] = []
         if originals > 0 {
-            parts.append(originals == 1 ? "The converted file takes the original’s name."
-                                        : "The converted files take the originals’ names.")
+            // One or several, not a plural rule: these texts don't show the number.
+            parts.append(originals == 1 ? localized("The converted file takes the original’s name.")
+                                        : localized("The converted files take the originals’ names."))
         }
         if !others.isEmpty {
             let shown = 3
-            var names = others.prefix(shown).map { "“\($0.lastPathComponent)”" }
-            if others.count > shown { names.append("\((others.count - shown).formatted()) more") }
+            var names = others.prefix(shown).map {
+                localized(.init("“\($0.lastPathComponent)”", comment: "A name or text in quotation marks"))
+            }
+            if others.count > shown {
+                names.append(localized(.init("\(others.count - shown) more", comment: "End of a list of file names: how many more files")))
+            }
             let list = names.count == 1 ? names[0]
-                : names.dropLast().joined(separator: ", ") + " and " + names[names.count - 1]
+                : localized(.init("\(names.dropLast().joined(separator: ", ")) and \(names[names.count - 1])",
+                                  comment: "A list: names separated by commas, and the last name"))
             parts.append(others.count == 1
-                ? "\(list) isn’t one of the images being converted, but a converted file would take its name."
-                : "\(list) aren’t among the images being converted, but converted files would take their names.")
+                ? localized(.init("\(list) isn’t one of the images being converted, but a converted file would take its name.",
+                                  comment: "%@ is a file name in quotation marks"))
+                : localized(.init("\(list) aren’t among the images being converted, but converted files would take their names.",
+                                  comment: "%@ is a list of file names in quotation marks")))
         }
-        parts.append("Replaced files go to the Trash. Keep Both gives the converted files numbered names instead.")
+        parts.append(localized("Replaced files go to the Trash. Keep Both gives the converted files numbered names instead."))
         return (message, parts.joined(separator: " "))
+    }
+
+    private static func originalsText(_ count: Int) -> String {
+        localized(.init("replace.originals", defaultValue: "\(count) originals",
+                        comment: "Part of “Replace 2 originals and 5 files?”: the original images being replaced"))
+    }
+
+    private static func filesText(_ count: Int) -> String {
+        localized(.init("replace.files", defaultValue: "\(count) files",
+                        comment: "Part of “Replace 2 originals and 5 files?”: other files being replaced"))
     }
 
     private static func show(_ alert: NSAlert, on window: NSWindow) {

@@ -52,16 +52,16 @@ import MinivuRender
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose the folder for the converted images."
+        panel.prompt = localized(.init("Choose", comment: "Open panel button: chooses the folder"))
+        panel.message = localized("Choose the folder for the converted images.")
         panel.directoryURL = model.chosenFolder ?? model.entries.first?.url.deletingLastPathComponent()
         panel.beginSheetModal(for: window) { [weak self] response in
             MainActor.assumeIsolated {
                 guard let self, response == .OK, let folder = panel.url else { return }
                 if !self.model.choose(folder: folder) {
                     let alert = NSAlert()
-                    alert.messageText = "This folder can’t be used."
-                    alert.informativeText = "minivu works only with folders on this Mac’s internal storage."
+                    alert.messageText = localized("This folder can’t be used.")
+                    alert.informativeText = localized("minivu works only with folders on this Mac’s internal storage.")
                     alert.beginSheetModal(for: self.window)
                 }
             }
@@ -129,7 +129,7 @@ struct BatchConvertView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if let problem = model.resizeProblem ?? model.pageRangeProblem ?? model.previewProblem
-                        ?? model.unknownTokens.first.map({ "Unknown token \($0)" }) {
+                        ?? model.unknownTokens.first.map({ localized(.init("Unknown token \($0)", comment: "%@ is a pattern token such as {nmae}")) }) {
                         Text(problem)
                             .font(.callout)
                             .foregroundStyle(.red)
@@ -139,7 +139,8 @@ struct BatchConvertView: View {
                 Spacer(minLength: 12)
                 Button("Cancel", role: .cancel, action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button(model.mode == .convert ? "Convert" : "Extract", action: onConvert)
+                Button(model.mode == .convert ? localized(.init("Convert", comment: "Button: converts the images"))
+                                              : localized(.init("Extract", comment: "Button: extracts the pages")), action: onConvert)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.canConvert)
             }
@@ -155,13 +156,13 @@ struct BatchConvertView: View {
         Section {
             BatchPresetControls(items: model.presets.presets.map { .init(id: $0.id, name: $0.name) },
                                 selection: model.selectedPresetID,
-                                contents: "the edits and every option below",
+                                saveMessage: localized("The preset keeps the edits and every option below. Saving under a name already used replaces that preset."),
                                 onChoose: { model.choosePreset($0) },
                                 onSave: { model.savePreset(named: $0) },
                                 onRename: { model.renameSelectedPreset(to: $0) },
                                 onDelete: { model.deleteSelectedPreset() })
         } footer: {
-            InspectorFootnote("Save a photo’s edits as a preset in the viewer with File > Save Edits as Preset…, or save this sheet as it is.")
+            InspectorFootnote(localized("Save a photo’s edits as a preset in the viewer with File > Save Edits as Preset…, or save this sheet as it is."))
         }
     }
 
@@ -179,9 +180,11 @@ struct BatchConvertView: View {
             } footer: {
                 InspectorFootnote(model.convertsEveryPage
                     ? (BatchConvertSettings.holdsPages(model.format)
-                        ? "PDFs, multi-page TIFFs and animations become one \(model.format.title) file with all their pages."
-                        : "\(model.format.title) holds one picture, so each page of a PDF, multi-page TIFF or animation becomes a file of its own, numbered.")
-                    : "Only the first page of a PDF or multi-page TIFF, and the first frame of an animation, is converted.")
+                        ? localized(.init("PDFs, multi-page TIFFs and animations become one \(model.format.title) file with all their pages.",
+                                          comment: "%@ is a format such as TIFF"))
+                        : localized(.init("\(model.format.title) holds one picture, so each page of a PDF, multi-page TIFF or animation becomes a file of its own, numbered.",
+                                          comment: "%@ is a format such as JPEG")))
+                    : localized("Only the first page of a PDF or multi-page TIFF, and the first frame of an animation, is converted."))
             }
         case .extractPages:
             Section {
@@ -214,7 +217,7 @@ struct BatchConvertView: View {
             } header: {
                 Text("Pages")
             } footer: {
-                InspectorFootnote("Each page of a PDF or multi-page TIFF, or each frame of an animation, is written as a file of its own. Files with one page are skipped.")
+                InspectorFootnote(localized("Each page of a PDF or multi-page TIFF, or each frame of an animation, is written as a file of its own. Files with one page are skipped."))
             }
         }
     }
@@ -252,10 +255,12 @@ struct BatchConvertView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .foregroundStyle(model.settings.watermark == nil ? .secondary : .primary)
-                    Button(model.settings.watermark == nil ? "Add…" : "Edit…", action: onEditWatermark)
-                        .accessibilityLabel(model.settings.watermark == nil ? "Add Watermark" : "Edit Watermark")
+                    Button(model.settings.watermark == nil ? localized(.init("Add…", comment: "Button: adds a watermark"))
+                                                           : localized(.init("Edit…", comment: "Button: edits the watermark")),
+                           action: onEditWatermark)
+                        .accessibilityLabel(model.settings.watermark == nil ? localized("Add Watermark") : localized("Edit Watermark"))
                     if model.settings.watermark != nil {
-                        Button("Remove") { model.settings.watermark = nil }
+                        Button(localized(.init("Remove", comment: "Button: removes the watermark"))) { model.settings.watermark = nil }
                             .accessibilityLabel("Remove Watermark")
                     }
                 }
@@ -263,7 +268,7 @@ struct BatchConvertView: View {
         } header: {
             Text("Edits")
         } footer: {
-            InspectorFootnote("Edits are applied to every image first, then the size and orientation below. The watermark is stamped last, at the converted size.")
+            InspectorFootnote(localized("Edits are applied to every image first, then the size and orientation below. The watermark is stamped last, at the converted size."))
         }
     }
 
@@ -331,7 +336,8 @@ struct BatchConvertView: View {
                 ForEach(BatchResize.Mode.allCases, id: \.self) { Text($0.title).tag($0) }
             }
             if resize.mode != .none {
-                LabeledContent(resize.mode == .percent ? "Scale" : "Size") {
+                LabeledContent(resize.mode == .percent ? localized(.init("Scale", comment: "Noun: resize by a percentage"))
+                                                       : localized(.init("batch.resize.size", defaultValue: "Size", comment: "Noun: resize to a number of pixels"))) {
                     HStack(spacing: 6) {
                         if resize.mode == .percent {
                             TextField("Percent", value: $model.settings.resize.percent,
@@ -381,7 +387,7 @@ struct BatchConvertView: View {
                                                              if chosen && model.chosenFolder == nil { onChooseFolder() }
                                                          })) {
                         Text("Beside the originals").tag(false)
-                        Text(model.chosenFolder.map { FileManager.default.displayName(atPath: $0.path) } ?? "Other Folder")
+                        Text(model.chosenFolder.map { FileManager.default.displayName(atPath: $0.path) } ?? localized("Other Folder"))
                             .tag(true)
                     }
                     .labelsHidden()

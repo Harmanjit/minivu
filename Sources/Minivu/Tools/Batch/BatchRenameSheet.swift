@@ -66,7 +66,7 @@ struct BatchRenameView: View {
             Form {
                 BatchPresetControls(items: model.presets.presets.map { .init(id: $0.id, name: $0.name) },
                                     selection: model.selectedPresetID,
-                                    contents: "the pattern, counter and letter case",
+                                    saveMessage: localized("The preset keeps the pattern, counter and letter case. Saving under a name already used replaces that preset."),
                                     onChoose: { model.choosePreset($0) },
                                     onSave: { model.savePreset(named: $0) },
                                     onRename: { model.renameSelectedPreset(to: $0) },
@@ -147,7 +147,7 @@ struct BatchRenameTable: View {
                         .foregroundStyle(row.item.problem != nil ? Color.red
                                          : row.item.isUnchanged ? Color.secondary : Color.primary)
                 }
-                .help(row.item.problem?.message ?? (row.item.isUnchanged ? "The name doesn’t change." : ""))
+                .help(row.item.problem?.message ?? (row.item.isUnchanged ? localized("The name doesn’t change.") : ""))
             }
             TableColumn("") { row in
                 Text(row.item.problem?.message ?? "")
