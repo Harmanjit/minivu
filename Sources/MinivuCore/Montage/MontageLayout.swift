@@ -15,9 +15,9 @@ public enum MontageStyle: String, CaseIterable, Codable, Sendable {
 
     public var title: String {
         switch self {
-        case .grid: "Grid"
-        case .mosaic: "Mosaic"
-        case .scattered: "Scattered"
+        case .grid: localized(.init("Grid", comment: "Arrangement of pictures in rows and columns"))
+        case .mosaic: localized(.init("Mosaic", comment: "Montage layout: rows of photos of the same height"))
+        case .scattered: localized(.init("Scattered", comment: "Montage layout: prints tossed on a table"))
         }
     }
 }

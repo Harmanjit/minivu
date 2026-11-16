@@ -67,9 +67,9 @@ public struct WebGallerySettings: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .light: "Light"
-            case .dark: "Dark"
-            case .automatic: "Automatic"
+            case .light: localized(.init("Light", comment: "Appearance: light colours"))
+            case .dark: localized(.init("Dark", comment: "Appearance: dark colours"))
+            case .automatic: localized(.init("Automatic", comment: "Appearance: follows the viewer's light or dark setting"))
             }
         }
     }
@@ -86,10 +86,10 @@ public struct WebGallerySettings: Codable, Hashable, Sendable {
 
         public var title: String {
             switch self {
-            case .asShown: "As Shown"
-            case .name: "Name"
-            case .dateTaken: "Date Taken"
-            case .dateModified: "Date Modified"
+            case .asShown: localized(.init("As Shown", comment: "Sort order: the order the browser shows"))
+            case .name: localized("Name")
+            case .dateTaken: localized("Date Taken")
+            case .dateModified: localized("Date Modified")
             }
         }
     }

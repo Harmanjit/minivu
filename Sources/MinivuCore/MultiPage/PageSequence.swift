@@ -136,8 +136,8 @@ public struct PageRange: Codable, Hashable, Sendable {
 
     /// Why the range can't be used, or nil.
     public var problem: String? {
-        if first < 1 { return "The first page must be 1 or more." }
-        if let last, last < first { return "The last page must not come before the first." }
+        if first < 1 { return localized("The first page must be 1 or more.") }
+        if let last, last < first { return localized("The last page must not come before the first.") }
         return nil
     }
 }
