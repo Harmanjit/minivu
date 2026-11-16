@@ -40,7 +40,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // open-file event arrives. minivu has one browser, not tabs.
         MainMenu.install()
         NSWindow.allowsAutomaticWindowTabbing = false
+        // Logged for the hand check of a launch by a shortcut (sys.md): the
+        // event that launched minivu, with its parameters.
+        launchEvent = NSAppleEventManager.shared().currentAppleEvent.map(String.init(describing:)) ?? "none"
     }
+
+    /// The Apple event that launched minivu, for the log.
+    private var launchEvent = "none"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // `$theme` publishes its current value on subscription, so this also
@@ -70,9 +76,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         Perf.measure("launch.bookmarks") { _ = BookmarkStore.shared }
         Perf.milestone("launch.bookmarks")
 
+        pendingOpens += Self.paths(fromArguments: Array(CommandLine.arguments.dropFirst()))
+        // A launch made only to run a Shortcuts action shows no window
+        // (IntentLaunch); any other shows the browser, as it always has.
+        let launch = IntentLaunch.shared
+        launch.showWindow = { [weak self] in self?.showBrowser() }
+        launch.hide = { NSApp.setActivationPolicy(.accessory) }
+        launch.quit = { NSApp.terminate(nil) }
+        var windowRequested = !pendingOpens.isEmpty || NSApp.isActive
+        #if DEBUG
+        windowRequested = windowRequested || SnapshotHarness.Configuration(environment: ProcessInfo.processInfo.environment) != nil
+        #endif
+        let isDefault = (notification.userInfo?[NSApplication.launchIsDefaultUserInfoKey] as? Bool).map(String.init) ?? "unset"
+        log.info("launch: event \(self.launchEvent, privacy: .public), default \(isDefault, privacy: .public), active \(NSApp.isActive, privacy: .public)")
+        launch.launchFinished(windowRequested: windowRequested)
+
+        #if DEBUG
+        SnapshotHarness.startIfRequested(app: self)
+        #endif
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        IntentLaunch.shared.userAsked()
+    }
+
+    /// A Dock or Finder click on minivu while it runs. Only a launch made
+    /// for a shortcut has something to do here: it shows the browser.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        IntentLaunch.shared.userAsked()
+        return true
+    }
+
+    /// Makes and shows the browser, once: at launch, or when the user asks
+    /// for minivu after a launch made for a shortcut.
+    private func showBrowser() {
+        guard browser == nil else { return }
+        NSApp.setActivationPolicy(.regular)
         let browser = BrowserWindowController()
         self.browser = browser
-        let requested = pendingOpens + Self.paths(fromArguments: Array(CommandLine.arguments.dropFirst()))
+        let requested = pendingOpens
         pendingOpens = []
         // Shown first so a refusal can appear as a sheet on it. If nothing
         // requested could be opened, the browser still needs a folder.
@@ -85,10 +127,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         // After the window exists, so this can be a sheet on it like every
         // other explanation, and behind any refusal `open` has just queued.
         reportCatalogTrouble()
-
-        #if DEBUG
-        SnapshotHarness.startIfRequested(app: self)
-        #endif
     }
 
     /// Compiles the shaders on a background thread so the window appears
@@ -252,6 +290,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     func application(_ application: NSApplication, open urls: [URL]) {
         guard browser != nil else {
             pendingOpens += urls
+            IntentLaunch.shared.userAsked()
             return
         }
         open(urls)

@@ -25,7 +25,8 @@ import MinivuRender
 // The intents run inside minivu's own sandboxed process (launched in the
 // background if it isn't running), so a shortcut can do nothing minivu
 // itself could not: it opens no connection, and it reads only the files the
-// shortcut passed.
+// shortcut passed. Every `perform()` but Open in minivu's runs inside
+// `IntentLaunch.run`, which keeps a launch made only for it windowless.
 
 /// Image formats minivu writes, for Convert Images. The list is a literal
 /// (Shortcuts reads it from the compiler's record), so AVIF is offered
@@ -109,11 +110,13 @@ struct ConvertImagesIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
-        let settings = Automation.convertSettings(format: format.exportFormat, quality: quality, longSide: longSide,
-                                                  removeLocation: removeLocation)
-        let input = try await AutomationInput.make(images, originalsOnly: false)
-        let converted = try await input.use { try await Automation.convert($0, settings: settings) }
-        return .result(value: await AutomationInput.output(converted))
+        .result(value: try await IntentLaunch.run {
+            let settings = Automation.convertSettings(format: format.exportFormat, quality: quality, longSide: longSide,
+                                                      removeLocation: removeLocation)
+            let input = try await AutomationInput.make(images, originalsOnly: false)
+            let converted = try await input.use { try await Automation.convert($0, settings: settings) }
+            return await AutomationInput.output(converted)
+        })
     }
 }
 
@@ -150,10 +153,12 @@ struct ResizeImagesIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
-        let resize = Self.resize(mode: mode, size: size, enlarges: enlarges)
-        let input = try await AutomationInput.make(images, originalsOnly: false)
-        let resized = try await input.use { try await Automation.resize($0, resize: resize, removeLocation: removeLocation) }
-        return .result(value: await AutomationInput.output(resized))
+        .result(value: try await IntentLaunch.run {
+            let resize = Self.resize(mode: mode, size: size, enlarges: enlarges)
+            let input = try await AutomationInput.make(images, originalsOnly: false)
+            let resized = try await input.use { try await Automation.resize($0, resize: resize, removeLocation: removeLocation) }
+            return await AutomationInput.output(resized)
+        })
     }
 
     static func resize(mode: AutomationResizeMode, size: Int, enlarges: Bool) -> BatchResize {
@@ -185,10 +190,12 @@ struct RenameImagesIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
-        let pattern = RenamePattern(text: pattern, counterStart: counterStart)
-        let input = try await AutomationInput.make(images, originalsOnly: true)
-        let renamed = try await input.use { try await Automation.rename($0, pattern: pattern) }
-        return .result(value: await AutomationInput.files(renamed))
+        .result(value: try await IntentLaunch.run {
+            let pattern = RenamePattern(text: pattern, counterStart: counterStart)
+            let input = try await AutomationInput.make(images, originalsOnly: true)
+            let renamed = try await input.use { try await Automation.rename($0, pattern: pattern) }
+            return await AutomationInput.files(renamed)
+        })
     }
 }
 
@@ -210,13 +217,15 @@ struct SetRatingIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
-        let rating = min(max(rating, 0), 5)
-        let input = try await AutomationInput.make(images, originalsOnly: true)
-        let rated = await input.use { urls in
-            await Automation.setRating(rating, for: urls)
-            return urls
-        }
-        return .result(value: await AutomationInput.files(rated))
+        .result(value: try await IntentLaunch.run {
+            let rating = min(max(rating, 0), 5)
+            let input = try await AutomationInput.make(images, originalsOnly: true)
+            let rated = await input.use { urls in
+                await Automation.setRating(rating, for: urls)
+                return urls
+            }
+            return await AutomationInput.files(rated)
+        })
     }
 }
 
@@ -260,13 +269,15 @@ struct SetColorLabelIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ReturnsValue<[IntentFile]> {
-        let label = label.colorLabel
-        let input = try await AutomationInput.make(images, originalsOnly: true)
-        let labelled = try await input.use { urls in
-            try await Automation.setColorLabel(label, for: urls)
-            return urls
-        }
-        return .result(value: await AutomationInput.files(labelled))
+        .result(value: try await IntentLaunch.run {
+            let label = label.colorLabel
+            let input = try await AutomationInput.make(images, originalsOnly: true)
+            let labelled = try await input.use { urls in
+                try await Automation.setColorLabel(label, for: urls)
+                return urls
+            }
+            return await AutomationInput.files(labelled)
+        })
     }
 }
 
