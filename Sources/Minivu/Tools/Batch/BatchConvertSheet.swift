@@ -52,7 +52,7 @@ import MinivuRender
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = localized(.init("Choose", comment: "Open panel button: chooses the folder"))
+        panel.prompt = localized(.init("Choose", comment: "Open panel button: confirms the chosen item"))
         panel.message = localized("Choose the folder for the converted images.")
         panel.directoryURL = model.chosenFolder ?? model.entries.first?.url.deletingLastPathComponent()
         panel.beginSheetModal(for: window) { [weak self] response in

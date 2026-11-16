@@ -207,7 +207,7 @@ final class CompareWindowController: NSWindowController, NSWindowDelegate, NSMen
     private func updateChrome() {
         guard let window else { return }
         let count = model.panes.count
-        let subtitle = localized(.init("\(count) images", comment: "Status bar and window subtitle"))
+        let subtitle = localized(.init("\(count) images", comment: "A number of images"))
         if window.subtitle != subtitle { window.subtitle = subtitle }
         syncControl.setSelected(isSynced, forSegment: 0)
         arrangementControl.isEnabled = model.panes.count == 4

@@ -310,6 +310,9 @@ public enum MetadataReader {
     /// reads them (`MetadataFields`: XMP first, then IPTC and EXIF/TIFF, with
     /// an XMP sidecar laid over a file that has one), plus the comments and
     /// software, which it doesn't edit.
+    /// The Description section's keywords label, as shown.
+    public static var keywordsLabel: String { localized("Keywords") }
+
     static func descriptionItems(_ url: URL, _ p: Properties, _ fields: MetadataFields) -> [MetadataItem] {
         var items = Items()
         items.add(.init("Title", comment: "Image title (metadata)"), fields.title)

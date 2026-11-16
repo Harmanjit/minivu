@@ -97,7 +97,7 @@ struct MetadataKeyword: Identifiable, Equatable {
 
     /// "photo.jpg", or "12 images".
     var subject: String {
-        count == 1 ? urls[0].lastPathComponent : localized(.init("\(count) images", comment: "What the metadata editor edits"))
+        count == 1 ? urls[0].lastPathComponent : localized(.init("\(count) images", comment: "A number of images"))
     }
 
     /// The date every file was taken, when they agree.

@@ -42,7 +42,7 @@ import ImageIO
         #expect(after.filter { $0.marker != 0xFE }.map(\.bytes) == before.map(\.bytes))
         #expect(try F.scanData(url) == scan)
         #expect(JPEGComment.read(from: url) == "A caption")
-        let description = MetadataReader.sections(for: url).first { $0.title == "Description" }
+        let description = MetadataReader.sections(for: url).first { $0.key == "Description" }
         #expect(description?.items.first { $0.label == "Comment" }?.value == "A caption")
         // Still a valid JPEG with its metadata.
         #expect(F.decode(url)?.width == 64)

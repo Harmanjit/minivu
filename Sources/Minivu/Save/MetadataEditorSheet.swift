@@ -185,7 +185,7 @@ struct MetadataEditorView: View {
                         .foregroundStyle(keyword.isRemoved ? .secondary : .primary)
                     if keyword.count < model.count {
                         Text(keyword.isAddedToAll ? localized(.init("adding to all", comment: "Beside a keyword only some images have: it will be added to every image"))
-                             : localized(.init("\(keyword.count) of \(model.count)", comment: "Beside a keyword: how many of the images being edited have it")))
+                             : localized(.init("\(keyword.count) of \(model.count)", comment: "A number out of a total")))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -256,7 +256,7 @@ struct MetadataEditorView: View {
                                $model.shiftDays, 0...36_500, width: 56)
                         amount(localized(.init("h", comment: "Abbreviation of hours, after a number")), localized("Hours"),
                                $model.shiftHours, 0...23)
-                        amount(localized(.init("min", comment: "Abbreviation of minutes, after a number")), localized("Minutes"),
+                        amount(localized(.init("unit.minutes.short", defaultValue: "min", comment: "Abbreviation of minutes, after a number")), localized("Minutes"),
                                $model.shiftMinutes, 0...59)
                         amount(localized(.init("s", comment: "Abbreviation of seconds, after a number")), localized("Seconds"),
                                $model.shiftSeconds, 0...59)

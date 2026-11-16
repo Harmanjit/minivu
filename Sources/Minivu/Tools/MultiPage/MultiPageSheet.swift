@@ -78,7 +78,7 @@ import MinivuCore
 
     /// "IMG_0001.tif": the first picture's name with the format's extension.
     var suggestedName: String {
-        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? localized(.init("Untitled", comment: "Name of a new file"))
+        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? localized(.init("Untitled", comment: "Name for a new file that has none"))
         return base + "." + settings.format.fileExtension
     }
 

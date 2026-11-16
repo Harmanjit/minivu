@@ -12,7 +12,7 @@ nonisolated enum CropAspect: String, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .free: localized(.init("Free", comment: "Crop aspect ratio: any shape"))
-        case .original: localized(.init("Original", comment: "Crop aspect ratio: the image's own"))
+        case .original: localized(.init("crop.aspect.original", defaultValue: "Original", comment: "Crop aspect ratio: the image's own"))
         case .square: "1:1"
         case .fourThree: "4:3"
         case .threeTwo: "3:2"

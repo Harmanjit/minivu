@@ -108,7 +108,7 @@ nonisolated enum MetadataBatch {
             : localized(.init("\(updated) files updated.", comment: "Alert detail after editing metadata")))
         if !outcome.failed.isEmpty {
             parts.append(list(outcome.failed.map {
-                localized(.init("\($0.url.lastPathComponent): \($0.reason)", comment: "A file name, then the reason it couldn’t be changed"))
+                localized(.init("\($0.url.lastPathComponent): \($0.reason)", comment: "A file name, then what went wrong with it"))
             }))
         }
         if !outcome.skipped.isEmpty {

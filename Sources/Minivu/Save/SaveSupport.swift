@@ -157,7 +157,7 @@ nonisolated enum SaveAsNaming {
         let isImageExtension = !ext.isEmpty
             && (ImageFormats.allExtensions.contains(ext) || ExportFormat.format(for: URL(fileURLWithPath: trimmed)) != nil)
         var base = isImageExtension ? ns.deletingPathExtension : trimmed
-        if base.isEmpty { base = localized(.init("Untitled", comment: "File name for a saved image whose name was left empty")) }
+        if base.isEmpty { base = localized(.init("Untitled", comment: "Name for a new file that has none")) }
         return base + "." + format.fileExtension
     }
 }

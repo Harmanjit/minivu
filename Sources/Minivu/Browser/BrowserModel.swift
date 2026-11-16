@@ -1612,7 +1612,7 @@ nonisolated struct FolderSnapshot: Sendable {
         var parts: [String] = []
         let stills = images - videos
         if stills > 0 || (videos == 0 && folders == 0) {
-            parts.append(localized(.init("\(stills) images", comment: "Status bar and window subtitle")))
+            parts.append(localized(.init("\(stills) images", comment: "A number of images")))
         }
         if videos > 0 { parts.append(localized(.init("\(videos) videos", comment: "Status bar and window subtitle"))) }
         if folders > 0 { parts.append(localized(.init("\(folders) folders", comment: "Status bar and window subtitle"))) }

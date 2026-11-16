@@ -71,7 +71,7 @@ final class PrintAccessoryController: NSViewController, NSPrintPanelAccessorizin
 
     nonisolated static func summary(_ settings: PrintLayoutSettings) -> [(name: String, value: String)] {
         [
-            (localized("Images per Page"), settings.imagesPerPage.formatted()),
+            (localized("Images per page"), settings.imagesPerPage.formatted()),
             (localized("Scaling"), settings.scaling == .fit ? localized("Fit") : localized("Fill")),
             (localized("Margins"), PrintLength.text(points: settings.margin)),
             (localized("Spacing"), PrintLength.text(points: settings.spacing)),

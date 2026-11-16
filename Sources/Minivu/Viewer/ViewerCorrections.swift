@@ -141,7 +141,7 @@ extension ViewerWindowController {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         panel.message = localized("Choose a picture to use as the watermark.")
-        panel.prompt = localized(.init("Choose", comment: "Open panel button: use the selected picture"))
+        panel.prompt = localized(.init("Choose", comment: "Open panel button: confirms the chosen item"))
         panel.beginSheetModal(for: window) { response in
             completion(response == .OK ? panel.url : nil)
         }

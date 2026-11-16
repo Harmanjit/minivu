@@ -396,7 +396,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
             self.detailLabel.stringValue = "\(Int(info.pixelSize.width)) × \(Int(info.pixelSize.height))  ·  "
                 + Self.fileSizeText(entry.fileSize)
             let length = VideoFrames.durationText(info.duration)
-            self.exposureLabel.stringValue = localized(.init("Video, \(length)", comment: "A video and its length (0:12)"))
+            self.exposureLabel.stringValue = localized(.init("Video, \(length)", comment: "A video and its length, such as 1:05"))
         }
     }
 
@@ -461,7 +461,7 @@ final class CompareImagePane: NSView, ImageCanvasViewDelegate {
 
     private func updateZoom() {
         let percent = Int(canvas.zoomPercent.rounded())
-        zoomLabel.stringValue = canvas.image == nil ? "" : localized(.init("\(percent)%", comment: "Zoom level"))
+        zoomLabel.stringValue = canvas.image == nil ? "" : localized(.init("\(percent)%", comment: "A percentage"))
     }
 
     // MARK: - ImageCanvasViewDelegate

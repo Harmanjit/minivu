@@ -79,7 +79,7 @@ import MinivuCore
     }
 
     var suggestedName: String {
-        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? localized(.init("Untitled", comment: "Name of a new file"))
+        let base = order.entries.first.map { RenameNamer.split($0.name).base } ?? localized(.init("Untitled", comment: "Name for a new file that has none"))
         return localized(.init("\(base) Strip", comment: "Suggested file name: the first picture's name, then Strip"))
             + "." + settings.options.format.fileExtension
     }

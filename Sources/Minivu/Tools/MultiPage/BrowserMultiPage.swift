@@ -131,7 +131,7 @@ extension BrowserWindowController {
                 // options' background colour, which the sheet shows.
                 let data = try ImageEncoder.encode(strip.image, options: settings.options, metadataSource: nil)
                 try data.write(to: temporary, options: .withoutOverwriting)
-                return strip.failed.map { localized(.init("\($0.lastPathComponent): couldn’t be read.", comment: "%@ is a file name")) }
+                return strip.failed.map { localized("“\($0.lastPathComponent)” couldn’t be read.") }
             }
         }
         guard let left = outcome else { return }
@@ -242,12 +242,12 @@ extension BrowserWindowController {
     static func listed(_ lines: [String]) -> String {
         var shown = Array(lines.prefix(8))
         if lines.count > 8 {
-            shown.append(localized(.init("…and \(lines.count - 8) more.", comment: "End of a list of files that is too long to show")))
+            shown.append(localized(.init("…and \(lines.count - 8) more.", comment: "Last line of a list of file names that was cut short")))
         }
         return shown.joined(separator: "\n")
     }
 
     private static func makingTitle(_ destination: URL) -> String {
-        localized(.init("Making “\(destination.lastPathComponent)”", comment: "Progress title; %@ is the name of the file being made"))
+        localized(.init("Making “\(destination.lastPathComponent)”…", comment: "%@ is the name of the file or folder being made"))
     }
 }

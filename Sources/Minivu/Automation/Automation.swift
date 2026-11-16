@@ -257,7 +257,7 @@ import MinivuRender
         guard plan.unknownTokens.isEmpty else { throw Failure.unknownTokens(plan.unknownTokens) }
         let problems = plan.items.compactMap { item in
             item.problem.map {
-                localized(.init("\(item.source.lastPathComponent): \($0.message)", comment: "A file name, then the reason it couldn’t be changed"))
+                localized(.init("\(item.source.lastPathComponent): \($0.message)", comment: "A file name, then what went wrong with it"))
             }
         }
         guard problems.isEmpty else { throw Failure.renameProblems(problems) }
@@ -272,7 +272,7 @@ import MinivuRender
             BrowserModel.invalidateCaches(step.to)
         }
         guard outcome.failed.isEmpty else {
-            throw Failure.renameFailed(outcome.failed.map { localized(.init("\($0.url.lastPathComponent): \($0.message)", comment: "A file name, then the reason it couldn’t be changed")) })
+            throw Failure.renameFailed(outcome.failed.map { localized(.init("\($0.url.lastPathComponent): \($0.message)", comment: "A file name, then what went wrong with it")) })
         }
         // One step per request, from its original name to its final one.
         let renamed = Dictionary(outcome.renamed.map { ($0.from.standardizedFileURL.path, $0.to) }) { first, _ in first }

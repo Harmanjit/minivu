@@ -87,7 +87,7 @@ struct CanvasSizeSheetView: View {
                         AnchorGrid(selection: state.model.anchor, label: localized("Anchor")) { state.model.anchor = $0 }
                     }
                     Toggle("Transparent", isOn: $state.model.transparent)
-                    ColorPicker("Fill", selection: Binding(get: { state.model.fill.cgColor },
+                    ColorPicker(localized(.init("canvas.fill", defaultValue: "Fill", comment: "Noun: the colour of the added canvas area")), selection: Binding(get: { state.model.fill.cgColor },
                                                            set: { state.model.fill = EditColor($0) }),
                                 supportsOpacity: false)
                         .disabled(state.model.transparent)

@@ -42,7 +42,7 @@ nonisolated struct ViewerModel: Equatable {
     var positionText: String { images.isEmpty ? "" : "\(index + 1) / \(count)" }
     /// "3 of 120" for the window subtitle.
     var subtitleText: String {
-        images.isEmpty ? "" : localized(.init("\(index + 1) of \(count)", comment: "Window subtitle: the image's place in the folder"))
+        images.isEmpty ? "" : localized(.init("\(index + 1) of \(count)", comment: "A number out of a total"))
     }
 
     // MARK: - Moving

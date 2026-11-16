@@ -280,7 +280,7 @@ final class WebGalleryController {
                                            withheld: [String] = []) -> (title: String, detail: String) {
         func named(_ lines: [String]) -> [String] {
             lines.count > 8
-                ? Array(lines.prefix(8)) + [localized(.init("…and \(lines.count - 8) more.", comment: "End of a list of files that is too long to show"))]
+                ? Array(lines.prefix(8)) + [localized(.init("…and \(lines.count - 8) more.", comment: "Last line of a list of file names that was cut short"))]
                 : lines
         }
         let title: String

@@ -85,8 +85,8 @@ struct InfoPanelView: View {
     /// The section's rows, less the keywords when they have a section of
     /// their own to be edited in.
     private func shownItems(of section: MetadataSection) -> [MetadataItem] {
-        guard editKeywords != nil, keywords != nil, section.title == "Description" else { return section.items }
-        return section.items.filter { $0.label != "Keywords" }
+        guard editKeywords != nil, keywords != nil, section.key == "Description" else { return section.items }
+        return section.items.filter { $0.label != MetadataReader.keywordsLabel }
     }
 
     /// What the panel describes. `revision` counts minivu's metadata writes
@@ -152,7 +152,7 @@ struct KeywordEditor: View {
                     }
                 }
             }
-            TextField("Add Keywords", text: $entry, prompt: Text("Add keywords"))
+            TextField("Add keywords", text: $entry, prompt: Text("Add keywords"))
                 .textFieldStyle(.roundedBorder)
                 .font(.callout)
                 .accessibilityLabel("Add keywords")

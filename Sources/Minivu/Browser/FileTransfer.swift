@@ -253,10 +253,6 @@ final class FileTransfer {
     }
 }
 
-extension String {
-    nonisolated var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
-}
-
 /// How far a transfer has got, shared between the worker and the sheet.
 nonisolated final class TransferProgress: @unchecked Sendable {
     let total: Int

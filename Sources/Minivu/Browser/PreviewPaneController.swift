@@ -313,7 +313,7 @@ final class PreviewPaneController: NSViewController, NSSplitViewDelegate, ImageC
                   let info else { return }
             self.videoBadge.duration = info.duration
             let length = VideoFrames.durationText(info.duration)
-            self.videoBadge.setAccessibilityLabel(localized(.init("Video, \(length)", comment: "A video and its length (0:12)")))
+            self.videoBadge.setAccessibilityLabel(localized(.init("Video, \(length)", comment: "A video and its length, such as 1:05")))
         }
     }
 

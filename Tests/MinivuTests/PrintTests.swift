@@ -428,7 +428,7 @@ import MinivuCore
         #expect(store.settings.imagesPerPage == 4)
 
         let summary = accessory.localizedSummaryItems()
-        #expect(summary.first?[.itemName] == "Images per Page" && summary.first?[.itemDescription] == "4")
+        #expect(summary.first?[.itemName] == "Images per page" && summary.first?[.itemDescription] == "4")
         #expect(summary.count == 6)
         _ = accessory.view                                     // the form builds
     }

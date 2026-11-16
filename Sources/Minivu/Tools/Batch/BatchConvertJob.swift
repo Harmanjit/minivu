@@ -240,7 +240,7 @@ import MinivuRender
                 localized(.init("\($0.source.lastPathComponent): \($0.detail)", comment: "A file name, then what went wrong with it"))
             }
             if entries.count > limit {
-                lines.append(localized(.init("…and \(entries.count - limit) more.", comment: "End of a list of files that is too long to show")))
+                lines.append(localized(.init("…and \(entries.count - limit) more.", comment: "Last line of a list of file names that was cut short")))
             }
             return lines.joined(separator: "\n")
         }
@@ -352,7 +352,7 @@ struct BatchProgressView: View {
     private var detail: String {
         let current = min(progress.done + 1, progress.total)
         return progress.currentName.isEmpty
-            ? localized(.init("\(current) of \(progress.total)", comment: "Batch progress: the file being converted, of how many"))
+            ? localized(.init("\(current) of \(progress.total)", comment: "A number out of a total"))
             : localized(.init("\(current) of \(progress.total): \(progress.currentName)",
                               comment: "Batch progress: the file being converted, of how many, then its name"))
     }

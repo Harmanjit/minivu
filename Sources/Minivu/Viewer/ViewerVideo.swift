@@ -31,7 +31,7 @@ extension ViewerWindowController {
             return localized("Video")
         }
         let duration = VideoFrames.durationText(info.duration)
-        return localized(.init("Video, \(duration)", comment: "HUD: a video and its length, such as 1:05"))
+        return localized(.init("Video, \(duration)", comment: "A video and its length, such as 1:05"))
     }
 
     /// The navigation happened: any player stops and goes, and a video
