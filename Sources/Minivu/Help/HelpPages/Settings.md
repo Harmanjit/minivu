@@ -1,7 +1,8 @@
 # Settings
 
 Choose **minivu > Settings…** (**⌘,**). Every change takes effect straight
-away; there is nothing to confirm.
+away; there is nothing to confirm. **View > Theme** and **View > Live
+Text** are settings too, and minivu remembers them.
 
 ## General
 
@@ -12,6 +13,11 @@ away; there is nothing to confirm.
 - **Open viewer in full screen**, rather than in a window.
 - **Ask before saving over the original:** turn this back on if you chose
   not to be asked when saving.
+- **Write ratings into files (XMP):** stars, the tag and color labels are
+  also written into each photo, so Lightroom, Bridge and other apps see
+  them. RAW files, and formats minivu can’t rewrite, get an XMP sidecar
+  file beside them instead. Off at first; when you turn it on, only later
+  changes are written.
 
 ## Viewer
 
@@ -26,7 +32,8 @@ away; there is nothing to confirm.
   or render the RAW data. minivu renders the RAW data anyway when the
   preview is too small for the screen or the zoom.
 - **Render RAW files with extended dynamic range** shows RAW highlights in
-  HDR, which takes a moment per photo.
+  HDR, which takes a moment per photo. **Image > Adjust > RAW
+  Adjustments…** follows it too.
 
 ## Magnifier
 
@@ -45,7 +52,8 @@ The time each slide shows, the order, whether to start again after the last
 slide, captions (file name, file name and date, or camera and exposure), the
 transition and its duration with a preview, and the music: songs or folders,
 shuffle and volume. Changing the volume, or turning music on or off, applies
-to a show that is already playing.
+to a show that is already playing. **Tools > Export Slideshow Video…** uses
+the same settings, except the volume.
 
 ## Editors
 

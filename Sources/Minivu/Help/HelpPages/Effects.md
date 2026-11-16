@@ -17,6 +17,9 @@ In the left panel they are together under **Color Effects**.
   embossed, drawn or painted versions of itself.
 - **Lens…** magnifies part of the image as if under a lens. Drag the circle
   to move it, or its edge to resize it.
+- **Vignette…** darkens the edges of the photo, or lightens them with a
+  negative amount. Radius sets where it starts and Feather how gradually it
+  fades.
 
 ## Text and Shapes
 
@@ -30,6 +33,19 @@ arrowheads, font, alignment and shadow for the selected object.
   **⌘D** duplicates it, **Delete** removes it and **Esc** deselects it.
 - Objects stay editable: open Text and Shapes again straight after, and your
   drawing comes back as objects rather than pixels.
+
+## Watermark
+
+**Image > Watermark…** stamps text, such as “© 2026”, or a picture, such as
+a logo, on the photo.
+
+- Choose the text’s font, weight and color, or **Choose Picture…** for a
+  picture file.
+- Set the size, opacity, one of nine positions and the margin from the
+  edge. **Tile across the photo** repeats it, with the spacing you choose.
+- Sizes are a share of the photo’s short side, so a watermark covers the
+  same part of every photo. Batch Convert can add the same watermark to
+  many images; see [Tools](help:Tools).
 
 ## Clone Stamp and Healing Brush
 
@@ -48,3 +64,13 @@ Click **Auto Detect** to find red eyes in faces, or drag a circle over each
 red pupil, or click one. Only red pixels inside a circle change, so the
 catchlight stays. Drag a circle to move it, set its strength in the panel,
 or press **Delete** to remove it.
+
+## Remove Background
+
+**Image > Remove Background…** finds the subject of the photo, such as a
+person, a pet or an object, and removes everything else. Leave the
+background transparent, or choose a color to fill it. If no subject is
+found, minivu says so and Apply does nothing.
+
+To copy the subject without changing the photo, use **Edit > Copy
+Subject** in the viewer. Both find the subject on your Mac.
