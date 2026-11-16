@@ -116,7 +116,7 @@ Before any of these, the benchmark kit itself needs a few small fixes
 | Metal shaders | not precompiled, because the Metal toolchain is not installed. They are compiled when the app starts. |
 
 To get a release test build at all, two test files needed an `#if DEBUG`
-guard. That change is in the worktree but not committed. No app code
+guard. That change is now committed on `main`. No app code
 changed.
 
 ### The method
@@ -224,7 +224,7 @@ them:
 ### How to re-run
 
 ```sh
-cd ~/minivu-worktrees/perf
+cd ~/minivu
 scripts/bench.sh /tmp/bench.txt                    # build, then every entry
 SKIP_BUILD=1 scripts/bench.sh /tmp/bench.txt ViewerBenchmark   # one entry, reusing the build
 ```
@@ -443,8 +443,8 @@ merges them. Where they disagreed, the measurements decided.
 **Words used below:**
 
 - *File:line* references point at the measured code in
-  `~/minivu-worktrees/perf`. On `main` the line numbers are a few lines off,
-  because the signposts are missing there.
+  `feature/perf`, which is now merged into `main`, so they match `main`
+  until the code moves on.
 - An *expected gain* is an estimate worked out from the measured numbers.
   None of them has been measured yet. Each item says how to measure it.
 - *Verify* means rerunning the named benchmark, with clean runs only, and
@@ -459,8 +459,8 @@ numbers worth believing.
 - *Problem:* `swift build -c release --build-tests` fails, because two tests
   use a debug-only helper (`BlockingWork.CallLog`).
 - *Change:*
-  - Commit the two `#if DEBUG` guards already in the worktree
-    (`CooperativeStarvationTests.swift`, `CooperativePoolTests.swift`).
+  - Done: the `#if DEBUG` guards are committed (`CooperativeStarvationTests.swift`,
+    `CooperativePoolTests.swift`, and the print test added with the hang fix).
   - Build the release tests locally (Xcode 27.2) before each benchmark run;
     bench.sh already does this.
   - Do *not* add a release step to `.github/workflows/ci.yml` yet. Every
