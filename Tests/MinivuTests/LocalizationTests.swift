@@ -74,9 +74,17 @@ import Foundation
         }
     }
 
+    /// Each language's plural categories (CLDR), besides an optional `zero`.
+    static let pluralCategories: [String: Set<String>] = [
+        "de": ["one", "other"], "nl": ["one", "other"], "fr": ["one", "many", "other"],
+        "es": ["one", "many", "other"], "it": ["one", "many", "other"], "pt-BR": ["one", "many", "other"],
+        "pl": ["one", "few", "many", "other"], "ja": ["other"], "zh-Hans": ["other"], "ko": ["other"],
+    ]
+
     /// Every translation has English's format specifiers (any order), and
-    /// plural forms exactly when English has them, with an `other` form.
-    /// Forms for one or zero may leave the number out.
+    /// plural forms exactly when English has them, in exactly its language's
+    /// categories. A `zero` form, and a `one` form where `one` means only 1,
+    /// may leave the number out; in fr and pt-BR `one` also covers 0.
     @Test func translationsKeepSpecifiersAndPlurals() throws {
         let languages = try Self.shippedLanguages()
         for (target, strings) in try Self.catalogs() {
@@ -94,10 +102,15 @@ import Foundation
                         continue
                     }
                     #expect(Self.specifiers(main) == expected, "\(context): \(main)")
+                    if isPlural {
+                        let categories = Set(forms.keys).subtracting(["zero"])
+                        #expect(categories == Self.pluralCategories[language], "\(context) has \(categories.sorted())")
+                    }
+                    let mayDropNumber: Set = ["fr", "pt-BR"].contains(language) ? ["zero"] : ["zero", "one"]
                     for (category, text) in forms where !["other", ""].contains(category) {
                         let found = Self.specifiers(text)
                         #expect(found.allSatisfy(expected.contains), "\(context) [\(category)]: \(text)")
-                        if !["one", "zero"].contains(category) { #expect(found == expected, "\(context) [\(category)]") }
+                        if !mayDropNumber.contains(category) { #expect(found == expected, "\(context) [\(category)]") }
                     }
                 }
             }
