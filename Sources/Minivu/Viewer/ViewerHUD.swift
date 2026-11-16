@@ -107,7 +107,9 @@ final class ViewerHUD: NSVisualEffectView {
 
     /// "Edited  ·  Undo Crop", or just "Edited".
     nonisolated static func editedText(undoTitle: String) -> String {
-        undoTitle.isEmpty ? "Edited" : "Edited  ·  Undo \(undoTitle)"
+        undoTitle.isEmpty ? localized(.init("Edited", comment: "HUD: the image has unsaved edits"))
+            : localized(.init("Edited  ·  Undo \(undoTitle)",
+                              comment: "HUD: the image has unsaved edits; %@ names the last one, such as Crop"))
     }
 
     /// "3 / 120 · Page 2 of 10 · 6000 × 4000 · 25%", leaving out what

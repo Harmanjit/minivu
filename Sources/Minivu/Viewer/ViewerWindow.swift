@@ -127,7 +127,8 @@ final class ViewerWindow: NSWindow {
         case #selector(performClose(_:)):
             return true
         case #selector(toggleFullScreen(_:)):
-            menuItem.title = style == .fullScreen ? "Exit Full Screen" : "Enter Full Screen"
+            menuItem.title = style == .fullScreen ? localized("Exit Full Screen")
+                : localized(.init("Enter Full Screen", comment: "AppKit retitles it Exit Full Screen itself"))
             return true
         case Self.undoAction, Self.redoAction:
             let redo = menuItem.action == Self.redoAction
@@ -136,11 +137,14 @@ final class ViewerWindow: NSWindow {
                 return redo ? manager.canRedo : manager.canUndo
             }
             guard let target = editUndoTarget else {
-                menuItem.title = redo ? "Redo" : "Undo"
+                menuItem.title = redo ? localized("Redo") : localized("Undo")
                 return false
             }
             let title = redo ? target.redoEditTitle : target.undoEditTitle
-            menuItem.title = title.map { (redo ? "Redo " : "Undo ") + $0 } ?? (redo ? "Redo" : "Undo")
+            menuItem.title = title.map {
+                redo ? localized(.init("Redo \($0)", comment: "Edit menu: %@ names the edit, such as Crop"))
+                    : localized(.init("Undo \($0)", comment: "Edit menu: %@ names the edit, such as Crop"))
+            } ?? (redo ? localized("Redo") : localized("Undo"))
             return title != nil
         default:
             return super.validateMenuItem(menuItem)
