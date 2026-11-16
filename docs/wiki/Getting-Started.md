@@ -6,6 +6,8 @@ If you built the app yourself, open `build/minivu.app`; a copy from another Mac 
 
 minivu opens one window, the browser, showing your Pictures folder. From then on it opens on the folder you were looking at when you quit, as long as it can still read it. There is no import step and no library to set up: minivu shows folders as they are on disk.
 
+minivu uses the language you use on your Mac, if it is one of the eleven it has, and English otherwise. [Languages](Languages) explains how to choose another.
+
 ## Open a folder
 
 - **File > Open Folder…** (⌘O) chooses a folder, shows it, and adds it to the sidebar, so it is one click away next time, even after you quit.
@@ -20,7 +22,9 @@ The browser has three parts: the sidebar on the left, where **Favorites** lists 
 
 - Click a folder in the sidebar, or double-click one in the grid, to open it. ⌘↑ goes to the enclosing folder, ⌘[ and ⌘] go back and forward.
 - Arrow keys move the selection, and typing a name selects it, as in Finder.
-- **View > Sort By** sorts by name, dates, rating, custom order, size or type. The toolbar sets the thumbnail size and filters by stars, tag, Finder tag or name.
+- **View > Sort By** sorts by name, dates, rating, custom order, size or type. The toolbar sets the thumbnail size and filters by stars, tag, Finder tag or name. **View > Filter > More Filters…** filters by type, date taken, camera, lens, exposure, keywords, label, location and size.
+- **View > Flat View** (⌥⌘F) shows the images of a folder and all its subfolders as one list. **Edit > Find…** (⌘F) searches across folders.
+- Videos are shown among the photos, with a play mark and their length. **View > Filter > Photos Only** and **Videos Only** show one kind.
 - **View > Show Sidebar** (⌃⌘S) and **Show Preview Pane** (⌥⌘P) hide or show either side.
 
 See [Browser](Browser).
@@ -42,7 +46,7 @@ Double-click a thumbnail, or select it and press Return, to open it in the viewe
 | I | Keep the overlay with name, position, size and zoom |
 | F | The filmstrip |
 
-When the image is larger than the window, the arrow keys pan it instead. Move the pointer to an edge of the viewer for its panels: the filmstrip at the top, the edit tools on the left, file information and the histogram on the right, and zoom, navigation and slideshow controls at the bottom. See [Viewer](Viewer).
+When the image is larger than the window, the arrow keys pan it instead. On a video, Space or P plays and pauses it, and M mutes it. Move the pointer to an edge of the viewer for its panels: the filmstrip at the top, the edit tools on the left, file information and the histogram on the right, and zoom, navigation and slideshow controls at the bottom. See [Viewer](Viewer).
 
 ## Rate and tag
 
@@ -51,8 +55,9 @@ Each image can have 0 to 5 stars and a tag, the quick "keep" mark for culling a 
 - In the grid, press **1** to **5** to give the selected images stars, **0** to clear them, and the backquote key (**`**) to tag or untag them. You can also point at a thumbnail and click one of the hollow stars that appear under its name.
 - In the viewer, the same digits rate the image shown, and **T** or **`** tags it.
 - In both, **Image > Rating** (⌃0 to ⌃5) and **Image > Tag** (⌘T; **Remove Tag** when already tagged) do the same.
+- **Image > Label** (⌥⌘0 to ⌥⌘7) gives a colour label: the same colour tag Finder shows.
 
-Then use the toolbar's Filter menu to show only, say, **★★★ or More** or **Tagged Only**; the status bar says how many are shown. Stars and tags are kept in minivu's own catalog on your Mac, not written into the files.
+Then use the toolbar's Filter menu to show only, say, **★★★ or More** or **Tagged Only**; the status bar says how many are shown. Stars and tags are kept in minivu's own catalog on your Mac. To have them written into the photos too, so Lightroom and other apps see them, turn on **Settings > General > Write ratings into files (XMP)**.
 
 ## A first edit
 
@@ -74,11 +79,12 @@ If you move to another image, go back to the browser or quit with unsaved edits,
 
 - [Tools](Tools): slideshows (⇧⌘F), Batch Convert, Batch Rename, printing, contact sheets and more.
 - [Settings](Settings): **minivu > Settings…** (⌘,).
+- [Languages](Languages): minivu in German, French, Japanese and eight more.
 - [Keyboard Shortcuts](Keyboard-Shortcuts), or **Help > Keyboard Shortcuts** (⌘/) in the app.
 - **Help > minivu Help** (⌘?) has its own, shorter set of pages, with search.
 
 ## Where things are
 
-- Your photos: wherever they were. minivu changes a file only when you ask. Save writes over the original; Move to Trash, and replacing a file of the same name when copying or moving, put items in the Trash rather than deleting them.
+- Your photos: wherever they were. minivu changes a file only when you ask, for example by saving it, editing its metadata or giving it a colour label. Save writes over the original; Move to Trash, and replacing a file of the same name when copying or moving, put items in the Trash rather than deleting them.
 - The catalog, the thumbnail cache and settings: in the app's container, `~/Library/Containers/com.minivu.app`.
 - Screen captures, montages and desktop picture copies: **Pictures/minivu Captures** and **Pictures/minivu Wallpapers**.
