@@ -69,9 +69,11 @@ extension BrowserWindowController {
     /// Rename and Convert also stay off while a batch or a copy is still
     /// running without its sheet.
     func canPerformTools(_ action: Selector) -> Bool? {
+        // Start Slideshow opens no sheet, but a full-screen show over one
+        // would leave the sheet waiting behind it.
         let opensSheet: [Selector] = [.batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip,
                                       .printImages, .makeContactSheet, .makeMontage, .exportSlideshowVideo,
-                                      .createWebGallery]
+                                      .createWebGallery, .startSlideshow]
         if opensSheet.contains(action), let window, BatchTools.hasSheet(on: window) { return false }
         let batches: [Selector] = [.batchConvert, .batchRename, .extractPages, .createMultiPageFile, .makeImageStrip]
         if batches.contains(action), isRunningBatch || isTransferring { return false }

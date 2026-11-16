@@ -374,6 +374,7 @@ extension AppWindowTests {
             defer { dialog.close() }
             #expect(dialog.model.images.map(\.url) == pictures.map(\.url))
             #expect(dialog.model.start == 2)
+            #expect(viewer.validateToolAction(.startSlideshow) == false, "no full-screen show over a sheet")
         }
 
         private func waitUntil(_ condition: () -> Bool) async throws {

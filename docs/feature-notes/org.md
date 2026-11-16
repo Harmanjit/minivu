@@ -32,8 +32,9 @@ reads nothing.
 - Everything else works as in a folder: open in the viewer (the viewer
   steps through the whole flat list), rate, tag, label, rename, move, copy,
   trash, the batch tools, Edit Metadata, sort (Custom Order falls back to
-  name order, since an arrangement belongs to one folder). New Folder and
-  Paste go into the folder at the top of the tree.
+  name order, since an arrangement belongs to one folder). Paste goes into
+  the folder at the top of the tree. New Folder is off: the flat view
+  lists no folders, so a new one could be neither shown nor named.
 
 ### Design and why
 

@@ -414,6 +414,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         if menuItem.action == #selector(toggleLiveText(_:)) {
             menuItem.state = Preferences.shared.liveText ? .on : .off
         }
+        // The folder panel is a sheet on the browser: with another sheet up
+        // it would queue behind it and appear unasked when that one closes.
+        if menuItem.action == #selector(openFolder(_:)) || menuItem.action == #selector(addFolderToSidebar(_:)),
+           let window = browser?.window, window.isVisible, BatchTools.hasSheet(on: window) {
+            return false
+        }
         return true
     }
 }

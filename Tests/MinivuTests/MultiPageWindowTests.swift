@@ -137,6 +137,7 @@ extension AppWindowTests {
             controller.extractPages(nil)
             let extract = try #require(sheets.shown.last?.contentView as? NSHostingView<BatchConvertView>)
             #expect(extract.rootView.model.title == "Extract Pages from 2 Files")
+            #expect(controller.canPerformTools(.startSlideshow) == false, "no full-screen show over a sheet")
             extract.rootView.onCancel()
 
             controller.createMultiPageFile(nil)

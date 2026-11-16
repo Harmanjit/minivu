@@ -126,7 +126,7 @@ extension BrowserWindowController {
 
     /// ⇧⌘N: "untitled folder" in the folder shown, then its name to edit.
     @objc func newFolder(_ sender: Any?) {
-        guard let folder = model.folder, model.state == .loaded else { return NSSound.beep() }
+        guard let folder = model.folder, model.state == .loaded, !model.flatView else { return NSSound.beep() }
         Task {
             let result = await BlockingWork.run {
                 Result { try FileOperations.createFolder(in: folder) }
@@ -424,8 +424,10 @@ extension BrowserWindowController {
             return model.folder != nil || model.list != nil
         case .renameItem:
             return !sheet && model.selection.count == 1 && grid.renameEditor == nil
+        // Not in the flat view: it lists no folders, so the new one could
+        // be neither shown nor named.
         case .newFolder:
-            return !sheet && model.state == .loaded && model.folder != nil
+            return !sheet && model.state == .loaded && model.folder != nil && !model.flatView
         case .copyToFolder, .moveToFolder:
             return !sheet && !model.selection.isEmpty && !isTransferring
         default:
@@ -440,7 +442,10 @@ extension BrowserWindowController {
         switch menuItem.action {
         case .filterByRating:
             let filter = model.marksFilter
-            menuItem.state = (menuItem.tag == 0 ? !filter.isActive : filter.minimumRating == menuItem.tag) ? .on : .off
+            // Show All clears More Filters too, so it is ticked only when
+            // neither hides anything.
+            let showsAll = !filter.isActive && !model.metadataFilter.isActive
+            menuItem.state = (menuItem.tag == 0 ? showsAll : filter.minimumRating == menuItem.tag) ? .on : .off
         case .toggleTaggedFilter:
             menuItem.state = model.marksFilter.taggedOnly ? .on : .off
         case .filterByFileType:
