@@ -272,6 +272,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     ///    leaving every item either transferred or where it was. A batch
     ///    rename under way finishes (a swap hides a file for a moment).
     ///
+    /// Whether a quit replies `.terminateLater` (and waits) rather than
+    /// quitting now: a running Shortcuts action counts as pending work.
+    nonisolated static func quitMustWait(hasEdits: Bool, marksMayBePending: Bool, pendingWrites: Int,
+                                         transferActive: Bool, renamesRunning: Int, actionsRunning: Int) -> Bool {
+        hasEdits || marksMayBePending || pendingWrites > 0 || transferActive || renamesRunning > 0 || actionsRunning > 0
+    }
+
     /// `.terminateLater` keeps the app alive until `reply` is called.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let viewer = ViewerWindowController.current
@@ -283,8 +290,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         let marks = MarksFileWriter.shared
         let marksMayBePending = marks.isEnabled() || marks.pendingCount > 0
         let launch = IntentLaunch.shared
-        guard hasEdits || marksMayBePending || writes.pendingCount > 0 || FileTransfer.isActive
-                || BatchTools.renamesRunning > 0 || launch.running > 0 else {
+        guard Self.quitMustWait(hasEdits: hasEdits, marksMayBePending: marksMayBePending,
+                                pendingWrites: writes.pendingCount, transferActive: FileTransfer.isActive,
+                                renamesRunning: BatchTools.renamesRunning, actionsRunning: launch.running) else {
             return .terminateNow
         }
 

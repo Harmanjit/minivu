@@ -132,11 +132,15 @@ final class IntentLaunch {
     /// given: an action that began during the wait, or the user opening
     /// minivu, cancels it. The action's work may have started after the
     /// waits had passed it (a rename registered after `waitForRenames`
-    /// returned) and would be cut off. The idle quit is scheduled again when
-    /// the action ends.
+    /// returned) and would be cut off. A cancelled quit that leaves a
+    /// windowless launch idle schedules the idle quit again: one the
+    /// action's end armed may have fired during the wait and been skipped.
     func quitReply(_ proceed: Bool) -> Bool {
-        defer { quitting = false; quitCancelled = false }
-        return proceed && !quitCancelled && running == 0
+        let ok = proceed && !quitCancelled && running == 0
+        quitting = false
+        quitCancelled = false
+        if !ok, mode == .intentOnly, running == 0 { scheduleQuit() }
+        return ok
     }
 
     /// Wraps an action's work (every intent but Open in minivu).

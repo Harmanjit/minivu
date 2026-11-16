@@ -253,7 +253,9 @@ import CoreServices
     }
 
     /// A second terminate during the wait keeps the first one's
-    /// cancellation, and the idle quit doesn't fire over a pending one.
+    /// cancellation, and the idle quit doesn't fire over a pending one; the
+    /// cancelled reply schedules the idle quit again, so a windowless
+    /// minivu never stays running for good.
     @Test func reentrantQuitKeepsTheCancellation() {
         let (launch, timers, events) = make()
         launch.launchFinished(windowRequested: false)
@@ -267,6 +269,20 @@ import CoreServices
         timers.fire()
         #expect(events.log == ["hide", "quit"])
         #expect(launch.quitReply(true) == false)
+        #expect(timers.live == [IntentLaunch.idleGrace])
+        timers.fire()
+        #expect(events.log == ["hide", "quit", "quit"])
+    }
+
+    /// Any running action makes ⌘Q wait (`.terminateLater`) instead of
+    /// quitting at once.
+    @Test func runningActionMakesQuitWait() {
+        func wait(actions: Int) -> Bool {
+            AppDelegate.quitMustWait(hasEdits: false, marksMayBePending: false, pendingWrites: 0,
+                                     transferActive: false, renamesRunning: 0, actionsRunning: actions)
+        }
+        #expect(wait(actions: 0) == false)
+        #expect(wait(actions: 1))
     }
 
     /// ⌘Q while an action runs waits for it rather than cutting it off.

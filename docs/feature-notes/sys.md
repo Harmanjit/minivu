@@ -474,12 +474,18 @@ a launch made only to run an action must not open the browser.
   after `waitForRenames` returned would be cut off mid-swap). The idle
   quit comes round 60 s after it ends. A second terminate during the
   wait keeps that cancellation (`quitWaits` resets only when no quit is
-  waiting), and the idle timer doesn't fire over a waiting quit. The same
+  waiting), and the idle timer doesn't fire over a waiting quit; a
+  cancelled reply that leaves the windowless launch idle schedules the
+  idle quit again, so it can't stay running for good. The same
   gate covers ⌘Q at no extra cost: an action begun during ⌘Q's wait
   cancels that quit, and the user presses ⌘Q again. An action already
   running counts as pending work: ⌘Q returns `.terminateLater`, waits for
   it to end (`waitUntilNoActions`) before the other waits, and `quitReply`
-  quits only with none running, so ⌘Q never cuts an action off.
+  quits only with none running, so ⌘Q never cuts an action off. ⌘Q
+  therefore waits, without a progress cue or a time limit, until a long
+  action (Convert on hundreds of RAW files) finishes; a hung one keeps it
+  waiting. A second ⌘Q during that wait starts a second reply, which
+  quits: the user asked again.
   60 s: a shortcut's steps, or the same Quick Action used on a few
   selections in a row, come seconds apart, and each would otherwise pay a
   fresh launch (catalog, Metal); an idle windowless process costs little
