@@ -370,6 +370,7 @@ extension AppWindowTests {
     let sidebar: SidebarViewController
     let window: NSWindow
     let rootTitle: String
+    let picturesTitle: String
 
     init() throws {
         _ = NSApplication.shared
@@ -381,6 +382,7 @@ extension AppWindowTests {
         window.contentViewController = sidebar
         window.setContentSize(NSSize(width: 240, height: 480))
         rootTitle = FileManager.default.displayName(atPath: t.url.path)
+        picturesTitle = FileManager.default.displayName(atPath: pictures.url.path)
     }
 
     func node(_ url: URL) -> SidebarNode? {
@@ -404,7 +406,7 @@ extension AppWindowTests {
         await TestTiming.waitUntil(seconds: 30) { isSelected(inner) }
         sidebar.reveal(alpha)
         #expect(isSelected(alpha))
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "  Charlie"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "    Inner", "  Charlie"])
         let alphaNode = try #require(node(alpha))
 
         try FileManager.default.removeItem(at: charlie)
@@ -413,7 +415,7 @@ extension AppWindowTests {
         sidebar.folderChangedOnDisk(t.url)
         await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("  Delta") }
 
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "  Bravo", "  Delta"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "    Inner", "  Bravo", "  Delta"])
         #expect(node(alpha) === alphaNode, "rows still there keep their objects")
         #expect(sidebar.outlineView.isItemExpanded(alphaNode))
         #expect(isSelected(alpha))
@@ -432,7 +434,7 @@ extension AppWindowTests {
         try t.folder("Bravo")
         sidebar.folderChangedOnDisk(t.url)
         await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("  Bravo") }
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "  Bravo"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "  Bravo"])
         #expect(!sidebar.outlineView.isItemExpanded(alphaNode))
     }
 
@@ -451,7 +453,7 @@ extension AppWindowTests {
         try FileManager.default.removeItem(at: inner)
         sidebar.outlineView.expandItem(alphaNode)
         await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("    Second") }
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Second"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "    Second"])
         #expect(sidebar.listingsStarted == 3)
     }
 
@@ -471,7 +473,7 @@ extension AppWindowTests {
         sidebar.folderChangedOnDisk(alpha)
         await TestTiming.waitUntil(seconds: 30) { alphaNode.children?.count == 2 }
         sidebar.outlineView.expandItem(alphaNode)
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "    Third", "  Echo"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "    Inner", "    Third", "  Echo"])
 
         let echoNode = try #require(node(echo))
         #expect(!sidebar.outlineView.isExpandable(echoNode))
@@ -495,13 +497,13 @@ extension AppWindowTests {
         let innerNode = try #require(node(inner))
         sidebar.outlineView.expandItem(innerNode)
         await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline.contains("      Deep") }
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "      Deep", "  Bravo"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "    Inner", "      Deep", "  Bravo"])
 
         // Alpha goes with Inner inside it: two levels up is what's left.
         try FileManager.default.removeItem(at: alpha)
         sidebar.folderChangedOnDisk(inner)
-        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"] }
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo"])
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline == [picturesTitle, rootTitle, "  Bravo"] }
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Bravo"])
 
         // A row never listed itself (only its disclosure triangle checked).
         let charlie = try t.folder("Charlie")
@@ -510,8 +512,8 @@ extension AppWindowTests {
         #expect(node(charlie)?.children == nil)
         try FileManager.default.moveItem(at: charlie, to: t.url.appendingPathComponent("Delta"))
         sidebar.folderChangedOnDisk(charlie)
-        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"] }
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Bravo", "  Delta"])
+        await TestTiming.waitUntil(seconds: 30) { sidebar.rowOutline == [picturesTitle, rootTitle, "  Bravo", "  Delta"] }
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Bravo", "  Delta"])
     }
 
     /// A listing still out for a row that leaves the tree is dropped when it
@@ -537,7 +539,7 @@ extension AppWindowTests {
 
         #expect(!oldAlpha.isListing)
         #expect(oldAlpha.children?.count == 1, "the old row never took the new listing")
-        #expect(sidebar.rowOutline == ["Pictures", rootTitle, "  Alpha", "    Inner", "    Second"])
+        #expect(sidebar.rowOutline == [picturesTitle, rootTitle, "  Alpha", "    Inner", "    Second"])
         #expect(node(alpha) !== oldAlpha)
         // Alpha's first listing, the refresh, and the new rows' root and
         // Alpha: the queued relist of the old row never ran.

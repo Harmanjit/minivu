@@ -323,8 +323,9 @@ final class SidebarViewController: NSViewController, NSOutlineViewDataSource, NS
     /// Internal so tests can rebuild the rows as a favourites change does.
     func reloadFavorites() {
         header.children?.forEach { $0.detach() }
-        let pictures = SidebarNode(kind: .favorite, title: localized(.init("Pictures", comment: "The user's Pictures folder: use the name Finder shows")), url: picturesFolder,
-                                   symbolName: Self.picturesSymbol)
+        // The name Finder shows, in the user's language, as for the others.
+        let pictures = SidebarNode(kind: .favorite, title: FileManager.default.displayName(atPath: picturesFolder.path),
+                                   url: picturesFolder, symbolName: Self.picturesSymbol)
         let others = favoriteFolders()
             .filter { !BrowserModel.samePath($0, picturesFolder) }
             .map { SidebarNode(kind: .favorite, title: FileManager.default.displayName(atPath: $0.path), url: $0,
