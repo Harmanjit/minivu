@@ -589,6 +589,9 @@ public final class Catalog: @unchecked Sendable {
     /// slot. Such rows go to where their file is now (found by identity),
     /// unless rows are already there.
     private func rehomeStrayRows(at t: String, movingFrom f: String) throws {
+        // A change of letter case: the rows at the destination are the
+        // source's own (keys compare without case).
+        guard t.lowercased() != f.lowercased() else { return }
         let rows = try db.query("""
             SELECT volume, file_id FROM files WHERE path = ?1 AND file_id IS NOT NULL AND volume IS NOT NULL
             UNION SELECT volume, file_id FROM collection_items
@@ -598,7 +601,7 @@ public final class Catalog: @unchecked Sendable {
             guard let fileID = row.int("file_id"), let volume = row.string("volume"),
                   let now = Self.path(ofFile: fileID, onVolume: volume, near: t) else { continue }
             let p = Self.key(URL(fileURLWithPath: now))
-            guard p.lowercased() != t.lowercased(), p.lowercased() != f.lowercased(),
+            guard p.lowercased() != t.lowercased(),
                   try db.query("""
                     SELECT 1 AS x FROM files WHERE path = ?1 UNION SELECT 1 AS x FROM collection_items WHERE path = ?1
                     """, [.text(p)]).isEmpty
