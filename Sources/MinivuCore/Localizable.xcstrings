@@ -2094,7 +2094,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "“%@” नाम का एक फ़ोल्डर रास्ते में है।"
+            "value" : "“%@” नाम का एक फ़ोल्डर पहले से मौजूद है।"
           }
         },
         "it" : {
@@ -2124,7 +2124,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "“%@” ਨਾਮ ਦਾ ਇੱਕ ਫ਼ੋਲਡਰ ਰਸਤੇ ਵਿੱਚ ਹੈ।"
+            "value" : "“%@” ਨਾਮ ਦਾ ਇੱਕ ਫ਼ੋਲਡਰ ਪਹਿਲਾਂ ਹੀ ਉੱਥੇ ਮੌਜੂਦ ਹੈ।"
           }
         },
         "pl" : {
@@ -2661,7 +2661,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ऐनिमेटेड GIF"
+            "value" : "एनिमेटेड GIF"
           }
         },
         "it" : {
@@ -2709,7 +2709,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Animated GIF"
+            "value" : "அனிமேஷன் GIF"
           }
         },
         "zh-Hans" : {
@@ -2756,7 +2756,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ऐनिमेटेड HEIC"
+            "value" : "एनिमेटेड HEIC"
           }
         },
         "it" : {
@@ -2804,7 +2804,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Animated HEIC"
+            "value" : "அனிமேஷன் HEIC"
           }
         },
         "zh-Hans" : {
@@ -4809,7 +4809,7 @@
         "bn" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "তৈরি হয়েছে"
+            "value" : "তৈরি"
           }
         },
         "de" : {
@@ -5123,7 +5123,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "गहरा"
+            "value" : "डार्क"
           }
         },
         "it" : {
@@ -5755,7 +5755,7 @@
         "bn" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ডিজিটাইজ করা হয়েছে"
+            "value" : "ডিজিটাইজ করা"
           }
         },
         "de" : {
@@ -8721,7 +8721,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "हल्का"
+            "value" : "लाइट"
           }
         },
         "it" : {
@@ -9943,7 +9943,7 @@
         "gu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "સુધાર્યું"
+            "value" : "સુધાર્યાની તારીખ"
           }
         },
         "hi" : {
@@ -11591,7 +11591,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਦਿਸ਼ਾਮਾਨ"
+            "value" : "ਓਰੀਐਂਟੇਸ਼ਨ"
           }
         },
         "pl" : {
@@ -12511,7 +12511,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "बदलें (पुरानी को ट्रैश में ले जाएँ)"
+            "value" : "बदलें (पुरानी फ़ाइल ट्रैश में ले जाएँ)"
           }
         },
         "it" : {
@@ -12541,7 +12541,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਬਦਲੋ (ਪੁਰਾਣੀ ਨੂੰ ਰੱਦੀ ਵਿੱਚ ਭੇਜੋ)"
+            "value" : "ਬਦਲੋ (ਪੁਰਾਣੀ ਫ਼ਾਈਲ ਰੱਦੀ ਵਿੱਚ ਭੇਜੋ)"
           }
         },
         "pl" : {
@@ -15922,7 +15922,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "नया %@ लागू नहीं हुआ, इसलिए फ़ाइल को जैसी थी वैसी ही छोड़ दिया गया।"
+            "value" : "%@ का नया मान लागू नहीं हुआ, इसलिए फ़ाइल को जैसी थी वैसी ही छोड़ दिया गया।"
           }
         },
         "it" : {
@@ -16855,7 +16855,7 @@
         "bn" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Title Case"
+            "value" : "শব্দের প্রথম অক্ষর বড় (Title Case)"
           }
         },
         "de" : {
@@ -16879,7 +16879,7 @@
         "gu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "Title Case"
+            "value" : "દરેક શબ્દનો પહેલો અક્ષર મોટો (Title Case)"
           }
         },
         "hi" : {
@@ -16915,7 +16915,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "ਹਰ ਸ਼ਬਦ ਦਾ ਪਹਿਲਾ ਅੱਖਰ ਵੱਡਾ"
+            "value" : "ਹਰ ਸ਼ਬਦ ਦਾ ਪਹਿਲਾ ਅੱਖਰ ਵੱਡਾ (Title Case)"
           }
         },
         "pl" : {
@@ -16933,7 +16933,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "சொல் முதலெழுத்து பெரியது"
+            "value" : "சொல் முதலெழுத்து பெரியது (Title Case)"
           }
         },
         "zh-Hans" : {
@@ -16950,7 +16950,7 @@
         "bn" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "UPPERCASE"
+            "value" : "বড় হাতের অক্ষর (UPPERCASE)"
           }
         },
         "de" : {
@@ -16974,7 +16974,7 @@
         "gu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "UPPERCASE"
+            "value" : "મોટા અક્ષર (UPPERCASE)"
           }
         },
         "hi" : {
@@ -17028,7 +17028,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "பெரிய எழுத்துகள்"
+            "value" : "பெரிய எழுத்துகள் (UPPERCASE)"
           }
         },
         "zh-Hans" : {
@@ -18096,7 +18096,7 @@
         "bn" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "lowercase"
+            "value" : "ছোট হাতের অক্ষর (lowercase)"
           }
         },
         "de" : {
@@ -18120,7 +18120,7 @@
         "gu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "lowercase"
+            "value" : "નાના અક્ષર (lowercase)"
           }
         },
         "hi" : {
@@ -18174,7 +18174,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "சிறிய எழுத்துகள்"
+            "value" : "சிறிய எழுத்துகள் (lowercase)"
           }
         },
         "zh-Hans" : {
@@ -18834,7 +18834,7 @@
         "gu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "લોકેશન દૂર કરવા"
+            "value" : "લોકેશન દૂર કરવાને"
           }
         },
         "hi" : {

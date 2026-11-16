@@ -346,7 +346,7 @@
         "hi" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "“%@” नाम का एक फ़ोल्डर रास्ते में है।"
+            "value" : "“%@” नाम का एक फ़ोल्डर पहले से मौजूद है।"
           }
         },
         "it" : {
@@ -376,7 +376,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "“%@” ਨਾਮ ਦਾ ਇੱਕ ਫ਼ੋਲਡਰ ਰਸਤੇ ਵਿੱਚ ਹੈ।"
+            "value" : "“%@” ਨਾਮ ਦਾ ਇੱਕ ਫ਼ੋਲਡਰ ਪਹਿਲਾਂ ਹੀ ਉੱਥੇ ਮੌਜੂਦ ਹੈ।"
           }
         },
         "pl" : {
@@ -6947,7 +6947,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "RAW ਸਮਾਯੋਜਨ"
+            "value" : "RAW ਅਡਜਸਟਮੈਂਟ"
           }
         },
         "pl" : {
@@ -7136,7 +7136,7 @@
         "pa" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "RGB ਸਮਾਯੋਜਨ"
+            "value" : "RGB ਅਡਜਸਟ"
           }
         },
         "pl" : {

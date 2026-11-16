@@ -23,8 +23,9 @@ reviewer should check first against Apple's own Punjabi strings are marked
 - Sentences end with the danda "।". Ellipsis "…" (U+2026) with no space.
   Quotation marks “ ”; apostrophe-like "’ਤੇ" for "ਉੱਤੇ" in short forms.
 - Digits stay Western (0–9), as Apple's Punjabi default. Unit symbols stay
-  Latin (px, MP, fps, s, mm, Mbit/s, dpi); spelled-out units are Punjabi
-  (ਪਿਕਸਲ, ਸਕਿੰਟ, ਪੌਇੰਟ).
+  Latin (px, MP, fps, mm, Mbit/s, dpi); seconds are always written out as
+  ਸਕਿੰਟ (“s”, “%lld s”), as hi, bn, gu and ta use a native form; other
+  spelled-out units are Punjabi too (ਪਿਕਸਲ, ਪੌਇੰਟ).
 - Key names stay as printed on the keyboard, in Latin: Return, Esc, Space,
   Tab, Home, End, Page Up/Page Down, Shift, Option ("Option-ਕਲਿੱਕ"); glyphs
   ⌘ ⇧ ⌥ ⌫ → ← kept. Arrow keys: "ਤੀਰ ਕੁੰਜੀਆਂ".
@@ -76,7 +77,16 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Print… / Page Setup… | ਪ੍ਰਿੰਟ ਕਰੋ… / ਪੰਨਾ ਸੈੱਟਅੱਪ… |
 | Cancel / OK / Done | ਰੱਦ ਕਰੋ / ਠੀਕ ਹੈ / ਹੋ ਗਿਆ |
 | Apply / Reset / Retry | ਲਾਗੂ ਕਰੋ / ਰੀਸੈੱਟ ਕਰੋ / ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ |
-| Replace / Keep Both / Skip | ਬਦਲੋ / ਦੋਵੇਂ ਰੱਖੋ / ਛੱਡੋ |
+| Replace / Keep Both / Skip | ਬਦਲੋ / ਦੋਵੇਂ ਰੱਖੋ / ਛੱਡੋ (button only; Replace questions say “… ਦੀ ਥਾਂ ਨਵੀਂ … ਰੱਖਣੀ ਹੈ?”, because ਬਦਲਣਾ also means change) |
+| save over the original | ਮੂਲ ਫ਼ਾਈਲ ਦੀ ਥਾਂ ਸੰਭਾਲੋ |
+| Revert (alert button) | ਵਾਪਸ ਜਾਓ |
+| Untitled / Untitled Collection | ਬਿਨਾਂ ਨਾਮ / ਬਿਨਾਂ ਨਾਮ ਦਾ ਸੰਗ੍ਰਹਿ |
+| drag | ਘਸੀਟੋ / ਘਸੀਟਣਾ (never ਖਿੱਚ, which is “take a photo”) |
+| Adjust / RAW Adjustments | ਅਡਜਸਟ / RAW ਅਡਜਸਟਮੈਂਟ |
+| Orientation | ਓਰੀਐਂਟੇਸ਼ਨ |
+| Strength / Magnification (lens) / Free (crop) | ਤੀਬਰਤਾ / ਜ਼ੂਮ / ਖੁੱਲ੍ਹਾ |
+| embedded preview | ਫ਼ਾਈਲ ਵਿਚਲਾ ਪ੍ਰੀਵਿਊ |
+| Spellings | ਮੈਮੋਰੀ, ਜਿਨ੍ਹਾਂ, ਖਾਲੀ |
 
 ## minivu terms
 
@@ -155,7 +165,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 
 minivu, format names (JPEG, HEIC, TIFF, PNG, AVIF…), names written to disk
 (minivu Wallpapers, minivu Captures), rename tokens ({name}, {date}…),
-compass letters N/S/E/W, unit symbols (px, MP, fps, s, mm, dpi, Mbit/s),
+compass letters N/S/E/W, unit symbols (px, MP, fps, mm, dpi, Mbit/s),
 key names, Apple product names (Mac, Finder, Spotlight, Safari, MacBook Pro,
 Pro Display XDR, Liquid Retina XDR, Display P3), US Letter.
 
@@ -167,4 +177,4 @@ Pro Display XDR, Liquid Retina XDR, Display P3), US Letter.
   before a noun and can't be plural keys; Punjabi ਸਕਿੰਟ/ਪਿਕਸਲ don't change
   form, so they read naturally for any number.
 - "Replace %@ and %@?" takes the pieces "%lld ਮੂਲ ਫ਼ਾਈਲਾਂ" and "%lld
-  ਫ਼ਾਈਲਾਂ"; its verb is feminine plural (ਬਦਲਣੀਆਂ), which fits both.
+  ਫ਼ਾਈਲਾਂ"; its verb is feminine plural (ਰੱਖਣੀਆਂ), which fits both.

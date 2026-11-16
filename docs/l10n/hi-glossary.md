@@ -61,8 +61,9 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Open / Open Folder… | खोलें / फ़ोल्डर खोलें… |
 | Close Window | विंडो बंद करें |
 | Save / Save As… / Don't Save | सहेजें / इस रूप में सहेजें… / न सहेजें |
-| Revert to Saved | सहेजे गए संस्करण पर वापस जाएँ |
+| Revert to Saved / Revert (alert button) | सहेजे गए संस्करण पर वापस जाएँ / वापस जाएँ |
 | Undo / Redo | पूर्ववत करें / फिर से करें |
+| Undo %@ / Redo %@ | पूर्ववत करें: %@ / फिर से करें: %@ (undo-step names are verbal nouns: “%@ ले जाना”, “%@ जोड़ना”) |
 | Cut / Copy / Paste | कट करें / कॉपी करें / पेस्ट करें |
 | Select All / Invert Selection | सभी चुनें / चयन उलटें |
 | Delete | डिलीट करें |
@@ -174,7 +175,15 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | subject / Copy Subject / Remove Background | सब्जेक्ट / सब्जेक्ट कॉपी करें / बैकग्राउंड हटाएँ |
 | Mixed (differing values) | मिश्रित |
 | Edit Metadata… | मेटाडेटा संपादित करें… |
-| Keep Both / Replace / Skip | दोनों रखें / बदलें / छोड़ें |
+| Keep Both / Replace / Skip | दोनों रखें / बदलें / छोड़ें (alert titles add the object: ““%@” को नई फ़ाइल से बदलें?”) |
+| save over the original | मूल फ़ाइल के ऊपर सहेजें (मूल = original only) |
+| Enclosing Folder | पैरेंट फ़ोल्डर |
+| format / encode | फ़ॉर्मैट / एन्कोड |
+| colour profile / colour space | रंग प्रोफ़ाइल / रंग स्पेस |
+| animated / animation | एनिमेटेड / एनिमेशन |
+| arrow keys | तीर कुंजियाँ |
+| Theme: System, Bright, Gray, Dark | सिस्टम, उजला, ग्रे, गहरा |
+| Appearance (web gallery): Light, Dark | लाइट, डार्क (as Apple's Hindi macOS) |
 | display / screen | डिस्प्ले / स्क्रीन |
 | internal storage | आंतरिक स्टोरेज |
 | Find… | ढूँढें… |

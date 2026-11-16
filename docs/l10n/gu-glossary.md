@@ -15,7 +15,7 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 - કીનાં નામ કીબોર્ડ પર છે તેમ અંગ્રેજીમાં: Return, Esc, Space, Tab, Home, End, Page Up/Down, Shift, Option-ક્લિક. ચિહ્નો (⌘ ⌥ ⇧ ⌫ → ←) જેમ છે તેમ.
 - વાક્યક્રમ SOV હોવાથી ઘણી જગ્યાએ positional specifiers (%1$lld, %2$@) વાપર્યા છે, દા.ત. "%2$lld માંથી %1$lld".
 - બહુવચન: gu માટે CLDR `one` અને `other`. `one` 0 અને 1 બંનેને આવરે છે, તેથી દરેક `one` રૂપમાં સંખ્યા જાળવી છે. ગુજરાતીમાં સંખ્યા પછી નામ ઘણીવાર એકવચનમાં જ રહે છે ("5 ઇમેજ", "3 પેજ"); "ફાઇલ/ફાઇલો", "ચિત્ર/ચિત્રો", "રંગ/રંગો" જેવાં રૂપમાં બહુવચન વાપર્યું છે.
-- લેટર-કેસ વિકલ્પો (UPPERCASE, lowercase, Title Case) લૅટિનમાં જ, કારણ કે તે જે કેસ લાગુ કરે છે તે જ રૂપમાં લખાય છે.
+- લેટર-કેસ વિકલ્પો ગુજરાતીમાં સમજાવેલા, કૌંસમાં લૅટિન ઉદાહરણ સાથે (hi, pa, bn, ta જેવું): “મોટા અક્ષર (UPPERCASE)”, “નાના અક્ષર (lowercase)”, “દરેક શબ્દનો પહેલો અક્ષર મોટો (Title Case)”.
 
 ## શબ્દો
 
@@ -89,7 +89,15 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 | RAW / HDR / SDR / JPEG… | RAW / HDR / SDR / JPEG… | ફૉર્મેટ નામ અનુવાદિત નથી |
 | metadata / keywords / caption / title / creator / copyright | મેટાડેટા / કીવર્ડ / કૅપ્શન / શીર્ષક / સર્જક / કૉપિરાઇટ | |
 | location | લોકેશન | |
-| date taken / date modified / date created | લીધાની તારીખ / સુધાર્યાની તારીખ / બનાવ્યાની તારીખ | |
+| date taken / date modified / date created | લીધાની તારીખ / સુધાર્યાની તારીખ / બનાવ્યાની તારીખ | Info panel “Modified” પણ સુધાર્યાની તારીખ |
+| GPS position | GPS સ્થાન | સ્થિતિ નહીં (એ state છે) |
+| changed (by another app) / replaced | ફેરફાર કર્યો / બદલો | બદલો ફક્ત Replace માટે; replaced file = જૂની ફાઇલ, જેની જગ્યાએ નવી ફાઇલ આવી |
+| channel / animated / transparency / aperture | ચેનલ / એનિમેટેડ / પારદર્શિતા / અપર્ચર | |
+| Theme: System, Bright, Gray, Dark | સિસ્ટમ, બ્રાઇટ, ગ્રે, ડાર્ક | macOS જેવાં લિપ્યંતર |
+| Font weight | ફૉન્ટની જાડાઈ | વજન નહીં |
+| arrowhead size | તીરના માથાનું કદ | |
+| From / To (range labels) | શરૂઆત / સુધી | બે મૂલ્યો વચ્ચે “to” = થી |
+| Earlier / Later (date shift) | પહેલાંની તરફ / પછીની તરફ | |
 | sidecar | સાઇડકાર | XMP સાઇડકાર |
 | gain map / tone mapped | ગેઇન મૅપ / ટોન મૅપ કરેલું | |
 | magnifier | મૅગ્નિફાયર | |

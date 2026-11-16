@@ -42,6 +42,16 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 | rotate left / right | இடப்புறம் சுழற்று / வலப்புறம் சுழற்று | |
 | flip horizontal / vertical | கிடைமட்டமாகப் புரட்டு / செங்குத்தாகப் புரட்டு | |
 | batch convert | மொத்தமாக மாற்று (பெயர்ச்சொல்: மொத்தமாக மாற்றுதல்) | |
+| Replace (button) / replace (in sentences) | மாற்றியமை / “X-க்குப் பதிலாக Y-ஐ வை” | convert (மாற்று) உள்ள வாக்கியங்களில் மாற்றியமை வேண்டாம்: “அசலுக்குப் பதிலாக மாற்றப்பட்ட ஃபைலை வைக்கவா?”; replaced file = பழைய ஃபைல் |
+| deselect / delete the selection | தேர்வை விலக்கு / தேர்ந்தெடுத்தவற்றை நீக்கு | |
+| Copy To / Move To (submenu) | ஃபோல்டருக்கு நகலெடு / ஃபோல்டருக்கு நகர்த்து | “இங்கே” அல்ல |
+| Retouch / Effects & Retouching | ரீடச் / எஃபெக்ட்களும் ரீடச்சும் | சீரமை = align |
+| Capture (submenu) | திரைப் பிடிப்பு | |
+| Remove Tag | டேக்கை நீக்கு | |
+| Aperture | துளை (அபர்ச்சர்) / அபர்ச்சர் | |
+| Animated GIF / Animated HEIC | அனிமேஷன் GIF / அனிமேஷன் HEIC | |
+| Theme / appearance: Bright, Light, Dark | ஒளிர்வான, ஒளிர்வான, இருண்ட | |
+| range “to” (between two fields) | – | |
 | batch rename | மொத்தமாகப் பெயர்மாற்று | |
 | rename | பெயர்மாற்று | |
 | slideshow | ஸ்லைடுஷோ | |
@@ -131,4 +141,4 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 
 ## ஆங்கிலத்தில் வைக்கப்பட்டவை
 
-minivu; வடிவமைப்புப் பெயர்கள் (JPEG, HEIC, TIFF, Animated GIF, Animated HEIC…); RAW, HDR, SDR, GPS, ISO, DPI, XMP, IPTC, EXIF; Apple தயாரிப்பு, அம்சப் பெயர்கள் (Mac, Finder, Spotlight, Safari, AirDrop, Messages, Mail, Liquid Retina XDR, Pro Display XDR, Display P3); வட்டில் எழுதப்படும் பெயர்கள் (Pictures › minivu Wallpapers); பேட்டர்ன் டோக்கன்கள் ({name} முதலியன); EXIF திசைக் குறிகள் N/S/E/W; அலகுக் குறியீடுகள் (px, MP, fps, Mbit/s, kbit/s, pt, dpi).
+minivu; வடிவமைப்புப் பெயர்கள் (JPEG, HEIC, TIFF, GIF…); RAW, HDR, SDR, GPS, ISO, DPI, XMP, IPTC, EXIF; Apple தயாரிப்பு, அம்சப் பெயர்கள் (Mac, Finder, Spotlight, Safari, AirDrop, Messages, Mail, Liquid Retina XDR, Pro Display XDR, Display P3); வட்டில் எழுதப்படும் பெயர்கள் (Pictures › minivu Wallpapers); பேட்டர்ன் டோக்கன்கள் ({name} முதலியன); EXIF திசைக் குறிகள் N/S/E/W; அலகுக் குறியீடுகள் (px, MP, fps, Mbit/s, kbit/s, pt, dpi).
