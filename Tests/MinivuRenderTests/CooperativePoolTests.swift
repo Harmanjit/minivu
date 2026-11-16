@@ -12,6 +12,7 @@ import MinivuCore
 ///
 /// Not `.offCooperativePool`: these tests are about where the production
 /// code runs when called from the pool, as the app calls it.
+#if DEBUG
 @Suite struct CooperativePoolTests {
     static var formats: [ExportFormat] { [.heic] + (ExportFormat.avif.isWritable ? [.avif] : []) }
 
@@ -40,3 +41,4 @@ import MinivuCore
         #expect(log.names.isEmpty, "\(format): \(log.names)")
     }
 }
+#endif

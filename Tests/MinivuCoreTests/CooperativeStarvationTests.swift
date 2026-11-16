@@ -36,6 +36,7 @@ import CoreGraphics
         }
     }
 
+    #if DEBUG
     /// The check the regression test relies on: Vision called straight from
     /// a task is on a cooperative thread and is logged; the same call
     /// through `BlockingWork` is not.
@@ -57,6 +58,7 @@ import CoreGraphics
         }
         #expect(routed.names.isEmpty, "\(routed.names)")
     }
+    #endif
 }
 
 /// Holds Swift's cooperative threads blocked while jobs run through
