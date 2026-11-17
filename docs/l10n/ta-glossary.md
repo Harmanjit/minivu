@@ -125,6 +125,7 @@ uses it:
 | Print… | அச்சிடு… | |
 | Save / Save As… / Don’t Save | சேமி / இவ்வாறு சேமி… / சேமிக்க வேண்டாம் | |
 | Revert to Saved | சேமித்ததற்கு மீட்டமை | |
+| Revert (alert button) | சேமித்ததற்குத் திரும்பு | not மீட்டமை, which is the harmless tool button Reset; this button discards every unsaved edit |
 | Undo / Redo | செயல்தவிர் / மீண்டும் செய் | “Undo %@” → “செயல்தவிர்: %@”, “Redo %@” → “மீண்டும் செய்: %@”, HUD “திருத்தப்பட்டது  ·  செயல்தவிர்: %@” (a case ending on %@ breaks with imperative or consonant-final names); the MinivuRender edit names (“Name of an edit”) are verbal nouns: சுழற்றல், இடப்புறச் சுழற்றல், அளவு மாற்றம், கிடைமட்டப் புரட்டல், கூர்மையாக்கல், பின்னணி நீக்கம்; the Minivu menu commands of the same names stay imperatives |
 | Cut / Copy / Paste / Select All | வெட்டு / நகலெடு / ஒட்டு / அனைத்தையும் தேர்ந்தெடு | |
 | Duplicate | நகலாக்கு | |
@@ -142,7 +143,7 @@ uses it:
 | Reduce Motion | இயக்கத்தைக் குறை | |
 | Screen & System Audio Recording | திரை & சிஸ்டம் ஆடியோ பதிவு | |
 | Privacy & Security | தனியுரிமை & பாதுகாப்பு | |
-| System Settings | சிஸ்டம் அமைப்புகள் | |
+| System Settings | சிஸ்டம் அமைப்புகள் | macOS has no Tamil interface, so every System Settings path, in the help and in the UI, is in Tamil followed by the English in brackets: “சிஸ்டம் அமைப்புகள் > தனியுரிமை & பாதுகாப்பு (System Settings > Privacy & Security)”. The same goes for Shortcuts and Finder labels: “விரைவுச் செயலாகப் பயன்படுத்து (Use as Quick Action)”, “விரைவுச் செயல்கள் (Quick Actions)” |
 | metadata / keywords / caption / title / creator / copyright | மெட்டாடேட்டா / முக்கியச்சொற்கள் / தலைப்புக்குறிப்பு / தலைப்பு / உருவாக்கியவர் / பதிப்புரிமை | |
 | location | இருப்பிடம் | |
 | date taken / date modified / date created | எடுத்த தேதி / மாற்றிய தேதி / உருவாக்கிய தேதி | |
@@ -163,7 +164,7 @@ uses it:
 | Forever (animation loop) | முடிவின்றி | not எப்போதும் (“always”) |
 | min / max (range placeholders) | குறைந்தபட்சம் / அதிகபட்சம் | |
 | “… and N more” | இன்னும் %lld | the same wording for “%lld more” and “…and %lld more.” |
-| Find Duplicates | நகல்களைக் கண்டறி | |
+| Find Duplicates | நகல்களைக் கண்டறி | நகல் means “duplicate” on this sheet, so never use it for “no copy will be left”: the Trash warning says “அவை அனைத்தும் குப்பைக்கு நகர்த்தப்படும்; … ஒரு ஃபைல்கூட இங்கே மிஞ்சாது” |
 | Flat View | தட்டைக் காட்சி | |
 | external editor | வெளிப்புற எடிட்டர் | |
 | Custom Order | தனிப்பயன் வரிசை | |

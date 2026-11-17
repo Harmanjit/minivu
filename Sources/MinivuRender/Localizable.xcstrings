@@ -4917,7 +4917,7 @@
         "gu" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "તે મૂળને બદલી નાખશે."
+            "value" : "નહીંતર તે મૂળ ફાઇલની જગ્યા લઈ લેત."
           }
         },
         "hi" : {
@@ -6775,7 +6775,7 @@
         "ta" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "தள்ளு"
+            "value" : "தள்ளுதல்"
           }
         },
         "zh-Hans" : {

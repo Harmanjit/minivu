@@ -89,7 +89,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | save over the original | ਮੂਲ ਫ਼ਾਈਲ ਦੀ ਥਾਂ ਸੰਭਾਲੋ |
 | Fit / Fill (print scaling) | ਫ਼ਿੱਟ / ਭਰਨਾ (nouns for the choice, not the imperative ਭਰੋ) |
 | command names in a help sentence | bold or in “ ”, never bare, so a list such as “ਬਹੁ-ਪੰਨਾ ਫ਼ਾਈਲ ਬਣਾਓ” doesn't read as an instruction |
-| Revert (alert button) | ਵਾਪਸ ਜਾਓ |
+| Revert (alert button) | ਵਾਪਸ ਲਿਆਓ | matches the alert question’s “ਵਾਪਸ ਲਿਆਉਣਾ”; not “ਵਾਪਸ ਜਾਓ”, which reads as “go back” (dismiss) next to Cancel |
 | Untitled / Untitled Collection | ਬਿਨਾਂ ਨਾਮ / ਬਿਨਾਂ ਨਾਮ ਦਾ ਸੰਗ੍ਰਹਿ |
 | drag | ਘਸੀਟੋ / ਘਸੀਟਣਾ (never ਖਿੱਚ, which is “take a photo”); the gesture list uses the noun ਘਸੀਟਣਾ |
 | drop (drag and drop) | ਘਸੀਟ ਕੇ ਛੱਡਣਾ (“ਘਸੀਟ ਕੇ ਛੱਡੀਆਂ ਫ਼ਾਈਲਾਂ”, “ਘਸੀਟ ਕੇ ਛੱਡਦੇ ਸਮੇਂ ⌘”), in the UI and the help; never ਸੁੱਟਣਾ, and never a bare ਛੱਡਣਾ, which also means “skip” |
@@ -97,7 +97,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Selected %@ (inspector heading) | ਚੋਣ: %@ (no adjective to agree with the kind's gender) |
 | Adjust / RAW Adjustments | ਅਡਜਸਟ / RAW ਅਡਜਸਟਮੈਂਟ |
 | Orientation | ਓਰੀਐਂਟੇਸ਼ਨ |
-| Strength / Magnification (lens) / Free (crop) | ਤੀਬਰਤਾ / ਜ਼ੂਮ / ਖੁੱਲ੍ਹਾ |
+| Strength / Magnification (lens) / Free (crop) | ਤੀਬਰਤਾ / ਜ਼ੂਮ / ਕੋਈ ਵੀ ਅਨੁਪਾਤ |
 | embedded preview | ਫ਼ਾਈਲ ਵਿਚਲਾ ਪ੍ਰੀਵਿਊ |
 | Spellings | ਮੈਮੋਰੀ, ਜਿਨ੍ਹਾਂ, ਖਾਲੀ |
 
@@ -138,7 +138,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | preset | ਪ੍ਰੀਸੈੱਟ | |
 | edits / edit (verb) | ਸੋਧਾਂ / ਸੋਧੋ | |
 | image / picture / photo | ਚਿੱਤਰ / ਤਸਵੀਰ / ਫ਼ੋਟੋ | English distinction kept |
-| Pictures folder | ਤਸਵੀਰਾਂ | check Finder's display name |
+| Pictures folder | ਤਸਵੀਰਾਂ (Pictures) | macOS has no Punjabi interface, so Finder shows “Pictures”. Wherever the folder is named as a place (rename scope, save locations, sandbox access), write “ਤਸਵੀਰਾਂ (Pictures) ਫ਼ੋਲਡਰ” or “ਤਸਵੀਰਾਂ (Pictures) › minivu …”, in the UI and the help; minivu’s own sidebar item stays ਤਸਵੀਰਾਂ |
 | Quick Look | Quick Look | Apple feature name, not in the current catalog |
 | Live Text | ਲਾਈਵ ਟੈਕਸਟ | check |
 | AirDrop, Messages, Mail | AirDrop, ਸੁਨੇਹੇ, ਮੇਲ | check |

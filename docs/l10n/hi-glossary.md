@@ -72,7 +72,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Delete | डिलीट करें |
 | Duplicate | डुप्लिकेट करें |
 | Rename | नाम बदलें |
-| Move / Move To / Copy To | ले जाएँ / इसमें ले जाएँ / इसमें कॉपी करें (submenu titles that list destinations, so not “यहाँ”); as an Undo name, Move = ले जाना |
+| Move / Move To / Copy To | ले जाएँ / फ़ोल्डर में ले जाएँ / फ़ोल्डर में कॉपी करें (submenu titles that list destination folders, so neither “यहाँ” nor “इसमें”); as an Undo name, Move = ले जाना |
 | New Folder / untitled folder | नया फ़ोल्डर / बिना शीर्षक का फ़ोल्डर |
 | Trash | ट्रैश |
 | Move to Trash | ट्रैश में ले जाएँ |
