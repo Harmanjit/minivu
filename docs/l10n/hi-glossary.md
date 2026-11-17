@@ -72,7 +72,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Delete | डिलीट करें |
 | Duplicate | डुप्लिकेट करें |
 | Rename | नाम बदलें |
-| Move / Move To / Copy To | ले जाएँ / यहाँ ले जाएँ / यहाँ कॉपी करें |
+| Move / Move To / Copy To | ले जाएँ / इसमें ले जाएँ / इसमें कॉपी करें (submenu titles that list destinations, so not “यहाँ”); as an Undo name, Move = ले जाना |
 | New Folder / untitled folder | नया फ़ोल्डर / बिना शीर्षक का फ़ोल्डर |
 | Trash | ट्रैश |
 | Move to Trash | ट्रैश में ले जाएँ |
@@ -131,6 +131,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | canvas / Canvas Size / anchor | कैनवस / कैनवस का आकार / एंकर |
 | batch convert / Batch Convert… | बैच कन्वर्ट / बैच कन्वर्ट… |
 | batch rename / Batch Rename… | बैच में नाम बदलें… |
+| Shortcuts actions Resize Images / Rename Images; parameter labels Resize By / Counter Starts At | इमेज के आकार बदलें / इमेज के नाम बदलें (the ResizeSheet title “Resize Image” stays इमेज का आकार बदलें); labels are nouns: आकार बदलने का आधार / काउंटर की शुरुआत |
 | rename pattern / token / counter | पैटर्न / टोकन / काउंटर |
 | letter case | अक्षरों का केस |
 | preset | प्रीसेट |
@@ -174,11 +175,11 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | highlights / shadows / exposure | हाइलाइट्स / शैडो / एक्सपोज़र |
 | sharpen / blur / noise reduction | शार्प करें / ब्लर / नॉइज़ रिडक्शन |
 | grayscale / sepia / negative | ग्रेस्केल / सीपिया / नेगेटिव |
-| Auto / Auto Enhance | स्वतः / स्वतः बेहतर बनाएँ |
+| Auto / Auto Enhance | स्वतः / स्वतः बेहतर बनाएँ (menu command); the MinivuRender edit name (“Undo Auto Enhance”) is the verbal noun स्वतः बेहतर बनाना, like the other edit names |
 | Perspective | परिप्रेक्ष्य |
 | Vignette / Radius / Feather | विनेट / त्रिज्या / फ़ेदर |
 | opacity | अपारदर्शिता |
-| Fill (print scaling) / Fill (shape or canvas colour) | भरें / भराव (separate keys: “Fill” and “annotation.fill”, “canvas.fill”) |
+| Fill (print scaling) / Fill (shape or canvas colour) | भरना (a value in the Print summary, next to फ़िट) / भराव (separate keys: “Fill” and “annotation.fill”, “canvas.fill”) |
 | font weights: Light, Regular, Medium, Semibold, Bold, Heavy | लाइट, रेगुलर, मीडियम, सेमीबोल्ड, बोल्ड, हेवी (loanwords throughout; the Bump Map “Light” is प्रकाश) |
 | Sort By (submenu) | सॉर्ट करें |
 | Selected %@ (inspector heading) | चुना गया: %@ (the colon makes it a label, so feminine shape names such as रेखा still read correctly; not चयनित) |

@@ -125,7 +125,7 @@ uses it:
 | Print… | அச்சிடு… | |
 | Save / Save As… / Don’t Save | சேமி / இவ்வாறு சேமி… / சேமிக்க வேண்டாம் | |
 | Revert to Saved | சேமித்ததற்கு மீட்டமை | |
-| Undo / Redo | செயல்தவிர் / மீண்டும் செய் | “Undo %@” → “%@-ஐச் செயல்தவிர்”, “Redo %@” → “%@-ஐ மீண்டும் செய்” |
+| Undo / Redo | செயல்தவிர் / மீண்டும் செய் | “Undo %@” → “செயல்தவிர்: %@”, “Redo %@” → “மீண்டும் செய்: %@”, HUD “திருத்தப்பட்டது  ·  செயல்தவிர்: %@” (a case ending on %@ breaks with imperative or consonant-final names); the MinivuRender edit names (“Name of an edit”) are verbal nouns: சுழற்றல், இடப்புறச் சுழற்றல், அளவு மாற்றம், கிடைமட்டப் புரட்டல், கூர்மையாக்கல், பின்னணி நீக்கம்; the Minivu menu commands of the same names stay imperatives |
 | Cut / Copy / Paste / Select All | வெட்டு / நகலெடு / ஒட்டு / அனைத்தையும் தேர்ந்தெடு | |
 | Duplicate | நகலாக்கு | |
 | Settings… | அமைப்புகள்… | |

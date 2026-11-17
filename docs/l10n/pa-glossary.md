@@ -19,7 +19,8 @@ reviewer should check first against Apple's own Punjabi strings are marked
   order changes ("%2$lld ਵਿੱਚੋਂ %1$lld" for "%lld of %lld").
 - Menu commands and buttons: polite imperative ("ਸੰਭਾਲੋ", "ਕ੍ਰੌਪ ਕਰੋ…").
   Edit names (after "Undo") are nouns ("ਕ੍ਰੌਪ", "ਧੁੰਦਲਾ ਕਰਨਾ"), so
-  "Undo %@" is "%@ ਵਾਪਸ ਕਰੋ". Progress: "… ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…".
+  "Undo %@" is "%@ ਵਾਪਸ ਕਰੋ". This includes the browser's undo names
+  ("%lld ਆਈਟਮਾਂ ਭੇਜਣਾ", "%lld ਆਈਟਮਾਂ ਕਾਪੀ ਕਰਨਾ"). Progress: "… ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…".
 - Sentences end with the danda "।". Ellipsis "…" (U+2026) with no space.
   Quotation marks “ ”; apostrophe-like "’ਤੇ" for "ਉੱਤੇ" in short forms.
 - Digits stay Western (0–9), as Apple's Punjabi default. Unit symbols stay
@@ -45,7 +46,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 |---|---|---|
 | File | ਫ਼ਾਈਲ | menu; `section.file` heading also ਫ਼ਾਈਲ |
 | Edit | ਸੋਧੋ | check |
-| View | ਵੇਖੋ | check |
+| View (menu) | ਦ੍ਰਿਸ਼ | a noun, like the other menu titles; help paths read **ਦ੍ਰਿਸ਼ > …** |
 | Go | ਜਾਓ | |
 | Image | ਚਿੱਤਰ | |
 | Tools | ਟੂਲ | |
@@ -67,6 +68,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Save / Save As… / Don’t Save | ਸੰਭਾਲੋ / ਇਸ ਵਜੋਂ ਸੰਭਾਲੋ… / ਨਾ ਸੰਭਾਲੋ |
 | Revert to Saved | ਸੰਭਾਲੇ ਹੋਏ ’ਤੇ ਵਾਪਸ ਜਾਓ |
 | Undo / Redo | ਵਾਪਸ ਕਰੋ / ਮੁੜ ਕਰੋ |
+| Compare Selected / Enclosing Folder | ਚੁਣੇ ਚਿੱਤਰਾਂ ਦੀ ਤੁਲਨਾ ਕਰੋ / ਉੱਪਰਲਾ ਫ਼ੋਲਡਰ (not ਮੂਲ, which means “original”) |
 | Cut / Copy / Paste | ਕੱਟੋ / ਕਾਪੀ ਕਰੋ / ਪੇਸਟ ਕਰੋ |
 | Select All / Invert Selection | ਸਭ ਚੁਣੋ / ਚੋਣ ਉਲਟਾਓ |
 | Delete | ਮਿਟਾਓ |
@@ -143,7 +145,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Reduce Motion | ਹਿਲਜੁਲ ਘਟਾਓ | check |
 | Privacy & Security | ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ | check |
 | Screen & System Audio Recording | ਸਕ੍ਰੀਨ ਅਤੇ ਸਿਸਟਮ ਆਡੀਓ ਰਿਕਾਰਡਿੰਗ | check |
-| System Settings | ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ | a settings path in the help is bold and in Punjabi only, as in the UI; only the Language & Region path in Getting Started keeps the English in brackets |
+| System Settings | ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ | macOS has no Punjabi interface, so every System Settings path, in the help and in the UI, is in Punjabi followed by the English in brackets: “ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ > ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ (System Settings > Privacy & Security)” |
 | RAW / HDR / SDR | RAW / HDR / SDR | kept Latin |
 | metadata / keyword(s) | ਮੈਟਾਡਾਟਾ / ਕੀਵਰਡ | |
 | caption / title / creator / copyright | ਕੈਪਸ਼ਨ / ਸਿਰਲੇਖ / ਰਚਨਾਕਾਰ / ਕਾਪੀਰਾਈਟ | |
