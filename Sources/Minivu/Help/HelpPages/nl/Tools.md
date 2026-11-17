@@ -182,11 +182,12 @@ minivu voegt acties toe aan de app Opdrachten: **Converteer afbeeldingen**,
 **Wijzig grootte van afbeeldingen**, **Wijzig naam van afbeeldingen**, **Stel
 waardering in**, **Stel kleurlabel in** en **Open in minivu**. Zoek naar
 ‘minivu’ in de acties van de app Opdrachten om ze in je eigen opdrachten te
-gebruiken. Als je zo’n opdracht uitvoert, wordt minivu geopend als het nog niet
-open is. De acties werken alleen op bestanden op de interne opslag van je Mac.
-**Wijzig naam van afbeeldingen** werkt alleen in je map Afbeeldingen en in
-mappen in de navigatiekolom van minivu; als een bestand ergens anders staat,
-krijgt geen enkel bestand een nieuwe naam.
+gebruiken. Als minivu niet open is, start een opdracht het zonder venster, en
+minivu stopt een minuut na de laatste actie; **Open in minivu** opent de
+vensters zoals gewoonlijk. De acties werken alleen op bestanden op de interne
+opslag van je Mac. **Wijzig naam van afbeeldingen** werkt alleen in je map
+Afbeeldingen en in mappen in de navigatiekolom van minivu; als een bestand
+ergens anders staat, krijgt geen enkel bestand een nieuwe naam.
 
 Om een opdracht vanuit de Finder te gebruiken, maak je er een die afbeeldingen
 ontvangt en schakel je **Gebruik als snelle taak** in bij de details ervan. Hij

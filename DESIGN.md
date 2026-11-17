@@ -24,7 +24,7 @@ together, and the rules that keep it small and fast.
   The only thing kept is what a search read, in the catalog, so the next
   search of the same files reads nothing.
 - Readable in the user's language: the interface and the help pages ship
-  in English and ten other languages (4.13).
+  in English and fifteen other languages (4.13).
 
 **Non-goals** (decided 2026-09-13, widened where noted)
 
@@ -69,7 +69,7 @@ together, and the rules that keep it small and fast.
   `Bundle.minivuHelp` look first. It also:
   - copies the app bundle's `.lproj` folders into the main bundle, since
     SwiftUI's `Text("…")` looks in `Bundle.main`, and writes
-    `CFBundleLocalizations` with all eleven languages (4.13);
+    `CFBundleLocalizations` with all sixteen languages (4.13);
   - runs `appintentsmetadataprocessor` over the compiler's
     `.swiftconstvalues` records and writes
     Contents/Resources/Metadata.appintents, which is how Shortcuts finds
@@ -1376,8 +1376,9 @@ helpers stay synchronous; every production caller reaches them from GCD.
 
 The interface ships in English (the source language) and German, French,
 Spanish, Italian, Portuguese (Brazil), Dutch, Polish, Japanese, Chinese
-(Simplified) and Korean. Every translation is a machine translation in the
-catalog state `needs_review` until a native speaker checks it.
+(Simplified), Korean, Hindi, Punjabi, Bengali, Gujarati and Tamil. Every
+translation is a machine translation in the catalog state `needs_review`
+until a native speaker checks it.
 
 - **String Catalogs.** Each target has one `Localizable.xcstrings`.
   `defaultLocalization: "en"` in Package.swift makes Swift Build compile
@@ -1962,7 +1963,7 @@ plan that meets them.
 | G10 | RAW Adjustments | Done |
 | G11 | Auto Enhance, Noise Reduction, Vignette, Perspective, Canvas Size | Done. No separate Auto Levels |
 | G12 | Shortcuts actions (App Intents) | Done. Quick Look extension assessed and not built; no Services entries |
-| G13 | Localisation: ten languages, machine translated | Done; native review pending |
+| G13 | Localisation: fifteen languages, machine translated | Done; native review pending |
 | G14 | AVIF export | Done (animated AVIF not possible) |
 | G15 | Share sheet | Done |
 | G16 | Lossless JPEG crop | Excluded by Harman |

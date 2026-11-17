@@ -111,10 +111,13 @@ struct AnnotationInspectorView: View {
             if kind == .highlight {
                 ColorPicker("Color", selection: colorBinding(\.fillColor, name: localized("Color")), supportsOpacity: false)
             } else {
-                LabeledContent(kind == .text ? "Background" : "Fill") {
+                // Its own key: the print panel's "Fill" is a scaling choice, a verb in many languages.
+                let fill = localized(.init("annotation.fill", defaultValue: "Fill",
+                                           comment: "Noun: the colour inside a shape or behind text; also the Undo step that turns it on or off"))
+                LabeledContent(kind == .text ? localized("Background") : fill) {
                     HStack(spacing: 8) {
                         Toggle("", isOn: Binding(get: { style.fillColor.alpha > 0 }, set: { on in
-                            state.updateStyle(localized("Fill")) { $0.fillColor.alpha = on ? 1 : 0 }
+                            state.updateStyle(fill) { $0.fillColor.alpha = on ? 1 : 0 }
                         }))
                         .labelsHidden()
                         ColorPicker("", selection: colorBinding(\.fillColor, name: localized("Fill Color")), supportsOpacity: true)

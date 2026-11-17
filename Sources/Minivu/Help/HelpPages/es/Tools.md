@@ -175,11 +175,12 @@ conservarlas o volver a cargarlo.
 minivu añade acciones a la app Atajos: **Convertir imágenes**, **Redimensionar
 imágenes**, **Renombrar imágenes**, **Asignar valoración**, **Asignar etiqueta
 de color** y **Abrir en minivu**. Busca “minivu” entre las acciones de la app
-Atajos para usarlas en tus propios atajos. Al ejecutar uno de esos atajos,
-minivu se abre si no estaba abierto. Las acciones solo funcionan con archivos
-del almacenamiento interno de tu Mac. **Renombrar imágenes** solo funciona en tu
-carpeta Imágenes y en las carpetas de la barra lateral de minivu; si algún
-archivo está en otro sitio, no renombra ninguno.
+Atajos para usarlas en tus propios atajos. Si minivu no está abierto, un atajo
+lo inicia sin ninguna ventana, y minivu se cierra un minuto después de la última
+acción; **Abrir en minivu** abre sus ventanas como siempre. Las acciones solo
+funcionan con archivos del almacenamiento interno de tu Mac. **Renombrar
+imágenes** solo funciona en tu carpeta Imágenes y en las carpetas de la barra
+lateral de minivu; si algún archivo está en otro sitio, no renombra ninguno.
 
 Para usar un atajo desde el Finder, crea uno que reciba imágenes y activa **Usar
 como acción rápida** en sus detalles. Entonces aparece en el menú contextual del

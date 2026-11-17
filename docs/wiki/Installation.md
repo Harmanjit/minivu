@@ -38,7 +38,7 @@ Drag `build/minivu.app` to Applications to keep it. To open images with it from 
 3. Copies the three resource bundles into `Contents/Resources`: the Metal shaders, the pages for **Help > minivu Help** in every language, and each part's translations. It also copies the app icon, `Assets/AppIcon.icns`. That file is made from the vector original, `Assets/AppIcon.pdf`, by `swift scripts/make_icon.swift`; run that again after changing the PDF.
 4. Writes `Contents/Resources/Metadata.appintents`, the description of minivu's Shortcuts actions that the Shortcuts app reads without launching minivu, and prints "Shortcuts actions: …". It stops with an error if Xcode's tool fails or finds no actions, rather than make an app whose actions have gone.
 5. Precompiles the shaders into a Metal library when the Metal toolchain is installed, and otherwise says they will compile at launch.
-6. Writes `Info.plist`, which registers minivu as an alternate editor for images, camera RAW files, PDF and SVG, lets you drop a folder on its Dock icon, and lists the eleven languages minivu ships (see [Languages](Languages)).
+6. Writes `Info.plist`, which registers minivu as an alternate editor for images, camera RAW files, PDF and SVG, lets you drop a folder on its Dock icon, and lists the sixteen languages minivu ships (see [Languages](Languages)).
 7. Signs the bundle ad hoc with the hardened runtime and the sandbox entitlements in [`scripts/minivu.entitlements`](https://github.com/Harmanjit/minivu/blob/main/scripts/minivu.entitlements), verifies the signature, and prints the bundle's size.
 
 The script takes an optional version number, which goes into `Info.plist` (the default is 0.9.1):

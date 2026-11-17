@@ -1,6 +1,6 @@
 # Languages
 
-minivu is in English and ten other languages. It has no language setting of its own: it uses the language macOS gives it, so you choose it in System Settings, as for any Mac app.
+minivu is in English and fifteen other languages. It has no language setting of its own: it uses the language macOS gives it, so you choose it in System Settings, as for any Mac app.
 
 ## The languages
 
@@ -17,6 +17,11 @@ minivu is in English and ten other languages. It has no language setting of its 
 | Japanese | 日本語 |
 | Chinese (Simplified) | 简体中文 |
 | Korean | 한국어 |
+| Hindi | हिन्दी |
+| Punjabi | ਪੰਜਾਬੀ |
+| Bengali | বাংলা |
+| Gujarati | ગુજરાતી |
+| Tamil | தமிழ் |
 
 ## Machine translations, not yet reviewed
 
@@ -39,7 +44,7 @@ To change minivu alone:
 
 To go back, select minivu in that list and click **−**. minivu then follows your preferred languages again.
 
-To try a language for one launch only, quit minivu and run this in Terminal (here German, `de`; the others are `fr`, `es`, `it`, `pt-BR`, `nl`, `pl`, `ja`, `zh-Hans` and `ko`):
+To try a language for one launch only, quit minivu and run this in Terminal (here German, `de`; the others are `fr`, `es`, `it`, `pt-BR`, `nl`, `pl`, `ja`, `zh-Hans`, `ko`, `hi`, `pa`, `bn`, `gu` and `ta`):
 
 ```bash
 open /Applications/minivu.app --args -AppleLanguages '(de)'
@@ -51,7 +56,7 @@ open /Applications/minivu.app --args -AppleLanguages '(de)'
 - **Help > minivu Help** (⌘?): the help pages are translated too. **Help > Keyboard Shortcuts** (⌘/) is built from the menus, so it follows them.
 - The colour labels under **Image > Label**. The tag written to the file is Finder's own name for that colour in your system's language, the name Finder itself would write.
 - The names and descriptions of minivu's actions in the Shortcuts app.
-- Numbers, dates and units follow your region (**System Settings > General > Language & Region > Region**), so 1,5 or 1.5 is written as you expect.
+- Numbers, dates and units follow your region (**System Settings > General > Language & Region > Region**), so 1,5 or 1.5 (or 1,00,000 with an Indian region) is written as you expect.
 
 Keyboard shortcuts never change: a translated command keeps its key.
 
@@ -65,4 +70,4 @@ Keyboard shortcuts never change: a translated command keeps its key.
 
 ## When text doesn't fit
 
-German, French and Polish text is often 30 to 40 percent longer than English. If a label is cut short or overlaps something, that is a bug: please report it as above, with a screenshot if you can.
+German, French and Polish text is often 30 to 40 percent longer than English, and Tamil longer still. Hindi, Punjabi, Bengali, Gujarati and Tamil script is also taller than Latin, with vowel signs above and below the line, so watch for text clipped at the top or bottom. If a label is cut short or overlaps something, that is a bug: please report it as above, with a screenshot if you can.

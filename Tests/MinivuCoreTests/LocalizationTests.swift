@@ -25,6 +25,13 @@ import Foundation
         #expect(localized("Red", locale: Locale(components: components)) == "Vermelho")
         components.languageComponents = Locale.Language.Components(identifier: "zh-Hans")
         #expect(localized("Red", locale: Locale(components: components)) == "红色")
+        // An Indic language with India's region (Hindi, Punjabi, Bengali,
+        // Gujarati and Tamil all ship): not English.
+        for language in ["hi", "pa", "bn", "gu", "ta"] {
+            var indian = Locale.Components(identifier: "en_IN")
+            indian.languageComponents = Locale.Language.Components(identifier: language)
+            #expect(localized("Red", locale: Locale(components: indian)) != "Red", "\(language)")
+        }
     }
 
     /// A keyed resource is looked up by its key, so one English word can

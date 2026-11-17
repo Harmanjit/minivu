@@ -3,6 +3,24 @@
   "strings" : {
     "%lld bits per component can't be exported (8 or 16 can)." : {
       "localizations" : {
+        "bn" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "প্রতি কম্পোনেন্টে %lld বিট এক্সপোর্ট করা যায় না (8 বা 16 করা যায়)।"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "প্রতি কম্পোনেন্টে %lld বিট এক্সপোর্ট করা যায় না (8 বা 16 করা যায়)।"
+                }
+              }
+            }
+          }
+        },
         "de" : {
           "variations" : {
             "plural" : {
@@ -87,6 +105,42 @@
             }
           }
         },
+        "gu" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "ઘટક દીઠ %lld બિટ એક્સપોર્ટ કરી શકાતો નથી (8 અથવા 16 થઈ શકે છે)."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "ઘટક દીઠ %lld બિટ એક્સપોર્ટ કરી શકાતા નથી (8 અથવા 16 થઈ શકે છે)."
+                }
+              }
+            }
+          }
+        },
+        "hi" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "%lld बिट प्रति कंपोनेंट एक्सपोर्ट नहीं किया जा सकता (केवल 8 या 16 बिट एक्सपोर्ट किए जा सकते हैं)।"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "%lld बिट प्रति कंपोनेंट एक्सपोर्ट नहीं किए जा सकते (केवल 8 या 16 बिट एक्सपोर्ट किए जा सकते हैं)।"
+                }
+              }
+            }
+          }
+        },
         "it" : {
           "variations" : {
             "plural" : {
@@ -153,6 +207,24 @@
             }
           }
         },
+        "pa" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "%lld ਬਿੱਟ ਪ੍ਰਤੀ ਕੰਪੋਨੈਂਟ ਐਕਸਪੋਰਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ (8 ਜਾਂ 16 ਕੀਤੇ ਜਾ ਸਕਦੇ ਹਨ)।"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "%lld ਬਿੱਟ ਪ੍ਰਤੀ ਕੰਪੋਨੈਂਟ ਐਕਸਪੋਰਟ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕਦੇ (8 ਜਾਂ 16 ਕੀਤੇ ਜਾ ਸਕਦੇ ਹਨ)।"
+                }
+              }
+            }
+          }
+        },
         "pl" : {
           "variations" : {
             "plural" : {
@@ -207,6 +279,24 @@
             }
           }
         },
+        "ta" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "ஒரு கூறுக்கு %lld பிட்டை ஏற்றுமதி செய்ய முடியாது (8 அல்லது 16 முடியும்)."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "ஒரு கூறுக்கு %lld பிட்களை ஏற்றுமதி செய்ய முடியாது (8 அல்லது 16 முடியும்)."
+                }
+              }
+            }
+          }
+        },
         "zh-Hans" : {
           "variations" : {
             "plural" : {
@@ -223,6 +313,12 @@
     },
     "A folder named “%@” is in the way." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” নামে একটি ফোল্ডার আগে থেকেই আছে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -239,6 +335,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Un dossier nommé « %@ » fait obstacle."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” નામનું ફોલ્ડર નડે છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” नाम का एक फ़ोल्डर पहले से मौजूद है।"
           }
         },
         "it" : {
@@ -265,6 +373,12 @@
             "value" : "Er staat een map met de naam ‘%@’ in de weg."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” ਨਾਮ ਦਾ ਇੱਕ ਫ਼ੋਲਡਰ ਪਹਿਲਾਂ ਹੀ ਉੱਥੇ ਮੌਜੂਦ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -277,6 +391,12 @@
             "value" : "Uma pasta chamada “%@” está no caminho."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” என்ற பெயரில் ஒரு ஃபோல்டர் இடையூறாக உள்ளது."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -287,6 +407,12 @@
     },
     "An item named “%@” already exists." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” নামে একটি আইটেম ইতিমধ্যে আছে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -303,6 +429,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Un élément nommé « %@ » existe déjà."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” નામની આઇટમ પહેલેથી અસ્તિત્વમાં છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” नाम का आइटम पहले से मौजूद है।"
           }
         },
         "it" : {
@@ -329,6 +467,12 @@
             "value" : "Er bestaat al een onderdeel met de naam ‘%@’."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” ਨਾਮ ਦੀ ਆਈਟਮ ਪਹਿਲਾਂ ਹੀ ਮੌਜੂਦ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -339,6 +483,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Já existe um item chamado “%@”."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "“%@” என்ற பெயரில் ஏற்கெனவே ஒரு உருப்படி உள்ளது."
           }
         },
         "zh-Hans" : {
@@ -352,6 +502,12 @@
     "Arrow" : {
       "comment" : "Drawing shape",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "তীর"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -368,6 +524,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Flèche"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "તીર"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "तीर"
           }
         },
         "it" : {
@@ -394,6 +562,12 @@
             "value" : "Pijl"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਤੀਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -404,6 +578,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Seta"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "அம்புக்குறி"
           }
         },
         "zh-Hans" : {
@@ -417,6 +597,12 @@
     "Auto Enhance" : {
       "comment" : "Name of an edit, as in “Undo Auto Enhance”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "স্বয়ংক্রিয় উন্নতি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -433,6 +619,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Amélioration automatique"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઑટો એન્હાન્સ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "स्वतः बेहतर बनाना"
           }
         },
         "it" : {
@@ -459,6 +657,12 @@
             "value" : "Automatisch verbeteren"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਆਟੋ ਸੁਧਾਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -469,6 +673,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Realce Automático"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "தானியங்கு மேம்பாடு"
           }
         },
         "zh-Hans" : {
@@ -482,6 +692,12 @@
     "Bell" : {
       "comment" : "Resampling filter",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বেল"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -498,6 +714,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Cloche"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બેલ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बेल"
           }
         },
         "it" : {
@@ -524,6 +752,12 @@
             "value" : "Bell"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬੈੱਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -534,6 +768,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Sino"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பெல்"
           }
         },
         "zh-Hans" : {
@@ -547,6 +787,12 @@
     "Bevel" : {
       "comment" : "Frame style: a raised moulding",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বেভেল"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -563,6 +809,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Biseau"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બેવલ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बेवल"
           }
         },
         "it" : {
@@ -589,6 +847,12 @@
             "value" : "Afgeschuind"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬੇਵਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -599,6 +863,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Chanfro"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பெவல்"
           }
         },
         "zh-Hans" : {
@@ -612,6 +882,12 @@
     "Blur" : {
       "comment" : "Name of an edit, as in “Undo Blur”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ব্লার"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -628,6 +904,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Flou"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બ્લર"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ब्लर"
           }
         },
         "it" : {
@@ -654,6 +942,12 @@
             "value" : "Vervagen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਧੁੰਦਲਾ ਕਰਨਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -664,6 +958,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Desfoque"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மங்கலாக்கல்"
           }
         },
         "zh-Hans" : {
@@ -677,6 +977,12 @@
     "Bold" : {
       "comment" : "Font weight",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বোল্ড"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -693,6 +999,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Gras"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બોલ્ડ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बोल्ड"
           }
         },
         "it" : {
@@ -719,6 +1037,12 @@
             "value" : "Vet"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬੋਲਡ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -729,6 +1053,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Negrito"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "தடித்த"
           }
         },
         "zh-Hans" : {
@@ -742,6 +1072,12 @@
     "Bottom" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নিচে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -758,6 +1094,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Bas"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નીચે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "नीचे"
           }
         },
         "it" : {
@@ -784,6 +1132,12 @@
             "value" : "Onder"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹੇਠਾਂ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -794,6 +1148,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Embaixo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கீழே"
           }
         },
         "zh-Hans" : {
@@ -807,6 +1167,12 @@
     "Bottom Left" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নিচে বাঁয়ে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -823,6 +1189,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "En bas à gauche"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નીચે ડાબે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "नीचे बाएँ"
           }
         },
         "it" : {
@@ -849,6 +1227,12 @@
             "value" : "Linksonder"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹੇਠਾਂ ਖੱਬੇ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -859,6 +1243,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Embaixo à Esquerda"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கீழ் இடது"
           }
         },
         "zh-Hans" : {
@@ -872,6 +1262,12 @@
     "Bottom Right" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নিচে ডানে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -888,6 +1284,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "En bas à droite"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નીચે જમણે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "नीचे दाएँ"
           }
         },
         "it" : {
@@ -914,6 +1322,12 @@
             "value" : "Rechtsonder"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹੇਠਾਂ ਸੱਜੇ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -924,6 +1338,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Embaixo à Direita"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கீழ் வலது"
           }
         },
         "zh-Hans" : {
@@ -937,6 +1357,12 @@
     "Box" : {
       "comment" : "Resampling filter",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বক্স"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -953,6 +1379,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Boîte"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બૉક્સ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बॉक्स"
           }
         },
         "it" : {
@@ -979,6 +1417,12 @@
             "value" : "Box"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬਾਕਸ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -991,6 +1435,12 @@
             "value" : "Caixa"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பாக்ஸ்"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1001,6 +1451,12 @@
     },
     "Brush strokes are painted on this photo’s content." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ব্রাশ স্ট্রোকগুলো এই ফটোর বিষয়বস্তুর উপর আঁকা হয়েছে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1017,6 +1473,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Les coups de pinceau sont peints sur le contenu de cette photo."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બ્રશ સ્ટ્રોક આ ફોટોની સામગ્રી પર દોરવામાં આવ્યા છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ब्रश स्ट्रोक इस फ़ोटो की सामग्री पर पेंट किए गए हैं।"
           }
         },
         "it" : {
@@ -1043,6 +1511,12 @@
             "value" : "Penseelstreken zijn op de inhoud van deze foto geschilderd."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬੁਰਸ਼ ਸਟ੍ਰੋਕ ਇਸ ਫ਼ੋਟੋ ਦੀ ਸਮੱਗਰੀ ਉੱਤੇ ਪੇਂਟ ਕੀਤੇ ਗਏ ਹਨ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1053,6 +1527,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "As pinceladas são pintadas sobre o conteúdo desta foto."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "தூரிகைக் கோடுகள் இந்தப் புகைப்படத்தின் உள்ளடக்கத்தின் மீது வரையப்படுகின்றன."
           }
         },
         "zh-Hans" : {
@@ -1066,6 +1546,12 @@
     "Bump Map" : {
       "comment" : "Name of an edit, as in “Undo Bump Map”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বাম্প ম্যাপ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1082,6 +1568,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Relief"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બમ્પ મૅપ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बम्प मैप"
           }
         },
         "it" : {
@@ -1108,6 +1606,12 @@
             "value" : "Reliëf"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬੰਪ ਮੈਪ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1118,6 +1622,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Mapa de Relevo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பம்ப் மேப்"
           }
         },
         "zh-Hans" : {
@@ -1131,6 +1641,12 @@
     "Callout" : {
       "comment" : "Drawing shape: a speech bubble",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কলআউট"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1147,6 +1663,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Bulle"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કૉલઆઉટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "कॉलआउट"
           }
         },
         "it" : {
@@ -1173,6 +1701,12 @@
             "value" : "Tekstballon"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕਾਲਆਊਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1183,6 +1717,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Balão"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பேச்சுக்குமிழ்"
           }
         },
         "zh-Hans" : {
@@ -1196,6 +1736,12 @@
     "Canvas Size" : {
       "comment" : "Name of an edit, as in “Undo Canvas Size”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ক্যানভাসের আকার"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1212,6 +1758,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Taille de la zone de travail"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કૅનવાસનું કદ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "कैनवस का आकार"
           }
         },
         "it" : {
@@ -1238,6 +1796,12 @@
             "value" : "Canvasgrootte"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕੈਨਵਸ ਆਕਾਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1248,6 +1812,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Tamanho da Tela de Pintura"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கேன்வாஸ் அளவு"
           }
         },
         "zh-Hans" : {
@@ -1261,6 +1831,12 @@
     "Center" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "মাঝখানে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1277,6 +1853,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Centre"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "મધ્ય"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बीच में"
           }
         },
         "it" : {
@@ -1303,6 +1891,12 @@
             "value" : "Midden"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕੇਂਦਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1313,6 +1907,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Centro"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மையம்"
           }
         },
         "zh-Hans" : {
@@ -1326,6 +1926,12 @@
     "Charcoal" : {
       "comment" : "Sketch style",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "চারকোল"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1342,6 +1948,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Fusain"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ચારકોલ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "चारकोल"
           }
         },
         "it" : {
@@ -1368,6 +1986,12 @@
             "value" : "Houtskool"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਚਾਰਕੋਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1378,6 +2002,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Carvão"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கரி"
           }
         },
         "zh-Hans" : {
@@ -1391,6 +2021,12 @@
     "Clone Stamp" : {
       "comment" : "Name of an edit, as in “Undo Clone Stamp”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ক্লোন স্ট্যাম্প"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1407,6 +2043,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Tampon de duplication"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ક્લોન સ્ટૅમ્પ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "क्लोन स्टैम्प"
           }
         },
         "it" : {
@@ -1433,6 +2081,12 @@
             "value" : "Kloonstempel"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕਲੋਨ ਸਟੈਂਪ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1443,6 +2097,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Carimbo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "குளோன் ஸ்டாம்ப்"
           }
         },
         "zh-Hans" : {
@@ -1456,6 +2116,12 @@
     "Colored Pencil" : {
       "comment" : "Sketch style",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রঙিন পেনসিল"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1472,6 +2138,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Crayon de couleur"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રંગીન પેન્સિલ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "रंगीन पेंसिल"
           }
         },
         "it" : {
@@ -1498,6 +2176,12 @@
             "value" : "Kleurpotlood"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਰੰਗਦਾਰ ਪੈਨਸਿਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1508,6 +2192,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Lápis de Cor"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வண்ணப் பென்சில்"
           }
         },
         "zh-Hans" : {
@@ -1521,6 +2211,12 @@
     "Colors" : {
       "comment" : "Name of an edit: colour adjustments",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রং"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1537,6 +2233,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Couleurs"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રંગો"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "रंग"
           }
         },
         "it" : {
@@ -1563,6 +2271,12 @@
             "value" : "Kleuren"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਰੰਗ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1573,6 +2287,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Cores"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வண்ணங்கள்"
           }
         },
         "zh-Hans" : {
@@ -1586,6 +2306,12 @@
     "Cosine" : {
       "comment" : "Resampling filter",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কোসাইন"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1602,6 +2328,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Cosinus"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કોસાઇન"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "कोसाइन"
           }
         },
         "it" : {
@@ -1628,6 +2366,12 @@
             "value" : "Cosinus"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕੋਸਾਈਨ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1638,6 +2382,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Cosseno"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கொசைன்"
           }
         },
         "zh-Hans" : {
@@ -1651,6 +2401,12 @@
     "Crop" : {
       "comment" : "Name of an edit, as in “Undo Crop”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ক্রপ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1667,6 +2423,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Recadrage"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ક્રૉપ કરવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "क्रॉप"
           }
         },
         "it" : {
@@ -1693,6 +2461,12 @@
             "value" : "Bijsnijden"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕ੍ਰੌਪ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1703,6 +2477,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Recorte"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "செதுக்கல்"
           }
         },
         "zh-Hans" : {
@@ -1716,6 +2496,12 @@
     "Cross-Fade" : {
       "comment" : "Slideshow transition",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ক্রস-ফেড"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1732,6 +2518,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Fondu enchaîné"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ક્રૉસ-ફેડ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "क्रॉस-फ़ेड"
           }
         },
         "it" : {
@@ -1758,6 +2556,12 @@
             "value" : "Overvloeien"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕ੍ਰੌਸ-ਫ਼ੇਡ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1768,6 +2572,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Fusão Cruzada"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கிராஸ்-ஃபேட்"
           }
         },
         "zh-Hans" : {
@@ -1781,6 +2591,12 @@
     "Curves" : {
       "comment" : "Name of an edit, as in “Undo Curves”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কার্ভস"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1797,6 +2613,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Courbes"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કર્વ્સ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "कर्व्स"
           }
         },
         "it" : {
@@ -1823,6 +2651,12 @@
             "value" : "Curven"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕਰਵ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1833,6 +2667,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Curvas"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வளைவுகள்"
           }
         },
         "zh-Hans" : {
@@ -1846,6 +2686,12 @@
     "Dissolve" : {
       "comment" : "Slideshow transition",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ডিজলভ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1862,6 +2708,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Dissolution"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ડિઝૉલ્વ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "डिज़ॉल्व"
           }
         },
         "it" : {
@@ -1888,6 +2746,12 @@
             "value" : "Oplossen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਡਿਜ਼ੌਲਵ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1900,6 +2764,12 @@
             "value" : "Dissolver"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கரைதல்"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1910,6 +2780,12 @@
     },
     "Don’t Resize" : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "আকার পরিবর্তন করবেন না"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1926,6 +2802,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Ne pas redimensionner"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કદ બદલશો નહીં"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "आकार न बदलें"
           }
         },
         "it" : {
@@ -1952,6 +2840,12 @@
             "value" : "Wijzig grootte niet"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਆਕਾਰ ਨਾ ਬਦਲੋ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1962,6 +2856,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Não Redimensionar"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "அளவை மாற்ற வேண்டாம்"
           }
         },
         "zh-Hans" : {
@@ -1975,6 +2875,12 @@
     "Drawing" : {
       "comment" : "Name of an edit: text and shapes drawn on the image",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "অঙ্কন"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -1991,6 +2897,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Dessin"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ડ્રોઇંગ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ड्रॉइंग"
           }
         },
         "it" : {
@@ -2017,6 +2935,12 @@
             "value" : "Tekening"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਡਰਾਇੰਗ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2027,6 +2951,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Desenho"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வரைதல்"
           }
         },
         "zh-Hans" : {
@@ -2040,6 +2970,12 @@
     "Drop Shadow" : {
       "comment" : "Name of an edit, as in “Undo Drop Shadow”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ড্রপ শ্যাডো"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2056,6 +2992,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Ombre portée"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ડ્રૉપ શૅડો"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ड्रॉप शैडो"
           }
         },
         "it" : {
@@ -2082,6 +3030,12 @@
             "value" : "Slagschaduw"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਡ੍ਰੌਪ ਸ਼ੈਡੋ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2092,6 +3046,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Sombra Projetada"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "விழும் நிழல்"
           }
         },
         "zh-Hans" : {
@@ -2105,6 +3065,12 @@
     "Fade Through Black" : {
       "comment" : "Slideshow transition",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কালোর মধ্য দিয়ে ফেড"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2121,6 +3087,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Fondu au noir"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કાળામાંથી ફેડ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "काले से होकर फ़ेड"
           }
         },
         "it" : {
@@ -2147,6 +3125,12 @@
             "value" : "Vervagen via zwart"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕਾਲੇ ਰਾਹੀਂ ਫ਼ੇਡ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2157,6 +3141,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Esmaecer para Preto"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கருப்பு வழியாக மங்குதல்"
           }
         },
         "zh-Hans" : {
@@ -2170,6 +3160,12 @@
     "Flip Horizontal" : {
       "comment" : "Name of an edit, as in “Undo Flip Horizontal”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "অনুভূমিকভাবে উল্টান"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2186,6 +3182,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Symétrie horizontale"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "આડું ફ્લિપ કરવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "क्षैतिज फ़्लिप"
           }
         },
         "it" : {
@@ -2212,6 +3220,12 @@
             "value" : "Horizontaal spiegelen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਖਿਤਿਜੀ ਉਲਟਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2222,6 +3236,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Inverter Horizontalmente"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கிடைமட்டப் புரட்டல்"
           }
         },
         "zh-Hans" : {
@@ -2235,6 +3255,12 @@
     "Flip Vertical" : {
       "comment" : "Name of an edit, as in “Undo Flip Vertical”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "উল্লম্বভাবে উল্টান"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2251,6 +3277,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Symétrie verticale"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઊભું ફ્લિપ કરવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "लंबवत फ़्लिप"
           }
         },
         "it" : {
@@ -2277,6 +3315,12 @@
             "value" : "Verticaal spiegelen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲੰਬਕਾਰੀ ਉਲਟਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2287,6 +3331,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Inverter Verticalmente"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "செங்குத்துப் புரட்டல்"
           }
         },
         "zh-Hans" : {
@@ -2300,6 +3350,12 @@
     "Frame" : {
       "comment" : "Name of an edit: a frame drawn around the image",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ফ্রেম"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2316,6 +3372,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Cadre"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ફ્રેમ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "चौखट"
           }
         },
         "it" : {
@@ -2342,6 +3410,12 @@
             "value" : "Lijst"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਚੌਖਟਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2352,6 +3426,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Moldura"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "சட்டகம்"
           }
         },
         "zh-Hans" : {
@@ -2365,6 +3445,12 @@
     "Grayscale" : {
       "comment" : "Name of an edit, as in “Undo Grayscale”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "গ্রেস্কেল"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2381,6 +3467,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Niveaux de gris"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ગ્રેસ્કેલ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ग्रेस्केल"
           }
         },
         "it" : {
@@ -2407,6 +3505,12 @@
             "value" : "Grijswaarden"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਗ੍ਰੇਸਕੇਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2417,6 +3521,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Escala de Cinza"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கிரேஸ்கேல்"
           }
         },
         "zh-Hans" : {
@@ -2430,6 +3540,12 @@
     "Healing Brush" : {
       "comment" : "Name of an edit, as in “Undo Healing Brush”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "হিলিং ব্রাশ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2446,6 +3562,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Pinceau correcteur"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "હીલિંગ બ્રશ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "हीलिंग ब्रश"
           }
         },
         "it" : {
@@ -2472,6 +3600,12 @@
             "value" : "Retoucheerpenseel"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹੀਲਿੰਗ ਬੁਰਸ਼"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2482,6 +3616,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Pincel de Recuperação"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "குணப்படுத்தும் தூரிகை"
           }
         },
         "zh-Hans" : {
@@ -2495,6 +3635,12 @@
     "Heavy" : {
       "comment" : "Font weight",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "হেভি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2511,6 +3657,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Extra-gras"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "હેવી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "हेवी"
           }
         },
         "it" : {
@@ -2537,6 +3695,12 @@
             "value" : "Zwaar"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹੈਵੀ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2547,6 +3711,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Pesado"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மிகத் தடித்த"
           }
         },
         "zh-Hans" : {
@@ -2560,6 +3730,12 @@
     "Height" : {
       "comment" : "Noun: size in pixels",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "উচ্চতা"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2576,6 +3752,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Hauteur"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઊંચાઈ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ऊँचाई"
           }
         },
         "it" : {
@@ -2602,6 +3790,12 @@
             "value" : "Hoogte"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਉਚਾਈ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2612,6 +3806,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Altura"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "உயரம்"
           }
         },
         "zh-Hans" : {
@@ -2625,6 +3825,12 @@
     "High" : {
       "comment" : "Video quality",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "উচ্চ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2641,6 +3847,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Élevée"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઊંચી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "उच्च"
           }
         },
         "it" : {
@@ -2667,6 +3885,12 @@
             "value" : "Hoog"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਉੱਚ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2677,6 +3901,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Alta"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "உயர்"
           }
         },
         "zh-Hans" : {
@@ -2690,6 +3920,12 @@
     "Highlight" : {
       "comment" : "Drawing shape: a translucent marker stroke",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "হাইলাইট"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2706,6 +3942,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Surlignage"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "હાઇલાઇટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "हाइलाइट"
           }
         },
         "it" : {
@@ -2732,6 +3980,12 @@
             "value" : "Markeerstift"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹਾਈਲਾਈਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2742,6 +3996,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Marca-texto"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஹைலைட்"
           }
         },
         "zh-Hans" : {
@@ -2755,6 +4015,12 @@
     "Image" : {
       "comment" : "Noun: a picture used as a watermark",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ছবি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2771,6 +4037,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Image"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઇમેજ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "इमेज"
           }
         },
         "it" : {
@@ -2797,6 +4075,12 @@
             "value" : "Afbeelding"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਚਿੱਤਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2807,6 +4091,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Imagem"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "படம்"
           }
         },
         "zh-Hans" : {
@@ -2820,6 +4110,12 @@
     "Iris" : {
       "comment" : "Slideshow transition: a circle opens on the new picture",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "আইরিস"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2836,6 +4132,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Iris"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "આઇરિસ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "आइरिस"
           }
         },
         "it" : {
@@ -2862,6 +4170,12 @@
             "value" : "Iris"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਆਇਰਿਸ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2874,6 +4188,12 @@
             "value" : "Íris"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஐரிஸ்"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2884,6 +4204,24 @@
     },
     "It has only %lld pages." : {
       "localizations" : {
+        "bn" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "এতে মাত্র %lldটি পৃষ্ঠা আছে।"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "এতে মাত্র %lldটি পৃষ্ঠা আছে।"
+                }
+              }
+            }
+          }
+        },
         "de" : {
           "variations" : {
             "plural" : {
@@ -2968,6 +4306,42 @@
             }
           }
         },
+        "gu" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "તેમાં ફક્ત %lld પેજ છે."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "તેમાં ફક્ત %lld પેજ છે."
+                }
+              }
+            }
+          }
+        },
+        "hi" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "इसमें केवल %lld पेज है।"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "इसमें केवल %lld पेज हैं।"
+                }
+              }
+            }
+          }
+        },
         "it" : {
           "variations" : {
             "plural" : {
@@ -3034,6 +4408,24 @@
             }
           }
         },
+        "pa" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "ਇਸ ਵਿੱਚ ਸਿਰਫ਼ %lld ਪੰਨਾ ਹੈ।"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "ਇਸ ਵਿੱਚ ਸਿਰਫ਼ %lld ਪੰਨੇ ਹਨ।"
+                }
+              }
+            }
+          }
+        },
         "pl" : {
           "variations" : {
             "plural" : {
@@ -3088,6 +4480,24 @@
             }
           }
         },
+        "ta" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "இதில் %lld பக்கம் மட்டுமே உள்ளது."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "needs_review",
+                  "value" : "இதில் %lld பக்கங்கள் மட்டுமே உள்ளன."
+                }
+              }
+            }
+          }
+        },
         "zh-Hans" : {
           "variations" : {
             "plural" : {
@@ -3104,6 +4514,12 @@
     },
     "It has only one page." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "এতে মাত্র একটি পৃষ্ঠা আছে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3120,6 +4536,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Il ne compte qu’une seule page."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "તેમાં ફક્ત એક પેજ છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "इसमें केवल एक पेज है।"
           }
         },
         "it" : {
@@ -3146,6 +4574,12 @@
             "value" : "Het heeft maar één pagina."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਇਸ ਵਿੱਚ ਸਿਰਫ਼ ਇੱਕ ਪੰਨਾ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3158,6 +4592,12 @@
             "value" : "Ele tem apenas uma página."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இதில் ஒரு பக்கம் மட்டுமே உள்ளது."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3168,6 +4608,12 @@
     },
     "It is a size in pixels for this photo. Use Batch Convert’s Resize, which works from each photo’s own size." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "এটি এই ফটোর জন্য পিক্সেলে একটি আকার। ব্যাচ রূপান্তরের আকার পরিবর্তন ব্যবহার করুন, যা প্রতিটি ফটোর নিজস্ব আকার থেকে কাজ করে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3184,6 +4630,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Il s’agit d’une taille en pixels propre à cette photo. Utilisez Redimensionner dans Convertir par lot, qui part de la taille de chaque photo."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "તે આ ફોટો માટેનું પિક્સેલમાં કદ છે. બૅચ કન્વર્ટનું કદ બદલો વાપરો, જે દરેક ફોટોના પોતાના કદ પરથી કામ કરે છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "यह इस फ़ोटो के लिए पिक्सेल में एक आकार है। बैच कन्वर्ट का “आकार बदलें” इस्तेमाल करें, जो हर फ़ोटो के अपने आकार से काम करता है।"
           }
         },
         "it" : {
@@ -3210,6 +4668,12 @@
             "value" : "Het is een grootte in pixels voor deze foto. Gebruik het formaat wijzigen van Batchconversie, dat uitgaat van de eigen grootte van elke foto."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਇਹ ਇਸ ਫ਼ੋਟੋ ਲਈ ਪਿਕਸਲਾਂ ਵਿੱਚ ਇੱਕ ਆਕਾਰ ਹੈ। “ਬੈਚ ਕਨਵਰਟ” ਦਾ “ਆਕਾਰ ਬਦਲੋ” ਵਰਤੋ, ਜੋ ਹਰ ਫ਼ੋਟੋ ਦੇ ਆਪਣੇ ਆਕਾਰ ਤੋਂ ਕੰਮ ਕਰਦਾ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3222,6 +4686,12 @@
             "value" : "É um tamanho em pixels para esta foto. Use o Redimensionar da Conversão em Lote, que parte do tamanho de cada foto."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இது இந்தப் புகைப்படத்துக்கான பிக்சல் அளவு. ஒவ்வொரு புகைப்படத்தின் சொந்த அளவிலிருந்து செயல்படும் மொத்தமாக மாற்றுதலின் “அளவை மாற்று” என்பதைப் பயன்படுத்துங்கள்."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3232,6 +4702,12 @@
     },
     "It is a size in pixels, which would give every photo the same canvas." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "এটি পিক্সেলে একটি আকার, যা প্রতিটি ফটোকে একই ক্যানভাস দেবে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3248,6 +4724,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Il s’agit d’une taille en pixels, qui donnerait la même zone de travail à toutes les photos."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "તે પિક્સેલમાં કદ છે, જે દરેક ફોટોને સમાન કૅનવાસ આપશે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "यह पिक्सेल में एक आकार है, जिससे हर फ़ोटो को एक ही कैनवस मिलेगा।"
           }
         },
         "it" : {
@@ -3274,6 +4762,12 @@
             "value" : "Het is een grootte in pixels, waardoor elke foto hetzelfde canvas zou krijgen."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਇਹ ਪਿਕਸਲਾਂ ਵਿੱਚ ਇੱਕ ਆਕਾਰ ਹੈ, ਜੋ ਹਰ ਫ਼ੋਟੋ ਨੂੰ ਇੱਕੋ ਜਿਹਾ ਕੈਨਵਸ ਦੇਵੇਗਾ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3286,6 +4780,12 @@
             "value" : "É um tamanho em pixels, que daria a mesma tela de pintura a todas as fotos."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இது ஒரு பிக்சல் அளவு; இது எல்லாப் புகைப்படங்களுக்கும் ஒரே கேன்வாஸைக் கொடுக்கும்."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3296,6 +4796,12 @@
     },
     "It was placed on the canvas Canvas Size made, which stays behind, so on another photo it would land elsewhere." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "এটি ক্যানভাসের আকার দিয়ে তৈরি ক্যানভাসে বসানো হয়েছিল, যা বাদ থেকে যায়, তাই অন্য ফটোতে এটি অন্য জায়গায় পড়বে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3312,6 +4818,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Il a été placé sur la zone de travail créée par Taille de la zone de travail, qui n’est pas reprise ; sur une autre photo, il atterrirait ailleurs."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "તેને કૅનવાસનું કદ દ્વારા બનેલા કૅનવાસ પર મૂકવામાં આવ્યું હતું, જે પાછળ રહે છે, તેથી બીજા ફોટો પર તે બીજી જગ્યાએ આવશે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "इसे “कैनवस का आकार” से बने कैनवस पर रखा गया था, जो पीछे रह जाता है, इसलिए किसी दूसरी फ़ोटो पर यह कहीं और आएगा।"
           }
         },
         "it" : {
@@ -3338,6 +4856,12 @@
             "value" : "Het is geplaatst op het canvas dat Canvasgrootte heeft gemaakt, dat achterblijft, dus op een andere foto zou het ergens anders terechtkomen."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਇਸਨੂੰ “ਕੈਨਵਸ ਆਕਾਰ” ਵੱਲੋਂ ਬਣਾਏ ਕੈਨਵਸ ’ਤੇ ਰੱਖਿਆ ਗਿਆ ਸੀ, ਜੋ ਪਿੱਛੇ ਰਹਿ ਜਾਂਦਾ ਹੈ, ਇਸ ਲਈ ਕਿਸੇ ਹੋਰ ਫ਼ੋਟੋ ’ਤੇ ਇਹ ਕਿਤੇ ਹੋਰ ਆਵੇਗਾ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3350,6 +4874,12 @@
             "value" : "Foi posicionado na tela de pintura criada pelo Tamanho da Tela de Pintura, que fica para trás; em outra foto ele cairia em outro lugar."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இது “கேன்வாஸ் அளவு” உருவாக்கிய கேன்வாஸில் வைக்கப்பட்டது, அது விடுபடுகிறது; எனவே வேறொரு புகைப்படத்தில் இது வேறு இடத்தில் விழும்."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3360,6 +4890,12 @@
     },
     "It would replace the original." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নইলে এটি আসল ফাইলটিকে প্রতিস্থাপন করত।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3376,6 +4912,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Il remplacerait l’original."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નહીંતર તે મૂળ ફાઇલની જગ્યા લઈ લેત."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "यह मूल फ़ाइल की जगह ले लेती।"
           }
         },
         "it" : {
@@ -3402,6 +4950,12 @@
             "value" : "Het zou het origineel vervangen."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਇਹ ਮੂਲ ਫ਼ਾਈਲ ਦੀ ਥਾਂ ਲੈ ਲੈਂਦੀ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3412,6 +4966,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Substituiria o original."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இதை எழுதினால் அசல் மேலெழுதப்படும்."
           }
         },
         "zh-Hans" : {
@@ -3425,6 +4985,12 @@
     "Left" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বাঁয়ে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3441,6 +5007,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Gauche"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ડાબે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बाएँ"
           }
         },
         "it" : {
@@ -3467,6 +5045,12 @@
             "value" : "Links"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਖੱਬੇ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3477,6 +5061,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Esquerda"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இடது"
           }
         },
         "zh-Hans" : {
@@ -3490,6 +5080,12 @@
     "Lens" : {
       "comment" : "Name of an edit: a magnifying-lens effect",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "লেন্স"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3506,6 +5102,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Lentille"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "લેન્સ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "लेंस"
           }
         },
         "it" : {
@@ -3532,6 +5140,12 @@
             "value" : "Lens"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲੈਂਜ਼"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3542,6 +5156,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Lente"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "லென்ஸ்"
           }
         },
         "zh-Hans" : {
@@ -3555,6 +5175,12 @@
     "Levels" : {
       "comment" : "Name of an edit, as in “Undo Levels”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "লেভেলস"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3571,6 +5197,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Niveaux"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "લેવલ્સ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "लेवल्स"
           }
         },
         "it" : {
@@ -3597,6 +5235,12 @@
             "value" : "Niveaus"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲੈਵਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3607,6 +5251,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Níveis"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நிலைகள்"
           }
         },
         "zh-Hans" : {
@@ -3620,6 +5270,12 @@
     "Light" : {
       "comment" : "Font weight",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "লাইট"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3636,6 +5292,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Léger"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "લાઇટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "लाइट"
           }
         },
         "it" : {
@@ -3662,6 +5330,12 @@
             "value" : "Licht"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲਾਈਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3672,6 +5346,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Leve"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மெல்லிய"
           }
         },
         "zh-Hans" : {
@@ -3685,6 +5365,12 @@
     "Lighting" : {
       "comment" : "Name of an edit, as in “Undo Lighting”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "আলো"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3701,6 +5387,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Éclairage"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "લાઇટિંગ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "लाइटिंग"
           }
         },
         "it" : {
@@ -3727,6 +5425,12 @@
             "value" : "Belichting"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲਾਈਟਿੰਗ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3737,6 +5441,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Iluminação"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஒளியமைப்பு"
           }
         },
         "zh-Hans" : {
@@ -3750,6 +5460,12 @@
     "Line" : {
       "comment" : "Drawing shape",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রেখা"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3766,6 +5482,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Ligne"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રેખા"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "रेखा"
           }
         },
         "it" : {
@@ -3792,6 +5520,12 @@
             "value" : "Lijn"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲਾਈਨ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3802,6 +5536,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Linha"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கோடு"
           }
         },
         "zh-Hans" : {
@@ -3815,6 +5555,12 @@
     "Long Side" : {
       "comment" : "Resize by the longer of width and height",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "লম্বা দিক"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3831,6 +5577,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Grand côté"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "લાંબી બાજુ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "लंबी साइड"
           }
         },
         "it" : {
@@ -3857,6 +5615,12 @@
             "value" : "Lange zijde"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਲੰਬਾ ਪਾਸਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3867,6 +5631,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Lado Maior"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நீண்ட பக்கம்"
           }
         },
         "zh-Hans" : {
@@ -3880,6 +5650,12 @@
     "Low" : {
       "comment" : "Video quality",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নিম্ন"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3896,6 +5672,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Faible"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નીચી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "निम्न"
           }
         },
         "it" : {
@@ -3922,6 +5710,12 @@
             "value" : "Laag"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਘੱਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3932,6 +5726,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Baixa"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "குறைவு"
           }
         },
         "zh-Hans" : {
@@ -3945,6 +5745,12 @@
     "Matte" : {
       "comment" : "Frame style: a mat board around the picture",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ম্যাট"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3961,6 +5767,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Passe-partout"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "મૅટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "मैट"
           }
         },
         "it" : {
@@ -3987,6 +5805,12 @@
             "value" : "Passe-partout"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਮੈਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -3999,6 +5823,12 @@
             "value" : "Passe-partout"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மேட்"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4009,6 +5839,12 @@
     },
     "Measured again on each photo." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "প্রতিটি ফটোতে আবার মাপা হয়।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4025,6 +5861,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Mesuré à nouveau sur chaque photo."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "દરેક ફોટો પર ફરીથી માપવામાં આવે છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "हर फ़ोटो पर फिर से मापा जाता है।"
           }
         },
         "it" : {
@@ -4051,6 +5899,12 @@
             "value" : "Wordt op elke foto opnieuw gemeten."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹਰ ਫ਼ੋਟੋ ’ਤੇ ਦੁਬਾਰਾ ਮਾਪਿਆ ਜਾਂਦਾ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4061,6 +5915,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Medido novamente em cada foto."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஒவ்வொரு புகைப்படத்திலும் மீண்டும் அளவிடப்படும்."
           }
         },
         "zh-Hans" : {
@@ -4074,6 +5934,12 @@
     "Medium" : {
       "comment" : "Video quality",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "মাঝারি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4090,6 +5956,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Moyenne"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "મધ્યમ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "मध्यम"
           }
         },
         "it" : {
@@ -4116,6 +5994,12 @@
             "value" : "Gemiddeld"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਦਰਮਿਆਨਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4126,6 +6010,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Média"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நடுத்தரம்"
           }
         },
         "zh-Hans" : {
@@ -4139,6 +6029,12 @@
     "Negative" : {
       "comment" : "Name of an edit: inverted colours",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নেগেটিভ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4155,6 +6051,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Négatif"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નેગેટિવ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "नेगेटिव"
           }
         },
         "it" : {
@@ -4181,6 +6089,12 @@
             "value" : "Negatief"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਨੈਗੇਟਿਵ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4191,6 +6105,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Negativo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நெகட்டிவ்"
           }
         },
         "zh-Hans" : {
@@ -4204,6 +6124,12 @@
     "Noise Reduction" : {
       "comment" : "Name of an edit, as in “Undo Noise Reduction”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "নয়েজ হ্রাস"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4220,6 +6146,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Réduction du bruit"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "નોઇઝ રિડક્શન"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "नॉइज़ रिडक्शन"
           }
         },
         "it" : {
@@ -4246,6 +6184,12 @@
             "value" : "Ruisonderdrukking"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਨੌਇਜ਼ ਘਟਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4256,6 +6200,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Redução de Ruído"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இரைச்சல் குறைப்பு"
           }
         },
         "zh-Hans" : {
@@ -4269,6 +6219,12 @@
     "Oil Painting" : {
       "comment" : "Name of an edit, as in “Undo Oil Painting”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "তৈলচিত্র"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4285,6 +6241,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Peinture à l’huile"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઑઇલ પેઇન્ટિંગ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ऑयल पेंटिंग"
           }
         },
         "it" : {
@@ -4311,6 +6279,12 @@
             "value" : "Olieverfschilderij"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਤੇਲ ਚਿੱਤਰਕਾਰੀ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4321,6 +6295,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Pintura a Óleo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "எண்ணெய் ஓவியம்"
           }
         },
         "zh-Hans" : {
@@ -4334,6 +6314,12 @@
     "Oval" : {
       "comment" : "Drawing shape",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ডিম্বাকার"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4350,6 +6336,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Ovale"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "અંડાકાર"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "अंडाकार"
           }
         },
         "it" : {
@@ -4376,6 +6374,12 @@
             "value" : "Ovaal"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਅੰਡਾਕਾਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4386,6 +6390,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Oval"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நீள்வட்டம்"
           }
         },
         "zh-Hans" : {
@@ -4399,6 +6409,12 @@
     "Pencil" : {
       "comment" : "Sketch style",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "পেনসিল"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4415,6 +6431,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Crayon"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "પેન્સિલ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "पेंसिल"
           }
         },
         "it" : {
@@ -4441,6 +6469,12 @@
             "value" : "Potlood"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਪੈਨਸਿਲ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4451,6 +6485,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Lápis"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பென்சில்"
           }
         },
         "zh-Hans" : {
@@ -4464,6 +6504,12 @@
     "Percentage" : {
       "comment" : "Resize by a percentage of the size",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "শতাংশ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4480,6 +6526,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Pourcentage"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ટકાવારી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "प्रतिशत"
           }
         },
         "it" : {
@@ -4506,6 +6564,12 @@
             "value" : "Percentage"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਪ੍ਰਤੀਸ਼ਤ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4516,6 +6580,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Porcentagem"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "சதவீதம்"
           }
         },
         "zh-Hans" : {
@@ -4529,6 +6599,12 @@
     "Perspective" : {
       "comment" : "Name of an edit, as in “Undo Perspective”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "পরিপ্রেক্ষিত"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4545,6 +6621,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Perspective"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "પર્સ્પેક્ટિવ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "परिप्रेक्ष्य"
           }
         },
         "it" : {
@@ -4571,6 +6659,12 @@
             "value" : "Perspectief"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਪਰਸਪੈਕਟਿਵ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4581,6 +6675,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Perspectiva"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "தோற்றக் கோணம்"
           }
         },
         "zh-Hans" : {
@@ -4594,6 +6694,12 @@
     "Push" : {
       "comment" : "Slideshow transition: the new picture pushes the old one out",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "পুশ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4610,6 +6716,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Pousser"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "પુશ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "पुश"
           }
         },
         "it" : {
@@ -4636,6 +6754,12 @@
             "value" : "Duwen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਧੱਕਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4646,6 +6770,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Empurrar"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "தள்ளுதல்"
           }
         },
         "zh-Hans" : {
@@ -4659,6 +6789,12 @@
     "Quadratic" : {
       "comment" : "Resampling filter",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কোয়াড্রাটিক"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4675,6 +6811,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Quadratique"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ક્વૉડ્રેટિક"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "क्वाड्रैटिक"
           }
         },
         "it" : {
@@ -4701,6 +6849,12 @@
             "value" : "Kwadratisch"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕੁਆਡ੍ਰੈਟਿਕ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4711,6 +6865,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Quadrático"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "குவாட்ரேட்டிக்"
           }
         },
         "zh-Hans" : {
@@ -4724,6 +6884,12 @@
     "RAW Adjustments" : {
       "comment" : "Name of an edit, as in “Undo RAW Adjustments”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RAW সমন্বয়"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4740,6 +6906,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Réglages RAW"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RAW ઍડજસ્ટમેન્ટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RAW समायोजन"
           }
         },
         "it" : {
@@ -4766,6 +6944,12 @@
             "value" : "RAW-aanpassingen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RAW ਅਡਜਸਟਮੈਂਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4778,6 +6962,12 @@
             "value" : "Ajustes RAW"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RAW சரிசெய்தல்கள்"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4788,6 +6978,12 @@
     },
     "RAW files only; other photos ignore it." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "শুধু RAW ফাইলের জন্য; অন্য ফটো এটি উপেক্ষা করে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4804,6 +7000,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Fichiers RAW uniquement ; les autres photos l’ignorent."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ફક્ત RAW ફાઇલ; અન્ય ફોટો તેને અવગણે છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "केवल RAW फ़ाइलें; दूसरी फ़ोटो इसे अनदेखा करती हैं।"
           }
         },
         "it" : {
@@ -4830,6 +7038,12 @@
             "value" : "Alleen RAW-bestanden; andere foto’s negeren dit."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸਿਰਫ਼ RAW ਫ਼ਾਈਲਾਂ; ਹੋਰ ਫ਼ੋਟੋਆਂ ਇਸਨੂੰ ਅਣਡਿੱਠਾ ਕਰਦੀਆਂ ਹਨ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4840,6 +7054,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Somente arquivos RAW; as demais fotos o ignoram."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RAW ஃபைல்களுக்கு மட்டும்; பிற புகைப்படங்கள் இதைப் புறக்கணிக்கும்."
           }
         },
         "zh-Hans" : {
@@ -4853,6 +7073,12 @@
     "RGB Adjust" : {
       "comment" : "Name of an edit, as in “Undo RGB Adjust”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RGB সমন্বয়"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4869,6 +7095,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Réglage RVB"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RGB ઍડજસ્ટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RGB समायोजन"
           }
         },
         "it" : {
@@ -4895,6 +7133,12 @@
             "value" : "RGB aanpassen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RGB ਅਡਜਸਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4905,6 +7149,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Ajuste RGB"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "RGB சரிசெய்தல்"
           }
         },
         "zh-Hans" : {
@@ -4918,6 +7168,12 @@
     "Rectangle" : {
       "comment" : "Drawing shape",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "আয়তক্ষেত্র"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4934,6 +7190,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Rectangle"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "લંબચોરસ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "आयत"
           }
         },
         "it" : {
@@ -4960,6 +7228,12 @@
             "value" : "Rechthoek"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਆਇਤ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4970,6 +7244,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Retângulo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "செவ்வகம்"
           }
         },
         "zh-Hans" : {
@@ -4983,6 +7263,12 @@
     "Red-Eye Removal" : {
       "comment" : "Name of an edit, as in “Undo Red-Eye Removal”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রেড-আই অপসারণ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -4999,6 +7285,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Correction des yeux rouges"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રેડ-આઇ દૂર કરવી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "रेड-आई हटाना"
           }
         },
         "it" : {
@@ -5025,6 +7323,12 @@
             "value" : "Rode ogen verwijderen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਰੈੱਡ-ਆਈ ਹਟਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5035,6 +7339,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Remoção de Olhos Vermelhos"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "சிவப்புக் கண் நீக்கம்"
           }
         },
         "zh-Hans" : {
@@ -5048,6 +7358,12 @@
     "Regular" : {
       "comment" : "Font weight",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রেগুলার"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5064,6 +7380,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Normal"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રેગ્યુલર"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "रेगुलर"
           }
         },
         "it" : {
@@ -5090,6 +7418,12 @@
             "value" : "Normaal"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਰੈਗੂਲਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5100,6 +7434,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Normal"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வழக்கமான"
           }
         },
         "zh-Hans" : {
@@ -5113,6 +7453,12 @@
     "Remove Background" : {
       "comment" : "Name of an edit, as in “Undo Remove Background”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ব্যাকগ্রাউন্ড সরান"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5129,6 +7475,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Suppression de l’arrière-plan"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "બૅકગ્રાઉન્ડ દૂર કરવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बैकग्राउंड हटाना"
           }
         },
         "it" : {
@@ -5155,6 +7513,12 @@
             "value" : "Achtergrond verwijderen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਬੈਕਗ੍ਰਾਊਂਡ ਹਟਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5165,6 +7529,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Remover Fundo"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பின்னணி நீக்கம்"
           }
         },
         "zh-Hans" : {
@@ -5178,6 +7548,12 @@
     "Resize" : {
       "comment" : "Name of an edit, as in “Undo Resize”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "আকার পরিবর্তন"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5194,6 +7570,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Redimensionnement"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કદ બદલવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "आकार बदलना"
           }
         },
         "it" : {
@@ -5220,6 +7608,12 @@
             "value" : "Formaat wijzigen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਆਕਾਰ ਬਦਲਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5230,6 +7624,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Redimensionar"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "அளவு மாற்றம்"
           }
         },
         "zh-Hans" : {
@@ -5243,6 +7643,12 @@
     "Right" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ডানে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5259,6 +7665,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Droite"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "જમણે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "दाएँ"
           }
         },
         "it" : {
@@ -5285,6 +7703,12 @@
             "value" : "Rechts"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੱਜੇ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5295,6 +7719,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Direita"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வலது"
           }
         },
         "zh-Hans" : {
@@ -5308,6 +7738,12 @@
     "Rotate" : {
       "comment" : "Name of an edit, as in “Undo Rotate”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ঘোরানো"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5324,6 +7760,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Rotation"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ફેરવવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "रोटेट"
           }
         },
         "it" : {
@@ -5350,6 +7798,12 @@
             "value" : "Draaien"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਘੁਮਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5360,6 +7814,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Girar"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "சுழற்றல்"
           }
         },
         "zh-Hans" : {
@@ -5373,6 +7833,12 @@
     "Rotate 180°" : {
       "comment" : "Name of an edit, as in “Undo Rotate 180°”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "180° ঘোরানো"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5389,6 +7855,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Rotation de 180°"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "180° ફેરવવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "180° रोटेट"
           }
         },
         "it" : {
@@ -5415,6 +7893,12 @@
             "value" : "180° draaien"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "180° ਘੁਮਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5425,6 +7909,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Girar 180°"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "180° சுழற்றல்"
           }
         },
         "zh-Hans" : {
@@ -5438,6 +7928,12 @@
     "Rotate Left" : {
       "comment" : "Name of an edit, as in “Undo Rotate Left”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বাঁয়ে ঘোরানো"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5454,6 +7950,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Rotation à gauche"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ડાબે ફેરવવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "बाएँ रोटेट"
           }
         },
         "it" : {
@@ -5480,6 +7988,12 @@
             "value" : "Linksom draaien"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਖੱਬੇ ਘੁਮਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5490,6 +8004,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Girar para a Esquerda"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இடப்புறச் சுழற்றல்"
           }
         },
         "zh-Hans" : {
@@ -5503,6 +8023,12 @@
     "Rotate Right" : {
       "comment" : "Name of an edit, as in “Undo Rotate Right”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ডানে ঘোরানো"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5519,6 +8045,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Rotation à droite"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "જમણે ફેરવવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "दाएँ रोटेट"
           }
         },
         "it" : {
@@ -5545,6 +8083,12 @@
             "value" : "Rechtsom draaien"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੱਜੇ ਘੁਮਾਉਣਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5555,6 +8099,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Girar para a Direita"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வலப்புறச் சுழற்றல்"
           }
         },
         "zh-Hans" : {
@@ -5568,6 +8118,12 @@
     "Screen size" : {
       "comment" : "Video resolution: the screen's own size",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "স্ক্রিনের আকার"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5584,6 +8140,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Taille de l’écran"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સ્ક્રીનનું કદ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "स्क्रीन का आकार"
           }
         },
         "it" : {
@@ -5610,6 +8178,12 @@
             "value" : "Schermgrootte"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸਕ੍ਰੀਨ ਆਕਾਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5620,6 +8194,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Tamanho da tela"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "திரை அளவு"
           }
         },
         "zh-Hans" : {
@@ -5633,6 +8213,12 @@
     "Semibold" : {
       "comment" : "Font weight",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সেমিবোল্ড"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5649,6 +8235,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Demi-gras"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સેમિબોલ્ડ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "सेमीबोल्ड"
           }
         },
         "it" : {
@@ -5675,6 +8273,12 @@
             "value" : "Halfvet"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੈਮੀਬੋਲਡ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5685,6 +8289,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Seminegrito"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "அரைத் தடித்த"
           }
         },
         "zh-Hans" : {
@@ -5698,6 +8308,12 @@
     "Sepia" : {
       "comment" : "Name of an edit, as in “Undo Sepia”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সেপিয়া"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5714,6 +8330,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Sépia"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સેપિયા"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "सीपिया"
           }
         },
         "it" : {
@@ -5740,6 +8368,12 @@
             "value" : "Sepia"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੀਪੀਆ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5750,6 +8384,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Sépia"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "செபியா"
           }
         },
         "zh-Hans" : {
@@ -5763,6 +8403,12 @@
     "Sharpen" : {
       "comment" : "Name of an edit, as in “Undo Sharpen”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "শার্পেন"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5779,6 +8425,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Netteté"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "શાર્પ કરવું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "शार्प करना"
           }
         },
         "it" : {
@@ -5805,6 +8463,12 @@
             "value" : "Verscherpen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਤਿੱਖਾ ਕਰਨਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5815,6 +8479,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Aumentar Nitidez"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "கூர்மையாக்கல்"
           }
         },
         "zh-Hans" : {
@@ -5828,6 +8498,12 @@
     "Sketch" : {
       "comment" : "Name of an edit: the image as a pencil drawing",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "স্কেচ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5844,6 +8520,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Croquis"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સ્કેચ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "स्केच"
           }
         },
         "it" : {
@@ -5870,6 +8558,12 @@
             "value" : "Schets"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸਕੈੱਚ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5880,6 +8574,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Esboço"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஸ்கெட்ச்"
           }
         },
         "zh-Hans" : {
@@ -5893,6 +8593,12 @@
     "Solid" : {
       "comment" : "Frame style: one plain colour",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সলিড"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5909,6 +8615,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Uni"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સોલિડ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ठोस"
           }
         },
         "it" : {
@@ -5935,6 +8653,12 @@
             "value" : "Effen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਠੋਸ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5945,6 +8669,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Sólida"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "திடம்"
           }
         },
         "zh-Hans" : {
@@ -5958,6 +8688,12 @@
     "Text" : {
       "comment" : "Noun: a text annotation or text watermark",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "টেক্সট"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -5974,6 +8710,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Texte"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ટેક્સ્ટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "टेक्स्ट"
           }
         },
         "it" : {
@@ -6000,6 +8748,12 @@
             "value" : "Tekst"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਟੈਕਸਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6012,6 +8766,12 @@
             "value" : "Texto"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "உரை"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6022,6 +8782,12 @@
     },
     "Text and shapes are placed on this photo’s content." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "টেক্সট এবং আকৃতিগুলো এই ফটোর বিষয়বস্তুর উপর বসানো হয়েছে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6038,6 +8804,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Le texte et les formes sont placés sur le contenu de cette photo."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ટેક્સ્ટ અને આકારો આ ફોટોની સામગ્રી પર મૂકવામાં આવ્યા છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "टेक्स्ट और आकृतियाँ इस फ़ोटो की सामग्री पर रखी गई हैं।"
           }
         },
         "it" : {
@@ -6064,6 +8842,12 @@
             "value" : "Tekst en vormen zijn op de inhoud van deze foto geplaatst."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਟੈਕਸਟ ਅਤੇ ਆਕਾਰ ਇਸ ਫ਼ੋਟੋ ਦੀ ਸਮੱਗਰੀ ਉੱਤੇ ਰੱਖੇ ਗਏ ਹਨ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6076,6 +8860,12 @@
             "value" : "Os textos e as formas são posicionados sobre o conteúdo desta foto."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "உரையும் வடிவங்களும் இந்தப் புகைப்படத்தின் உள்ளடக்கத்தின் மீது வைக்கப்படுகின்றன."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6086,6 +8876,12 @@
     },
     "The edited image could not be rendered." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সম্পাদিত ছবিটি রেন্ডার করা যায়নি।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6102,6 +8898,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Impossible d’effectuer le rendu de l’image modifiée."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સંપાદિત ઇમેજ રેન્ડર કરી શકાઈ નથી."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "संपादित इमेज रेंडर नहीं की जा सकी।"
           }
         },
         "it" : {
@@ -6128,6 +8936,12 @@
             "value" : "De bewerkte afbeelding kan niet worden gerenderd."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੋਧਿਆ ਚਿੱਤਰ ਰੈਂਡਰ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6140,6 +8954,12 @@
             "value" : "Não foi possível renderizar a imagem editada."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "திருத்திய படத்தை ரெண்டர் செய்ய முடியவில்லை."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6150,6 +8970,12 @@
     },
     "The same corners on each photo, as fractions of its size." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "প্রতিটি ফটোতে একই কোণ, তার আকারের ভগ্নাংশ হিসেবে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6166,6 +8992,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Les mêmes coins sur chaque photo, en fractions de sa taille."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "દરેક ફોટો પર સમાન ખૂણા, તેના કદના અંશ તરીકે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "हर फ़ोटो पर वही कोने, उसके आकार के भिन्न के रूप में।"
           }
         },
         "it" : {
@@ -6192,6 +9030,12 @@
             "value" : "Dezelfde hoeken op elke foto, als fracties van de grootte ervan."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹਰ ਫ਼ੋਟੋ ’ਤੇ ਉਹੀ ਕੋਨੇ, ਉਸਦੇ ਆਕਾਰ ਦੇ ਅੰਸ਼ਾਂ ਵਜੋਂ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6204,6 +9048,12 @@
             "value" : "Os mesmos cantos em cada foto, como frações do tamanho dela."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஒவ்வொரு புகைப்படத்திலும் அதே மூலைகள், அதன் அளவின் பின்னங்களாக."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6214,6 +9064,12 @@
     },
     "The same part of each photo, as a fraction of its size." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "প্রতিটি ফটোর একই অংশ, তার আকারের ভগ্নাংশ হিসেবে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6230,6 +9086,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "La même partie de chaque photo, en fraction de sa taille."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "દરેક ફોટોનો સમાન ભાગ, તેના કદના અંશ તરીકે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "हर फ़ोटो का वही हिस्सा, उसके आकार के भिन्न के रूप में।"
           }
         },
         "it" : {
@@ -6256,6 +9124,12 @@
             "value" : "Hetzelfde deel van elke foto, als fractie van de grootte ervan."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਹਰ ਫ਼ੋਟੋ ਦਾ ਉਹੀ ਹਿੱਸਾ, ਉਸਦੇ ਆਕਾਰ ਦੇ ਅੰਸ਼ ਵਜੋਂ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6268,6 +9142,12 @@
             "value" : "A mesma parte de cada foto, como fração do tamanho dela."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஒவ்வொரு புகைப்படத்திலும் அதே பகுதி, அதன் அளவின் பின்னமாக."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6278,6 +9158,12 @@
     },
     "The spots are placed on the eyes in this photo." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "দাগগুলো এই ফটোর চোখের উপর বসানো হয়েছে।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6294,6 +9180,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Les points sont placés sur les yeux de cette photo."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "આ ફોટોમાં સ્પૉટ આંખો પર મૂકવામાં આવ્યા છે."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "स्पॉट इस फ़ोटो की आँखों पर रखे गए हैं।"
           }
         },
         "it" : {
@@ -6320,6 +9218,12 @@
             "value" : "De punten zijn op de ogen in deze foto geplaatst."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਧੱਬੇ ਇਸ ਫ਼ੋਟੋ ਵਿੱਚ ਅੱਖਾਂ ’ਤੇ ਰੱਖੇ ਗਏ ਹਨ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6332,6 +9236,12 @@
             "value" : "Os pontos são posicionados sobre os olhos desta foto."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "புள்ளிகள் இந்தப் புகைப்படத்தில் உள்ள கண்களின் மீது வைக்கப்படுகின்றன."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6342,6 +9252,12 @@
     },
     "The subject’s outline was found in this photo and fits no other." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "বিষয়ের রূপরেখা এই ফটোতে পাওয়া গেছে এবং অন্য কোনোটিতে খাপ খায় না।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6358,6 +9274,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Le contour du sujet a été détecté sur cette photo et ne correspond à aucune autre."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "વિષયની રૂપરેખા આ ફોટોમાં મળી હતી અને બીજા કોઈમાં બંધબેસતી નથી."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "सब्जेक्ट की आउटलाइन इस फ़ोटो में मिली थी और किसी दूसरी फ़ोटो पर फ़िट नहीं होती।"
           }
         },
         "it" : {
@@ -6384,6 +9312,12 @@
             "value" : "De omtrek van het onderwerp is in deze foto gevonden en past op geen andere."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਵਿਸ਼ੇ ਦੀ ਰੂਪਰੇਖਾ ਇਸ ਫ਼ੋਟੋ ਵਿੱਚ ਲੱਭੀ ਗਈ ਸੀ ਅਤੇ ਕਿਸੇ ਹੋਰ ’ਤੇ ਫ਼ਿੱਟ ਨਹੀਂ ਹੁੰਦੀ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6394,6 +9328,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "O contorno do motivo foi encontrado nesta foto e não serve em nenhuma outra."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பொருளின் வெளிக்கோடு இந்தப் புகைப்படத்தில் கண்டறியப்பட்டது; வேறு எதற்கும் பொருந்தாது."
           }
         },
         "zh-Hans" : {
@@ -6407,6 +9347,12 @@
     "The video couldn’t be encoded: %@" : {
       "comment" : "%@ says what went wrong, such as “the writer failed”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ভিডিওটি এনকোড করা যায়নি: %@"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6423,6 +9369,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Impossible d’encoder la vidéo : %@"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "વીડિયો એન્કોડ કરી શકાયો નથી: %@"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "वीडियो एन्कोड नहीं किया जा सका: %@"
           }
         },
         "it" : {
@@ -6449,6 +9407,12 @@
             "value" : "De video kan niet worden gecodeerd: %@"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਵੀਡੀਓ ਐਨਕੋਡ ਨਹੀਂ ਕੀਤੀ ਜਾ ਸਕੀ: %@"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6461,6 +9425,12 @@
             "value" : "Não foi possível codificar o vídeo: %@"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வீடியோவை என்கோட் செய்ய முடியவில்லை: %@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6471,6 +9441,12 @@
     },
     "There are no pictures to put in the video." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ভিডিওতে রাখার মতো কোনো ছবি নেই।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6487,6 +9463,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Il n’y a aucune image à mettre dans la vidéo."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "વીડિયોમાં મૂકવા માટે કોઈ ચિત્રો નથી."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "वीडियो में डालने के लिए कोई तस्वीर नहीं है।"
           }
         },
         "it" : {
@@ -6513,6 +9501,12 @@
             "value" : "Er zijn geen afbeeldingen om in de video te zetten."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਵੀਡੀਓ ਵਿੱਚ ਪਾਉਣ ਲਈ ਕੋਈ ਤਸਵੀਰ ਨਹੀਂ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6525,6 +9519,12 @@
             "value" : "Não há imagens para colocar no vídeo."
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "வீடியோவில் சேர்க்கப் படங்கள் எதுவும் இல்லை."
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6535,6 +9535,12 @@
     },
     "There isn’t enough memory to render the image." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ছবিটি রেন্ডার করার জন্য যথেষ্ট মেমরি নেই।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6551,6 +9557,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Mémoire insuffisante pour effectuer le rendu de l’image."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઇમેજ રેન્ડર કરવા માટે પૂરતી મેમરી નથી."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "इमेज रेंडर करने के लिए पर्याप्त मेमोरी नहीं है।"
           }
         },
         "it" : {
@@ -6577,6 +9595,12 @@
             "value" : "Er is onvoldoende geheugen om de afbeelding te renderen."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਚਿੱਤਰ ਨੂੰ ਰੈਂਡਰ ਕਰਨ ਲਈ ਲੋੜੀਂਦੀ ਮੈਮੋਰੀ ਨਹੀਂ ਹੈ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6587,6 +9611,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Não há memória suficiente para renderizar a imagem."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "படத்தை ரெண்டர் செய்யப் போதுமான நினைவகம் இல்லை."
           }
         },
         "zh-Hans" : {
@@ -6600,6 +9630,12 @@
     "Top" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "উপরে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6616,6 +9652,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Haut"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઉપર"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ऊपर"
           }
         },
         "it" : {
@@ -6642,6 +9690,12 @@
             "value" : "Boven"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਉੱਪਰ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6652,6 +9706,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Em Cima"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மேலே"
           }
         },
         "zh-Hans" : {
@@ -6665,6 +9725,12 @@
     "Top Left" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "উপরে বাঁয়ে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6681,6 +9747,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "En haut à gauche"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઉપર ડાબે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ऊपर बाएँ"
           }
         },
         "it" : {
@@ -6707,6 +9785,12 @@
             "value" : "Linksboven"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਉੱਪਰ ਖੱਬੇ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6717,6 +9801,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Em Cima à Esquerda"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மேல் இடது"
           }
         },
         "zh-Hans" : {
@@ -6730,6 +9820,12 @@
     "Top Right" : {
       "comment" : "Canvas anchor: where the picture sits on the new canvas",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "উপরে ডানে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6746,6 +9842,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "En haut à droite"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઉપર જમણે"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ऊपर दाएँ"
           }
         },
         "it" : {
@@ -6772,6 +9880,12 @@
             "value" : "Rechtsboven"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਉੱਪਰ ਸੱਜੇ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6782,6 +9896,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Em Cima à Direita"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "மேல் வலது"
           }
         },
         "zh-Hans" : {
@@ -6795,6 +9915,12 @@
     "Triangle (Bilinear)" : {
       "comment" : "Resampling filter",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ত্রিভুজ (বাইলিনিয়ার)"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6811,6 +9937,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Triangle (bilinéaire)"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ત્રિકોણ (બાઇલિનિયર)"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "त्रिकोण (बाइलीनियर)"
           }
         },
         "it" : {
@@ -6837,6 +9975,12 @@
             "value" : "Driehoek (bilineair)"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਤਿਕੋਣ (ਬਾਈਲੀਨੀਅਰ)"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6847,6 +9991,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Triângulo (Bilinear)"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "முக்கோணம் (பைலீனியர்)"
           }
         },
         "zh-Hans" : {
@@ -6860,6 +10010,12 @@
     "Vignette" : {
       "comment" : "Name of an edit, as in “Undo Vignette”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ভিনিয়েট"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6876,6 +10032,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Vignettage"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "વિનેટ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "विनेट"
           }
         },
         "it" : {
@@ -6902,6 +10070,12 @@
             "value" : "Vignet"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਵਿਨਯੈੱਟ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6912,6 +10086,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Vinheta"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "விக்னெட்"
           }
         },
         "zh-Hans" : {
@@ -6925,6 +10105,12 @@
     "Watermark" : {
       "comment" : "Name of an edit, as in “Undo Watermark”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ওয়াটারমার্ক"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6941,6 +10127,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Filigrane"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "વૉટરમાર્ક"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "वॉटरमार्क"
           }
         },
         "it" : {
@@ -6967,6 +10165,12 @@
             "value" : "Watermerk"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਵਾਟਰਮਾਰਕ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -6977,6 +10181,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Marca-d’água"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நீர்க்குறி"
           }
         },
         "zh-Hans" : {
@@ -6990,6 +10200,12 @@
     "Width" : {
       "comment" : "Noun: size in pixels",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "প্রস্থ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7006,6 +10222,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Largeur"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "પહોળાઈ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "चौड़ाई"
           }
         },
         "it" : {
@@ -7032,6 +10260,12 @@
             "value" : "Breedte"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਚੌੜਾਈ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7042,6 +10276,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Largura"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "அகலம்"
           }
         },
         "zh-Hans" : {
@@ -7055,6 +10295,12 @@
     "Wipe" : {
       "comment" : "Slideshow transition",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ওয়াইপ"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7071,6 +10317,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Balayage"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "વાઇપ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "वाइप"
           }
         },
         "it" : {
@@ -7097,6 +10355,12 @@
             "value" : "Vegen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਵਾਈਪ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7107,6 +10371,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Varredura"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "துடைப்பு"
           }
         },
         "zh-Hans" : {
@@ -7120,6 +10390,12 @@
     "a frame was refused" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "একটি ফ্রেম প্রত্যাখ্যাত হয়েছে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7136,6 +10412,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "une image a été refusée"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "એક ફ્રેમ નકારવામાં આવી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "एक फ़्रेम अस्वीकार किया गया"
           }
         },
         "it" : {
@@ -7162,6 +10450,12 @@
             "value" : "een frame is geweigerd"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਇੱਕ ਫ਼ਰੇਮ ਅਸਵੀਕਾਰ ਕੀਤਾ ਗਿਆ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7172,6 +10466,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "um quadro foi recusado"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஒரு ஃபிரேம் மறுக்கப்பட்டது"
           }
         },
         "zh-Hans" : {
@@ -7186,6 +10486,12 @@
       "comment" : "Font weight",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "মিডিয়াম"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7208,6 +10514,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Moyen"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "મીડિયમ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "मीडियम"
           }
         },
         "it" : {
@@ -7234,6 +10552,12 @@
             "value" : "Medium"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਮੀਡੀਅਮ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7244,6 +10568,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Médio"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நடுத்தர"
           }
         },
         "zh-Hans" : {
@@ -7257,6 +10587,12 @@
     "no pixel buffers" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কোনো পিক্সেল বাফার নেই"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7273,6 +10609,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "aucun tampon de pixels"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કોઈ પિક્સેલ બફર નથી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "कोई पिक्सेल बफ़र नहीं"
           }
         },
         "it" : {
@@ -7299,6 +10647,12 @@
             "value" : "geen pixelbuffers"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕੋਈ ਪਿਕਸਲ ਬਫ਼ਰ ਨਹੀਂ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7309,6 +10663,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "nenhum buffer de pixels"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பிக்சல் பஃபர்கள் இல்லை"
           }
         },
         "zh-Hans" : {
@@ -7322,6 +10682,12 @@
     "the file wasn’t finished" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ফাইলটি শেষ হয়নি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7338,6 +10704,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "le fichier n’a pas été terminé"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ફાઇલ પૂર્ણ થઈ નહીં"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "फ़ाइल पूरी नहीं हुई"
           }
         },
         "it" : {
@@ -7364,6 +10742,12 @@
             "value" : "het bestand is niet voltooid"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਫ਼ਾਈਲ ਪੂਰੀ ਨਹੀਂ ਹੋਈ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7374,6 +10758,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "o arquivo não foi concluído"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ஃபைல் முடிக்கப்படவில்லை"
           }
         },
         "zh-Hans" : {
@@ -7387,6 +10777,12 @@
     "the music couldn’t be read" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সংগীত পড়া যায়নি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7403,6 +10799,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "impossible de lire la musique"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સંગીત વાંચી શકાયું નહીં"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "संगीत पढ़ा नहीं जा सका"
           }
         },
         "it" : {
@@ -7429,6 +10837,12 @@
             "value" : "de muziek kan niet worden gelezen"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੰਗੀਤ ਪੜ੍ਹਿਆ ਨਹੀਂ ਜਾ ਸਕਿਆ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7439,6 +10853,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "não foi possível ler a música"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இசையைப் படிக்க முடியவில்லை"
           }
         },
         "zh-Hans" : {
@@ -7452,6 +10872,12 @@
     "the music was refused" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সংগীত প্রত্যাখ্যাত হয়েছে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7468,6 +10894,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "la musique a été refusée"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સંગીત નકારવામાં આવ્યું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "संगीत अस्वीकार किया गया"
           }
         },
         "it" : {
@@ -7494,6 +10932,12 @@
             "value" : "de muziek is geweigerd"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੰਗੀਤ ਅਸਵੀਕਾਰ ਕੀਤਾ ਗਿਆ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7504,6 +10948,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "a música foi recusada"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இசை மறுக்கப்பட்டது"
           }
         },
         "zh-Hans" : {
@@ -7517,6 +10967,12 @@
     "the music’s format isn’t supported" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সংগীতের ফরম্যাট সমর্থিত নয়"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7533,6 +10989,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "le format de la musique n’est pas pris en charge"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સંગીતનું ફૉર્મેટ સમર્થિત નથી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "संगीत का फ़ॉर्मैट समर्थित नहीं है"
           }
         },
         "it" : {
@@ -7559,6 +11027,12 @@
             "value" : "het muziekformaat wordt niet ondersteund"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੰਗੀਤ ਦਾ ਫ਼ਾਰਮੈਟ ਸਮਰਥਿਤ ਨਹੀਂ ਹੈ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7569,6 +11043,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "o formato da música não é compatível"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "இசையின் வடிவமைப்பு ஆதரிக்கப்படவில்லை"
           }
         },
         "zh-Hans" : {
@@ -7582,6 +11062,12 @@
     "the writer failed" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রাইটার ব্যর্থ হয়েছে"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7598,6 +11084,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "l’écriture a échoué"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રાઇટર નિષ્ફળ ગયું"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "राइटर विफल हो गया"
           }
         },
         "it" : {
@@ -7624,6 +11122,12 @@
             "value" : "de schrijver is mislukt"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਰਾਈਟਰ ਅਸਫਲ ਰਿਹਾ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7634,6 +11138,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "o gravador falhou"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "எழுதி தோல்வியடைந்தது"
           }
         },
         "zh-Hans" : {
@@ -7647,6 +11157,12 @@
     "the writer wouldn’t start" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "রাইটার চালু হয়নি"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7663,6 +11179,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "l’écriture n’a pas pu démarrer"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "રાઇટર શરૂ થયું નહીં"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "राइटर शुरू नहीं हुआ"
           }
         },
         "it" : {
@@ -7689,6 +11217,12 @@
             "value" : "de schrijver wil niet starten"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਰਾਈਟਰ ਸ਼ੁਰੂ ਨਹੀਂ ਹੋਇਆ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7699,6 +11233,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "o gravador não iniciou"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "எழுதி தொடங்கவில்லை"
           }
         },
         "zh-Hans" : {
@@ -7712,6 +11252,12 @@
     "there is no %@ encoder" : {
       "comment" : "Ends “The video couldn’t be encoded: %@”",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "কোনো %@ এনকোডার নেই"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7728,6 +11274,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "il n’existe aucun encodeur %@"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "કોઈ %@ એન્કોડર નથી"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "कोई %@ एन्कोडर नहीं है"
           }
         },
         "it" : {
@@ -7754,6 +11312,12 @@
             "value" : "er is geen %@-encoder"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਕੋਈ %@ ਐਨਕੋਡਰ ਨਹੀਂ ਹੈ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7764,6 +11328,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "não há codificador %@"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "%@ என்கோடர் இல்லை"
           }
         },
         "zh-Hans" : {
@@ -7778,6 +11348,12 @@
       "comment" : "Slideshow transition: the new picture slides in",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "স্লাইড"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7800,6 +11376,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Glissement"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સ્લાઇડ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "स्लाइड"
           }
         },
         "it" : {
@@ -7826,6 +11414,12 @@
             "value" : "Schuiven"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸਲਾਈਡ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7836,6 +11430,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Deslizar"
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "நழுவல்"
           }
         },
         "zh-Hans" : {
@@ -7850,6 +11450,12 @@
       "comment" : "Slideshow transition: the new picture zooms in",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "জুম"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7872,6 +11478,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "Zoom"
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ઝૂમ"
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ज़ूम"
           }
         },
         "it" : {
@@ -7898,6 +11516,12 @@
             "value" : "Zoom"
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਜ਼ੂਮ"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7910,6 +11534,12 @@
             "value" : "Zoom"
           }
         },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "பெரிதாக்கல்"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7920,6 +11550,12 @@
     },
     "“%@” changed on disk after editing began, so the edits can’t be applied to it again. Reopen the image to keep editing." : {
       "localizations" : {
+        "bn" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "সম্পাদনা শুরু হওয়ার পরে “%@” ডিস্কে পরিবর্তিত হয়েছে, তাই সম্পাদনাগুলো আবার এতে প্রয়োগ করা যাবে না। সম্পাদনা চালিয়ে যেতে ছবিটি আবার খুলুন।"
+          }
+        },
         "de" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7936,6 +11572,18 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "« %@ » a été modifié sur le disque après le début des modifications ; elles ne peuvent donc plus lui être appliquées. Rouvrez l’image pour continuer à la modifier."
+          }
+        },
+        "gu" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "સંપાદન શરૂ થયા પછી “%@” ડિસ્ક પર બદલાઈ ગયું, તેથી સંપાદનો તેના પર ફરી લાગુ કરી શકાતા નથી. સંપાદન ચાલુ રાખવા માટે ઇમેજ ફરીથી ખોલો."
+          }
+        },
+        "hi" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "संपादन शुरू होने के बाद “%@” डिस्क पर बदल गया, इसलिए संपादन इस पर फिर से लागू नहीं किए जा सकते। संपादन जारी रखने के लिए इमेज फिर से खोलें।"
           }
         },
         "it" : {
@@ -7962,6 +11610,12 @@
             "value" : "‘%@’ is op schijf gewijzigd nadat het bewerken begon, dus de bewerkingen kunnen er niet opnieuw op worden toegepast. Open de afbeelding opnieuw om verder te bewerken."
           }
         },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "ਸੋਧ ਸ਼ੁਰੂ ਹੋਣ ਤੋਂ ਬਾਅਦ “%@” ਡਿਸਕ ’ਤੇ ਬਦਲ ਗਈ, ਇਸ ਲਈ ਸੋਧਾਂ ਇਸ ’ਤੇ ਦੁਬਾਰਾ ਲਾਗੂ ਨਹੀਂ ਕੀਤੀਆਂ ਜਾ ਸਕਦੀਆਂ। ਸੋਧਣਾ ਜਾਰੀ ਰੱਖਣ ਲਈ ਚਿੱਤਰ ਨੂੰ ਦੁਬਾਰਾ ਖੋਲ੍ਹੋ।"
+          }
+        },
         "pl" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -7972,6 +11626,12 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "“%@” foi alterado no disco depois do início da edição, por isso as edições não podem ser aplicadas a ele novamente. Reabra a imagem para continuar editando."
+          }
+        },
+        "ta" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "திருத்தம் தொடங்கிய பிறகு “%@” டிஸ்க்கில் மாறிவிட்டது, எனவே திருத்தங்களை அதில் மீண்டும் பயன்படுத்த முடியாது. திருத்துவதைத் தொடர படத்தை மீண்டும் திறங்கள்."
           }
         },
         "zh-Hans" : {

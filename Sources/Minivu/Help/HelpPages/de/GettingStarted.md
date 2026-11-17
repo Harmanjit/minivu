@@ -68,5 +68,6 @@ Um nur für minivu eine andere Sprache zu verwenden, füge minivu unter
 „Apps“ in **Systemeinstellungen > Allgemein > Sprache & Region** hinzu.
 minivu gibt es auf Englisch, Deutsch, Französisch, Spanisch, Italienisch,
 Portugiesisch (Brasilien), Niederländisch, Polnisch, Japanisch, Chinesisch
-(vereinfacht) und Koreanisch. Die Übersetzungen wurden maschinell erstellt
-und noch nicht von Muttersprachlern geprüft.
+(vereinfacht), Koreanisch, Hindi, Punjabi, Bengalisch, Gujarati und Tamil.
+Die Übersetzungen wurden maschinell erstellt und noch nicht von
+Muttersprachlern geprüft.

@@ -175,11 +175,13 @@ ricaricare il file.
 minivu aggiunge azioni all’app Comandi rapidi: **Converti immagini**,
 **Ridimensiona immagini**, **Rinomina immagini**, **Imposta valutazione**,
 **Imposta etichetta colore** e **Apri in minivu**. Cerca “minivu” tra le azioni
-dell’app Comandi rapidi per usarle nei tuoi comandi rapidi. Eseguire uno di
-questi comandi rapidi apre minivu se non è aperto. Le azioni funzionano solo con
-i file nell’archiviazione interna del tuo Mac. **Rinomina immagini** funziona
-solo nella cartella Immagini e nelle cartelle della barra laterale di minivu; se
-un file si trova altrove, non ne rinomina nessuno.
+dell’app Comandi rapidi per usarle nei tuoi comandi rapidi. Se minivu non è
+aperto, un comando rapido lo avvia senza finestre, e minivu esce un minuto dopo
+l’ultima azione; **Apri in minivu** apre le sue finestre come di consueto. Le
+azioni funzionano solo con i file nell’archiviazione interna del tuo Mac.
+**Rinomina immagini** funziona solo nella cartella Immagini e nelle cartelle
+della barra laterale di minivu; se un file si trova altrove, non ne rinomina
+nessuno.
 
 Per usare un comando rapido dal Finder, creane uno che riceve immagini e attiva
 **Usa come azione rapida** nei suoi dettagli. Comparirà nel menu contestuale del

@@ -184,11 +184,12 @@ minivu fügt der Kurzbefehle-App Aktionen hinzu: **Bilder konvertieren**,
 **Bildgröße ändern**, **Bilder umbenennen**, **Bewertung festlegen**,
 **Farbetikett festlegen** und **In minivu öffnen**. Suche in den Aktionen der
 Kurzbefehle-App nach „minivu“, um sie in deinen eigenen Kurzbefehlen zu
-verwenden. Wird ein solcher Kurzbefehl ausgeführt, öffnet er minivu, falls es
-nicht geöffnet ist. Die Aktionen funktionieren nur mit Dateien auf dem internen
-Speicher deines Mac. **Bilder umbenennen** funktioniert nur in deinem Ordner
-„Bilder“ und in Ordnern in der Seitenleiste von minivu. Liegt eine Datei
-woanders, benennt die Aktion keine der Dateien um.
+verwenden. Ist minivu nicht geöffnet, startet ein Kurzbefehl es ohne Fenster,
+und es wird eine Minute nach der letzten Aktion beendet; **In minivu öffnen**
+öffnet seine Fenster wie gewohnt. Die Aktionen funktionieren nur mit Dateien auf
+dem internen Speicher deines Mac. **Bilder umbenennen** funktioniert nur in
+deinem Ordner „Bilder“ und in Ordnern in der Seitenleiste von minivu. Liegt eine
+Datei woanders, benennt die Aktion keine der Dateien um.
 
 Um einen Kurzbefehl im Finder zu verwenden, erstelle einen, der Bilder empfängt,
 und aktiviere in seinen Details **Als Schnellaktion verwenden**. Er erscheint

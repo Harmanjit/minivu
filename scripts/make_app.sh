@@ -154,7 +154,7 @@ fi
 # user's language), and so do AppKit's own items (Services, the Window
 # menu's additions, standard panels).
 LOCALIZATIONS=""
-for lang in en de fr es it pt-BR nl pl ja zh-Hans ko; do
+for lang in en de fr es it pt-BR nl pl ja zh-Hans ko hi pa bn gu ta; do
   LOCALIZATIONS+=$'\n    '"<string>$lang</string>"
 done
 

@@ -25,7 +25,8 @@ TARGETS = ["MinivuCore", "MinivuRender", "Minivu"]
 PLURALS = {"de": ["one", "other"], "nl": ["one", "other"], "fr": ["one", "many", "other"],
            "es": ["one", "many", "other"], "it": ["one", "many", "other"], "pt-BR": ["one", "many", "other"],
            "pl": ["one", "few", "many", "other"], "ja": ["other"], "zh-Hans": ["other"], "ko": ["other"],
-           "en": ["one", "other"]}
+           "hi": ["one", "other"], "pa": ["one", "other"], "bn": ["one", "other"], "gu": ["one", "other"],
+           "ta": ["one", "other"], "en": ["one", "other"]}
 
 
 def path(target):
