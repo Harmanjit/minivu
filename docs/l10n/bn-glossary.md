@@ -100,7 +100,7 @@ native Bengali speaker. Where it isn't certain which word Apple uses
 | Live Text | লাইভ টেক্সট | review: check Apple's Bengali name |
 | Page Setup… / Print… | পৃষ্ঠা সেটআপ… / প্রিন্ট করুন… | |
 | Save / Save As… / Don’t Save | সেভ করুন / এই নামে সেভ করুন… / সেভ করবেন না | review: if Apple uses “সংরক্ষণ করুন”, change it everywhere |
-| Revert to Saved | সেভ করা অবস্থায় ফিরিয়ে নিন | |
+| Revert / Revert to Saved | ফিরে যান / সেভ করা সংস্করণে ফিরে যান | not ফিরিয়ে নিন, which means withdraw; the alert asks “…সেভ করা সংস্করণে ফিরিয়ে আনতে চান?” |
 | Undo / Redo | পূর্বাবস্থায় ফেরান / আবার করুন | |
 | Cut / Copy / Paste / Select All | কাট করুন / কপি করুন / পেস্ট করুন / সবকিছু নির্বাচন করুন | |
 | Duplicate | ডুপ্লিকেট করুন | |

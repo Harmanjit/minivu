@@ -66,7 +66,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Save / Save As… / Don't Save | सहेजें / इस रूप में सहेजें… / न सहेजें |
 | Revert to Saved / Revert (alert button) | सहेजे गए संस्करण पर वापस जाएँ / वापस जाएँ |
 | Undo / Redo | पूर्ववत करें / फिर से करें |
-| Undo %@ / Redo %@ | पूर्ववत करें: %@ / फिर से करें: %@ (undo-step names are verbal nouns: “%@ ले जाना”, “%@ जोड़ना”) |
+| Undo %@ / Redo %@ | पूर्ववत करें: %@ / फिर से करें: %@ (undo-step names are verbal nouns: “%@ ले जाना”, “%@ जोड़ना”, “ले जाना”, “%lld आइटम कॉपी करना”) |
 | Cut / Copy / Paste | कट करें / कॉपी करें / पेस्ट करें |
 | Select All / Invert Selection | सभी चुनें / चयन उलटें |
 | Delete | डिलीट करें |
@@ -181,13 +181,14 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Fill (print scaling) / Fill (shape or canvas colour) | भरें / भराव (separate keys: “Fill” and “annotation.fill”, “canvas.fill”) |
 | font weights: Light, Regular, Medium, Semibold, Bold, Heavy | लाइट, रेगुलर, मीडियम, सेमीबोल्ड, बोल्ड, हेवी (loanwords throughout; the Bump Map “Light” is प्रकाश) |
 | Sort By (submenu) | सॉर्ट करें |
-| Selected %@ (inspector heading) | चुना गया %@ (चुनी गई as elsewhere, not चयनित) |
+| Selected %@ (inspector heading) | चुना गया: %@ (the colon makes it a label, so feminine shape names such as रेखा still read correctly; not चयनित) |
 | width by height (VoiceOver) | %1$@ गुणा %2$@ |
 | subject / Copy Subject / Remove Background | सब्जेक्ट / सब्जेक्ट कॉपी करें / बैकग्राउंड हटाएँ |
 | Mixed (differing values) | मिश्रित |
 | Edit Metadata… | मेटाडेटा संपादित करें… |
 | Keep Both / Replace / Skip | दोनों रखें / बदलें / छोड़ें (alert titles add the object: ““%@” को नई फ़ाइल से बदलें?”; “Replace %@ and %@?” takes oblique pieces “%lld मूल फ़ाइलों”/“%lld फ़ाइलों” before को) |
 | save over the original | मूल फ़ाइल के ऊपर सहेजें (मूल = original only) |
+| replace in a sentence (no “with …” phrase) | … की जगह लेना (“उस फ़ोल्डर की जगह नहीं ले सकता”, “यह मूल फ़ाइल की जगह ले लेती”); writing over a file = “के ऊपर सहेजना/लिखना”, never a bare “बदलना”, which reads as “change” |
 | Enclosing Folder | पैरेंट फ़ोल्डर |
 | format / encode | फ़ॉर्मैट / एन्कोड |
 | colour profile / colour space | रंग प्रोफ़ाइल / रंग स्पेस |

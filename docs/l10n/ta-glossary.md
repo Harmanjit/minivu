@@ -69,6 +69,8 @@ uses it:
 | thumbnail | சிறுபடம் | |
 | filmstrip | ஃபிலிம்ஸ்ட்ரிப் | |
 | tag (minivu's pick mark) | டேக் | verb: டேக் செய் / டேக்கை நீக்கு; tagged: டேக் செய்யப்பட்டது |
+| orientation tag (EXIF) | திசையமைவு மதிப்பு (EXIF) | never டேக், which is minivu's pick mark |
+| Compare (window, noun) | ஒப்பீடு | the command stays ஒப்பிடு |
 | Finder tags | Finder குறிச்சொற்கள் | kept apart from minivu's tag |
 | rating / Rate N Stars | மதிப்பீடு / %lld நட்சத்திர மதிப்பீடு கொடு | |
 | star | நட்சத்திரம் | |
@@ -130,7 +132,7 @@ uses it:
 | Quit minivu / Hide minivu / Hide Others | minivu-இலிருந்து வெளியேறு / minivu-ஐ மறை / பிறவற்றை மறை | |
 | Minimize / Zoom (window) / Bring All to Front | மினிமைஸ் செய் / ஜூம் / அனைத்தையும் முன்னால் கொண்டுவா | |
 | Enter / Exit Full Screen | முழுத்திரைக்குச் செல் / முழுத்திரையிலிருந்து வெளியேறு | |
-| Zoom In / Zoom Out / Actual Size / Fit to Window | பெரிதாக்கு / சிறிதாக்கு / உண்மையான அளவு / சாளரத்துக்குப் பொருத்து | |
+| Zoom In / Zoom Out / Actual Size / Fit to Window | பெரிதாக்கு / சிறிதாக்கு / உண்மையான அளவு / சாளரத்துக்குப் பொருத்து | zoom in and out together: பெரிதாக்கு/சிறிதாக்கு |
 | zoom (noun) / magnification | பெரிதாக்கல் / உருப்பெருக்கம் | |
 | menus File, Edit, View, Go, Image, Tools, Window, Help | ஃபைல், திருத்து, காட்சி, செல், படம், கருவிகள், சாளரம், உதவி | |
 | Quick Look | Quick Look | not in the current catalog |

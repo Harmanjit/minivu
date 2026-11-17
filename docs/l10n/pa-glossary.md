@@ -83,8 +83,10 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Print… / Page Setup… | ਪ੍ਰਿੰਟ ਕਰੋ… / ਪੰਨਾ ਸੈੱਟਅੱਪ… |
 | Cancel / OK / Done | ਰੱਦ ਕਰੋ / ਠੀਕ ਹੈ / ਹੋ ਗਿਆ |
 | Apply / Reset / Retry | ਲਾਗੂ ਕਰੋ / ਰੀਸੈੱਟ ਕਰੋ / ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ |
-| Replace / Keep Both / Skip | ਬਦਲੋ / ਦੋਵੇਂ ਰੱਖੋ / ਛੱਡੋ (button only; Replace questions say “… ਦੀ ਥਾਂ ਨਵੀਂ … ਰੱਖਣੀ ਹੈ?”, because ਬਦਲਣਾ also means change; overwrite warnings likewise: “ਉਸ ਪ੍ਰੀਸੈੱਟ ਦੀ ਥਾਂ ਨਵਾਂ ਪ੍ਰੀਸੈੱਟ ਰੱਖਿਆ ਜਾਂਦਾ ਹੈ”) |
+| Replace / Keep Both / Skip | ਬਦਲੋ / ਦੋਵੇਂ ਰੱਖੋ / ਛੱਡੋ (button only; Replace questions say “… ਦੀ ਥਾਂ ਨਵੀਂ … ਰੱਖਣੀ ਹੈ?”, because ਬਦਲਣਾ also means change; overwrite warnings likewise: “ਉਸ ਪ੍ਰੀਸੈੱਟ ਦੀ ਥਾਂ ਨਵਾਂ ਪ੍ਰੀਸੈੱਟ ਰੱਖਿਆ ਜਾਂਦਾ ਹੈ”; refusals and help too: “ਫ਼ਾਈਲ “%@” ਦੀ ਥਾਂ ਕੋਈ ਫ਼ੋਲਡਰ ਨਹੀਂ ਰੱਖਿਆ ਜਾ ਸਕਦਾ”, “ਪਿਛਲੇ ਰੰਗ ਟੈਗ ਦੀ ਥਾਂ ਨਵਾਂ ਟੈਗ ਲੱਗ ਜਾਂਦਾ ਹੈ”) |
 | save over the original | ਮੂਲ ਫ਼ਾਈਲ ਦੀ ਥਾਂ ਸੰਭਾਲੋ |
+| Fit / Fill (print scaling) | ਫ਼ਿੱਟ / ਭਰਨਾ (nouns for the choice, not the imperative ਭਰੋ) |
+| command names in a help sentence | bold or in “ ”, never bare, so a list such as “ਬਹੁ-ਪੰਨਾ ਫ਼ਾਈਲ ਬਣਾਓ” doesn't read as an instruction |
 | Revert (alert button) | ਵਾਪਸ ਜਾਓ |
 | Untitled / Untitled Collection | ਬਿਨਾਂ ਨਾਮ / ਬਿਨਾਂ ਨਾਮ ਦਾ ਸੰਗ੍ਰਹਿ |
 | drag | ਘਸੀਟੋ / ਘਸੀਟਣਾ (never ਖਿੱਚ, which is “take a photo”); the gesture list uses the noun ਘਸੀਟਣਾ |
