@@ -7,6 +7,8 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 
 ## Style
 
+- Help pages quote menu items in their UI form ("बैकग्राउंड हटाएँ", not
+  "बैकग्राउंड हटाना"), and say what a key acts on ("स्टार हटाने के लिए **0**").
 - Address: formal "आप". Menu commands and buttons use the polite imperative
   in -एँ / -ें ("खोलें", "ट्रैश में ले जाएँ", "इमेज कन्वर्ट करें"); a few
   short labels are nouns ("समायोजन", "इफ़ेक्ट", "स्लाइडशो").
@@ -122,6 +124,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | rating / Rate N Stars / star | रेटिंग / N स्टार की रेटिंग दें / स्टार |
 | Custom Order | कस्टम क्रम |
 | crop | क्रॉप करें (edit name: क्रॉप) |
+| Free (crop aspect ratio) | फ़्रीफ़ॉर्म (not मुक्त, “liberated”), in the UI and the help |
 | straighten | सीधा करें |
 | rotate / flip | रोटेट करें / फ़्लिप करें |
 | resize / resample | आकार बदलें / रीसैंपल करें |
@@ -138,6 +141,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | metadata | मेटाडेटा |
 | keyword(s) | कीवर्ड |
 | title / caption / creator / copyright / comment | शीर्षक / कैप्शन / निर्माता / कॉपीराइट / टिप्पणी |
+| Make (camera) / Lens make | कैमरा निर्माता / लेंस निर्माता (bare निर्माता is Creator) |
 | date taken / date modified / date created | लेने की तिथि / संशोधन की तिथि / बनाने की तिथि |
 | location (where a photo was taken) | स्थान |
 | GPS position / IPTC place names | GPS स्थिति / IPTC स्थानों के नाम |
@@ -174,6 +178,11 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | Perspective | परिप्रेक्ष्य |
 | Vignette / Radius / Feather | विनेट / त्रिज्या / फ़ेदर |
 | opacity | अपारदर्शिता |
+| Fill (print scaling) / Fill (shape or canvas colour) | भरें / भराव (separate keys: “Fill” and “annotation.fill”, “canvas.fill”) |
+| font weights: Light, Regular, Medium, Semibold, Bold, Heavy | लाइट, रेगुलर, मीडियम, सेमीबोल्ड, बोल्ड, हेवी (loanwords throughout; the Bump Map “Light” is प्रकाश) |
+| Sort By (submenu) | सॉर्ट करें |
+| Selected %@ (inspector heading) | चुना गया %@ (चुनी गई as elsewhere, not चयनित) |
+| width by height (VoiceOver) | %1$@ गुणा %2$@ |
 | subject / Copy Subject / Remove Background | सब्जेक्ट / सब्जेक्ट कॉपी करें / बैकग्राउंड हटाएँ |
 | Mixed (differing values) | मिश्रित |
 | Edit Metadata… | मेटाडेटा संपादित करें… |
@@ -183,7 +192,7 @@ uses it. Register: modern, plain Hindi, not Sanskritised or Persianised.
 | format / encode | फ़ॉर्मैट / एन्कोड |
 | colour profile / colour space | रंग प्रोफ़ाइल / रंग स्पेस |
 | animated / animation | एनिमेटेड / एनिमेशन |
-| arrow keys | तीर कुंजियाँ |
+| arrow keys / key (as in “backquote key”) | तीर कुंजियाँ / कुंजी (never the romanised की, which reads as the postposition) |
 | Theme: System, Bright, Gray, Dark | सिस्टम, उजला, ग्रे, गहरा |
 | Appearance (web gallery): Light, Dark | लाइट, डार्क (as Apple's Hindi macOS) |
 | display / screen | डिस्प्ले / स्क्रीन |

@@ -188,11 +188,12 @@ minivu ajoute des actions à l’app Raccourcis : **Convertir des images**,
 **Redimensionner des images**, **Renommer des images**, **Attribuer une note**,
 **Définir l’étiquette de couleur** et **Ouvrir dans minivu**. Recherchez
 « minivu » parmi les actions de l’app Raccourcis pour les utiliser dans vos
-propres raccourcis. L’exécution d’un tel raccourci ouvre minivu s’il n’est pas
-ouvert. Les actions ne fonctionnent qu’avec les fichiers du stockage interne de
-votre Mac. **Renommer des images** ne fonctionne que dans votre dossier Images
-et dans les dossiers de la barre latérale de minivu ; si un fichier se trouve
-ailleurs, aucun n’est renommé.
+propres raccourcis. Si minivu n’est pas ouvert, un raccourci le lance sans
+fenêtre, et minivu quitte une minute après la dernière action ; **Ouvrir dans
+minivu** ouvre ses fenêtres comme d’habitude. Les actions ne fonctionnent
+qu’avec les fichiers du stockage interne de votre Mac. **Renommer des images**
+ne fonctionne que dans votre dossier Images et dans les dossiers de la barre
+latérale de minivu ; si un fichier se trouve ailleurs, aucun n’est renommé.
 
 Pour utiliser un raccourci depuis le Finder, créez-en un qui reçoit des images
 et activez **Utiliser comme action rapide** dans ses détails. Il apparaît alors

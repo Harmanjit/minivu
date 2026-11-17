@@ -1,48 +1,76 @@
-# minivu ગુજરાતી (gu) શબ્દાવલિ
+# minivu Gujarati (gu) glossary
 
-macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવલિને અનુસરવાનો પ્રયાસ કર્યો છે. Appleનો ચોક્કસ શબ્દ ચકાસી શકાયો નથી ત્યાં સામાન્ય સૉફ્ટવેરમાં વપરાતો શબ્દ લીધો છે.
-બધા અનુવાદ મશીન અનુવાદ છે અને ગુજરાતી માતૃભાષી વ્યક્તિએ તેમની સમીક્ષા કરવી જરૂરી છે.
+Tries to follow the terms of macOS in Gujarati (Finder, Photos, Preview).
+Where Apple's exact word couldn't be checked, the word common in Gujarati
+software was taken. Every translation is a machine translation and needs
+review by a native Gujarati speaker; the last section lists what to check
+first.
 
-## લેખન નિયમો
+## Writing rules
 
-- સંબોધન: "તમે" (Apple ગુજરાતીની જેમ આદરયુક્ત સંબોધન, પરંતુ "આપ" નહીં). આદેશ બહુવચન-આદરાર્થ રૂપમાં: "ખોલો", "પસંદ કરો", "સાચવો".
-- મેનૂ આઇટમ અને બટન: ટૂંકું ક્રિયાપદ રૂપ ("ક્રૉપ કરો…", "ટ્રેશમાં ખસેડો"). સંપાદનનાં નામ ("Undo %@"માં આવતાં) સંજ્ઞા અથવા ક્રિયાવાચક નામ રૂપે ("કદ બદલવું", "ડાબે ફેરવવું"), અને "Undo %@" = "%@ પૂર્વવત્ કરો".
-- પ્રશ્નાર્થ પુષ્ટિ સંવાદ: "…ખસેડીએ?", "…બદલીએ?", "…ડિલીટ કરીએ?" (Appleની "Move to Trash?" શૈલી).
-- ભૂલ સંદેશ: "… શકાયું નથી." / "… શકાતું નથી."
-- અનુગ (માં, નું, થી, ને) શબ્દ કે પ્લેસહોલ્ડર સાથે જોડીને: "Finderમાં", "“%@”માં", "%@ માટે".
-- અંકો લૅટિન (0-9) રાખ્યા છે; સંખ્યાનું ફૉર્મેટિંગ સિસ્ટમ કરે છે. એકમ સંક્ષેપ: સે (સેકન્ડ), મિ (મિનિટ), ક (કલાક); px, MP, fps, Mbit/s, pt, mm, dpi લૅટિનમાં.
-- અવતરણ ચિહ્ન “ ” (Apple જેવાં). મેનૂ પાથ: ફાઇલ > ફોલ્ડર ખોલો…. ઍલિપ્સિસ "…" (U+2026) જાળવેલ છે.
-- કીનાં નામ કીબોર્ડ પર છે તેમ અંગ્રેજીમાં: Return, Esc, Space, Tab, Home, End, Page Up/Down, Shift, Option-ક્લિક. ચિહ્નો (⌘ ⌥ ⇧ ⌫ → ←) જેમ છે તેમ. આ જાણીજોઈને છે (ko જેવું), તેથી આ સ્ટ્રિંગ અંગ્રેજી જેવી જ છે.
-- વાક્યક્રમ SOV હોવાથી ઘણી જગ્યાએ positional specifiers (%1$lld, %2$@) વાપર્યા છે, દા.ત. "%2$lld માંથી %1$lld".
-- બહુવચન: gu માટે CLDR `one` અને `other`. `one` 0 અને 1 બંનેને આવરે છે, તેથી દરેક `one` રૂપમાં સંખ્યા જાળવી છે. ગુજરાતીમાં સંખ્યા પછી નામ ઘણીવાર એકવચનમાં જ રહે છે ("5 ઇમેજ", "3 પેજ"); "ફાઇલ/ફાઇલો", "ચિત્ર/ચિત્રો", "રંગ/રંગો" જેવાં રૂપમાં બહુવચન વાપર્યું છે.
-- લેટર-કેસ વિકલ્પો ગુજરાતીમાં સમજાવેલા, કૌંસમાં લૅટિન ઉદાહરણ સાથે (hi, pa, bn, ta જેવું): “મોટા અક્ષર (UPPERCASE)”, “નાના અક્ષર (lowercase)”, “દરેક શબ્દનો પહેલો અક્ષર મોટો (Title Case)”.
+- Address: “તમે” (respectful, as Apple's Gujarati, but not “આપ”). Commands in
+  the plural respectful form: “ખોલો”, “પસંદ કરો”, “સાચવો”.
+- Menu items and buttons: the short verb form (“ક્રૉપ કરો…”, “ટ્રેશમાં
+  ખસેડો”). Edit names (the ones after “Undo”) are always nouns or verbal
+  nouns, never bare stems: “ક્રૉપ કરવું”, “કદ બદલવું”, “ડાબે ફેરવવું”, “આડું
+  ફ્લિપ કરવું”, so the Undo menu reads “આડું ફ્લિપ કરવું પૂર્વવત્ કરો” like its
+  neighbours. “Undo %@” = “%@ પૂર્વવત્ કરો”.
+- Settings checkboxes describe a behaviour, not a command to perform: “ફોલ્ડરના
+  અંતે ફરી શરૂઆતથી બતાવો” (Wrap around at end of folder).
+- Confirmation questions: “…ખસેડીએ?”, “…બદલીએ?”, “…ડિલીટ કરીએ?” (Apple's
+  “Move to Trash?” style).
+- Error messages: “… શકાયું નથી.” / “… શકાતું નથી.”, with a complete
+  passive where a cause follows (“પરવાનગી નકારવામાં આવી”).
+- Progress lines are passive, with no implied subject: ““%@” સચવાઈ રહ્યું
+  છે…”, “રદ થઈ રહ્યું છે…”, “નામ તપાસાઈ રહ્યાં છે…”, “શોધ ચાલી રહી છે…”.
+- Postpositions (માં, નું, થી, ને) attach to the word or placeholder:
+  “Finderમાં”, ““%@”માં”, “%@ માટે”.
+- Digits stay Latin (0–9); the system formats numbers. Unit abbreviations:
+  સે (second), મિ (minute), ક (hour); px, MP, fps, Mbit/s, pt, mm, dpi in
+  Latin.
+- Quotation marks “ ” (as Apple). In the help a command or option named
+  inside a sentence is bold or in “ ”, never bare, so two command names don't
+  run together (“તેમના માટે “સાચવો” પસંદ કરવાથી “આ રૂપે સાચવો” ખૂલે છે”). Menu
+  paths: ફાઇલ > ફોલ્ડર ખોલો…. Ellipsis “…” (U+2026) kept.
+- Key names in English, as on the keyboard: Return, Esc, Space, Tab, Home,
+  End, Page Up/Down, Shift, Option-ક્લિક. Glyphs (⌘ ⌥ ⇧ ⌫ → ←) unchanged. This
+  is deliberate (as in ko), so those strings match English.
+- Word order is SOV, so many strings use positional specifiers (%1$lld,
+  %2$@), for example “%2$lld માંથી %1$lld”.
+- Plurals: CLDR `one` and `other` for gu. `one` covers both 0 and 1, so every
+  `one` form keeps the number. A Gujarati noun after a number often stays
+  singular (“5 ઇમેજ”, “3 પેજ”); the plural is used in forms such as
+  “ફાઇલ/ફાઇલો”, “ચિત્ર/ચિત્રો”, “રંગ/રંગો”.
+- The letter-case options are explained in Gujarati with a Latin example in
+  brackets (as in hi, pa, bn and ta): “મોટા અક્ષર (UPPERCASE)”, “નાના અક્ષર
+  (lowercase)”, “દરેક શબ્દનો પહેલો અક્ષર મોટો (Title Case)”.
 
-## શબ્દો
+## Terms
 
-| English | ગુજરાતી | નોંધ |
+| English | Gujarati | Note |
 |---|---|---|
-| browser | બ્રાઉઝર | ફોલ્ડર સૂચિ અને થંબનેલ ગ્રિડવાળી વિન્ડો |
+| browser | બ્રાઉઝર | the window with the folder list and the thumbnail grid |
 | viewer | વ્યૂઅર | |
 | catalog / ratings database | કૅટલૉગ / રેટિંગ ડેટાબેઝ | |
 | collection | કલેક્શન | |
-| smart folder | સ્માર્ટ ફોલ્ડર | Finder જેવું |
+| smart folder | સ્માર્ટ ફોલ્ડર | as in Finder |
 | saved search | સાચવેલી શોધ | |
 | sidebar | સાઇડબાર | |
-| Favorites | મનપસંદ | Finder સાઇડબાર હેડર |
+| Favorites | મનપસંદ | Finder sidebar heading |
 | preview pane | પ્રિવ્યૂ પેન | |
 | thumbnail | થંબનેલ | |
 | filmstrip | ફિલ્મસ્ટ્રિપ | |
-| tag (minivuનું નિશાન) | ટૅગ | ક્રિયાપદ: ટૅગ કરો / ટૅગ દૂર કરો; વિશેષણ: ટૅગ કરેલી |
+| tag (minivu's mark) | ટૅગ | verb: ટૅગ કરો / ટૅગ દૂર કરો; adjective: ટૅગ કરેલી |
 | Finder tags | Finder ટૅગ | |
 | rating / Rate N Stars | રેટિંગ / %lld સ્ટાર રેટિંગ આપો | |
 | star | સ્ટાર | |
 | label / colour label | લેબલ / કલર લેબલ | |
-| Red, Orange, Yellow, Green, Blue, Purple, Gray | લાલ, નારંગી, પીળો, લીલો, વાદળી, જાંબલી, ગ્રે | Finder ટૅગ રંગો |
-| crop | ક્રૉપ કરો / ક્રૉપ | |
+| Red, Orange, Yellow, Green, Blue, Purple, Gray | લાલ, નારંગી, પીળો, લીલો, વાદળી, જાંબલી, ગ્રે | Finder tag colours |
+| crop | ક્રૉપ કરો / ક્રૉપ કરવું (edit name) | |
 | straighten | સીધું કરો | |
-| resize | કદ બદલો | સંપાદનનું નામ: કદ બદલવું |
+| resize | કદ બદલો | edit name: કદ બદલવું |
 | rotate left / right | ડાબે ફેરવો / જમણે ફેરવો | |
-| flip horizontal / vertical | આડું ફ્લિપ કરો / ઊભું ફ્લિપ કરો | |
+| flip horizontal / vertical | આડું ફ્લિપ કરો / ઊભું ફ્લિપ કરો | edit names: આડું ફ્લિપ કરવું / ઊભું ફ્લિપ કરવું |
 | batch convert | બૅચ કન્વર્ટ | |
 | batch rename | બૅચ નામ બદલો | |
 | rename | નામ બદલો | |
@@ -56,8 +84,8 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 | watermark | વૉટરમાર્ક | |
 | preset | પ્રીસેટ | |
 | edits | સંપાદનો | |
-| image / picture / photo | ઇમેજ / ચિત્ર / ફોટો | મૂળના ભેદ જાળવ્યા છે |
-| Pictures folder | Pictures | Finder ડિસ્પ્લે નામ; પાથમાં લૅટિન |
+| image / picture / photo | ઇમેજ / ચિત્ર / ફોટો | keeps the source's distinctions |
+| Pictures folder | Pictures | Finder's display name; Latin in paths |
 | Trash | ટ્રેશ | |
 | Move to Trash | ટ્રેશમાં ખસેડો | |
 | Put Back | પાછું મૂકો | |
@@ -68,9 +96,12 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 | Save / Save As… / Don’t Save | સાચવો / આ રૂપે સાચવો… / સાચવશો નહીં | |
 | Revert to Saved | સાચવેલા પર પાછું લાવો | |
 | Undo / Redo | પૂર્વવત્ કરો / ફરી કરો | |
-| Getting Started (help topic) | શરૂઆત | બીજાં વિષય-શીર્ષકોની જેમ સંજ્ઞા |
+| Getting Started (help topic) | શરૂઆત | a noun, like the other topic titles |
 | Strength / Free (crop) / aspect ratio | તીવ્રતા / મુક્ત આકાર / પાસા ગુણોત્તર | |
-| Use as Quick Action / Quick Actions | ઝડપી ક્રિયા તરીકે વાપરો / ઝડપી ક્રિયાઓ | સમીક્ષક macOS Shortcuts અને Finderનાં ગુજરાતી લેબલ, અને Shortcuts ઍપનું ગુજરાતી નામ ચકાસે |
+| Hardness (brush) | કઠોરતા | |
+| Low / Medium / High (video quality) | નીચી / મધ્યમ / ઊંચી | a matching pair, not નીચી / ઉચ્ચ |
+| deep / wide (frame border) | પહોળો | a border is wide, not deep (ઊંડો) |
+| Use as Quick Action / Quick Actions | ઝડપી ક્રિયા તરીકે વાપરો / ઝડપી ક્રિયાઓ | the reviewer should check the Gujarati labels of macOS Shortcuts and Finder, and the Shortcuts app's Gujarati name |
 | Cut / Copy / Paste / Select All | કાપો / કૉપિ કરો / પેસ્ટ કરો / બધું પસંદ કરો | |
 | Duplicate | ડુપ્લિકેટ કરો | |
 | Delete | ડિલીટ કરો | |
@@ -81,25 +112,26 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 | Zoom In / Zoom Out / Actual Size / Fit to Window | ઝૂમ ઇન કરો / ઝૂમ આઉટ કરો / વાસ્તવિક કદ / વિન્ડોમાં ફિટ કરો | |
 | menus File / Edit / View / Go / Image / Tools / Window / Help | ફાઇલ / સંપાદિત કરો / જુઓ / જાઓ / ઇમેજ / ટૂલ્સ / વિન્ડો / મદદ | |
 | window / folder / file | વિન્ડો / ફોલ્ડર / ફાઇલ | |
-| Quick Look | ક્વિક લુક | વર્તમાન કૅટલૉગમાં વપરાયું નથી |
+| Quick Look | ક્વિક લુક | not used in the current catalog |
 | Live Text | લાઇવ ટેક્સ્ટ | |
 | Services | સેવાઓ | |
-| AirDrop, Messages, Mail | AirDrop, Messages, Mail | Appleનાં નામ લૅટિનમાં રાખ્યાં; સમીક્ષક Appleનું ગુજરાતી નામ ચકાસે |
+| AirDrop, Messages, Mail | AirDrop, Messages, Mail | Apple's names kept in Latin; the reviewer should check Apple's Gujarati names |
 | Reduce Motion | ગતિ ઘટાડો | |
 | Screen & System Audio Recording | સ્ક્રીન અને સિસ્ટમ ઑડિયો રેકોર્ડિંગ | |
 | Privacy & Security | ગોપનીયતા અને સુરક્ષા | |
 | System Settings / Accessibility | સિસ્ટમ સેટિંગ્સ / ઍક્સેસિબિલિટી | |
-| RAW / HDR / SDR / JPEG… | RAW / HDR / SDR / JPEG… | ફૉર્મેટ નામ અનુવાદિત નથી |
+| RAW / HDR / SDR / JPEG… | RAW / HDR / SDR / JPEG… | format names are not translated |
 | metadata / keywords / caption / title / creator / copyright | મેટાડેટા / કીવર્ડ / કૅપ્શન / શીર્ષક / સર્જક / કૉપિરાઇટ | |
 | location | લોકેશન | |
-| date taken / date modified / date created | લીધાની તારીખ / સુધાર્યાની તારીખ / બનાવ્યાની તારીખ | Info panel “Modified” પણ સુધાર્યાની તારીખ |
-| GPS position | GPS સ્થાન | સ્થિતિ નહીં (એ state છે) |
-| changed (by another app) / replaced | ફેરફાર કર્યો / બદલો | બદલો ફક્ત Replace માટે; replaced file = જૂની ફાઇલ, જેની જગ્યાએ નવી ફાઇલ આવી |
+| date taken / date modified / date created | લીધાની તારીખ / સુધાર્યાની તારીખ / બનાવ્યાની તારીખ | the info panel's “Modified” is સુધાર્યાની તારીખ too |
+| GPS position | GPS સ્થાન | not સ્થિતિ (that is “state”) |
+| changed (by another app) / replaced | ફેરફાર કર્યો / બદલો | બદલો only for Replace; the replaced file = જૂની ફાઇલ, whose place the new file took. “Save over an existing file” = “હાલની ફાઇલ પર સાચવવું”, which “કાયમ માટે બદલી નાખે છે” |
+| “A folder named … is in the way” | “… નામનું ફોલ્ડર નડે છે” | not the literal “વચ્ચે આવે છે” |
 | channel / animated / transparency / aperture | ચેનલ / એનિમેટેડ / પારદર્શિતા / અપર્ચર | |
-| Theme: System, Bright, Gray, Dark | સિસ્ટમ, બ્રાઇટ, ગ્રે, ડાર્ક | macOS જેવાં લિપ્યંતર |
-| Font weight | ફૉન્ટની જાડાઈ | વજન નહીં |
+| Theme: System, Bright, Gray, Dark | સિસ્ટમ, બ્રાઇટ, ગ્રે, ડાર્ક | transliterated, as macOS does |
+| Font weight | ફૉન્ટની જાડાઈ | not વજન |
 | arrowhead size | તીરના માથાનું કદ | |
-| From / To (range labels) | શરૂઆત / સુધી | બે મૂલ્યો વચ્ચે “to” = થી |
+| From / To (range labels) | શરૂઆત / સુધી | “to” between two values = થી |
 | Earlier / Later (date shift) | પહેલાંની તરફ / પછીની તરફ | |
 | sidecar | સાઇડકાર | XMP સાઇડકાર |
 | gain map / tone mapped | ગેઇન મૅપ / ટોન મૅપ કરેલું | |
@@ -109,8 +141,9 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 | Clone Stamp / Healing Brush | ક્લોન સ્ટૅમ્પ / હીલિંગ બ્રશ | |
 | Red-Eye Removal | રેડ-આઇ દૂર કરવી | |
 | Remove Background | બૅકગ્રાઉન્ડ દૂર કરો | |
-| Frame (effect) / frame (video) | ફ્રેમ / ફ્રેમ | બંને "ફ્રેમ"; સમીક્ષક સંદર્ભ ચકાસે |
+| Frame (effect) / frame (video) | ફ્રેમ / ફ્રેમ | both “ફ્રેમ”; the reviewer should check the context |
 | Text and Shapes | ટેક્સ્ટ અને આકારો | |
+| Fill (print scaling) / Fill (shape, canvas) | ભરો / ભરણ | separate keys: Print's choice is a command, the shape's and canvas's colour a noun |
 | canvas / anchor | કૅનવાસ / ઍન્કર | |
 | Find Duplicates | ડુપ્લિકેટ શોધો | |
 | Flat View | ફ્લૅટ વ્યૂ | |
@@ -131,13 +164,22 @@ macOS ગુજરાતી (Finder, Photos, Preview)ની શબ્દાવ�
 | codec / frame rate / data rate | કોડેક / ફ્રેમ રેટ / ડેટા રેટ | |
 | mute / unmute | મ્યૂટ કરો / અનમ્યૂટ કરો | |
 
-## અંગ્રેજીમાં જ રાખેલું
+## Left in English
 
-minivu, ફૉર્મેટ નામ (JPEG, HEIC, TIFF…), ડિસ્ક પર લખાતાં નામ (minivu Wallpapers, Pictures), પૅટર્ન ટોકન ({name} વગેરે), EXIF હોકાયંત્ર દિશા N/S/E/W, કીનાં નામ, એકમ ચિહ્નો (px, MP, fps, Mbit/s), US Letter, Apple ઉત્પાદન નામ (Mac, MacBook Pro, Pro Display XDR, Liquid Retina XDR, Safari, Spotlight).
+minivu, format names (JPEG, HEIC, TIFF…), names written to disk (minivu
+Wallpapers, Pictures), pattern tokens ({name} and the others), the EXIF
+compass letters N/S/E/W, key names, unit symbols (px, MP, fps, Mbit/s), US
+Letter, Apple product names (Mac, MacBook Pro, Pro Display XDR, Liquid Retina
+XDR, Safari, Spotlight).
 
-## સમીક્ષક માટે પહેલાં ચકાસવાનું
+## For the reviewer to check first
 
-- Apple macOS ગુજરાતીના ચોક્કસ શબ્દો: Trash (ટ્રેશ vs કચરાપેટી), Edit મેનૂ (સંપાદિત કરો), Quit, Reveal in Finder, Minimize, Live Text, AirDrop/Messages/Mail.
-- "Frame" (અસર) અને વીડિયો "frame" બંને "ફ્રેમ" છે.
-- લિંગ/વચન સંમતિ: "%@ સંબંધિત નવો ફેરફાર…" (MinivuCore, metadata field) અને "%@ ડિલીટ કરવું/ખસેડવું" (Undo steps) જેવાં જોડાયેલાં વાક્યો.
-- "%@ seconds", "%@ × %@ pixels" જેવી કી પ્લુરલ કી નથી; ગુજરાતીમાં સંખ્યા પછી એકવચન સ્વાભાવિક છે, તેથી સમસ્યા ઓછી.
+- Apple macOS Gujarati's exact words: Trash (ટ્રેશ or કચરાપેટી), the Edit menu
+  (સંપાદિત કરો), Quit, Reveal in Finder, Minimize, Live Text,
+  AirDrop/Messages/Mail.
+- The effect “Frame” and a video “frame” are both “ફ્રેમ”.
+- Gender and number agreement in composed sentences: “%@ સંબંધિત નવો
+  ફેરફાર…” (MinivuCore, metadata field) and “%@ ડિલીટ કરવું/ખસેડવું” (Undo
+  steps).
+- Keys such as “%@ seconds” and “%@ × %@ pixels” are not plural keys; a
+  Gujarati noun after a number is naturally singular, so this matters less.

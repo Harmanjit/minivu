@@ -24,8 +24,10 @@ reviewer should check first against Apple's own Punjabi strings are marked
   Quotation marks “ ”; apostrophe-like "’ਤੇ" for "ਉੱਤੇ" in short forms.
 - Digits stay Western (0–9), as Apple's Punjabi default. Unit symbols stay
   Latin (px, MP, fps, mm, Mbit/s, dpi); seconds are always written out as
-  ਸਕਿੰਟ (“s”, “%lld s”), as hi, bn, gu and ta use a native form; other
-  spelled-out units are Punjabi too (ਪਿਕਸਲ, ਪੌਇੰਟ).
+  ਸਕਿੰਟ (“s”, “%lld s”, and in the slideshow summaries), as hi, bn, gu and
+  ta use a native form; minutes are ਮਿੰਟ and hours the abbreviation ਘੰ.
+  (with its period, as hi घं.); other spelled-out units are Punjabi too
+  (ਪਿਕਸਲ, ਪੌਇੰਟ).
 - Key names stay as printed on the keyboard, in Latin: Return, Esc, Space,
   Tab, Home, End, Page Up/Page Down, Shift, Option ("Option-ਕਲਿੱਕ"); glyphs
   ⌘ ⇧ ⌥ ⌫ → ← kept. Arrow keys: "ਤੀਰ ਕੁੰਜੀਆਂ". Keeping them Latin is
@@ -81,11 +83,14 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Print… / Page Setup… | ਪ੍ਰਿੰਟ ਕਰੋ… / ਪੰਨਾ ਸੈੱਟਅੱਪ… |
 | Cancel / OK / Done | ਰੱਦ ਕਰੋ / ਠੀਕ ਹੈ / ਹੋ ਗਿਆ |
 | Apply / Reset / Retry | ਲਾਗੂ ਕਰੋ / ਰੀਸੈੱਟ ਕਰੋ / ਮੁੜ ਕੋਸ਼ਿਸ਼ ਕਰੋ |
-| Replace / Keep Both / Skip | ਬਦਲੋ / ਦੋਵੇਂ ਰੱਖੋ / ਛੱਡੋ (button only; Replace questions say “… ਦੀ ਥਾਂ ਨਵੀਂ … ਰੱਖਣੀ ਹੈ?”, because ਬਦਲਣਾ also means change) |
+| Replace / Keep Both / Skip | ਬਦਲੋ / ਦੋਵੇਂ ਰੱਖੋ / ਛੱਡੋ (button only; Replace questions say “… ਦੀ ਥਾਂ ਨਵੀਂ … ਰੱਖਣੀ ਹੈ?”, because ਬਦਲਣਾ also means change; overwrite warnings likewise: “ਉਸ ਪ੍ਰੀਸੈੱਟ ਦੀ ਥਾਂ ਨਵਾਂ ਪ੍ਰੀਸੈੱਟ ਰੱਖਿਆ ਜਾਂਦਾ ਹੈ”) |
 | save over the original | ਮੂਲ ਫ਼ਾਈਲ ਦੀ ਥਾਂ ਸੰਭਾਲੋ |
 | Revert (alert button) | ਵਾਪਸ ਜਾਓ |
 | Untitled / Untitled Collection | ਬਿਨਾਂ ਨਾਮ / ਬਿਨਾਂ ਨਾਮ ਦਾ ਸੰਗ੍ਰਹਿ |
-| drag | ਘਸੀਟੋ / ਘਸੀਟਣਾ (never ਖਿੱਚ, which is “take a photo”) |
+| drag | ਘਸੀਟੋ / ਘਸੀਟਣਾ (never ਖਿੱਚ, which is “take a photo”); the gesture list uses the noun ਘਸੀਟਣਾ |
+| drop (drag and drop) | ਘਸੀਟ ਕੇ ਛੱਡਣਾ (“ਘਸੀਟ ਕੇ ਛੱਡੀਆਂ ਫ਼ਾਈਲਾਂ”, “ਘਸੀਟ ਕੇ ਛੱਡਦੇ ਸਮੇਂ ⌘”), in the UI and the help; never ਸੁੱਟਣਾ, and never a bare ਛੱਡਣਾ, which also means “skip” |
+| an option named in a sentence | in quotes with a verb (“ਕੋਈ ਨਹੀਂ” ਚੁਣਨ ਨਾਲ…), so “None” can't read as “nobody” |
+| Selected %@ (inspector heading) | ਚੋਣ: %@ (no adjective to agree with the kind's gender) |
 | Adjust / RAW Adjustments | ਅਡਜਸਟ / RAW ਅਡਜਸਟਮੈਂਟ |
 | Orientation | ਓਰੀਐਂਟੇਸ਼ਨ |
 | Strength / Magnification (lens) / Free (crop) | ਤੀਬਰਤਾ / ਜ਼ੂਮ / ਖੁੱਲ੍ਹਾ |
@@ -136,7 +141,7 @@ reviewer should check first against Apple's own Punjabi strings are marked
 | Reduce Motion | ਹਿਲਜੁਲ ਘਟਾਓ | check |
 | Privacy & Security | ਪਰਦੇਦਾਰੀ ਅਤੇ ਸੁਰੱਖਿਆ | check |
 | Screen & System Audio Recording | ਸਕ੍ਰੀਨ ਅਤੇ ਸਿਸਟਮ ਆਡੀਓ ਰਿਕਾਰਡਿੰਗ | check |
-| System Settings | ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ | |
+| System Settings | ਸਿਸਟਮ ਸੈਟਿੰਗਾਂ | a settings path in the help is bold and in Punjabi only, as in the UI; only the Language & Region path in Getting Started keeps the English in brackets |
 | RAW / HDR / SDR | RAW / HDR / SDR | kept Latin |
 | metadata / keyword(s) | ਮੈਟਾਡਾਟਾ / ਕੀਵਰਡ | |
 | caption / title / creator / copyright | ਕੈਪਸ਼ਨ / ਸਿਰਲੇਖ / ਰਚਨਾਕਾਰ / ਕਾਪੀਰਾਈਟ | |

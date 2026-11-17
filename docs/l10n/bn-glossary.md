@@ -1,38 +1,70 @@
-# minivu বাংলা (bn) পরিভাষা
+# minivu Bengali (bn) glossary
 
-এখানকার শব্দগুলো Apple-এর macOS বাংলার (Finder, Photos, Preview) পরিভাষার কাছাকাছি রাখার চেষ্টা করা হয়েছে। সব অনুবাদই মেশিন অনুবাদ, তাই একজন মাতৃভাষী বাংলাভাষীকে দিয়ে রিভিউ করানো দরকার। নিচের যেসব জায়গায় Apple আসলে কোন শব্দ ব্যবহার করে তা নিশ্চিত নয় (বিশেষ করে Save এবং Undo), রিভিউয়ার আগে সেগুলো দেখবেন।
+The terms try to stay close to Apple's macOS in Bengali (Finder, Photos,
+Preview). Every translation is a machine translation and needs review by a
+native Bengali speaker. Where it isn't certain which word Apple uses
+(especially Save and Undo, below), the reviewer should check those first.
 
-## লেখার নিয়ম
+## Writing rules
 
-- রেজিস্টার: আনুষ্ঠানিক “আপনি” (Apple-এর মতো)। মেনু আইটেম আর বোতামে ভদ্র অনুজ্ঞা ব্যবহার করা হয়েছে: খুলুন, বন্ধ করুন, ট্র্যাশে সরান, শেয়ার করুন…। যে মেনু শিরোনাম কমান্ড নয় সেগুলো বিশেষ্য: ফাইল, সম্পাদনা, দেখুন, যান, টুল, উইন্ডো, সহায়তা। “Edit” মেনুর নাম “সম্পাদনা”, আর “View” মেনুর নাম “দেখুন” (Apple-এর মতো)।
-- সম্পাদনার নাম (“Undo Crop”-এর Crop-এর মতো) ক্রিয়াবাচক বিশেষ্য: ক্রপ, বাঁয়ে ঘোরানো, আকার পরিবর্তন। “Undo %@”-এর অনুবাদ “পূর্বাবস্থায় ফেরান: %@”, আর “Redo %@”-এর অনুবাদ “আবার করুন: %@”। কোলন থাকায় বাংলা ব্যাকরণ ঠিক রেখে যেকোনো নাম বসানো যায়।
-- বাক্যের শেষে দাঁড়ি “।” বসে। প্রশ্নবোধক চিহ্ন “?” আর কোলন “:” আগের মতোই থাকে। উদ্ধৃতিচিহ্ন “ ” আর উপবৃত্ত “…” (U+2026) রাখা হয়েছে। বাক্যের মধ্যে কোনো বোতাম বা কমান্ডের নাম উল্লেখ করলে তা ‘ ’-এর মধ্যে রাখা হয়েছে (‘এই নামে সেভ করুন’, ‘গতি কমান’)। মেনুর পথ “ফাইল > ফোল্ডার খুলুন…” এই আকারে লেখা।
-- সংখ্যা আর শব্দের মধ্যে সংযোগ: পদাশ্রিত নির্দেশক “টি” সরাসরি সংখ্যার পরে বসে (“%lldটি ছবি”, “%lldটি ফাইল”)। একক চিহ্নের আগে স্পেস থাকে (“%@ px”, “%lld বাইট”, “4 GB”)। ইংরেজি ‑s প্রত্যয়ের বদলে বিভক্তি হাইফেন দিয়ে যুক্ত: “%@-এ”, “Mac-এর”, ““%@”-এর”।
-- বহুবচন: CLDR bn-এ `one` (i = 0 বা n = 1) আর `other` আছে। বাংলায় সংখ্যার পরে বিশেষ্যের রূপ বদলায় না, তাই দুটি রূপ একই এবং `one` রূপেও সংখ্যা রাখা হয়েছে (0 এই রূপেই পড়ে)। ইংরেজি `one` রূপে সংখ্যা না থাকলেও (“The pattern has an unknown token: %2$@.”) বাংলা `one` রূপে `%1$lld` রাখা হয়েছে।
-- শব্দক্রম: বাংলা SOV। ক্রম বদলাতে হলে অবস্থানসূচক স্পেসিফায়ার (%1$@, %2$lld) ব্যবহার করা হয়েছে, যেমন “%2$lldটির মধ্যে %1$lldটি নির্বাচিত”। একটি স্ট্রিংয়ে অবস্থানসূচক আর সাধারণ স্পেসিফায়ার মেশানো হয়নি।
-- সংখ্যা: স্ট্রিংয়ের ভিতরে লেখা সংখ্যা (16, 4 GB, 1 থেকে 100) পশ্চিমা অঙ্কে রাখা হয়েছে। স্পেসিফায়ারের সংখ্যাগুলো সিস্টেম লোকেলের অঙ্কে আসে। লোকেল বাংলা অঙ্ক (০–৯) দেখালে রিভিউয়ার দেখবেন দুটো একসাথে অস্বাভাবিক লাগে কিনা।
-- কী-এর নাম কীবোর্ডে যেমন লেখা থাকে তেমনই ইংরেজিতে রাখা হয়েছে (Return, Esc, Space, Tab, Home, End, Page Up/Down, Shift, Option)। চিহ্নও অপরিবর্তিত (⌘ ⌥ ⇧ ⌫ → ←)। “Option-ক্লিক”, “⌥-ক্লিক”। এটা ইচ্ছাকৃত (ko-র মতো), তাই এই স্ট্রিংগুলো ইংরেজির সঙ্গে হুবহু মেলে।
-- অক্ষরের কেসের তিনটি বিকল্প বাংলায় বোঝানো, সঙ্গে বন্ধনীতে ইংরেজি উদাহরণ (“বড় হাতের অক্ষর (UPPERCASE)”, “ছোট হাতের অক্ষর (lowercase)”, “শব্দের প্রথম অক্ষর বড় (Title Case)”), hi, pa আর ta-র মতো, কারণ এগুলো লাতিন ফাইল নামে প্রয়োগ হয়। বাংলা লিপিতে বড় বা ছোট হাতের অক্ষর হয় না।
+- Register: formal “আপনি” (as Apple). Menu items and buttons use the polite
+  imperative: খুলুন, বন্ধ করুন, ট্র্যাশে সরান, শেয়ার করুন…. Menu titles that are
+  not commands are nouns: ফাইল, সম্পাদনা, দেখুন, যান, টুল, উইন্ডো, সহায়তা. The
+  Edit menu is “সম্পাদনা” and the View menu “দেখুন” (as Apple).
+- Edit names (the Crop in “Undo Crop”) are verbal nouns: ক্রপ, বাঁয়ে ঘোরানো,
+  আকার পরিবর্তন. “Undo %@” is “পূর্বাবস্থায় ফেরান: %@” and “Redo %@” is “আবার
+  করুন: %@”; with the colon any name fits without breaking the grammar.
+- Sentences end with the dari “।”. Question mark “?” and colon “:” as in
+  English. Quotation marks “ ” and ellipsis “…” (U+2026). A button or command
+  named inside a sentence, in the UI and in the help, goes in ‘ ’ (‘এই নামে সেভ
+  করুন’, ‘গতি কমান’, ‘মেটাডেটা রাখুন’-এর অধীনে), so an imperative name doesn't
+  run into the sentence. Menu paths are written “ফাইল > ফোল্ডার খুলুন…”.
+- Numbers and words: the classifier “টি” follows the number directly
+  (“%lldটি ছবি”, “%lldটি ফাইল”). A unit symbol follows a space (“%@ px”,
+  “%lld বাইট”, “4 GB”). Case endings attach with a hyphen: “%@-এ”, “Mac-এর”,
+  ““%@”-এর”.
+- Plurals: CLDR bn has `one` (i = 0 or n = 1) and `other`. A Bengali noun
+  doesn't change after a number, so both forms are the same and `one` keeps
+  the number too (0 takes this form). Even where the English `one` form has
+  no number (“The pattern has an unknown token: %2$@.”), the Bengali `one`
+  form keeps `%1$lld`.
+- Word order is SOV. Positional specifiers (%1$@, %2$lld) reorder where
+  needed, as in “%2$lldটির মধ্যে %1$lldটি নির্বাচিত”. A string never mixes
+  positional and plain specifiers.
+- Digits: numbers written in a string (16, 4 GB, 1 থেকে 100) stay in Western
+  digits. Numbers from specifiers come in the system locale's digits. If the
+  locale shows Bengali digits (০–৯), the reviewer should check whether the
+  mix looks odd.
+- Key names stay in English as printed on the keyboard (Return, Esc, Space,
+  Tab, Home, End, Page Up/Down, Shift, Option); glyphs unchanged (⌘ ⌥ ⇧ ⌫ →
+  ←); “Option-ক্লিক”, “⌥-ক্লিক”. This is deliberate (as in ko), so those
+  strings match English.
+- The three letter-case options are explained in Bengali with a Latin
+  example in brackets (“বড় হাতের অক্ষর (UPPERCASE)”, “ছোট হাতের অক্ষর
+  (lowercase)”, “শব্দের প্রথম অক্ষর বড় (Title Case)”), as in hi, pa and ta,
+  because they apply to Latin file names. Bengali script has no letter case.
+- Units: মিটার is written out (“%@ মিটার”), because the abbreviation মি
+  differs from the minutes abbreviation মি. only by the dot.
 
-## পরিভাষা
+## Terms
 
-| English | বাংলা | মন্তব্য |
+| English | Bengali | Note |
 |---|---|---|
-| browser | ব্রাউজার | ফোল্ডার তালিকা আর থাম্বনেল গ্রিডের উইন্ডো |
+| browser | ব্রাউজার | the window with the folder list and the thumbnail grid |
 | viewer | ভিউয়ার | |
 | catalog / ratings database | ক্যাটালগ / রেটিং ডেটাবেস | |
-| collection | সংগ্রহ | সাইডবারের অংশ: “সংগ্রহ” |
-| smart folder | স্মার্ট ফোল্ডার | Finder-এর মতো |
+| collection | সংগ্রহ | sidebar section: “সংগ্রহ” |
+| smart folder | স্মার্ট ফোল্ডার | as in Finder |
 | saved search | সেভ করা অনুসন্ধান | |
 | sidebar / Favorites | সাইডবার / পছন্দসই | |
 | preview pane | প্রিভিউ প্যান | |
 | thumbnail | থাম্বনেল | |
-| cache | ক্যাশ | “ক্যাশে” নয়, ওটা অধিকরণ কারকের মতো শোনায় |
-| drop (drag and drop) | ড্রপ করা | UI আর সহায়তা দুটোতেই |
+| cache | ক্যাশ | not “ক্যাশে”, which sounds like a locative |
+| drop (drag and drop) | ড্রপ করা | in the UI and the help |
 | Make / Lens make / Creator | প্রস্তুতকারক / লেন্সের প্রস্তুতকারক / নির্মাতা | |
 | Altitude / Elevation (light angle) | সমুদ্রপৃষ্ঠ থেকে উচ্চতা / আলোর কোণ | Height = উচ্চতা |
 | filmstrip | ফিল্মস্ট্রিপ | |
-| tag (minivu-র নিজস্ব চিহ্ন) | ট্যাগ | ক্রিয়া: ট্যাগ করুন / ট্যাগ সরান; বিশেষণ: ট্যাগ করা |
+| tag (minivu's own mark) | ট্যাগ | verb: ট্যাগ করুন / ট্যাগ সরান; adjective: ট্যাগ করা |
 | Finder tags | Finder ট্যাগ | |
 | rating / Rate N Stars | রেটিং / %lldটি তারা রেটিং দিন | |
 | star | তারা | |
@@ -46,6 +78,8 @@
 | batch convert | ব্যাচ রূপান্তর | |
 | batch rename | ব্যাচে নাম পরিবর্তন | |
 | rename | নাম পরিবর্তন করুন | |
+| find … replace with … (Batch Rename row) | [খুঁজুন] এর বদলে [প্রতিস্থাপন] | “with” = “এর বদলে” (Y instead of X); the replacement field's label is “প্রতিস্থাপনের টেক্সট” |
+| Remove … / Delete … | … সরান / … মুছুন | মুছুন only for Delete (“এই বৃত্তটি সরান”) |
 | slideshow / transition | স্লাইডশো / ট্রানজিশন | |
 | contact sheet | কন্ট্যাক্ট শিট | |
 | image strip | ছবির স্ট্রিপ | |
@@ -54,28 +88,31 @@
 | watermark | ওয়াটারমার্ক | |
 | preset | প্রিসেট | |
 | edits | সম্পাদনা | |
-| image / picture / photo | ছবি / ছবি / ফটো | “image” আর “picture” দুটোই “ছবি”; ফটো শুধু “photo”-র জন্য |
-| Pictures folder | Pictures | ফোল্ডারের নাম Finder যেমন দেখায় তেমন |
+| image / picture / photo | ছবি / ছবি / ফটো | “image” and “picture” are both ছবি; ফটো only for “photo” |
+| Pictures folder | Pictures | the folder's name as Finder shows it |
 | file / folder | ফাইল / ফোল্ডার | |
 | Trash | ট্র্যাশ | |
 | Move to Trash | ট্র্যাশে সরান | |
 | Put Back | ফিরিয়ে আনুন | |
 | Reveal in Finder | Finder-এ দেখান | |
 | Share… | শেয়ার করুন… | |
-| Quick Look | Quick Look | Apple-এর ফিচারের নাম, এখনকার ক্যাটালগে ব্যবহার নেই |
-| Live Text | লাইভ টেক্সট | রিভিউ: Apple-এর বাংলা নাম মিলিয়ে দেখুন |
+| Quick Look | Quick Look | Apple's feature name, not used in the current catalog |
+| Live Text | লাইভ টেক্সট | review: check Apple's Bengali name |
 | Page Setup… / Print… | পৃষ্ঠা সেটআপ… / প্রিন্ট করুন… | |
-| Save / Save As… / Don’t Save | সেভ করুন / এই নামে সেভ করুন… / সেভ করবেন না | রিভিউ: Apple “সংরক্ষণ করুন” ব্যবহার করলে সব জায়গায় বদলাতে হবে |
+| Save / Save As… / Don’t Save | সেভ করুন / এই নামে সেভ করুন… / সেভ করবেন না | review: if Apple uses “সংরক্ষণ করুন”, change it everywhere |
 | Revert to Saved | সেভ করা অবস্থায় ফিরিয়ে নিন | |
 | Undo / Redo | পূর্বাবস্থায় ফেরান / আবার করুন | |
 | Cut / Copy / Paste / Select All | কাট করুন / কপি করুন / পেস্ট করুন / সবকিছু নির্বাচন করুন | |
 | Duplicate | ডুপ্লিকেট করুন | |
 | Move To / Copy To (submenu) | ফোল্ডারে সরান / ফোল্ডারে কপি করুন | |
-| Enclosing Folder | উপরের ফোল্ডার | “মূল” নয়, যাতে “আসল” (original)-এর সঙ্গে গুলিয়ে না যায় |
-| save over the original | আসল ফাইলের জায়গায় সেভ / ওভাররাইট করা | “উপর সেভ” নয় |
-| Undo-step names (Move %@, Delete %@, Add %@) | %@ সরানো / %@ মুছে ফেলা / %@ যোগ করা | ক্রিয়াবাচক বিশেষ্য, “পূর্বাবস্থায় ফেরান: %@”-এ বসে |
-| From / To (range labels) | শুরু / শেষ | মাঝের “to” = থেকে (“1 থেকে 5”) |
-| Fill (print scaling, canvas) | ভরাট | |
+| Enclosing Folder | উপরের ফোল্ডার | not “মূল”, so it isn't confused with “আসল” (original) |
+| save over the original | আসল ফাইলের জায়গায় সেভ / ওভাররাইট করা | not “উপর সেভ”, in the UI and the help |
+| Undo-step names (Move %@, Delete %@, Add %@) | %@ সরানো / %@ মুছে ফেলা / %@ যোগ করা | verbal nouns, placed after “পূর্বাবস্থায় ফেরান: %@” |
+| From / To (range labels) | শুরু / শেষ | “to” between two values = থেকে (“1 থেকে 5”) |
+| Fill (print scaling, canvas, shape) | ভরাট | |
+| Forever (animation loop) | অবিরাম লুপ | not চিরকাল, which is literary |
+| “A folder named … is in the way” | “… নামে একটি ফোল্ডার আগে থেকেই আছে” | not a literal “in the way” |
+| width by height (VoiceOver) | %1$@ বাই %2$@ | as spoken; গুণ reads as multiplication |
 | Getting Started (help) | শুরুর কথা | |
 | Settings… | সেটিংস… | |
 | Quit minivu / Hide minivu / Hide Others | minivu থেকে প্রস্থান করুন / minivu লুকান / অন্যগুলো লুকান | |
@@ -85,22 +122,23 @@
 | window | উইন্ডো | |
 | Services | পরিষেবা | |
 | AirDrop, Messages, Mail | AirDrop, বার্তা, মেল | |
-| Reduce Motion | গতি কমান | রিভিউ: Apple-এর অ্যাক্সেসিবিলিটির নাম মিলিয়ে দেখুন |
+| Reduce Motion | গতি কমান | review: check Apple's accessibility name |
 | Privacy & Security / Screen & System Audio Recording | গোপনীয়তা ও নিরাপত্তা / স্ক্রিন ও সিস্টেম অডিও রেকর্ডিং | |
 | System Settings | সিস্টেম সেটিংস | |
-| RAW / HDR / SDR | RAW / HDR / SDR | লাতিন অক্ষরে |
+| RAW / HDR / SDR | RAW / HDR / SDR | in Latin letters |
 | metadata / keywords / caption / title / creator / copyright | মেটাডেটা / কীওয়ার্ড / ক্যাপশন / শিরোনাম / নির্মাতা / কপিরাইট | |
 | location | লোকেশন | “GPS position”: GPS অবস্থান; “place names”: স্থানের নাম |
 | date taken / date modified / date created | তোলার তারিখ / পরিবর্তনের তারিখ / তৈরির তারিখ | |
 | sidecar | সাইডকার | XMP সাইডকার |
 | gain map / tone mapped | গেইন ম্যাপ / টোন ম্যাপ করা | |
+| shadows / highlights | শ্যাডো / হাইলাইট | the same words in the UI and the help (not ছায়া) |
 | magnifier | ম্যাগনিফায়ার | |
 | Levels / Curves | লেভেলস / কার্ভস | |
 | Lighting / Colors | আলো / রং | |
 | Clone Stamp / Healing Brush | ক্লোন স্ট্যাম্প / হিলিং ব্রাশ | |
 | Red-Eye Removal | রেড-আই অপসারণ | |
 | Remove Background | ব্যাকগ্রাউন্ড সরান | |
-| Frame (effect) / frame (video, animation) | ফ্রেম / ফ্রেম | বাংলায় একই শব্দ; প্রসঙ্গ দেখে বোঝা যায় |
+| Frame (effect) / frame (video, animation) | ফ্রেম / ফ্রেম | one word in Bengali; the context tells them apart |
 | Text and Shapes | টেক্সট এবং আকৃতি | |
 | canvas / anchor | ক্যানভাস / অ্যাঙ্কর | |
 | Find Duplicates | ডুপ্লিকেট খুঁজুন | |
@@ -118,11 +156,15 @@
 | Export Slideshow Video… | স্লাইডশো ভিডিও এক্সপোর্ট করুন… | |
 | Extract Pages… / Create Multi-Page File… | পৃষ্ঠা বের করুন… / মাল্টি-পেজ ফাইল তৈরি করুন… | |
 | Identical Files / Similar Images / Similarity | অভিন্ন ফাইল / অনুরূপ ছবি / সাদৃশ্য | |
-| Mark Suggested | প্রস্তাব অনুযায়ী চিহ্নিত করুন | রাখার জন্য প্রস্তাবিত ফাইল ছাড়া বাকিগুলো চিহ্নিত করে |
+| Mark Suggested | প্রস্তাব অনুযায়ী চিহ্নিত করুন | marks every file except the ones suggested to keep |
 | Count Colors | রং গুনুন | |
 | codec / frame rate / data rate | কোডেক / ফ্রেম রেট / ডেটা রেট | |
 | mute / unmute | মিউট করুন / আনমিউট করুন | |
 
-## ইংরেজিতে রাখা শব্দ
+## Left in English
 
-minivu, Finder, Spotlight, Mac, Safari, এবং অন্য ব্র্যান্ড ও অ্যাপের নাম। ফরম্যাটের নাম (JPEG, HEIC, TIFF, PDF, XMP, EXIF, IPTC, sRGB, Display P3…)। ডিস্কে লেখা নাম (minivu Wallpapers, Pictures)। প্যাটার্ন টোকেন ({name} ইত্যাদি)। অক্ষাংশ ও দ্রাঘিমাংশের দিক N/S/E/W। একক চিহ্ন (px, MP, fps, Mbit/s, pt, dpi)। কী-এর নাম। কাগজের মাপ US Letter, A4।
+minivu, Finder, Spotlight, Mac, Safari and other brand and app names.
+Format names (JPEG, HEIC, TIFF, PDF, XMP, EXIF, IPTC, sRGB, Display P3…).
+Names written to disk (minivu Wallpapers, Pictures). Pattern tokens ({name}
+and the others). The latitude and longitude letters N/S/E/W. Unit symbols
+(px, MP, fps, Mbit/s, pt, dpi). Key names. The paper sizes US Letter and A4.

@@ -173,11 +173,12 @@ wczytać plik ponownie.
 minivu dodaje czynności do aplikacji Skróty: **Konwertuj obrazy**, **Zmień
 rozmiar obrazów**, **Zmień nazwy obrazów**, **Ustaw ocenę**, **Ustaw etykietę
 kolorową** i **Otwórz w minivu**. Wyszukaj „minivu” wśród czynności w aplikacji
-Skróty, aby używać ich we własnych skrótach. Uruchomienie takiego skrótu otwiera
-minivu, jeśli nie jest otwarte. Czynności działają tylko z plikami na
-wewnętrznym dysku Maca. **Zmień nazwy obrazów** działa tylko w folderze Obrazki
-i w folderach z paska bocznego minivu; jeśli którykolwiek plik jest gdzie
-indziej, nie zmienia nazwy żadnego.
+Skróty, aby używać ich we własnych skrótach. Jeśli minivu nie jest otwarte,
+skrót uruchamia je bez okna, a minivu kończy działanie minutę po ostatniej
+czynności; **Otwórz w minivu** otwiera okna jak zwykle. Czynności działają tylko
+z plikami na wewnętrznym dysku Maca. **Zmień nazwy obrazów** działa tylko w
+folderze Obrazki i w folderach z paska bocznego minivu; jeśli którykolwiek plik
+jest gdzie indziej, nie zmienia nazwy żadnego.
 
 Aby używać skrótu z Findera, utwórz skrót, który odbiera obrazy, i włącz w jego
 szczegółach **Użyj jako szybkiej czynności**. Pojawi się wtedy w menu podręcznym

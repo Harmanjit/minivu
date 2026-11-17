@@ -1,63 +1,104 @@
-# minivu தமிழ் (ta) சொற்களஞ்சியம்
+# minivu Tamil (ta) glossary
 
-Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder, புகைப்படங்கள், முன்னோட்டம்) சொற்களைப் பின்பற்றுகிறது.
-அனைத்தும் இயந்திர மொழிபெயர்ப்பு; தாய்மொழி பேசுபவரின் மதிப்பாய்வு தேவை.
+Follows the terms of Apple's macOS in Tamil (Finder, Photos, Preview) where
+they could be found. Everything is a machine translation and needs review by
+a native Tamil speaker. The Tamil words below are the ones the catalog and
+the help pages use; the notes say why.
 
-## எழுத்து விதிகள்
+## Writing rules
 
-- மரியாதைப் பன்மை (“நீங்கள்”): வாக்கியங்களில் வினைகள் “-ங்கள்” வடிவத்தில் (தேர்ந்தெடுங்கள், கிளிக் செய்யுங்கள்). மெனு உருப்படிகளும் பொத்தான்களும் Apple போலவே சுருக்கமான ஏவல் வடிவம் (திற, சேமி, நகலெடு, குப்பைக்கு நகர்த்து). கேள்விகள் “-வா?” (நீக்கவா?, மாற்றியமைக்கவா?).
-- நடை: இன்றைய மென்பொருள் தமிழ்; இலக்கிய அல்லது அதிக சமஸ்கிருதச் சொற்கள் தவிர்க்கப்பட்டன. அன்றாடம் பயன்படும் ஆங்கிலச் சொற்கள் தமிழ் எழுத்தில்: ஃபைல், ஃபோல்டர், பிக்சல், கேமரா, வீடியோ, டிஸ்பிளே, மெட்டாடேட்டா, ஸ்லைடுஷோ.
-- வேற்றுமை உருபுகள் லத்தீன் எழுத்து, குறியீடு அல்லது மேற்கோள் குறிக்குப் பின் இணைப்புக்கோட்டுடன்: “%@”-ஐ, minivu-இல், %@-க்கு, Finder-இல், 100%-க்கு, %@-ஆக, SDR-ஆக.
-- சொல் வரிசை SOV; தேவையான இடங்களில் நிலைசார் குறிப்பான்கள் (%1$@, %2$lld). “X of Y” → “%2$lld-இல் %1$lld”; முன்னேற்ற உரை “… %2$lld-இல் %1$lld”.
-- மேற்கோள் குறிகள் “ ” (Apple போல). மெனு பாதை: ஃபைல் > ஃபோல்டரைத் திற…. நீள்புள்ளி “…” (U+2026) வைக்கப்பட்டது.
-- கீ பெயர்கள் கீபோர்டில் உள்ளபடி சிறிய எழுத்து ஆங்கிலத்தில் (return, esc, space, tab, home, end, page up/down, shift, option); குறியீடுகள் (⌘ ⌥ ⇧ ⌫ → ←) அப்படியே. எழுத்துக் கீகள் (P, T, F) அப்படியே.
-- பன்மை: CLDR `one` (சரியாக 1) மற்றும் `other`. `one` வடிவமும் எண்ணை வைத்திருக்கிறது (%lld படம் / %lld படங்கள்); ஒரே ஒரு விதிவிலக்கு: “The pattern has an unknown token” — `one` வடிவம் எண் இல்லாமல் “டோக்கன் ஒன்று”.
-- அலகுகள்: px, MP, fps, Mbit/s, pt, dpi லத்தீனில்; மீ (மீட்டர்), மி.மீ., வி. (வினாடி), நிமி., ம.நே. தமிழில்.
+- Respectful plural (“நீங்கள்”): verbs in sentences take the “-ங்கள்” form
+  (தேர்ந்தெடுங்கள், கிளிக் செய்யுங்கள்). Menu items and buttons use the short
+  imperative, as Apple does (திற, சேமி, நகலெடு, குப்பைக்கு நகர்த்து). Questions
+  end in “-வா?” (நீக்கவா?, “…-க்குப் பதிலாகப் புதிய ஃபைலை வைக்கவா?”).
+- Style: present-day software Tamil; literary and heavily Sanskritised words
+  are avoided. Everyday English loanwords are written in Tamil script: ஃபைல்,
+  ஃபோல்டர், பிக்சல், கேமரா, வீடியோ, டிஸ்பிளே, மெட்டாடேட்டா, ஸ்லைடுஷோ, பூஸ்ட்.
+- Case endings after Latin letters, symbols or quotation marks take a hyphen:
+  “%@”-ஐ, minivu-இல், %@-க்கு, Finder-இல், 100%-க்கு, %@-ஆக, SDR-ஆக.
+- Word order is SOV, with positional specifiers where needed (%1$@, %2$lld).
+  “X of Y” is “%2$lld-இல் %1$lld”; progress text “… %2$lld-இல் %1$lld”. When
+  the first number may be 1, it takes no noun (“%2$lld ஃபைல்களில்
+  %1$lld-இன் பெயர்…”), so “1 ஃபைல்களின்” can't happen.
+- Quotation marks “ ” (as Apple). Menu paths: ஃபைல் > ஃபோல்டரைத் திற….
+  Ellipsis “…” (U+2026) kept.
+- Key names are lowercase English, as printed on the Mac keyboard (return,
+  esc, space, tab, home, end, page up/down, shift, option, control), also in
+  the help (“option-கிளிக்”, “control-கிளிக்”); glyphs (⌘ ⌥ ⇧ ⌫ → ←) and
+  letter keys (P, T, F) unchanged.
+- Plurals: CLDR `one` (exactly 1) and `other`. The `one` form keeps the
+  number too (%lld படம் / %lld படங்கள்). One exception: “The pattern has an
+  unknown token”, whose `one` form is “டோக்கன் ஒன்று” without the number.
+- Units: px, MP, fps, Mbit/s, pt, dpi in Latin; மீ (metre), மி.மீ.
+  (millimetre), வி. (second), நிமி. (minute), ம.நே. (hour) in Tamil.
 
-## சொற்கள்
+## Replace and overwrite
 
-| English | தமிழ் | குறிப்பு |
+மாற்றியமை is the label of the Replace button only. In a sentence it reads
+as “modify, edit”, so a sentence or question about replacing a file never
+uses it:
+
+- Replace questions: “…-க்குப் பதிலாகப் புதிய ஃபைலை வைக்கவா?” (put the new
+  file in place of …), also for the copy and move conflict (“நீங்கள்
+  நகலெடுக்கும் உருப்படியை அதற்குப் பதிலாக வைக்கவா?”).
+- Replace in statements and errors: “X-க்குப் பதிலாக Y-ஐ வை” (“%@-க்குப் பதிலாக
+  ஒரு ஃபோல்டரை வைக்க முடியாது”).
+- Save over / overwrite a file: “… மேல் சேமி” / “… மேல் எழுது” (“அசலின் மேல்
+  சேமிக்கும் முன் கேள்”); a permanent overwrite in help is “நிரந்தரமாக
+  மேலெழுதும்”.
+- Sentences with convert (மாற்று) never use மாற்றியமை either: “அசலுக்குப்
+  பதிலாக மாற்றப்பட்ட ஃபைலை வைக்கவா?”. The replaced file is “பழைய ஃபைல்”.
+- Put பதிலாக (instead) after the thing being replaced, never after a
+  “-க்கும் … -க்கும்” list, where it reads as “instead of these files”: “RAW
+  ஃபைல்களுக்கும் … வடிவமைப்புகளுக்கும், அதற்குப் பதிலாக … XMP சைட்கார்”.
+
+## Terms
+
+| English | Tamil | Note |
 |---|---|---|
-| browser | உலாவி | ஃபோல்டர் பட்டியலும் சிறுபடக் கட்டமும் உள்ள சாளரம் |
-| viewer | பார்வையி | ஒரு படத்தைக் காட்டும் சாளரம் |
-| catalog | கேட்டலாக் | மதிப்பீடுகள், டேக்குகள், தனிப்பயன் வரிசையின் தரவுத்தளம் |
+| browser | உலாவி | the window with the folder list and the thumbnail grid |
+| viewer | பார்வையி | the window that shows one image |
+| catalog | கேட்டலாக் | the database of ratings, tags and custom order |
 | ratings database | மதிப்பீட்டுத் தரவுத்தளம் | |
 | collection | தொகுப்பு | |
-| smart folder | ஸ்மார்ட் ஃபோல்டர் | Finder போல |
+| smart folder | ஸ்மார்ட் ஃபோல்டர் | as in Finder |
 | saved search | சேமித்த தேடல் | |
 | sidebar | பக்கப்பட்டி | |
-| Favorites | பிடித்தவை | Finder பக்கப்பட்டித் தலைப்பு |
+| Favorites | பிடித்தவை | Finder sidebar heading |
 | preview pane | முன்னோட்டப் பலகம் | |
 | thumbnail | சிறுபடம் | |
 | filmstrip | ஃபிலிம்ஸ்ட்ரிப் | |
-| tag (minivu-இன் தேர்வுக் குறி) | டேக் | வினை: டேக் செய் / டேக்கை நீக்கு; டேக் செய்யப்பட்டது |
-| Finder tags | Finder குறிச்சொற்கள் | minivu டேக்கிலிருந்து வேறுபடுத்த |
+| tag (minivu's pick mark) | டேக் | verb: டேக் செய் / டேக்கை நீக்கு; tagged: டேக் செய்யப்பட்டது |
+| Finder tags | Finder குறிச்சொற்கள் | kept apart from minivu's tag |
 | rating / Rate N Stars | மதிப்பீடு / %lld நட்சத்திர மதிப்பீடு கொடு | |
 | star | நட்சத்திரம் | |
 | label / colour label | லேபிள் / வண்ண லேபிள் | |
 | Red, Orange, Yellow, Green, Blue, Purple, Gray | சிவப்பு, ஆரஞ்சு, மஞ்சள், பச்சை, நீலம், ஊதா, சாம்பல் | |
-| crop (verb / edit name) | செதுக்கு / செதுக்கல் | Photos போல |
+| crop (verb / edit name) | செதுக்கு / செதுக்கல் | as in Photos |
 | straighten | நேராக்கு | |
 | resize | அளவை மாற்று | |
 | rotate left / right | இடப்புறம் சுழற்று / வலப்புறம் சுழற்று | |
 | flip horizontal / vertical | கிடைமட்டமாகப் புரட்டு / செங்குத்தாகப் புரட்டு | |
-| batch convert | மொத்தமாக மாற்று (பெயர்ச்சொல்: மொத்தமாக மாற்றுதல்) | |
-| Replace (button) / replace (in sentences) | மாற்றியமை / “X-க்குப் பதிலாக Y-ஐ வை” | Replace கேள்விகள் எப்போதும் “…-க்குப் பதிலாகப் புதிய ஃபைலை வைக்கவா?” (மாற்றியமை என்பது “திருத்து” எனவும் படிக்கப்படும்); convert (மாற்று) உள்ள வாக்கியங்களிலும் மாற்றியமை வேண்டாம்: “அசலுக்குப் பதிலாக மாற்றப்பட்ட ஃபைலை வைக்கவா?”; replaced file = பழைய ஃபைல் |
+| batch convert | மொத்தமாக மாற்று (noun: மொத்தமாக மாற்றுதல்) | |
+| Replace (button) / replace (in sentences) | மாற்றியமை / “X-க்குப் பதிலாக Y-ஐ வை” | see “Replace and overwrite” above |
+| save over, overwrite | … மேல் சேமி / மேலெழுது | see “Replace and overwrite” above |
 | deselect / delete the selection | தேர்வை விலக்கு / தேர்ந்தெடுத்தவற்றை நீக்கு | |
-| Copy To / Move To (submenu) | ஃபோல்டருக்கு நகலெடு / ஃபோல்டருக்கு நகர்த்து | “இங்கே” அல்ல |
+| Copy To / Move To (submenu) | ஃபோல்டருக்கு நகலெடு / ஃபோல்டருக்கு நகர்த்து | not “இங்கே” |
 | Retouch / Effects & Retouching | ரீடச் / எஃபெக்ட்களும் ரீடச்சும் | சீரமை = align |
 | Capture (submenu) | திரைப் பிடிப்பு | |
 | Remove Tag | டேக்கை நீக்கு | |
 | Aperture | துளை (அபர்ச்சர்) / அபர்ச்சர் | |
 | Animated GIF / Animated HEIC | அனிமேஷன் GIF / அனிமேஷன் HEIC | |
-| Theme / appearance: Bright, Light, Dark | ஒளிர்வான, ஒளிர்வான, இருண்ட | Bright = ஆப்பின் தீம், Light = வலைக் கேலரி தோற்றம்; இரண்டும் ஒரே இடத்தில் வருவதில்லை |
+| Theme / appearance: Bright, Light, Dark | ஒளிர்வான, ஒளிர்வான, இருண்ட | Bright is the app theme, Light the web gallery look; they never appear in the same place |
 | Light (font weight) / Light (Bump Map section) | மெல்லிய / ஒளி | |
 | hidden files / cache | மறைக்கப்பட்ட ஃபைல்கள் / தற்காலிகச் சேமிப்பு | |
 | Drop Shadow | விழும் நிழல் | Shadows (Levels) = நிழல்கள் |
-| standard (dynamic range, print panel) | நிலையான | “தர” அல்ல (அது quality) |
-| range “to” (between two fields) / rename “with” (find → replace) | – / → | ja, ko போலக் குறியீடுகள்; இயல்பாகப் படிக்கிறதா என்று தமிழ் மதிப்பாய்வாளர் சரிபார்க்க வேண்டும் |
+| standard (dynamic range, print panel) | நிலையான | not “தர” (that is quality) |
+| range “to” (between two fields) / rename “with” (find → replace) | – / → | symbols, as in ja and ko; the reviewer should check they read naturally |
+| find and replace (Batch Rename) / replacement text | கண்டறிந்து மாற்றுதல் / மாற்று உரை | not மாற்றியமைத்தல் |
 | batch rename | மொத்தமாகப் பெயர்மாற்று | |
-| rename | பெயர்மாற்று | “பெயரை மாற்று” அல்ல: “படங்களைப் பெயர்மாற்று”, “முன்னமைவைப் பெயர்மாற்று” |
+| rename | பெயர்மாற்று | not “பெயரை மாற்று”: “படங்களைப் பெயர்மாற்று”, “முன்னமைவைப் பெயர்மாற்று” |
+| sheet (dialog attached to a window) | தாள் | as in the UI (“இந்தத் தாளை அப்படியே சேமியுங்கள்”); not the transliteration ஷீட் |
 | slideshow | ஸ்லைடுஷோ | |
 | transition | மாற்றம் / மாற்ற விளைவு | |
 | contact sheet | தொடர்புத் தாள் | |
@@ -69,7 +110,7 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 | preset | முன்னமைவு | |
 | edits | திருத்தங்கள் | |
 | image / picture / photo | படம் / படம் / புகைப்படம் | |
-| Pictures folder | Pictures | வட்டில் உள்ள ஃபோல்டர் பெயர், மாற்றப்படவில்லை |
+| Pictures folder | Pictures | the folder's name on disk, not translated |
 | file / folder | ஃபைல் / ஃபோல்டர் | |
 | item | உருப்படி | |
 | window | சாளரம் | |
@@ -92,10 +133,10 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 | Zoom In / Zoom Out / Actual Size / Fit to Window | பெரிதாக்கு / சிறிதாக்கு / உண்மையான அளவு / சாளரத்துக்குப் பொருத்து | |
 | zoom (noun) / magnification | பெரிதாக்கல் / உருப்பெருக்கம் | |
 | menus File, Edit, View, Go, Image, Tools, Window, Help | ஃபைல், திருத்து, காட்சி, செல், படம், கருவிகள், சாளரம், உதவி | |
-| Quick Look | Quick Look | (தற்போதைய கேட்டலாக்கில் இல்லை) |
+| Quick Look | Quick Look | not in the current catalog |
 | Live Text | நேரடி உரை | |
 | Services | சேவைகள் | |
-| AirDrop, Messages, Mail | AirDrop, Messages, Mail | Apple பெயர்கள் |
+| AirDrop, Messages, Mail | AirDrop, Messages, Mail | Apple names |
 | Reduce Motion | இயக்கத்தைக் குறை | |
 | Screen & System Audio Recording | திரை & சிஸ்டம் ஆடியோ பதிவு | |
 | Privacy & Security | தனியுரிமை & பாதுகாப்பு | |
@@ -106,6 +147,7 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 | sidecar | சைட்கார் | XMP சைட்கார் |
 | gain map / tone mapped | கெயின் மேப் / டோன் மேப் செய்யப்பட்ட | |
 | highlights / shadows | ஹைலைட்கள் / நிழல்கள் | |
+| Boost (RAW) | பூஸ்ட் | the amount of the camera's contrast curve; not ஊக்கம் (“encouragement”) |
 | magnifier | உருப்பெருக்கி | |
 | Levels / Curves | நிலைகள் / வளைவுகள் | |
 | Lighting / Colors | ஒளியமைப்பு / வண்ணங்கள் | |
@@ -114,7 +156,11 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 | Remove Background | பின்னணியை அகற்று | |
 | Frame (effect) / frame (video, animation) | சட்டகம் / ஃபிரேம் | |
 | Text and Shapes | உரையும் வடிவங்களும் | |
+| Stroke (shape) / Outline (text) / Fill | வெளிக்கோடு / வெளிக்கோடு / நிரப்பு | Stroke and Outline never share a panel (shapes show Stroke, text shows Outline) |
 | canvas / anchor | கேன்வாஸ் / நங்கூரம் | |
+| Forever (animation loop) | முடிவின்றி | not எப்போதும் (“always”) |
+| min / max (range placeholders) | குறைந்தபட்சம் / அதிகபட்சம் | |
+| “… and N more” | இன்னும் %lld | the same wording for “%lld more” and “…and %lld more.” |
 | Find Duplicates | நகல்களைக் கண்டறி | |
 | Flat View | தட்டைக் காட்சி | |
 | external editor | வெளிப்புற எடிட்டர் | |
@@ -140,9 +186,14 @@ Apple-இன் macOS தமிழ்ப் பதிப்பின் (Finder,
 | Count Colors | வண்ணங்களை எண்ணு | |
 | codec / frame rate / data rate | கோடெக் / ஃபிரேம் வீதம் / தரவு வீதம் | |
 | mute / unmute | முடக்கு / ஒலியை இயக்கு | |
-| pattern / token / counter | பேட்டர்ன் / டோக்கன் / எண்ணி | பெயர்மாற்றம் |
-| app | ஆப் (பன்மை: ஆப்ஸ்) | |
+| pattern / token / counter | பேட்டர்ன் / டோக்கன் / எண்ணி | Batch Rename |
+| app | ஆப் (plural: ஆப்ஸ்) | |
 
-## ஆங்கிலத்தில் வைக்கப்பட்டவை
+## Left in English
 
-minivu; வடிவமைப்புப் பெயர்கள் (JPEG, HEIC, TIFF, GIF…); RAW, HDR, SDR, GPS, ISO, DPI, XMP, IPTC, EXIF; Apple தயாரிப்பு, அம்சப் பெயர்கள் (Mac, Finder, Spotlight, Safari, AirDrop, Messages, Mail, Liquid Retina XDR, Pro Display XDR, Display P3); வட்டில் எழுதப்படும் பெயர்கள் (Pictures › minivu Wallpapers); பேட்டர்ன் டோக்கன்கள் ({name} முதலியன); EXIF திசைக் குறிகள் N/S/E/W; அலகுக் குறியீடுகள் (px, MP, fps, Mbit/s, kbit/s, pt, dpi).
+minivu; format names (JPEG, HEIC, TIFF, GIF…); RAW, HDR, SDR, GPS, ISO,
+DPI, XMP, IPTC, EXIF; Apple product and feature names (Mac, Finder,
+Spotlight, Safari, AirDrop, Messages, Mail, Liquid Retina XDR, Pro Display
+XDR, Display P3); names written to disk (Pictures › minivu Wallpapers);
+pattern tokens ({name} and the others); the EXIF compass letters N/S/E/W;
+unit symbols (px, MP, fps, Mbit/s, kbit/s, pt, dpi).

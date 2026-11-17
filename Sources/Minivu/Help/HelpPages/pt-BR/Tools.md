@@ -170,11 +170,12 @@ mantê-las ou recarregar.
 O minivu adiciona ações ao app Atalhos: **Converter Imagens**, **Redimensionar
 Imagens**, **Renomear Imagens**, **Definir Classificação**, **Definir Etiqueta
 de Cor** e **Abrir no minivu**. Busque “minivu” nas ações do app Atalhos para
-usá-las nos seus próprios atalhos. Executar um desses atalhos abre o minivu se
-ele não estiver aberto. As ações só funcionam com arquivos no armazenamento
-interno do seu Mac. **Renomear Imagens** só funciona na sua pasta Imagens e nas
-pastas da barra lateral do minivu; se algum arquivo estiver em outro lugar,
-nenhum é renomeado.
+usá-las nos seus próprios atalhos. Se o minivu não estiver aberto, um atalho o
+inicia sem nenhuma janela, e ele é encerrado um minuto após a última ação;
+**Abrir no minivu** abre as janelas normalmente. As ações só funcionam com
+arquivos no armazenamento interno do seu Mac. **Renomear Imagens** só funciona
+na sua pasta Imagens e nas pastas da barra lateral do minivu; se algum arquivo
+estiver em outro lugar, nenhum é renomeado.
 
 Para usar um atalho no Finder, crie um que receba imagens e ative **Usar como
 Ação Rápida** nos detalhes dele. Ele passa a aparecer no menu de contexto do
